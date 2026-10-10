@@ -1,0 +1,8 @@
+{
+  "id": "sample-card-123",
+  "name": "Implement authentication API",
+  "desc": "Create login and register endpoints",
+  "idMembers": ["user-trello-1", "user-trello-2"],
+  "closed": false,
+  "due": "2026-10-15T00:00:00.000Z"
+}
