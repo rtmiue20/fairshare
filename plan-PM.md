@@ -194,23 +194,23 @@
 
 Thang điểm: Xác suất (1–5) × Tác động (1–5) → Điểm; ≥ 15 Cao, 8–14 Trung bình, < 8 Thấp.
 
-| ID | Rủi ro | Xác suất | Tác động | Mức độ | Owner | Biện pháp ứng phó | Loại | Trạng thái |
-|---|---|---|---|---|---|---|---|---|
-| R01 | Google OAuth/giới hạn quyền truy cập Docs làm tích hợp không khả thi | 4 | 4 | Cao | Backend/API | Spike ở Tuần 3; chạy chế độ Testing; dự phòng: import CSV hoặc chỉ đếm revision | Mitigate | Open |
-| R02 | API Trello thay đổi/giới hạn rate limit/lỗi đồng bộ | 3 | 4 | Cao | Backend/API | Lớp adapter riêng, lưu dữ liệu thô, retry, mock API khi test | Mitigate | Open |
-| R03 | Vi phạm quyền riêng tư (thu thập dữ liệu khi chưa có đồng ý, dùng dữ liệu thật khi demo) | 3 | 5 | Cao | PM chính + BA | Consent rõ ràng, dữ liệu mẫu, chỉ lấy dữ liệu tối thiểu, chính sách xóa dữ liệu (tham chiếu Nghị định 13/2023/NĐ-CP) | Avoid | Open |
+| ID | Rủi ro | Xác suất | Tác động | Mức độ | Owner | Biện pháp ứng phó                                                                                                                                   | Loại | Trạng thái |
+|---|---|---|---|---|---|-----------------------------------------------------------------------------------------------------------------------------------------------------|---|---|
+| R01 | Google OAuth/giới hạn quyền truy cập Docs làm tích hợp không khả thi | 4 | 4 | Cao | Backend/API | Spike ở Tuần 3; chạy chế độ Testing; dự phòng: import CSV hoặc chỉ đếm revision                                                                     | Mitigate | Open |
+| R02 | API Trello thay đổi/giới hạn rate limit/lỗi đồng bộ | 3 | 4 | Cao | Backend/API | Viết module tạm thời tương tự các tính năng API của Trello để chữa cháy tạm thời nhưng vẫn đảm bảo vận hành tốt.                                    | Mitigate | Open |
+| R03 | Vi phạm quyền riêng tư (thu thập dữ liệu khi chưa có đồng ý, dùng dữ liệu thật khi demo) | 3 | 5 | Cao | PM chính + BA | Consent rõ ràng, dữ liệu mẫu, chỉ lấy dữ liệu tối thiểu, chính sách xóa dữ liệu (tham chiếu Nghị định 13/2023/NĐ-CP)                                | Avoid | Open |
 | R04 | Chấm chéo "ẩn danh" bị lộ do nhóm nhỏ | 4 | 4 | Cao | BA + Database | Ngưỡng tổng hợp ≥ 3 lượt, chỉ hiển thị trung bình, không lưu liên kết trực tiếp người chấm–người được chấm trong giao diện, ghi rõ giới hạn ẩn danh | Mitigate | Open |
-| R05 | Gian lận dữ liệu (tạo task giả, chia nhỏ task, chỉnh sửa vô nghĩa) | 4 | 4 | Cao | BA | Trọng số theo độ khó, phát hiện bất thường, cho phép phản đối, khai báo thủ công cần xác nhận | Mitigate | Open |
-| R06 | Công thức đóng góp bị cho là thiếu công bằng/khó giải thích | 4 | 4 | Cao | BA | Công thức minh bạch, hiển thị chi tiết, thử nghiệm với dữ liệu thật của nhóm, thu thập phản hồi | Mitigate | Open |
-| R07 | Scope creep (thêm tính năng ngoài MVP) | 4 | 3 | TB | PM chính | Scope Statement, danh sách Out of scope, Change Request bắt buộc | Avoid | Open |
-| R08 | Ước lượng sai effort, trễ tiến độ do chỉ có 4 sprint | 4 | 4 | Cao | PM chính | Buffer 20–30%, ưu tiên MVP, cắt tính năng có điều kiện | Mitigate | Open |
-| R09 | Thành viên thiếu kỹ năng với tích hợp API/bảo mật | 3 | 3 | TB | PM chính | Phân công theo thế mạnh, pair programming, tài liệu hướng dẫn | Mitigate | Open |
-| R10 | Thành viên vắng/quá tải do lịch học và thi | 4 | 3 | TB | PM chính | Lịch họp linh hoạt, người dự phòng cho mỗi phân hệ, theo dõi workload | Mitigate | Open |
-| R11 | Tích hợp muộn, lỗi phát hiện trễ | 3 | 4 | Cao | QA & Deploy | Tích hợp liên tục, vertical slice ngay Sprint 1, CI chạy test | Mitigate | Open |
-| R12 | Không tìm đủ người dùng thử cho UAT | 3 | 3 | TB | BA | Liên hệ sớm các nhóm khác, chuẩn bị bản demo có dữ liệu mẫu, khảo sát online | Mitigate | Open |
-| R13 | Mất dữ liệu/code, mất truy cập hạ tầng | 2 | 5 | TB | QA & Deploy | Git remote, backup CSDL, tài liệu triển khai | Mitigate | Open |
-| R14 | Xung đột nội bộ, đánh giá lẫn nhau căng thẳng | 3 | 3 | TB | PM chính | Team Charter, retrospective, trao đổi thẳng thắn, PCG/GV hỗ trợ khi cần | Mitigate | Open |
-| R15 | Bị coi là copy/AI chưa kiểm chứng, vi phạm quy định | 2 | 5 | TB | PM chính | Tự viết nội dung, kiểm tra đầu ra AI, kiểm tra đạo văn trên LMS, ghi rõ nguồn tham khảo | Avoid | Open |
+| R05 | Gian lận dữ liệu (tạo task giả, chia nhỏ task, chỉnh sửa vô nghĩa) | 4 | 4 | Cao | BA | Trọng số theo độ khó, phát hiện bất thường, cho phép phản đối, khai báo thủ công cần xác nhận                                                       | Mitigate | Open |
+| R06 | Công thức đóng góp bị cho là thiếu công bằng/khó giải thích | 4 | 4 | Cao | BA | Công thức minh bạch, hiển thị chi tiết, thử nghiệm với dữ liệu thật của nhóm, thu thập phản hồi                                                     | Mitigate | Open |
+| R07 | Scope creep (thêm tính năng ngoài MVP) | 4 | 3 | TB | PM chính | Scope Statement, danh sách Out of scope, Change Request bắt buộc                                                                                    | Avoid | Open |
+| R08 | Ước lượng sai effort, trễ tiến độ do chỉ có 4 sprint | 4 | 4 | Cao | PM chính | Buffer 20–30%, ưu tiên MVP, cắt tính năng có điều kiện                                                                                              | Mitigate | Open |
+| R09 | Thành viên thiếu kỹ năng với tích hợp API/bảo mật | 3 | 3 | TB | PM chính | Phân công theo thế mạnh, pair programming, tài liệu hướng dẫn                                                                                       | Mitigate | Open |
+| R10 | Thành viên vắng/quá tải do lịch học và thi | 4 | 3 | TB | PM chính | Lịch họp linh hoạt, người dự phòng cho mỗi phân hệ, theo dõi workload                                                                               | Mitigate | Open |
+| R11 | Tích hợp muộn, lỗi phát hiện trễ | 3 | 4 | Cao | QA & Deploy | Tích hợp liên tục, vertical slice ngay Sprint 1, CI chạy test                                                                                       | Mitigate | Open |
+| R12 | Không tìm đủ người dùng thử cho UAT | 3 | 3 | TB | BA | Liên hệ sớm các nhóm khác, chuẩn bị bản demo có dữ liệu mẫu, khảo sát online                                                                        | Mitigate | Open |
+| R13 | Mất dữ liệu/code, mất truy cập hạ tầng | 2 | 5 | TB | QA & Deploy | Git remote, backup CSDL, tài liệu triển khai                                                                                                        | Mitigate | Open |
+| R14 | Xung đột nội bộ, đánh giá lẫn nhau căng thẳng | 3 | 3 | TB | PM chính | Team Charter, retrospective, trao đổi thẳng thắn, PCG/GV hỗ trợ khi cần                                                                             | Mitigate | Open |
+| R15 | Bị coi là copy/AI chưa kiểm chứng, vi phạm quy định | 2 | 5 | TB | PM chính | Tự viết nội dung, kiểm tra đầu ra AI, kiểm tra đạo văn trên LMS, ghi rõ nguồn tham khảo                                                             | Avoid | Open |
 
 > Khi rủi ro xảy ra, chuyển thành Issue trong Issue Log và ghi hành động khắc phục.
 
