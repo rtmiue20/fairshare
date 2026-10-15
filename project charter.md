@@ -1,155 +1,154 @@
 # BỘ HỒ SƠ QUẢN LÝ DỰ ÁN – TUẦN 1
-## PROJECT CHARTER (ĐIỀU LỆ DỰ ÁN)
+## PROJECT CHARTER (HIẾN CHƯƠNG DỰ ÁN)
 
-**Học phần:** Quản lý dự án CNTT – Đại học Kinh tế TP.HCM (UEH)  
-**Giảng viên hướng dẫn:** TS. Nguyễn Mạnh Tuấn  
-**Đề tài:** FairShare – Nền tảng minh bạch hóa đóng góp trong dự án nhóm  
-**Nhóm thực hiện:** Nhóm 7 (6 thành viên)  
-**Phiên bản:** 0.1 – Bản khởi động tuần 1  
-
----
-
-### 1. Thông tin chung (General Information)
-
-| Thành phần | Nội dung |
-|---|---|
-| **Project Title** | FairShare – Nền tảng minh bạch hóa đóng góp trong dự án nhóm |
-| **Project Sponsor / Authorization** | TS. Nguyễn Mạnh Tuấn (Giảng viên học phần / người phê duyệt đề tài; việc phê duyệt chính thức theo quy trình học phần) |
-| **Project Manager / Coordinator** | Nguyễn Văn Minh Triều |
-| **Business Need / Problem** | Thông tin giao việc, tiến độ và bằng chứng đóng góp có thể phân tán; việc tổng hợp và trao đổi về đóng góp có nguy cơ thiếu minh bạch. |
-| **Target Users** | Sinh viên làm dự án nhóm; trưởng nhóm; giảng viên / người đánh giá. |
-| **Project Duration** | Theo lịch học phần (mốc 8 tuần là giả định lập kế hoạch ban đầu, điều chỉnh theo lịch chính thức của giảng viên). |
-| **Version** | 0.1 – Bản khởi động tuần 1; cập nhật sau khi xác minh người dùng và thống nhất phạm vi. |
+**Học phần:** Quản lý dự án Công nghệ Thông tin (IT Project Management)  
+**Đơn vị đào tạo:** Khoa Công nghệ Thông tin Kinh doanh – Trường Công nghệ và Thiết kế UEH  
+**Giảng viên hướng dẫn:** TS. Nguyễn Mạnh Tuấn (tuannm@ueh.edu.vn)  
+**Đề tài:** FairShare – Nền tảng minh bạch hóa và ghi nhận đóng góp trong dự án nhóm  
+**Nhóm thực hiện:** Nhóm 07 (6 thành viên)  
+**Phiên bản:** 1.0 (Chuẩn hóa theo Bảng cấu trúc 16 thành phần – Đề bài Tuần 1 của TS. Nguyễn Mạnh Tuấn)  
 
 ---
 
-### 2. Bối cảnh và Nhu cầu nghiệp vụ (Background & Business Need)
+## BẢNG TỔNG HỢP 16 THÀNH PHẦN PROJECT CHARTER
+*(Theo cấu trúc chuẩn Bảng 4 & Bảng 5 – Tài liệu Hướng dẫn Bài tập Tuần 1)*
 
-Các dự án nhóm tạo ra nhiều dấu vết công việc: nhiệm vụ được giao, trạng thái trên bảng công việc, thay đổi trong kho mã nguồn, tài liệu và phản hồi giữa các thành viên. Nếu dữ liệu này nằm rời rạc, việc tổng hợp đóng góp có thể tốn thời gian và dễ phát sinh bất đồng. FairShare hướng đến việc gom các thông tin được phép sử dụng vào một nơi, giúp người dùng xem được cơ sở của báo cáo thay vì chỉ nhìn một điểm số tổng hợp.
-
-Nhu cầu kinh doanh / nghiệp vụ ở giai đoạn này là giả thuyết: sinh viên và người điều phối dự án có thể cần một cách thuận tiện để tổng hợp bằng chứng, trao đổi về đóng góp và tạo báo cáo nhất quán. Nhóm sẽ xác minh nhu cầu trước khi coi đây là yêu cầu đã được khách hàng xác nhận.
-
----
-
-### 3. Mục tiêu tổng quát (Project Goal)
-
-Xây dựng và trình diễn một MVP của FairShare giúp nhóm sinh viên tổng hợp thông tin đóng góp có bằng chứng, hỗ trợ đánh giá đồng đẳng và xuất báo cáo dễ xem, trên cơ sở có thông báo, đồng thuận và giới hạn sử dụng dữ liệu rõ ràng.
-
----
-
-### 4. Mục tiêu cụ thể (Project Objectives)
-
-| Mã | Mục tiêu có thể kiểm tra | Cách xác minh |
+| STT | Thành phần (Component) | Nội dung tóm lược |
 |:---:|---|---|
-| **O1** | Hoàn thiện tài liệu yêu cầu và phạm vi MVP sau khi thực hiện ít nhất 3 cuộc phỏng vấn ngắn với sinh viên nếu nhóm tiếp cận được người dùng; nếu chưa thực hiện, ghi rõ kế hoạch và giả định. | Biên bản ghi chú phỏng vấn có ẩn danh; hoặc danh sách câu hỏi / kế hoạch và trạng thái chưa thực hiện. |
-| **O2** | Xây dựng được các luồng MVP đã chốt: tạo nhóm/dự án, ghi nhận đồng thuận, xem dashboard bằng chứng, gửi đánh giá đồng đẳng và xuất báo cáo PDF. | Demo theo checklist nghiệm thu và ảnh chụp kết quả. |
-| **O3** | Hoàn thành ít nhất 5 kịch bản kiểm thử đầu-cuối cho các luồng cốt lõi; các lỗi nghiêm trọng chặn luồng chính phải được xử lý hoặc ghi nhận rõ. | Test case, kết quả pass/fail và danh sách lỗi. |
-| **O4** | Mọi chỉ số / báo cáo đóng góp hiển thị được nguồn dữ liệu hoặc giải thích cách tính; không trình bày chỉ số như kết luận tuyệt đối về nỗ lực cá nhân. | Kiểm tra dashboard và báo cáo PDF. |
-| **O5** | Hoàn thiện tài liệu khởi động, README, Task Board và repository có đóng góp thực chất từ mỗi thành viên. | Đường dẫn truy cập, lịch sử commit và danh mục hồ sơ. |
+| **1** | **Project Title** | **FairShare** – Nền tảng minh bạch hóa và ghi nhận đóng góp trong dự án nhóm |
+| **2** | **Background** | Hoạt động học tập dựa trên đồ án (Project-Based Learning) tại đại học diễn ra phổ biến nhưng công cụ theo dõi tiến độ bị phân tán (Zalo, Messenger, Drive), gây mất dấu vết đóng góp và phát sinh tranh cãi nội bộ. |
+| **3** | **Business Need / Problem** | 63.6% sinh viên gặp tình trạng ỷ lại (free-rider); 54.5% đối mặt việc chấm điểm cảm tính, nể nang; 72.7% dùng Zalo rải rác thiếu trung tâm lưu trữ minh chứng. Giảng viên thiếu số liệu quá trình để chấm điểm công bằng. |
+| **4** | **Target Users** | Sinh viên làm đồ án nhóm, Trưởng nhóm (Leader) cần theo dõi tiến độ và Giảng viên / Người đánh giá học phần cần dữ liệu tham khảo chấm điểm. |
+| **5** | **Project Goal** | Xây dựng và hoàn thiện phiên bản sản phẩm khả dụng tối thiểu (MVP) Web FairShare trong 8 tuần, tự động thu thập vết công việc có đồng thuận, trực quan hóa đóng góp và hỗ trợ đánh giá đồng đẳng khách quan. |
+| **6** | **Project Objectives** | 6 mục tiêu đo lường SMART (G1–G6): Đồng bộ Trello đúng $\ge 95\%$; 100% điểm truy vết về sự kiện gốc; Chấm chéo ẩn danh kích hoạt khi đủ $\ge 3$ lượt; Xuất PDF $< 10$s; UAT đạt $\ge 80\%$ hài lòng; Đủ 100% hồ sơ quản trị. |
+| **7** | **Major Deliverables** | Bộ hồ sơ quản lý dự án (Charter, Stakeholder, Team Charter, WBS, Gantt, Risk Register); Bộ mã nguồn Web MVP (Backend Spring Boot, Frontend React, ScoringEngine, AnonymityAggregator); Báo cáo UAT và Báo cáo tổng kết. |
+| **8** | **Initial Scope (In-Scope)** | Quản lý nhóm & Sprint; Cơ chế cam kết dữ liệu (Consent Policy); Tích hợp Trello API; Dashboard biểu đồ đóng góp & Bảng bằng chứng truy vết; Chấm chéo ẩn danh; Xuất báo cáo PDF. |
+| **9** | **Out of Scope** | Ứng dụng di động độc lập (Mobile App); Chatbot AI / mô hình ML tự động phán xét điểm; Tích hợp đa nền tảng phức tạp (Jira, GitHub, Slack); Cổng thanh toán; Gamification tích điểm. |
+| **10** | **Key Stakeholders** | TS. Nguyễn Mạnh Tuấn (Sponsor/Giảng viên), Nhóm kiểm soát dự án (PCG), Trưởng nhóm đồ án, Sinh viên thành viên, Đội ngũ phát triển Nhóm 07, Nhà cung cấp Trello API. |
+| **11** | **Constraints** | Ngân sách tài chính 0 VNĐ; Thời gian cố định 8 tuần (4 Sprint phát triển); Nhân lực sinh viên 6 thành viên; Công nghệ bắt buộc Java Spring Boot và React/TypeScript. |
+| **12** | **Assumptions** | 100% thành viên trong nhóm tự nguyện đồng thuận ký Consent; Trello REST API duy trì ổn định không đổi chính sách miễn phí; Nhóm có thể phân công độc lập theo lát cắt dọc. |
+| **13** | **High-Level Risks** | Rủi ro Rate Limit Trello (R01); Thành viên từ chối ký Consent (R02); Lộ danh tính khi chấm chéo (R03); Chậm tiến độ tích hợp (R04); Bùng nổ phạm vi (R05). |
+| **14** | **Success Criteria** | Toàn bộ mã nguồn merge qua Pull Request có review; Test case tự động pass 100%; $\ge 80\%$ người dùng UAT đánh giá công bằng; Xuất file PDF nộp đúng hạn. |
+| **15** | **Project Manager** | Nguyễn Văn Minh Triều (Leader Nhóm 07 – MSSV: 31241027455) chịu trách nhiệm điều phối tiến độ, tổ chức Sprint và làm việc với Giảng viên. |
+| **16** | **Sponsor / Authorization** | TS. Nguyễn Mạnh Tuấn (Giảng viên hướng dẫn môn học) phê duyệt Hiến chương, chuẩn hóa phạm vi và nghiệm thu kết quả học phần. |
 
 ---
 
-### 5. Sản phẩm bàn giao chính (Major Deliverables)
+## NỘI DUNG CHI TIẾT 16 THÀNH PHẦN PROJECT CHARTER
 
-- **Hồ sơ yêu cầu:** Problem Statement, danh sách yêu cầu chức năng / phi chức năng, giả định và câu hỏi cần xác minh.
-- **MVP ứng dụng web FairShare:** Gồm xác thực / đăng nhập phù hợp phạm vi môn học và quản lý nhóm / dự án.
-- **Cơ chế đồng thuận dữ liệu:** Thông báo và ghi nhận sự đồng thuận trước khi sử dụng dữ liệu tích hợp.
-- **Tích hợp Trello:** Tích hợp trong phạm vi đã chốt để lấy thông tin công việc cần thiết (nếu tích hợp thật không khả thi, sử dụng dữ liệu mẫu được ghi nhãn rõ).
-- **Dashboard đóng góp:** Tổng hợp thông tin đóng góp và liên kết tới bằng chứng có thể kiểm tra.
-- **Biểu mẫu đánh giá đồng đẳng:** Biểu mẫu chấm chéo ẩn danh trong phạm vi nhóm dự án.
-- **Báo cáo PDF:** Báo cáo tóm tắt dữ liệu, cách tính và giới hạn diễn giải.
-- **Tài liệu bàn giao:** Tài liệu thiết kế, kiểm thử, hướng dẫn chạy ứng dụng và báo cáo tổng kết.
+### 1. Tên dự án (Project Title)
+- **Tên tiếng Việt:** Nền tảng minh bạch hóa và ghi nhận đóng góp trong dự án nhóm.
+- **Tên thương hiệu quốc tế:** **FairShare** (Ý nghĩa: Đóng góp công bằng – Chia sẻ minh bạch).
+- **Mã định danh hệ thống:** `UEH-QLDA-2026-N07-FAIRSHARE`.
+
+### 2. Bối cảnh hình thành (Background)
+Trong giáo dục đại học hiện đại, phương pháp học tập theo đồ án (Project-Based Learning) là trọng tâm của các ngành Công nghệ thông tin và Kinh doanh số tại UEH. Một học kỳ sinh viên thường phải hoàn thành từ 3 đến 5 đồ án nhóm song song.
+Tuy nhiên, phương thức phối hợp hiện nay chủ yếu dựa vào các nhóm chat Zalo/Messenger không chuyên biệt. Thông tin giao việc, thời hạn và bằng chứng hoàn thành bị trôi mất, không có trung tâm lưu vết dữ liệu. Khi kết thúc môn học, nhóm rơi vào tình trạng tranh cãi, chia điểm cào bằng hoặc trưởng nhóm tự gánh vác báo cáo mà không có căn cứ định lượng xác đáng.
+
+### 3. Vấn đề nghiệp vụ & Nhu cầu giải quyết (Business Need / Problem)
+Kết quả khảo sát thực tế từ 11 sinh viên UEH (81.8% sinh viên Năm 3) do Phân hệ M2 triển khai đã lượng hóa 4 vấn đề cấp bách:
+1. **Tình trạng ỷ lại (Free-rider):** 63.6% sinh viên xác nhận gặp thành viên lười biếng, đùn đẩy công việc nhưng vẫn muốn hưởng trọn vẹn điểm số của nhóm.
+2. **Đánh giá nể nang, cảm tính:** 54.5% đối mặt tình trạng chấm điểm hòa cả làng vì ngại va chạm và sợ làm rạn nứt quan hệ bạn bè.
+3. **Mất dấu vết tiến độ & Minh chứng rời rạc:** 72.7% chỉ dùng Zalo nhắn tin; 36.4% không thể tổng hợp được bằng chứng hoàn thành cụ thể khi giảng viên yêu cầu giải trình.
+4. **Lo ngại quyền riêng tư:** 54.6% yêu cầu chính sách thu thập dữ liệu phải minh bạch, không xâm phạm thông tin đời tư.
+*Nhu cầu nghiệp vụ:* Cần một giải pháp trung gian tự động hóa quá trình thu thập vết công việc, trực quan hóa đóng góp và cung cấp cơ chế đánh giá đồng đẳng bảo mật.
+
+### 4. Người dùng mục tiêu (Target Users)
+- **Sinh viên thành viên (Team Members):** Cần được ghi nhận công sức xứng đáng, bảo vệ quyền lợi cá nhân và đánh giá thành viên khác một cách ẩn danh, trung thực.
+- **Trưởng nhóm sinh viên (Team Leaders):** Cần công cụ giám sát tiến độ theo thời gian thực, giảm 80% thời gian tổng hợp báo cáo và có dữ liệu phân chia điểm công bằng.
+- **Giảng viên hướng dẫn / Người chấm thi (Lecturers / Evaluators):** Cần bản hồ sơ bằng chứng (Evidence Log) trung thực, minh bạch để đánh giá đúng năng lực từng cá nhân trong bài thi nhóm.
+
+### 5. Mục tiêu tổng quát (Project Goal)
+Phát triển và triển khai thành công phiên bản sản phẩm khả dụng tối thiểu (**MVP**) của nền tảng Web FairShare trong thời lượng 8 tuần, tích hợp trơn tru với Trello API, vận hành thuật toán tính điểm đóng góp ScoringEngine, bộ lọc che giấu danh tính AnonymityAggregator và module xuất báo cáo PDF chuẩn học thuật nộp Giảng viên.
+
+### 6. Mục tiêu cụ thể đo lường theo chuẩn SMART (Project Objectives)
+- **G1 (Tự động thu thập Trello):** Đồng bộ tự động chính xác $\ge 95\%$ trạng thái thẻ công việc (cards/tasks) từ bảng Trello dự án so với kiểm tra đối soát thủ công trên bộ dữ liệu mẫu.
+- **G2 (Bảng đóng góp có truy vết):** 100% chỉ số điểm số đóng góp trên giao diện Dashboard có khả năng drill-down truy xuất tối thiểu 1 bằng chứng sự kiện gốc từ bảng `ActivityEvent`.
+- **G3 (Chấm chéo ẩn danh bảo mật):** Thuật toán `AnonymityAggregator` chỉ mở hiển thị kết quả đánh giá đồng đẳng khi có tối thiểu $\ge 3$ lượt chấm hợp lệ; mã hóa một chiều ngăn chặn lộ danh tính người chấm.
+- **G4 (Xuất báo cáo PDF):** Trích xuất báo cáo tổng kết quá trình làm việc, biểu đồ phân bổ đóng góp ra file PDF đạt chuẩn định dạng nộp Giảng viên trong thời gian $< 10$ giây với nhóm 6 người.
+- **G5 (Nghiệm thu người dùng UAT):** Đạt $\ge 80\%$ tỷ lệ người dùng tham gia thử nghiệm (tối thiểu 10 sinh viên UEH) đánh giá báo cáo minh bạch, công bằng và dễ hiểu.
+- **G6 (Tuân thủ quy chuẩn quản lý dự án):** Bàn giao 100% hồ sơ artefact quản lý dự án theo từng tuần (Charter, Stakeholder, Team Charter, WBS, Gantt, Risk Register, Mini-PM Reports).
+
+### 7. Danh mục sản phẩm bàn giao chính (Major Deliverables)
+1. **Gói tài liệu khởi động & nghiệp vụ (Tuần 1–2):** Project Charter v1.0, Sổ đăng ký Stakeholder, Team Charter, Báo cáo khảo sát thực tế 11 mẫu, Bảng đặc tả yêu cầu SRS (FR & NFR), Sơ đồ Use Case, BPMN, Sequence Diagram thiết kế bằng Enterprise Architect.
+2. **Gói tài liệu cơ sở & kiến trúc kỹ thuật (Tuần 3):** Tiến độ Gantt cơ sở (Baseline Schedule), Ma trận RACI, Sổ theo dõi rủi ro (Risk Register), Kế hoạch truyền thông, Thiết kế CSDL MariaDB (ERD) và Hợp đồng API (API Contracts).
+3. **Bản phát hành phần mềm Web MVP (Tuần 4–7):**
+   - Backend: Dịch vụ RESTful API bằng Java 21 & Spring Boot 3.x, kiến trúc lát cắt dọc (`team`, `sprint`, `contribution`, `peerreview`).
+   - Frontend: Ứng dụng web React 18, TypeScript, Vite, Tailwind CSS.
+   - Core Engines: Module kết nối Trello Sync Worker, Engine tính điểm `ScoringEngine`, Bộ lọc ẩn danh `AnonymityAggregator`, Module kết xuất file PDF.
+   - Deployment: Kịch bản `docker-compose.yml` khởi chạy trọn gói Backend + Frontend + MariaDB.
+4. **Gói tài liệu nghiệm thu & đóng dự án (Tuần 8):** Báo cáo kết quả kiểm thử UAT, Defect Log, 6 bản báo cáo cá nhân Mini-PM Report (3–5 trang/thành viên), Báo cáo tổng kết đồ án (Word theo chuẩn UEH), Slide thuyết trình và Video demo.
+
+### 8. Phạm vi dự án ban đầu (Initial Scope – In-Scope)
+- Quản lý nhóm và vòng đời Sprint (chu kỳ 1 tuần: Planning, Active, Completed).
+- Cơ chế thỏa thuận dữ liệu bắt buộc (Data Consent Policy Modal) trước khi kích hoạt theo dõi.
+- Kết nối Trello API: Đọc bảng, danh sách, thẻ công việc, nhãn, người phụ trách và ngày hoàn thành.
+- Dashboard trực quan: Biểu đồ tròn phân bổ đóng góp, biểu đồ cột so sánh thực tế vs dự kiến và bảng drill-down truy vết sự kiện gốc.
+- Đánh giá đồng đẳng (Peer Review): Mở đợt chấm cuối Sprint, form chấm 3 tiêu chí (Chất lượng, Đúng hạn, Hợp tác), lưu trữ ẩn danh.
+- Xuất báo cáo PDF tổng kết tiến độ học phần phục vụ chấm điểm.
+- *(Tính năng có điều kiện):* Cảnh báo thành viên trễ hạn hoặc thử nghiệm đồng bộ Google Docs nếu còn buffer ở cuối Sprint 2.
+
+### 9. Các nội dung chưa thực hiện (Out of Scope)
+- Ứng dụng di động độc lập (Native Mobile App iOS / Android); chỉ tối ưu Web Responsive trên trình duyệt điện thoại.
+- Chatbot AI hoặc các mô hình Machine Learning tự động phân tích hành vi, tự động xếp hạng hay phán xét điểm cá nhân (FairShare chỉ cung cấp số liệu tham khảo, tôn trọng quyền quyết định của con người).
+- Tích hợp đa nền tảng phức tạp (GitHub commit, Jira, Slack, MS Teams, LMS).
+- Hệ thống thanh toán trực tuyến, quản lý tài chính, thương mại hóa.
+- Quản lý đa trường học, đa tổ chức quy mô lớn.
+
+### 10. Các bên liên quan chính (Key Stakeholders)
+| Bên liên quan | Vai trò trong dự án | Mối quan tâm chính | Chiến lược quản trị |
+|---|---|---|---|
+| **TS. Nguyễn Mạnh Tuấn** | Giảng viên hướng dẫn / Sponsor | Tính trung thực dữ liệu, chất lượng học thuật, đúng hạn | Báo cáo theo mốc, phê duyệt Change Request |
+| **Nhóm kiểm soát chéo (PCG)** | Đơn vị giám sát độc lập | Độ lệch tiến độ (Plan vs Actual), minh chứng kiểm tra | Cung cấp báo cáo tuần, mở quyền truy cập Git/Drive |
+| **Trưởng nhóm đồ án (Leader)** | Người dùng mục tiêu chính | Tiết kiệm thời gian tổng hợp, bằng chứng chia điểm | Phỏng vấn sâu, mời tham gia kiểm thử UAT |
+| **Thành viên đồ án sinh viên** | Người dùng thụ hưởng | Bảo vệ quyền lợi, công bằng, bảo mật danh tính | Thiết kế Consent rõ ràng, ẩn danh chấm chéo |
+| **Đội ngũ phát triển (Nhóm 07)** | Nhân sự thực hiện | Điểm học phần, phân công cân bằng, hoàn thành DoD | Họp Standup định kỳ, điều phối qua Task Board |
+| **Nhà cung cấp Trello API** | Đối tác kỹ thuật bên ngoài | Tuân thủ hạn mức gọi API (Rate limit), bảo mật token | Xây dựng Exponential Backoff, mã hóa AES-256 |
+
+### 11. Các ràng buộc dự án (Constraints)
+- **Ràng buộc thời gian (Time):** Cố định trong 8 tuần học tập của học phần.
+- **Ràng buộc chi phí (Cost):** Ngân sách bắt buộc 0 VNĐ (sử dụng gói miễn phí, hạ tầng máy tính cá nhân của sinh viên).
+- **Ràng buộc nhân lực (People):** Nhóm 07 gồm đúng 6 sinh viên; mỗi thành viên dành khoảng 10–12 giờ/tuần cho dự án.
+- **Ràng buộc công nghệ (Technology):** Tuân thủ nền tảng Java Spring Boot, React, MariaDB, Docker và GitHub.
+
+### 12. Các giả định ban đầu (Assumptions)
+- 100% thành viên trong nhóm đồ án sinh viên đều tự nguyện ký chấp thuận chính sách dữ liệu Consent Policy.
+- Dịch vụ Trello REST API duy trì tính sẵn sàng cao và không thay đổi chính sách cấp phát miễn phí trong kỳ học.
+- Năng lực của 6 thành viên đáp ứng tốt việc tự chủ một phân hệ lát cắt dọc từ CSDL đến giao diện.
+
+### 13. Rủi ro cấp cao & Kế hoạch ứng phó (High-Level Risks)
+| Mã | Rủi ro nhận diện | Khả năng | Tác động | Phương án ứng phó (Mitigation Strategy) |
+|:---:|---|:---:|:---:|---|
+| **R01** | Trello chạm trần giới hạn gọi API (HTTP 429) | Trung bình | Cao | Cài đặt thuật toán Exponential Backoff & Retry; lưu bộ nhớ đệm cache và giới hạn tần suất đồng bộ 30 phút/lần. |
+| **R02** | Thành viên từ chối ký cam kết dữ liệu (Consent) | Thấp | Trung bình | Xây dựng chức năng khai báo đóng góp thủ công (Manual Activity) có Leader hoặc thành viên khác phê duyệt. |
+| **R03** | Lộ danh tính trong quá trình chấm chéo đồng đẳng | Thấp | Rất cao | Cài đặt bộ lọc `AnonymityAggregator` chặn xem kết quả khi chưa đủ $\ge 3$ lượt; mã hóa ID người gửi. |
+| **R04** | Chậm trễ ghép nối tích hợp giữa các module dọc | Trung bình | Cao | Thống nhất và đóng băng Hợp đồng API (API Contracts) ngay tại Tuần 3; dựng mock data kiểm thử độc lập. |
+| **R05** | Bùng nổ phạm vi (Scope Creep) ngoài tầm kiểm soát | Cao | Cao | Thiết lập quy trình Kiểm soát thay đổi (Change Control Process); từ chối cam kết miệng ngoài phạm vi MVP. |
+
+### 14. Tiêu chí đánh giá thành công (Success Criteria)
+1. **Đúng hạn:** Hoàn thành toàn bộ sản phẩm cam kết trước tuần 8, nộp bài đúng hạn học phần.
+2. **Kỹ thuật:** 100% mã nguồn được merge vào nhánh chính qua Pull Request có review; Unit test và Integration test pass trên pipeline CI; hệ thống chạy ổn định qua Docker Compose.
+3. **Nghiệp vụ:** $\ge 80\%$ người dùng thử nghiệm UAT đánh giá hệ thống mang lại sự công bằng và giảm thiểu mâu thuẫn nhóm.
+4. **Học thuật:** Báo cáo đạt chuẩn phong cách tự luận thuần Việt của UEH, tone màu chuẩn mực, minh chứng truy vết trung thực.
+
+### 15. Người điều phối dự án (Project Manager)
+- **Họ và tên:** **Nguyễn Văn Minh Triều**
+- **Mã số sinh viên:** **31241027455**
+- **Quyền hạn:** Đại diện nhóm làm việc với Giảng viên; phân bổ và điều phối công việc trên Task Board; chủ trì các buổi họp Scrum (Planning, Standup, Review, Retro); có quyền từ chối tiếp nhận các yêu cầu thay đổi chưa qua phân tích tác động.
+- **Trách nhiệm:** Đảm bảo dự án hoàn thành đúng tiến độ, đạt chuẩn chất lượng và kiểm soát rủi ro.
+
+### 16. Người bảo trợ & Cơ chế phê duyệt (Sponsor / Authorization)
+- **Người bảo trợ chuyên môn (Sponsor):** **TS. Nguyễn Mạnh Tuấn** – Giảng viên học phần Quản lý dự án CNTT.
+- **Cơ chế phê duyệt (Approval Mechanism):** 
+  - Mọi điều chỉnh về mục tiêu, thời hạn hoặc tính năng mở rộng bắt buộc phải được lập thành văn bản Phiếu yêu cầu thay đổi (Change Request Form).
+  - Yêu cầu thay đổi chỉ có hiệu lực thi hành sau khi có chữ ký phê duyệt chính thức từ Giảng viên hướng dẫn.
 
 ---
 
-### 6. Phạm vi dự án (Project Scope)
+### BẢNG XÁC NHẬN PHÊ DUYỆT (SIGN-OFF)
 
-| In Scope – Thuộc phạm vi MVP | Out of Scope – Chưa thực hiện trong MVP |
-|---|---|
-| Tạo nhóm / dự án và quản lý thành viên cơ bản. | Ứng dụng iOS / Android riêng; chỉ ưu tiên ứng dụng web. |
-| Màn hình thông báo / đồng thuận và mô tả dữ liệu được thu thập. | Theo dõi bí mật hoặc thu thập dữ liệu ngoài sự đồng thuận. |
-| Đồng bộ dữ liệu công việc cần thiết từ Trello trong phạm vi API khả thi. | Tích hợp đồng thời nhiều nền tảng phức tạp như mọi công cụ quản lý công việc, email và hệ thống LMS. |
-| Dashboard thể hiện dữ liệu / bằng chứng và quy tắc tổng hợp. | AI tự động kết luận mức độ chăm chỉ, gian lận hoặc xếp hạng tuyệt đối thành viên. |
-| Đánh giá đồng đẳng ẩn danh trong nhóm; giải thích rõ tính ẩn danh có giới hạn. | Cơ chế xử lý khiếu nại phức tạp hoặc đánh giá chính thức thay giảng viên. |
-| Xuất báo cáo PDF với dữ liệu và giới hạn diễn giải. | Phân tích dự đoán nâng cao, gamification, bảng xếp hạng công khai. |
-| Kiểm thử các luồng cốt lõi và tài liệu hướng dẫn. | Triển khai thương mại quy mô lớn, cam kết SLA hoặc hỗ trợ vận hành dài hạn. |
-
----
-
-### 7. Yêu cầu sơ bộ (Initial Requirements)
-
-#### 7.1. Yêu cầu chức năng (FR)
-- **FR-01:** Người dùng có thể tạo hoặc tham gia một nhóm / dự án theo quyền được cấp.
-- **FR-02:** Hệ thống hiển thị thông tin rõ ràng về dữ liệu được lấy, mục đích sử dụng và yêu cầu đồng thuận trước khi đồng bộ.
-- **FR-03:** Hệ thống kết nối Trello trong phạm vi cho phép và nhập các thông tin công việc đã thống nhất.
-- **FR-04:** Người dùng có thể xem dashboard đóng góp theo dữ liệu đã ghi nhận, kèm bằng chứng hoặc nguồn tham chiếu.
-- **FR-05:** Thành viên có thể gửi đánh giá đồng đẳng theo biểu mẫu đã thống nhất; giao diện không hiển thị danh tính người đánh giá cho người nhận trong luồng ẩn danh.
-- **FR-06:** Người có quyền có thể xuất báo cáo PDF thể hiện dữ liệu, thời gian, quy tắc tổng hợp và giới hạn diễn giải.
-- **FR-07:** Người dùng có thể xem trạng thái đồng bộ và thông báo lỗi cơ bản.
-
-#### 7.2. Yêu cầu phi chức năng (NFR)
-- **NFR-01 – Quyền riêng tư:** Chỉ thu thập dữ liệu cần thiết, có thông báo / đồng thuận và cơ chế giới hạn quyền truy cập.
-- **NFR-02 – Bảo mật:** Không đưa khóa API / token vào mã nguồn công khai; thông tin bí mật phải được cấu hình qua biến môi trường.
-- **NFR-03 – Tính dễ sử dụng:** Các luồng chính có nhãn và hướng dẫn dễ hiểu; người dùng thử có thể hoàn thành tác vụ theo kịch bản.
-- **NFR-04 – Tính giải thích:** Số liệu hiển thị phải có nguồn hoặc mô tả cách tính; tránh tạo cảm giác chính xác giả.
-- **NFR-05 – Khả năng bảo trì:** Mã nguồn được tổ chức theo module, có README và hướng dẫn cấu hình / chạy.
-- **NFR-06 – Kiểm thử:** Các chức năng trọng yếu có kiểm thử phù hợp với thời gian và quy mô đồ án.
-
----
-
-### 8. Ràng buộc, Giả định và Rủi ro chính (Constraints, Assumptions & Risks)
-
-| Loại | Nội dung | Cách quản lý |
-|---|---|---|
-| **Constraint** | Thời gian và nguồn lực sinh viên giới hạn; phải ưu tiên MVP. | Chốt phạm vi, chia nhỏ task, rà soát hàng tuần. |
-| **Constraint** | Khả năng truy cập API Trello và quyền dữ liệu phụ thuộc cấu hình / tài khoản. | Kiểm tra sớm; chuẩn bị dữ liệu mẫu nếu không tích hợp được. |
-| **Constraint** | Nhóm chưa có thông tin ngân sách tiền mặt chính thức. | Xem chi phí dịch vụ trả phí là không được phê duyệt cho đến khi xác nhận. |
-| **Assumption** | Sinh viên có nhu cầu xem bằng chứng đóng góp thay vì chỉ dựa vào tự báo cáo. | Phỏng vấn 3–5 người và ghi lại kết quả trung thực. |
-| **Assumption** | Trello cung cấp đủ dữ liệu cần thiết cho bản demo. | Thử API sớm và xác định rõ dữ liệu nào có thể lấy. |
-| **Assumption** | Nhóm có thể phân công các module frontend, backend, database, QA. | Xác nhận năng lực và thời gian của từng thành viên. |
-| **Risk** | Phạm vi mở rộng vượt thời gian. | Đóng băng MVP; yêu cầu mới đi qua đánh giá tác động. |
-| **Risk** | Người dùng không đồng thuận chia sẻ dữ liệu. | Thiết kế opt-in, minh bạch mục đích; không ép buộc tham gia. |
-| **Risk** | Dữ liệu thiếu hoặc không phản ánh đầy đủ đóng góp thực tế. | Hiển thị nguồn và giới hạn; không dùng dữ liệu đơn lẻ để kết luận. |
-| **Risk** | Tích hợp API, token hoặc quyền truy cập gặp lỗi. | Tạo prototype tích hợp sớm; dùng dữ liệu mẫu được gắn nhãn. |
-| **Risk** | Đánh giá đồng đẳng bị thiên lệch hoặc lạm dụng. | Dùng tiêu chí rõ ràng, giới hạn quyền xem và nêu rõ vai trò tham khảo. |
-| **Risk** | Thành viên chậm tiến độ hoặc tài liệu không đồng nhất. | Task Board, người chịu trách nhiệm chính, rà soát và tích hợp định kỳ. |
-
----
-
-### 9. Tiêu chí đánh giá thành công (Success Criteria)
-
-- Các luồng MVP đã thống nhất có thể trình diễn từ đầu đến cuối trên môi trường chạy được.
-- Tối thiểu 5 kịch bản kiểm thử cốt lõi được thực hiện và có kết quả ghi nhận.
-- Dashboard và PDF chỉ rõ nguồn dữ liệu / cách tổng hợp; không đưa ra kết luận tự động tuyệt đối về cá nhân.
-- Luồng đồng thuận và quyền truy cập được kiểm tra; không có token / khóa API bị commit vào repository.
-- Tài liệu Project Charter, Stakeholder Register, Team Charter, Task Board, README và Week 1 Summary nhất quán.
-- Các thành viên có đóng góp thực chất được thể hiện qua lịch sử chỉnh sửa / commit hoặc sản phẩm được giao.
-- Nhóm thu thập và ghi lại phản hồi người dùng nếu thực hiện thử nghiệm; nếu chưa có, ghi rõ kế hoạch tiếp theo thay vì tự nhận đã xác minh.
-
----
-
-### 10. Kế hoạch các mốc tiến độ (Milestones)
-
-| Mốc | Kết quả dự kiến | Thời điểm |
-|:---:|---|:---:|
-| **M1 – Khởi động** | Chốt đề tài, Problem Statement, Charter, Stakeholders, Team Charter, Task Board và repository. | Tuần 1 |
-| **M2 – Xác minh yêu cầu** | Phỏng vấn / kiểm chứng giả định; hoàn thiện yêu cầu và phạm vi MVP. | Tuần 2 |
-| **M3 – Thiết kế** | Luồng người dùng, wireframe, kiến trúc hệ thống và mô hình dữ liệu. | Tuần 3 |
-| **M4 – Bản tích hợp đầu tiên** | Luồng nhóm / dự án và dữ liệu công việc mẫu hoặc tích hợp Trello cơ bản. | Tuần 4–5 |
-| **M5 – Hoàn thiện MVP** | Dashboard, đánh giá đồng đẳng, xuất PDF và xử lý lỗi chính. | Tuần 6–7 |
-| **M6 – Kiểm thử / Nghiệm thu** | Kiểm thử hệ thống, sửa lỗi, hoàn thiện tài liệu và demo cuối kỳ. | Tuần 8 |
-
----
-
-### 11. Nguồn lực, Phương pháp và Phê duyệt
-
-- **Nguồn lực dự kiến:** Thời gian làm việc của các thành viên; máy tính cá nhân; GitHub; công cụ quản lý công việc (Trello); môi trường phát triển và kiểm thử. Không có ngân sách trả phí.
-- **Công nghệ dự kiến:** Java 21 và Spring Boot 3.x cho backend; React, TypeScript và Vite cho frontend; MariaDB 11.x và Flyway cho cơ sở dữ liệu; OpenPDF cho báo cáo PDF; JUnit/Mockito/Testcontainers và Vitest/React Testing Library cho kiểm thử; Docker/Compose và GitHub Actions nếu phù hợp thời gian. Tích hợp Trello là ưu tiên; Google Docs API và cảnh báo không hoạt động chỉ xem xét nếu còn nguồn lực sau MVP.
-- **Phương pháp triển khai:** Chia công việc theo module (lát cắt dọc), quản lý bằng Task Board, cập nhật repository thường xuyên, kiểm thử liên tục và rà soát phạm vi mỗi tuần. Mỗi thay đổi có ảnh hưởng đáng kể phải được mô tả, đánh giá tác động và được người có thẩm quyền chấp thuận trước khi nhóm cam kết.
-
-#### Bảng phê duyệt
-| Vai trò phê duyệt | Người xác nhận |
-|---|---|
-| Đại diện nhóm / Project Coordinator | Nguyễn Văn Minh Triều |
-| Đại diện nhóm phát triển | Nguyễn Văn Minh Triều |
-| Giảng viên / Người phê duyệt đề tài | TS. Nguyễn Mạnh Tuấn |
+| Vai trò xác nhận | Họ và tên | Chữ ký / Trạng thái | Ngày phê duyệt |
+|---|---|:---:|:---:|
+| **Trưởng dự án (Project Manager)** | Nguyễn Văn Minh Triều | *Đã xác nhận* | 15/10/2026 |
+| **Đại diện Phân tích nghiệp vụ (BA / M2)** | Hà Ngọc Thiện | *Đã xác nhận* | 15/10/2026 |
+| **Giảng viên hướng dẫn (Sponsor)** | TS. Nguyễn Mạnh Tuấn | *Chờ phê duyệt* | [ ] |
