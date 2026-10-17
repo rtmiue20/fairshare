@@ -1,0 +1,53 @@
+﻿version: '3.8'
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: fairshare-db
+    environment:
+      MARIADB_ROOT_PASSWORD: secretpassword
+      MARIADB_DATABASE: fairshare
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - fairshare-network
+
+  backend:
+    build:
+      context: ./fairshare-backend
+      dockerfile: Dockerfile
+    container_name: fairshare-backend
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=fairshare
+      - DB_USER=root
+      - SPRING_DATASOURCE_PASSWORD=secretpassword
+      - SPRING_PROFILES_ACTIVE=prod
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - fairshare-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fairshare-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - fairshare-network
+
+networks:
+  fairshare-network:
+    driver: bridge
+
+volumes:
+  db_data:
