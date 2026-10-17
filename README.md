@@ -664,11 +664,11 @@ Chi tiết xem `docs/02-planning/plan-PM.md`.
 | Triệu Nguyễn Huỳnh Khang | 31241022785 | PM Database/Data |
 | Khiếu Hoàng Nam Anh | 31241022203 | PM QA & Deployment |
 
-**Giảng viên hướng dẫn:** TS. Nguyễn Mạnh Tuấn – Khoa CNTTKD, UEH
-**Môn học:** Quản lý dự án CNTT
+**Giảng viên hướng dẫn:** TS. Nguyễn Mạnh Tuấn – Khoa CNTTKD, UEH  
+**Môn học:** Quản lý dự án CNTT  
 
 ---
 
 ## 15. Giấy phép
 
-Dự án thực hiện cho mục đích học tập. Chọn giấy phép phù hợp (ví dụ MIT) và cập nhật tập tin `LICENSE` trước khi công khai mã nguồn.
+Dự án này được phân phối dưới giấy phép **MIT License**. Xem chi tiết tại tập tin [LICENSE](LICENSE).
