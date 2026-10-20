@@ -1,94 +1,122 @@
-# SPRINT 7 – UAT và triển khai
+# SPRINT 7 – Đóng dự án
 
-**Thời gian:** Thứ 4, 18/11/2026 → Thứ 3, 24/11/2026 | **Tương ứng:** Sprint 4 trong kế hoạch gốc (Tuần 7) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 25/11/2026 → Thứ 3, 01/12/2026 | **Tương ứng:** Tuần 7 | **Trạng thái sprint:** ⬜ Chưa bắt đầu
 
 ## Mục tiêu sprint
-Chạy UAT với ≥ 10 người, sửa lỗi theo defect log, triển khai bản demo kèm hướng dẫn, khóa phạm vi.
+Hoàn tất báo cáo cuối, đánh giá mục tiêu G1–G6, rút bài học, nộp Mini-PM Report cá nhân và chuẩn bị thuyết trình/demo cuối.
 
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 4, 18/11 |
+| Sprint Planning | Thứ 4, 25/11 |
 | Daily | Hằng ngày |
-| UAT (cửa sổ thử nghiệm) | Thứ 5, 19/11 → Chủ nhật, 22/11 |
-| Khóa phạm vi, chỉ sửa lỗi | Thứ 2, 23/11 |
-| Sprint Review + Retrospective | Thứ 3, 24/11 |
+| Hạn nộp nội dung chương của từng người | Thứ 6, 27/11 |
+| Tổng hợp, kiểm tra link/định dạng/đạo văn | Thứ 7, 28/11 → Thứ 2, 30/11 |
+| Tập thuyết trình (cả nhóm, ai cũng trình bày) | Thứ 2, 30/11 |
+| Họp đóng dự án / Retrospective cuối | Thứ 3, 01/12 |
+
+> Nếu lịch nộp/thuyết trình của giảng viên sớm hơn các mốc trên, M0 chỉnh lại mốc và ghi vào Change Log.
 
 ## Phân công công việc
-| Người | Việc | Minh chứng | Deadline |
+| Người | Công việc | Sản phẩm/minh chứng | Deadline |
 |---|---|---|---|
-| M0 | Khóa phạm vi, theo dõi sửa lỗi, báo cáo sprint | Sprint report | 24/11 |
-| M1, M3, M4 | Sửa lỗi trong module của mình theo defect log; (có điều kiện) Google Docs bản đơn giản (M1) | Commit | 23/11 |
-| M2 | Tiến hành UAT (≥ 10 người), tổng hợp phản hồi, đo mức hài lòng (G5) | Kết quả UAT | 23/11 |
-| M5 | Triển khai bản demo, hướng dẫn cài đặt/sử dụng, tài khoản demo, bằng chứng triển khai | Release, user guide, URL/video demo | 23/11 |
+| M0 | Tổng hợp báo cáo cuối, đánh giá G1–G6, lessons learned, kiểm tra link Drive/định dạng/đạo văn | Final report, closure checklist | 30/11 |
+| M2 | Chương I, kết quả khảo sát/UAT, kết luận có số liệu | Nội dung chương | 27/11 |
+| M1 | Kiến trúc, tích hợp, kết quả kỹ thuật | Nội dung chương | 27/11 |
+| M3 | ERD, dữ liệu, công thức đóng góp, kết quả đo | Nội dung chương | 27/11 |
+| M4 | Chấm chéo, ẩn danh, giới hạn | Nội dung chương | 27/11 |
+| M5 | Kiểm thử, triển khai, kết quả đo; demo cuối | Nội dung chương, demo | 27/11 |
+| Cả 6 người | Mini-PM Report cá nhân (3–5 trang), bảng đánh giá mức độ tham gia, chuẩn bị thuyết trình | Mini-PM Report | 30/11 |
+
+## Danh sách kiểm tra đóng dự án (M0)
+- [ ] Final report đủ chương, thống nhất định dạng
+- [ ] Link Drive/GitHub/Trello mở được, quyền truy cập đúng
+- [ ] Bảng theo dõi mức độ tham gia đã điền đủ 6 người
+- [ ] Mini-PM Report của cả 6 người
+- [ ] Slide và kịch bản demo, đã tập
+- [ ] Kiểm tra đạo văn
+- [ ] Source code, test log, database sẵn sàng mở khi giảng viên yêu cầu
+- [ ] Lessons learned đã ghi
 
 ## Tiêu chí hoàn thành (DoD)
-- Có ≥ 10 phiếu phản hồi UAT, đã tổng hợp số liệu mức hài lòng.
-- Các lỗi mức nghiêm trọng trong defect log đã đóng.
-- Bản demo truy cập được (URL hoặc video), có user guide và tài khoản demo.
-- Phạm vi đã khóa, mọi thay đổi sau đó phải qua Change Request.
+- Mọi tài liệu cuối nộp đúng hạn và đúng định dạng.
+- G1–G6 có số liệu đánh giá.
+- Mỗi thành viên có Mini-PM Report riêng, có minh chứng commit/log theo module của mình.
 
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
-| UAT không đủ 10 người hoặc phản hồi ít | M2 nhắc người thử, có phương án dự phòng là thử trực tiếp |
-| Lỗi nặng phát hiện muộn | M5 phân loại ngay, chủ module sửa trong vòng 24 giờ |
-| Triển khai demo gặp sự cố | M5 chuẩn bị video demo làm phương án dự phòng |
+| Nộp nội dung chương trễ, dồn vào phút cuối | Deadline nội bộ 27/11, M0 nhắc từ 25/11 |
+| Link/quyền truy cập hỏng khi nộp | M0 kiểm tra bằng tài khoản khác |
+| Demo trực tiếp lỗi | Chuẩn bị video demo dự phòng (M5) |
 
-## Báo cáo cuối sprint (điền khi họp Review)
-- Việc hoàn thành: [ ]
-- Việc tồn đọng chuyển sang Sprint 8: [ ]
-- Bài học từ Retro: [ ]
+## Báo cáo cuối dự án (điền khi họp đóng)
+- Kết quả so với mục tiêu: [ ]
+- Bài học kinh nghiệm: [ ]
+- Đề xuất cải thiện: [ ]
 
 ---
 
 ## Chi tiết lịch của sprint (theo ngày)
 
-> Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học. "Hạn" là thời điểm phải đưa minh chứng lên Drive/GitHub và cập nhật task.
+> Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học và lịch nộp của giảng viên. "Hạn" là thời điểm phải đưa minh chứng lên Drive/GitHub. Mọi task ≤ 2 giờ; việc lớn hơn đã tách thành các task con (1/2, 2/2…), mỗi task con có đầu ra riêng.
 
-### Thứ 4, 18/11 – Planning & chuẩn bị UAT
+### Thứ 4, 25/11 – Planning & bắt đầu viết
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| Cả nhóm | Sprint Planning | Chia lỗi theo module, chốt lịch UAT | Sprint backlog | 1h | 18/11, 21:00 |
-| M5 | Chuẩn bị môi trường UAT | Triển khai bản UAT, tạo tài khoản thử | Môi trường UAT | 3h | 18/11, 21:00 |
-| M2 | Gửi lời mời UAT | Gửi link, hướng dẫn, kịch bản cho người thử | Danh sách đã gửi | 1h | 18/11, 22:00 |
-| M1, M3, M4 | Sửa lỗi ưu tiên cao | Sửa lỗi nghiêm trọng trong defect log | Commit, defect đã đóng | 3h | 19/11, 12:00 |
+| Cả nhóm | Sprint Planning | Chốt khung báo cáo, chia chương, nhắc hạn 27/11 | Phân công viết | 1h | 25/11, 21:00 |
+| M0 | Khung báo cáo | Tạo file báo cáo chung, mục lục, quy định định dạng | File báo cáo khung | 2h | 25/11, 21:00 |
+| M2 | Chương I (1/2) | Giới thiệu, khảo sát | Bản nháp chương I phần 1 | 2h | 26/11, 12:00 |
+| M2 | Chương I (2/2) | Yêu cầu | Bản nháp chương I | 2h | 26/11, 21:00 |
+| M1 | Chương kiến trúc (1/2) | Kiến trúc hệ thống | Bản nháp chương phần 1 | 2h | 26/11, 12:00 |
+| M1 | Chương kiến trúc (2/2) | Tích hợp, kết quả kỹ thuật | Bản nháp chương | 2h | 26/11, 21:00 |
 
-### Thứ 5, 19/11 – Bắt đầu UAT
+### Thứ 5, 26/11 – Viết chương
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M2 | Điều phối UAT | Hướng dẫn người thử, thu phiếu phản hồi theo ngày | Số phiếu thu được | 2h/ngày | Hằng ngày đến 22/11 |
-| M5 | Theo dõi lỗi UAT | Ghi lỗi người thử báo vào defect log, phân loại | Defect log cập nhật | 2h/ngày | Hằng ngày đến 22/11 |
-| M0 | Theo dõi tiến độ | Nhắc các chủ module xử lý lỗi, cập nhật Risk | Cập nhật Risk | 1h | 19/11, 21:00 |
+| M3 | Chương dữ liệu (1/2) | ERD, dữ liệu | Bản nháp chương phần 1 | 2h | 27/11, 09:00 |
+| M3 | Chương dữ liệu (2/2) | Công thức, kết quả đo | Bản nháp chương | 2h | 27/11, 12:00 |
+| M4 | Chương chấm chéo (1/2) | Cơ chế ẩn danh | Bản nháp chương phần 1 | 2h | 27/11, 09:00 |
+| M4 | Chương chấm chéo (2/2) | Kết quả kiểm tra, giới hạn | Bản nháp chương | 2h | 27/11, 12:00 |
+| M5 | Chương kiểm thử (1/2) | Test plan, kết quả test | Bản nháp chương phần 1 | 2h | 27/11, 09:00 |
+| M5 | Chương kiểm thử (2/2) | Triển khai, kết quả UAT | Bản nháp chương | 2h | 27/11, 12:00 |
+| M0 | Đánh giá G1–G6 (1/2) | Thu số liệu từ các chương | Bảng số liệu G1–G6 | 2h | 28/11, 12:00 |
+| M0 | Đánh giá G1–G6 (2/2) | Đối chiếu mục tiêu G1–G6 | Bảng đánh giá G1–G6 nháp | 1h | 28/11, 21:00 |
 
-### Thứ 6, 20/11 – Sửa lỗi lượt 1
+### Thứ 6, 27/11 – Hạn nộp chương
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M1, M3, M4 | Sửa lỗi từ UAT | Xử lý lỗi theo module trong 24 giờ, mở PR | PR merge, defect đóng | 3h | 21/11, 21:00 |
-| M5 | Triển khai demo | Chuẩn bị bản demo ổn định: URL, tài khoản demo | Bản demo chạy được | 4h | 22/11, 21:00 |
+| M1–M5 | Nộp nội dung chương | Hoàn thiện, đưa file chương vào thư mục chung | Nội dung chương | 2h | 27/11, 21:00 |
+| Cả 6 người | Bắt đầu Mini-PM Report | Dùng khung 7 mục: thông tin, mục tiêu, kế hoạch, thực hiện, kiểm thử, quản lý, tổng kết | Bản nháp Mini-PM Report | 2h | 27/11, 23:00 |
 
-### Thứ 7, 21/11 – Tài liệu
+### Thứ 7, 28/11 – Tổng hợp
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M5 | User guide | Hướng dẫn cài đặt, hướng dẫn sử dụng có ảnh chụp màn hình | User guide | 4h | 22/11, 21:00 |
-| M1 | (Có điều kiện) Google Docs | Bản đơn giản nếu CR cho phép, nếu không bỏ qua | Commit hoặc ghi chú bỏ | 4h | 22/11, 21:00 |
+| M0 | Tổng hợp báo cáo cuối (1/3) | Ghép các chương | Báo cáo đã ghép chương | 2h | 28/11, 15:00 |
+| M0 | Tổng hợp báo cáo cuối (2/3) | Thống nhất định dạng | Báo cáo đúng định dạng | 2h | 28/11, 19:00 |
+| M0 | Tổng hợp báo cáo cuối (3/3) | Đánh số hình/bảng | Final report bản 1 | 1h | 28/11, 21:00 |
+| M0 | Lessons learned | Tổng hợp từ các Retro | Mục lessons learned | 2h | 28/11, 21:00 |
+| Cả 6 người | Mini-PM Report (1/2) | Viết các mục thông tin, mục tiêu, kế hoạch, thực hiện | Mini-PM Report phần 1 | 2h | 29/11, 12:00 |
+| Cả 6 người | Mini-PM Report (2/2) | Viết các mục kiểm thử, quản lý, tổng kết; gắn minh chứng commit/log của module mình | Mini-PM Report bản 1 | 1h | 29/11, 21:00 |
 
-### Chủ nhật, 22/11 – Kết thúc UAT
+### Chủ nhật, 29/11 – Kiểm tra & slide
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M2 | Đóng UAT | Khóa form, tổng hợp phiếu, tính mức hài lòng (G5) | Kết quả UAT | 3h | 22/11, 21:00 |
-| M5 | Video demo | Quay video demo dự phòng | Video demo | 2h | 22/11, 21:00 |
+| M0 | Kiểm tra link, định dạng | Kiểm tra link Drive/GitHub/Trello mở được, quyền truy cập | Checklist link | 2h | 29/11, 21:00 |
+| M0 | Kiểm tra đạo văn | Chạy kiểm tra, sửa đoạn bị trùng | Kết quả kiểm tra | 2h | 29/11, 21:00 |
+| Cả nhóm | Làm slide | Mỗi người làm phần của module mình | Slide bản 1 | 2h | 29/11, 21:00 |
+| Cả 6 người | Bảng mức độ tham gia | Điền giờ, minh chứng, % tự đánh giá, % nhóm đánh giá | Bảng đã điền | 1h | 29/11, 21:00 |
 
-### Thứ 2, 23/11 – Khóa phạm vi
+### Thứ 2, 30/11 – Chốt & tập thuyết trình
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0 | Khóa phạm vi | Thông báo chỉ sửa lỗi, mọi thay đổi qua CR | Thông báo khóa phạm vi | 1h | 23/11, 12:00 |
-| M1, M3, M4 | Sửa lỗi cuối | Xử lý lỗi UAT còn lại | Commit, defect đóng | 3h | 23/11, 21:00 |
-| M5 | Release | Gắn tag release, kiểm tra bản demo cuối | Release, URL/video demo | 2h | 23/11, 21:00 |
+| M0 | Chốt báo cáo cuối | Sửa theo góp ý, đánh dấu closure checklist | Final report, closure checklist | 2h | 30/11, 17:00 |
+| Cả 6 người | Nộp Mini-PM Report | Hoàn thiện bản cuối | Mini-PM Report | 1h | 30/11, 17:00 |
+| M5 | Chuẩn bị demo | Kiểm tra bản demo, chuẩn bị video dự phòng | Demo sẵn sàng | 2h | 30/11, 17:00 |
+| Cả nhóm | Tập thuyết trình | Ai cũng trình bày, bấm giờ, chuẩn bị câu hỏi dự kiến | Bản tập đã chạy | 2h | 30/11, 21:00 |
 
-### Thứ 3, 24/11 – Review & Retro
+### Thứ 3, 01/12 – Đóng dự án
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0 | Báo cáo tuần 7 | Burndown, tiến độ, defect còn mở | Sprint report | 1h | 24/11, 12:00 |
-| Cả nhóm | Sprint Review + Retro | Xem kết quả UAT, demo bản release | Biên bản họp | 1h | 24/11, 21:00 |
-| M0 | Chuẩn bị Sprint 8 | Phân công viết chương, thống nhất khung báo cáo | Khung báo cáo cuối | 1h | 24/11, 22:00 |
+| Cả nhóm | Kiểm tra lần cuối | Source code, test log, database sẵn sàng mở khi giảng viên yêu cầu | Checklist xác nhận | 1h | 01/12, 12:00 |
+| Cả nhóm | Họp đóng dự án + Retro cuối | Xem lại G1–G6, lessons learned, đề xuất cải thiện | Biên bản đóng dự án | 1h | 01/12, 21:00 |
