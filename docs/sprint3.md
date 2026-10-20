@@ -1,45 +1,41 @@
-# SPRINT 3 – Lập kế hoạch & thiết kế
+# SPRINT 3 – Nền tảng, nhóm, tích hợp Trello (khung)
 
-**Thời gian:** Thứ 4, 21/10/2026 → Thứ 3, 27/10/2026 | **Tương ứng:** Tuần 3 | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 28/10/2026 → Thứ 3, 03/11/2026 | **Tương ứng:** Sprint 1 trong kế hoạch (Tuần 3) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
 
 ## Mục tiêu sprint
-Có đủ bộ tài liệu kế hoạch (Gantt, RACI, Risk, Comm Plan), kiến trúc, ERD, test plan, prototype, và quan trọng nhất là **chốt hợp đồng API và bảng dùng chung** giữa các module trước khi vào code.
+Có khung xác thực và layout chung để các module khác chạy được; nhóm/sprint/consent hoạt động; khung đồng bộ Trello vào `ActivityEvent`; khung `contribution` và `peerreview`; CI chạy test.
 
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 4, 21/10 |
+| Sprint Planning | Thứ 4, 28/10 |
 | Daily | Hằng ngày |
-| Họp chốt API contract (cả nhóm, bắt buộc) | Thứ 2, 26/10 |
-| Sprint Review + Retrospective | Thứ 3, 27/10 |
+| Mốc: M1 giao khung xác thực/JWT + layout chung | Thứ 6, 30/10 |
+| Sprint Review + Retrospective | Thứ 3, 03/11 |
 
-## Phân công công việc
-| Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
+## Phân công công việc (lát cắt dọc)
+| Người | Lát cắt dọc | Việc cụ thể | Minh chứng | Deadline |
 |---|---|---|---|---|
-| M0 | Gantt, RACI, Risk Register, Communication Plan | Gantt, RACI, Risk Register, Comm Plan | 25/10 | ⬜ |
-| M1 | Kiến trúc hệ thống; **spike** Trello API (và Google Docs nếu còn thời gian); thiết kế bảng `ActivityEvent` | Sơ đồ kiến trúc, kết quả spike, thiết kế bảng | 24/10 (spike), 25/10 (thiết kế) | ⬜ |
-| M3 | ERD tổng (tổng hợp từ cả nhóm), quy ước CSDL, kế hoạch dữ liệu mẫu | ERD, quy ước | 26/10 | ⬜ |
-| M2 | Mẫu consent, chính sách dữ liệu, kịch bản UAT | Consent form, chính sách dữ liệu | 25/10 | ⬜ |
-| M4 | Prototype tương tác cho module chấm chéo và cảnh báo | Prototype | 25/10 | ⬜ |
-| M5 | Test plan hoàn chỉnh, môi trường dev, CI cơ bản, Docker Compose MariaDB | Test plan, pipeline CI | 26/10 | ⬜ |
-| **Cả nhóm** | **Chốt hợp đồng API và bảng dùng chung** giữa các module | Tài liệu API contract | **26/10** | ⬜ |
-| M0 | Báo cáo tuần 3, Sprint Review/Retro, chuẩn bị Sprint 4 | Báo cáo tuần, biên bản | 27/10 | ⬜ |
-
-## Chuẩn bị cho Sprint 4 (làm trong sprint này)
-- M1 chuẩn bị sẵn khung dự án Spring Boot/Vite để vào code ngay Sprint 4.
-- Mỗi chủ module đọc API contract và liệt kê endpoint mình sở hữu.
-- Thống nhất quy ước Git và Flyway (số phiên bản theo ngày giờ, ví dụ `V202610281530__create_teams.sql`).
+| M1 | Nền tảng + Trello | **Ngày 1–3 (28–30/10):** xác thực/JWT, `BaseEntity`, xử lý lỗi, layout chung, trang đăng nhập/đăng ký. **Ngày 3–5 (30/10–02/11):** kết nối Trello, đồng bộ board/card/member/action vào `ActivityEvent` | Commit, API log, demo đồng bộ | 30/10 (nền tảng), 02/11 (Trello) |
+| M2 | Nhóm/Sprint/Consent | Migration + entity + API tạo nhóm, mời thành viên, consent, sprint; màn hình nhóm và consent (làm với dữ liệu giả cho đến khi M1 giao khung xác thực) | Commit, demo UI | 02/11 |
+| M3 | Đóng góp (khung) | Migration `contribution`, công thức v1 cùng M2, `ScoringEngine` bản đầu (unit test với dữ liệu mẫu), dữ liệu mẫu `ActivityEvent` | Commit, test, tài liệu công thức v1 | 02/11 |
+| M4 | Chấm chéo (khung) | Migration + entity `ReviewRound/Submission/Criterion`, thiết kế cơ chế ẩn danh, tiêu chí | Commit, thiết kế ẩn danh | 02/11 |
+| M5 | Kiểm thử/CI | Test case Sprint 3, bật CI chạy test, kiểm thử đồng bộ Trello | Test case, kết quả test | 02/11 |
+| M0 | Quản lý | Sprint Planning, burndown, báo cáo tuần, cập nhật Risk; khung module `report` | Sprint report, burndown | 03/11 |
 
 ## Tiêu chí hoàn thành (DoD)
-- API contract có danh sách đường dẫn, JSON request/response, mã lỗi cho từng module, đã đưa lên Swagger hoặc tài liệu chung.
-- ERD tổng và bảng `ActivityEvent` đã được cả nhóm xem.
-- CI chạy được với repo trống, Docker Compose MariaDB chạy trên máy các thành viên.
+Mỗi lát dọc tính là xong khi có: migration + entity, API có validation, màn hình dùng được, unit/integration test tối thiểu, cập nhật task Trello và log công việc, demo được trên `develop`. (Sprint này chấp nhận bản "khung" cho `contribution` và `peerreview`.)
+
+## Quy ước nhắc lại
+- Nhánh `feature/<module>-<mô-tả>` → PR vào `develop`, ít nhất 1 người review trong 24 giờ.
+- Flyway dùng số phiên bản theo ngày giờ; file đã merge không sửa.
 
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
-| R16: module phía dưới chờ nền tảng của M1 | M1 lên kế hoạch giao khung xác thực trong 2–3 ngày đầu Sprint 4 |
-| Spike Trello API cho thấy giới hạn lớn | M1 báo M0 ngay, đưa Change Request nếu phải đổi phạm vi |
+| R16: M2/M3/M4 bị chặn bởi nền tảng M1 | M1 giao khung trước 30/10; các module khác làm với dữ liệu giả |
+| R19: M1 quá tải | M0 theo dõi sát, hỗ trợ sau sprint này; cắt Google Docs nếu trễ |
+| R18: đụng migration | Đúng quy ước phiên bản, M3 giữ ERD tổng |
 
 ## Báo cáo cuối sprint (điền khi họp Review)
 - Việc hoàn thành: [ ]
@@ -50,54 +46,80 @@ Có đủ bộ tài liệu kế hoạch (Gantt, RACI, Risk, Comm Plan), kiến t
 
 ## Chi tiết lịch của sprint (theo ngày)
 
-> Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học. "Hạn" là thời điểm phải đưa minh chứng lên Drive/GitHub và cập nhật task.
+> Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học. "Hạn" là thời điểm phải đưa minh chứng lên Drive/GitHub và cập nhật task. Mọi PR cần được review trong 24 giờ. Mọi task ≤ 2 giờ; việc lớn hơn đã tách thành các task con (1/2, 2/2…), mỗi task con có đầu ra riêng.
 
-### Thứ 4, 21/10 – Planning & bắt đầu thiết kế
+### Thứ 4, 28/10 – Planning & dựng nền tảng
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| Cả nhóm | Sprint Planning | Chọn việc Sprint 3, chốt cách làm API contract | Sprint backlog | 1h | 21/10, 21:00 |
-| M0 | Gantt | Dựng Gantt 8 sprint từ WBS | Gantt bản nháp | 3h | 22/10, 21:00 |
-| M1 | Kiến trúc | Vẽ sơ đồ kiến trúc (Spring Boot, MariaDB, React, dịch vụ ngoài) | Sơ đồ kiến trúc nháp | 3h | 22/10, 21:00 |
+| Cả nhóm | Sprint Planning | Chia việc, nhắc quy ước Git/Flyway | Sprint backlog | 1h | 28/10, 21:00 |
+| M1 | JWT + khung (1/3) | Cấu hình Spring Security, khung bảo mật | Nhánh `feature/auth-jwt` (khung bảo mật) | 2h | 28/10, 23:00 |
+| M1 | JWT + khung (2/3) | API đăng ký, đăng nhập phát JWT | Endpoint đăng ký/đăng nhập | 2h | 29/10, 12:00 |
+| M1 | JWT + khung (3/3) | `BaseEntity`, bộ lọc JWT | `BaseEntity`, bộ lọc JWT | 1h | 29/10, 21:00 |
+| M2 | Migration nhóm (1/2) | Migration + entity `Team`, `TeamMember` | Migration, entity (dữ liệu giả) | 2h | 29/10, 12:00 |
+| M2 | Migration nhóm (2/2) | Migration + entity `Sprint`, `Consent` | Migration, entity (dữ liệu giả) | 1h | 29/10, 21:00 |
+| M3 | Migration đóng góp (1/2) | Migration `contribution` | Migration | 2h | 29/10, 12:00 |
+| M3 | Migration đóng góp (2/2) | Bảng điểm | Migration | 1h | 29/10, 21:00 |
+| M4 | Migration chấm chéo (1/2) | Migration + entity `ReviewRound` | Migration, entity | 2h | 29/10, 12:00 |
+| M4 | Migration chấm chéo (2/2) | Migration + entity `Submission`, `Criterion` | Migration, entity | 1h | 29/10, 21:00 |
+| M5 | Test case (1/2) | Test case xác thực, nhóm theo tiêu chí chấp nhận | Test case | 2h | 29/10, 21:00 |
+| M5 | Test case (2/2) | Test case consent, đồng bộ Trello | Test case | 1h | 30/10, 21:00 |
 
-### Thứ 5, 22/10 – Spike & dữ liệu
+### Thứ 5, 29/10 – Xử lý lỗi & layout
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M1 | Spike Trello API | Gọi thử API lấy board/card/member/action, ghi giới hạn, rate limit | Code spike, ghi chú kết quả | 4h | 24/10, 21:00 |
-| M3 | ERD nháp | Thu thập bảng từ các module, vẽ ERD bản đầu | ERD nháp | 3h | 23/10, 21:00 |
-| M2 | Consent | Soạn mẫu consent, nêu rõ dữ liệu thu thập, mục đích, quyền rút lại | Consent form nháp | 2h | 23/10, 21:00 |
+| M1 | Xử lý lỗi, layout (1/3) | Exception handler chung | Exception handler | 2h | 29/10, 23:00 |
+| M1 | Xử lý lỗi, layout (2/3) | Layout/router | Layout, router | 2h | 30/10, 12:00 |
+| M1 | Xử lý lỗi, layout (3/3) | Component dùng chung | Component chung | 1h | 30/10, 17:00 |
+| M2 | API nhóm (1/2) | API tạo nhóm | Endpoint + validation | 2h | 30/10, 21:00 |
+| M2 | API nhóm (2/2) | API mời thành viên | Endpoint + validation | 2h | 31/10, 21:00 |
+| M3 | Công thức v1 (1/2) | Cùng M2 rà công thức v0.1, chỉnh trọng số | Bản chỉnh công thức | 2h | 30/10, 12:00 |
+| M3 | Công thức v1 (2/2) | Viết tài liệu công thức v1 | Tài liệu công thức v1 | 1h | 30/10, 21:00 |
 
-### Thứ 6, 23/10 – Tài liệu quản lý & prototype
+### Thứ 6, 30/10 – Mốc giao khung nền tảng
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0 | RACI, Risk Register | Lập RACI, danh sách rủi ro R1–R20 có owner và biện pháp | RACI, Risk Register | 3h | 25/10, 21:00 |
-| M4 | Prototype | Làm prototype tương tác form chấm chéo, kết quả, cảnh báo | Prototype (Figma hoặc tương đương) | 4h | 25/10, 21:00 |
-| M5 | Test plan | Viết test plan hoàn chỉnh (phạm vi, loại test, môi trường, tiêu chí đạt) | Test plan bản 1 | 3h | 24/10, 21:00 |
+| M1 | Đăng nhập/đăng ký (1/3) | Màn hình đăng nhập | Màn hình đăng nhập | 2h | 30/10, 14:00 |
+| M1 | Đăng nhập/đăng ký (2/3) | Màn hình đăng ký | Màn hình đăng ký | 1h | 30/10, 16:00 |
+| M1 | Đăng nhập/đăng ký (3/3) | PR vào `develop`, thông báo cả nhóm | Khung xác thực chạy trên `develop` | 1h | 30/10, 17:00 |
+| M2, M3, M4 | Nối vào xác thực | Pull `develop`, thay dữ liệu giả bằng xác thực thật khi có thể | Nhánh cập nhật | 1–2h | 30/10, 21:00 |
+| M1 | Bắt đầu Trello (1/2) | Lưu token Trello, gọi thử API | Token lưu được, gọi thử thành công | 2h | 31/10, 12:00 |
+| M1 | Bắt đầu Trello (2/2) | Dịch vụ kết nối Trello bản đầu | Dịch vụ kết nối Trello bản đầu | 1h | 31/10, 21:00 |
 
-### Thứ 7, 24/10 – Spike & môi trường
+### Thứ 7, 31/10 – Đồng bộ Trello
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M1 | Hoàn thành spike | Ghi kết luận: dùng được/hạn chế gì, báo M0 nếu có rủi ro | Kết quả spike | 2h | 24/10, 21:00 |
-| M5 | Môi trường dev | Docker Compose MariaDB, hướng dẫn chạy local | docker-compose.yml, README ngắn | 3h | 24/10, 21:00 |
+| M1 | Đồng bộ dữ liệu (1/3) | Map board/list/card vào `ActivityEvent` | Code đồng bộ board/card | 2h | 01/11, 12:00 |
+| M1 | Đồng bộ dữ liệu (2/3) | Map member/action vào `ActivityEvent` | Code đồng bộ member/action | 2h | 01/11, 17:00 |
+| M1 | Đồng bộ dữ liệu (3/3) | API log, xử lý lỗi cơ bản | API log | 1h | 01/11, 21:00 |
+| M2 | API sprint, consent (1/2) | API tạo sprint | Endpoint + validation | 2h | 01/11, 17:00 |
+| M2 | API sprint, consent (2/2) | API ghi consent | Endpoint + validation | 2h | 01/11, 21:00 |
+| M4 | Thiết kế ẩn danh (1/2) | Mô tả cơ chế ẩn danh, cách lưu dữ liệu | Tài liệu thiết kế ẩn danh (phần 1) | 2h | 01/11, 17:00 |
+| M4 | Thiết kế ẩn danh (2/2) | Ngưỡng tổng hợp, hoàn thiện tài liệu | Tài liệu thiết kế ẩn danh | 1h | 01/11, 21:00 |
 
-### Chủ nhật, 25/10 – Chốt thiết kế
+### Chủ nhật, 01/11 – Màn hình & ScoringEngine
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M1 | Thiết kế `ActivityEvent` | Cột, kiểu dữ liệu, loại sự kiện, khóa ngoài | Thiết kế bảng | 3h | 25/10, 21:00 |
-| M0 | Comm Plan | Kênh, tần suất họp, quy tắc phản hồi 24h, báo cáo | Communication Plan | 1h | 25/10, 21:00 |
-| M2 | Chính sách dữ liệu, kịch bản UAT | Quy định lưu/xóa dữ liệu, kịch bản UAT sơ bộ | Chính sách dữ liệu, kịch bản UAT nháp | 3h | 25/10, 21:00 |
-| M4 | Chốt prototype | Chỉnh theo góp ý, đưa lên Drive | Prototype hoàn chỉnh | 1h | 25/10, 21:00 |
+| M2 | Màn hình nhóm, consent (1/3) | Danh sách/chi tiết nhóm | Màn hình nhóm | 2h | 02/11, 12:00 |
+| M2 | Màn hình nhóm, consent (2/3) | Mời thành viên | Màn hình mời thành viên | 2h | 02/11, 15:00 |
+| M2 | Màn hình nhóm, consent (3/3) | Màn hình consent | Màn hình consent | 1h | 02/11, 17:00 |
+| M3 | `ScoringEngine` (1/3) | Cấu trúc `ScoringEngine`, hàm tính điểm cơ bản | Code khung `ScoringEngine` | 2h | 02/11, 12:00 |
+| M3 | `ScoringEngine` (2/3) | Cài trọng số theo công thức v1 (độ khó, đúng hạn) | Code công thức v1 | 2h | 02/11, 15:00 |
+| M3 | `ScoringEngine` (3/3) | Unit test với dữ liệu mẫu | Unit test | 1h | 02/11, 17:00 |
+| M3 | Dữ liệu mẫu | Tạo dữ liệu mẫu `ActivityEvent` | Script dữ liệu mẫu | 2h | 02/11, 17:00 |
 
-### Thứ 2, 26/10 – Họp chốt API contract (bắt buộc)
+### Thứ 2, 02/11 – Test & tích hợp
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| Từng chủ module | Soạn danh sách endpoint | Mỗi người liệt kê đường dẫn, JSON request/response, mã lỗi của module mình trước giờ họp | Danh sách endpoint theo module | 2h | 26/10, 17:00 |
-| Cả nhóm | Họp chốt API contract | Rà từng module, thống nhất kiểu dữ liệu dùng chung, bảng dùng chung | Tài liệu API contract | 2h | 26/10, 21:00 |
-| M3 | ERD tổng, quy ước CSDL | Hợp nhất ERD sau họp, ghi quy ước đặt tên, kế hoạch dữ liệu mẫu | ERD, quy ước CSDL | 2h | 26/10, 23:00 |
-| M5 | CI cơ bản | Pipeline GitHub Actions chạy build/test | Pipeline CI | 2h | 26/10, 23:00 |
+| M1 | Kiểm tra đồng bộ (1/2) | Chạy đồng bộ với board thật | Demo đồng bộ | 2h | 02/11, 14:00 |
+| M1 | Kiểm tra đồng bộ (2/2) | Sửa lỗi phát sinh | Commit sửa lỗi | 1h | 02/11, 17:00 |
+| M5 | CI | Bật CI chạy test | CI chạy test | 2h | 02/11, 17:00 |
+| M5 | Kiểm thử Trello | Kiểm tra đồng bộ Trello, ghi kết quả | Kết quả test | 2h | 02/11, 21:00 |
+| M2, M3, M4 | Hoàn tất PR | Mở PR vào `develop`, nhờ người liền kề review | PR đã merge | 2h | 02/11, 21:00 |
+| M0 | Khung `report` | Tạo package `report`, endpoint rỗng | Khung module | 2h | 02/11, 21:00 |
 
-### Thứ 3, 27/10 – Review & Retro
+### Thứ 3, 03/11 – Review & Retro
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M1 | Chuẩn bị khung dự án | Tạo sẵn khung Spring Boot/Vite để vào code ngày mai | Khung repo | 2h | 27/10, 17:00 |
-| M0 | Báo cáo tuần 3 | Tổng hợp tiến độ, cập nhật burndown, Gantt, Risk | Báo cáo tuần | 1h | 27/10, 12:00 |
-| Cả nhóm | Sprint Review + Retro | Duyệt tài liệu, nêu điều tốt/chưa tốt, chốt cải tiến | Biên bản họp | 1h | 27/10, 21:00 |
+| M0 | Báo cáo tuần 3 | Burndown, tiến độ, cập nhật Risk | Sprint report | 1h | 03/11, 12:00 |
+| Cả nhóm | Sprint Review + Retro | Demo trên `develop`: đăng nhập, nhóm, đồng bộ Trello | Biên bản họp | 1h | 03/11, 21:00 |
+| M0 | Chuẩn bị Sprint 4 | Chọn việc Sprint 4 từ backlog | Sprint 4 backlog | 1h | 03/11, 22:00 |
