@@ -1,0 +1,7 @@
+# Temporary automation scripts & packages
+scripts/
+node_modules/
+*.xlsx
+*.docx
+*.log
+.DS_Store
