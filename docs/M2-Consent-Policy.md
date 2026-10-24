@@ -46,3 +46,31 @@ Hệ thống FairShare thu thập và xử lý dữ liệu hoạt động học 
 
 [ NÚT: TÔI ĐỒNG Ý & THAM GIA NHÓM ]     [ NÚT: TỪ CHỐI ]
 ```
+
+---
+
+## 5. THỜI HẠN LƯU TRỮ DỮ LIỆU (DATA RETENTION POLICY)
+Nhằm tuân thủ nguyên tắc giới hạn lưu trữ (Storage Limitation) trong bảo vệ quyền riêng tư học thuật:
+1. **Thời hạn lưu trữ hoạt động:** Dữ liệu task, nhật ký hoạt động `ActivityEvent` và điểm số đóng góp chỉ được lưu trữ trong suốt thời gian diễn ra học phần Quản lý dự án CNTT (từ 14/10/2026 đến hết ngày 26/11/2026).
+2. **Thời hạn đối soát sau môn học:** Sau ngày kết thúc môn học (26/11/2026), toàn bộ dữ liệu được giữ ở trạng thái chỉ đọc (Read-only / Archive) trong vòng 30 ngày phục vụ trường hợp Giảng viên hoặc Sinh viên có khiếu nại, phúc khảo điểm quá trình.
+3. **Giới hạn truy cập:** Trong thời gian lưu trữ, chỉ có thành viên nhóm và Giảng viên phụ trách mới có quyền xem báo cáo tổng kết. Không cung cấp hoặc chia sẻ dữ liệu cho bất kỳ bên thứ ba nào vì mục đích thương mại.
+
+---
+
+## 6. QUYỀN RÚT LẠI ĐỒNG THUẬN VÀ CƠ CHẾ XÓA DỮ LIỆU (REVOCATION & RIGHT TO ERASURE)
+1. **Cơ chế rút lại đồng thuận (Revoke Consent):**
+   * Sinh viên có quyền đơn phương rút lại cam kết chia sẻ dữ liệu bất kỳ lúc nào thông qua chức năng *"Quản lý quyền riêng tư"* trên trang Chi tiết nhóm.
+   * Thao tác rút lại có hiệu lực tức thì: Hệ thống FairShare lập tức thu hồi quyền truy cập API Trello của tài khoản đó và chấm dứt việc tự động đồng bộ mọi thẻ công việc phát sinh sau thời điểm rút lại.
+   * Thành viên rút đồng thuận vẫn có thể chuyển sang hình thức khai báo đóng góp thủ công (Manual Activity Claim) có sự xác nhận của Trưởng nhóm và đồng đội.
+2. **Quyền yêu cầu xóa dữ liệu (Right to Erasure):**
+   * Nếu sinh viên rời nhóm hoặc hủy môn học, sinh viên có quyền gửi yêu cầu xóa toàn bộ thông tin tài khoản và lịch sử hoạt động cá nhân chưa được chốt vào báo cáo chính thức.
+   * Hệ thống sẽ thực hiện làm sạch dữ liệu (Anonymization) bằng cách ẩn danh hóa định danh (thay thế MSSV và Họ tên bằng mã băm giả danh `ANON_USER_XXX`), giữ nguyên tổng điểm số của nhóm để không làm sai lệch kết quả chung của cả đội ngũ.
+
+---
+
+## 7. QUY TRÌNH TIÊU HỦY DỮ LIỆU KHI ĐÓNG DỰ ÁN (PROJECT CLOSEOUT & DATA PURGE)
+Theo kế hoạch đóng dự án tại Sprint 7 (Tuần kết thúc môn):
+1. **Hủy Token liên kết Trello:** Hệ thống tự động xóa toàn bộ OAuth Access Tokens và Webhook configurations liên kết với bảng Trello của nhóm.
+2. **Xuất bản lưu trữ ngoại tuyến:** Toàn bộ dữ liệu tổng kết được kết xuất thành 01 file báo cáo nén duy nhất bàn giao cho Giảng viên.
+3. **Tiêu hủy cơ sở dữ liệu (Data Purge):** Toàn bộ cơ sở dữ liệu trên môi trường triển khai thực tế (Database MariaDB) sẽ được xóa sạch dữ liệu người dùng (DROP/TRUNCATE bảng `users`, `teams`, `consents`, `activity_events`, `peer_reviews`), cam kết không lưu lại vết thông tin sinh viên sau khi hoàn thành nghiệm thu môn học.
+

@@ -1,6 +1,6 @@
 # SPRINT 2 – Lập kế hoạch & thiết kế
 
-**Thời gian:** Thứ 4, 21/10/2026 → Thứ 3, 27/10/2026 | **Tương ứng:** Tuần 2 | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 21/10/2026 → Thứ 3, 27/10/2026 | **Tương ứng:** Tuần 2 | **Trạng thái sprint:** 🔄 Đang thực hiện
 
 ## Mục tiêu sprint
 Có đủ bộ tài liệu kế hoạch (Gantt, RACI, Risk, Comm Plan), kiến trúc, ERD, test plan, prototype, và quan trọng nhất là **chốt hợp đồng API và bảng dùng chung** giữa các module trước khi vào code.
@@ -19,7 +19,7 @@ Có đủ bộ tài liệu kế hoạch (Gantt, RACI, Risk, Comm Plan), kiến t
 | M0 | Gantt, RACI, Risk Register, Communication Plan | Gantt, RACI, Risk Register, Comm Plan | 25/10 | ⬜ |
 | M1 | Kiến trúc hệ thống; **spike** Trello API (và Google Docs nếu còn thời gian); thiết kế bảng `ActivityEvent` | Sơ đồ kiến trúc, kết quả spike, thiết kế bảng | 24/10 (spike), 25/10 (thiết kế) | ⬜ |
 | M3 | ERD tổng (tổng hợp từ cả nhóm), quy ước CSDL, kế hoạch dữ liệu mẫu | ERD, quy ước | 26/10 | ⬜ |
-| M2 | Mẫu consent, chính sách dữ liệu, kịch bản UAT | Consent form, chính sách dữ liệu | 25/10 | ⬜ |
+| M2 | Mẫu consent, chính sách dữ liệu, kịch bản UAT, API contract M2 | Consent form, chính sách dữ liệu, kịch bản UAT, API contract | 25/10 | ✅ Hoàn thành |
 | M4 | Prototype tương tác cho module chấm chéo và cảnh báo | Prototype | 25/10 | ⬜ |
 | M5 | Test plan hoàn chỉnh, môi trường dev, CI cơ bản, Docker Compose MariaDB | Test plan, pipeline CI | 26/10 | ⬜ |
 | **Cả nhóm** | **Chốt hợp đồng API và bảng dùng chung** giữa các module | Tài liệu API contract | **26/10** | ⬜ |
