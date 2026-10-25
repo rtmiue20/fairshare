@@ -1,14 +1,14 @@
-﻿spring:
+spring:
   application:
     name: fairshare-backend
   config:
-    # Náº¡p máº­t kháº©u tá»« file riÃªng (Ä‘Ã£ .gitignore). "optional:" Ä‘á»ƒ mÃ´i trÆ°á»ng khÃ¡c
-    # (Docker/server) cÃ³ thá»ƒ cáº¥p máº­t kháº©u qua biáº¿n mÃ´i trÆ°á»ng SPRING_DATASOURCE_PASSWORD.
+    # Nạp mật khẩu từ file riêng (đã .gitignore). "optional:" để môi trường khác
+    # (Docker/server) có thể cấp mật khẩu qua biến môi trường SPRING_DATASOURCE_PASSWORD.
     import: optional:classpath:application-secret.yaml
   datasource:
     url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:fairshare}
     username: ${DB_USER:root}
-    # password: láº¥y tá»« application-secret.yaml
+    # password: lấy từ application-secret.yaml
     driver-class-name: org.mariadb.jdbc.Driver
   jpa:
     hibernate:
