@@ -1,0 +1,120 @@
+{
+  "project_name": "FairShare",
+  "board_id": "board_fairshare_01",
+  "last_synced": "2026-10-13T22:00:00Z",
+  "members": [
+    {
+      "member_id": "user_trieu",
+      "full_name": "Nguyễn Văn Minh Triều",
+      "role": "PM hệ thống chung"
+    },
+    {
+      "member_id": "user_thien",
+      "full_name": "Hà Ngọc Thiện",
+      "role": "PM phân tích nghiệp vụ (BA)"
+    },
+    {
+      "member_id": "user_vuong",
+      "full_name": "Nguyễn Phúc Vương",
+      "role": "PM Backend/API & Tích hợp"
+    },
+    {
+      "member_id": "user_phuc",
+      "full_name": "Ngô Trọng Phúc",
+      "role": "PM Web Frontend"
+    },
+    {
+      "member_id": "user_khang",
+      "full_name": "Triệu Nguyễn Huỳnh Khang",
+      "role": "PM Database/Data"
+    },
+    {
+      "member_id": "user_namanh",
+      "full_name": "Khiếu Hoàng Nam Anh",
+      "role": "PM QA & Deployment"
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "card_t1_01",
+      "title": "Họp kick-off, Project Charter, Team Charter, tạo Trello, thư mục Drive",
+      "status": "Done",
+      "assigned_to": ["user_trieu"],
+      "sprint": "Tuần 1",
+      "start_date": "2026-10-06T08:00:00Z",
+      "completed_date": "2026-10-10T17:00:00Z"
+    },
+    {
+      "task_id": "card_t1_02",
+      "title": "Stakeholder sơ bộ, soạn bảng khảo sát (Google Form)",
+      "status": "Done",
+      "assigned_to": ["user_thien"],
+      "sprint": "Tuần 1",
+      "start_date": "2026-10-08T08:00:00Z",
+      "completed_date": "2026-10-11T10:00:00Z"
+    },
+    {
+      "task_id": "card_t1_03",
+      "title": "Tạo repository GitHub, quy ước nhánh/commit, README",
+      "status": "Done",
+      "assigned_to": ["user_vuong"],
+      "sprint": "Tuần 1",
+      "start_date": "2026-10-09T08:00:00Z",
+      "completed_date": "2026-10-13T09:00:00Z"
+    },
+    {
+      "task_id": "card_t1_04",
+      "title": "Tìm hiểu cấu trúc dữ liệu Trello (board, card, member, action)",
+      "status": "In Progress",
+      "assigned_to": ["user_khang"],
+      "sprint": "Tuần 1",
+      "start_date": "2026-10-10T08:00:00Z",
+      "completed_date": null
+    },
+    {
+      "task_id": "card_t1_05",
+      "title": "Tìm hiểu giao diện các công cụ tương tự, chọn framework UI",
+      "status": "Review",
+      "assigned_to": ["user_phuc"],
+      "sprint": "Tuần 1",
+      "start_date": "2026-10-11T08:00:00Z",
+      "completed_date": null
+    },
+    {
+      "task_id": "card_t1_06",
+      "title": "Chọn môi trường triển khai, tạo kênh giao tiếp, mẫu biên bản họp",
+      "status": "Done",
+      "assigned_to": ["user_namanh"],
+      "sprint": "Tuần 1",
+      "start_date": "2026-10-07T08:00:00Z",
+      "completed_date": "2026-10-09T17:00:00Z"
+    },
+    {
+      "task_id": "card_t2_01",
+      "title": "Chạy khảo sát/phỏng vấn, yêu cầu chức năng/phi chức năng, Use Case, BPMN, MVP",
+      "status": "To Do",
+      "assigned_to": ["user_thien"],
+      "sprint": "Tuần 2",
+      "start_date": null,
+      "completed_date": null
+    },
+    {
+      "task_id": "card_t2_02",
+      "title": "Ước lượng kỹ thuật, đọc tài liệu Trello API",
+      "status": "To Do",
+      "assigned_to": ["user_vuong"],
+      "sprint": "Tuần 2",
+      "start_date": null,
+      "completed_date": null
+    },
+    {
+      "task_id": "card_t2_03",
+      "title": "Scope Statement, WBS, backlog (ước lượng story point cùng nhóm)",
+      "status": "To Do",
+      "assigned_to": ["user_trieu"],
+      "sprint": "Tuần 2",
+      "start_date": null,
+      "completed_date": null
+    }
+  ]
+}
