@@ -1,0 +1,9 @@
+# Biến môi trường thật (chỉ commit .env.example)
+.env
+.env.local
+
+# Build output
+frontend/node_modules/
+frontend/dist/
+fairshare-backend/target/
+frontend/*.tsbuildinfo
