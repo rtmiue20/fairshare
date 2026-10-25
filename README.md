@@ -672,18 +672,18 @@ Chi tiết xem `docs/02-planning/plan-PM.md`.
 
 | Họ tên | MSSV | Vai trò |
 |---|---|---|
-| [ ] (Nhóm trưởng) | [ ] | PM hệ thống chung |
-| [ ] | [ ] | PM phân tích nghiệp vụ |
-| [ ] | [ ] | PM Backend/API & Tích hợp |
-| [ ] | [ ] | PM Web Frontend |
-| [ ] | [ ] | PM Database/Data |
-| [ ] | [ ] | PM QA & Deployment |
+| Nguyễn Văn Minh Triều (Nhóm trưởng) | 31241027455 | PM hệ thống chung |
+| Hà Ngọc Thiện | 31241021658 | PM phân tích nghiệp vụ |
+| Nguyễn Phúc Vương | 31241025017 | PM Backend/API & Tích hợp |
+| Ngô Trọng Phúc | 31241020074 | PM Web Frontend |
+| Triệu Nguyễn Huỳnh Khang | 31241022785 | PM Database/Data |
+| Khiếu Hoàng Nam Anh | 31241022203 | PM QA & Deployment |
 
-**Giảng viên hướng dẫn:** TS. Nguyễn Mạnh Tuấn – Khoa CNTTKD, UEH
-**Môn học:** Quản lý dự án CNTT
+**Giảng viên hướng dẫn:** TS. Nguyễn Mạnh Tuấn – Khoa CNTTKD, UEH  
+**Môn học:** Quản lý dự án CNTT  
 
 ---
 
 ## 15. Giấy phép
 
-Dự án thực hiện cho mục đích học tập. Chọn giấy phép phù hợp (ví dụ MIT) và cập nhật tập tin `LICENSE` trước khi công khai mã nguồn.
+Dự án này được phân phối dưới giấy phép **MIT License**. Xem chi tiết tại tập tin [LICENSE](LICENSE).
