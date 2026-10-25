@@ -1,0 +1,71 @@
+name: Docker Compose smoke test
+
+# Kiểm tra cả 3 container (db, backend, frontend) build và khởi động được cùng nhau.
+# Chạy khi mở PR vào master/develop và khi push lên master.
+on:
+  pull_request:
+    branches: [master, develop]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose-up:
+    name: docker compose up + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # Mật khẩu ngẫu nhiên cho mỗi lần chạy, không lưu bí mật nào trong repo
+      - name: Create .env for CI
+        run: |
+          cp .env.example .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 16)/" .env
+          sed -i "s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=$(openssl rand -hex 16)/" .env
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start stack
+        run: docker compose up -d
+
+      - name: Wait for MariaDB healthy
+        run: |
+          for i in $(seq 1 30); do
+            s=$(docker inspect -f '{{.State.Health.Status}}' fairshare-db)
+            echo "db: $s"; [ "$s" = "healthy" ] && exit 0; sleep 5
+          done
+          exit 1
+
+      # Backend chưa mở endpoint public nào: Spring Security trả 401/403 nghĩa là app đã lên.
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/actuator/health || true)
+            echo "backend: $code"
+            case "$code" in 200|401|403) exit 0;; esac
+            sleep 5
+          done
+          exit 1
+
+      - name: Check Flyway migrations applied
+        run: docker logs fairshare-backend 2>&1 | grep -E "Successfully applied|Schema .* is up to date"
+
+      - name: Check frontend serves index.html
+        run: curl -fsS http://localhost/ | grep -qi "<div id=\"root\""
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
