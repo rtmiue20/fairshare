@@ -18,14 +18,14 @@
 
 ## 2. Danh sách thành viên, module và vai trò
 
-| TT | Họ tên | MSSV | Phân hệ (Work package) | Vai trò PM mini (theo quy định môn) | Package backend phụ trách | Màn hình frontend phụ trách |
-|---|---|---|---|---|---|---|
-| M0 | [ ] (Nhóm trưởng) | [ ] | WP0 – Quản lý dự án + Báo cáo PDF | **PM hệ thống chung** | `report` | Nút/trang xuất PDF |
-| M1 | [ ] | [ ] | WP1 – Nền tảng & Tích hợp Trello | **PM Backend/API & Tích hợp** | `auth`, `user`, `common`, `config`, `integration/*`, `activity` | Đăng nhập/đăng ký, layout chung, kết nối Trello, trạng thái đồng bộ |
-| M2 | [ ] | [ ] | WP2 – Nhóm, Sprint & Consent | **PM phân tích nghiệp vụ (BA)** | `team`, `sprint` | Danh sách/chi tiết nhóm, mời thành viên, consent, quản lý sprint |
-| M3 | [ ] | [ ] | WP3 – Đóng góp & Dashboard | **PM Database/Data** | `contribution` (gồm `ScoringEngine`) | Dashboard biểu đồ, bảng bằng chứng truy vết, khai báo đóng góp thủ công |
-| M4 | [ ] | [ ] | WP4 – Chấm chéo ẩn danh & Cảnh báo | **PM Web/Feature (chấm chéo)** | `peerreview` (gồm `AnonymityAggregator`), `alert` | Form chấm chéo, kết quả tổng hợp, danh sách cảnh báo |
-| M5 | [ ] | [ ] | WP5 – Kiểm thử & Triển khai | **PM QA & Deployment** | Test toàn hệ thống, CI/CD, Docker | Kiểm thử giao diện, tài liệu hướng dẫn, môi trường demo |
+| TT | Họ tên                              | MSSV | Phân hệ (Work package) | Vai trò PM mini (theo quy định môn) | Package backend phụ trách | Màn hình frontend phụ trách |
+|---|-------------------------------------|---|---|---|---|---|
+| M0 | Nguyễn Văn Minh Triều (Nhóm trưởng) | 31241027455 | WP0 – Quản lý dự án + Báo cáo PDF | **PM hệ thống chung** | `report` | Nút/trang xuất PDF |
+| M1 | Nguyễn Phúc Vương                   | 31241025017 | WP1 – Nền tảng & Tích hợp Trello | **PM Backend/API & Tích hợp** | `auth`, `user`, `common`, `config`, `integration/*`, `activity` | Đăng nhập/đăng ký, layout chung, kết nối Trello, trạng thái đồng bộ |
+| M2 | Hà Ngọc Thiện                       | 31241021658 | WP2 – Nhóm, Sprint & Consent | **PM phân tích nghiệp vụ (BA)** | `team`, `sprint` | Danh sách/chi tiết nhóm, mời thành viên, consent, quản lý sprint |
+| M3 | Ngô Trọng Phúc                      | 31241020074 | WP3 – Đóng góp & Dashboard | **PM Database/Data** | `contribution` (gồm `ScoringEngine`) | Dashboard biểu đồ, bảng bằng chứng truy vết, khai báo đóng góp thủ công |
+| M4 | Triệu Nguyễn Huỳnh Khang            | 31241022785 | WP4 – Chấm chéo ẩn danh & Cảnh báo | **PM Web/Feature (chấm chéo)** | `peerreview` (gồm `AnonymityAggregator`), `alert` | Form chấm chéo, kết quả tổng hợp, danh sách cảnh báo |
+| M5 | Khiếu Hoàng Nam Anh                 | 31241022203 | WP5 – Kiểm thử & Triển khai | **PM QA & Deployment** | Test toàn hệ thống, CI/CD, Docker | Kiểm thử giao diện, tài liệu hướng dẫn, môi trường demo |
 
 **Vai trò gắn thêm (ghi rõ để làm minh chứng):**
 - **M2 kiêm BA:** khảo sát, yêu cầu, Use Case/BPMN, kịch bản UAT, mẫu consent và chính sách dữ liệu.

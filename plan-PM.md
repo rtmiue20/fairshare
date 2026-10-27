@@ -2,7 +2,7 @@
 
 **Môn:** Quản lý dự án CNTT – UEH (GV: TS. Nguyễn Mạnh Tuấn)
 **Đề tài:** FairShare – Nền tảng đo lường và minh bạch hóa mức đóng góp trong đồ án nhóm
-**Nhóm:** 6 thành viên | **Thời lượng:** 8 tuần | **Mô hình:** Scrum rút gọn (sprint 1 tuần)
+**Nhóm:** 6 thành viên | **Thời lượng:** 7 tuần | **Mô hình:** Scrum rút gọn (sprint 1 tuần)
 
 > Ghi chú: các mục có dấu `[ ]` là việc cần điền/cập nhật khi thực hiện. Ngày cụ thể điền sau khi chốt lịch học kỳ.
 
@@ -67,7 +67,7 @@
 
 ## 3. Phương pháp và quy trình làm việc
 
-- **Mô hình:** Scrum rút gọn. Sprint dài 1 tuần (Tuần 4–7), Tuần 1–3 là khởi động, phân tích và lập kế hoạch, Tuần 8 đóng dự án.
+- **Mô hình:** Scrum rút gọn. Sprint dài 1 tuần (Tuần 3–6), Tuần 1–2 là khởi động, phân tích và lập kế hoạch, Tuần 7 đóng dự án.
 - **Sự kiện:**
   - Sprint Planning: đầu tuần (30–45 phút)
   - Họp đứng (stand-up): 2 lần/tuần, 15 phút (có thể qua nhóm chat, ghi lại log)
@@ -82,18 +82,17 @@
 
 ---
 
-## 4. Lịch trình tổng thể (8 tuần)
+## 4. Lịch trình tổng thể (7 tuần)
 
 | Tuần | Giai đoạn | Mục tiêu chính | Sản phẩm/minh chứng bắt buộc |
 |---|---|---|---|
-| 1 | Khởi động & chọn đề tài | Chốt đề tài, khảo sát sơ bộ, phân vai, tạo công cụ | Project Charter, Stakeholder sơ bộ, Team Charter, task board, repository |
-| 2 | Phân tích nghiệp vụ & phạm vi | Yêu cầu, Use Case/BPMN, xác định MVP, WBS | Requirement list, Use Case/BPMN, Scope Statement, WBS, backlog, kết quả khảo sát |
-| 3 | Lập kế hoạch & thiết kế | Gantt, nguồn lực, rủi ro, giao tiếp, kiến trúc, ERD, prototype, spike kỹ thuật | Gantt, RACI, Risk Register, Communication Plan, kiến trúc, ERD, prototype, kết quả spike API |
-| 4 | **Sprint 1** | Nền tảng + tích hợp Trello | Sprint report, commit, demo increment, issue log |
-| 5 | **Sprint 2** | Bảng đóng góp + công thức tính | Integrated build, change log, updated schedule |
-| 6 | **Sprint 3** | Chấm chéo ẩn danh + xuất PDF + kiểm thử | Test cases, defect log, progress report, revised plan |
-| 7 | **Sprint 4** | UAT, sửa lỗi, triển khai, tính năng có điều kiện | UAT, release, deployment evidence, user guide |
-| 8 | Đóng dự án & báo cáo | Đánh giá mục tiêu, lessons learned, báo cáo/slide/demo | Final report, final demo, lessons learned, closure checklist, Mini-PM Report |
+| 1 | Khởi động, phân tích nghiệp vụ & phạm vi | Chốt đề tài, phân vai, khảo sát, yêu cầu, Use Case/BPMN, MVP, WBS | Project Charter, Stakeholder sơ bộ, Team Charter, task board, repository, Requirement list, Use Case/BPMN, Scope Statement, WBS, backlog, kết quả khảo sát |
+| 2 | Lập kế hoạch & thiết kế | Gantt, nguồn lực, rủi ro, giao tiếp, kiến trúc, ERD, prototype, spike kỹ thuật | Gantt, RACI, Risk Register, Communication Plan, kiến trúc, ERD, prototype, kết quả spike API |
+| 3 | **Sprint 1** | Nền tảng + tích hợp Trello | Sprint report, commit, demo increment, issue log |
+| 4 | **Sprint 2** | Bảng đóng góp + công thức tính | Integrated build, change log, updated schedule |
+| 5 | **Sprint 3** | Chấm chéo ẩn danh + xuất PDF + kiểm thử | Test cases, defect log, progress report, revised plan |
+| 6 | **Sprint 4** | UAT, sửa lỗi, triển khai, tính năng có điều kiện | UAT, release, deployment evidence, user guide |
+| 7 | Đóng dự án & báo cáo | Đánh giá mục tiêu, lessons learned, báo cáo/slide/demo | Final report, final demo, lessons learned, closure checklist, Mini-PM Report |
 
 > Ghi chú: Nếu GV yêu cầu sprint dài hơn hoặc lịch học kỳ khác, điều chỉnh bảng này và ghi lại bằng Change Request.
 
@@ -101,28 +100,26 @@
 
 ## 5. Kế hoạch từng Sprint
 
-### Giai đoạn chuẩn bị (Tuần 1–3)
+### Giai đoạn chuẩn bị (Tuần 1–2)
 
-**Tuần 1 – Khởi động**
+**Tuần 1 – Khởi động & Phân tích**
 - Họp kick-off, chốt đề tài và vai trò
 - Lập Project Charter, Team Charter (quy tắc làm việc, kênh liên lạc, cách giải quyết xung đột)
 - Tạo repository, task board, thư mục Drive minh chứng
 - Soạn bảng khảo sát nhu cầu (Google Form)
-
-**Tuần 2 – Phân tích**
 - Chạy khảo sát và phỏng vấn ngắn (mục tiêu ≥ 15 phản hồi)
 - Viết yêu cầu chức năng/phi chức năng, Use Case, BPMN quy trình chấm chéo
 - Xác định MVP, viết Scope Statement, lập WBS và product backlog (ước lượng story point)
 - Thiết kế bộ tiêu chí và công thức đo đóng góp (bản nháp)
 
-**Tuần 3 – Lập kế hoạch & thiết kế**
+**Tuần 2 – Lập kế hoạch & thiết kế**
 - Lập Gantt, RACI, Risk Register, Communication Plan, kế hoạch chất lượng/test plan
 - Thiết kế kiến trúc, ERD, API, wireframe/prototype
 - **Spike kỹ thuật (1–2 ngày):** thử Trello API (OAuth/token, webhook, board/card/member/action) và Google Docs/Drive revision API; ghi kết quả để quyết định phạm vi
 - Soạn mẫu consent và chính sách dữ liệu
 - Thiết lập môi trường dev, CI cơ bản
 
-### Sprint 1 (Tuần 4) – Nền tảng & tích hợp Trello
+### Sprint 1 (Tuần 3) – Nền tảng & tích hợp Trello
 **Sprint Goal:** Người dùng đăng nhập, tạo nhóm, kết nối Trello và thấy dữ liệu card đồng bộ.
 - Cấu trúc dự án, CSDL, xác thực (đăng nhập, phân quyền), quản lý nhóm
 - Chức năng consent
@@ -131,7 +128,7 @@
 - Dữ liệu mẫu, test case Sprint 1
 - **Tiêu chí hoàn thành:** đồng bộ thành công một board mẫu; có demo và log commit
 
-### Sprint 2 (Tuần 5) – Bảng đóng góp
+### Sprint 2 (Tuần 4) – Bảng đóng góp
 **Sprint Goal:** Hiển thị tỷ lệ đóng góp từng thành viên với bằng chứng truy vết.
 - Công thức tính điểm đóng góp (trọng số theo story point/độ khó, đúng hạn)
 - API tổng hợp đóng góp, truy vết đến sự kiện gốc
@@ -140,14 +137,14 @@
 - Tích hợp các phân hệ, cập nhật Risk/Change Log
 - **Quyết định cuối sprint:** có làm tính năng có điều kiện (Google Docs/cảnh báo sớm) hay không (ghi bằng Change Request)
 
-### Sprint 3 (Tuần 6) – Chấm chéo, PDF, kiểm thử
+### Sprint 3 (Tuần 5) – Chấm chéo, PDF, kiểm thử
 **Sprint Goal:** Hoàn thiện chấm chéo ẩn danh và xuất báo cáo; chạy kiểm thử tích hợp.
 - Chu kỳ chấm chéo: mở/đóng đợt, form tiêu chí, lưu trữ ẩn danh, quy tắc tổng hợp (ngưỡng tối thiểu)
 - Xuất báo cáo PDF (tổng hợp đóng góp, điểm chấm chéo, bằng chứng chính)
 - Unit/integration test, ghi nhận defect
 - Đo tiến độ thực tế, báo cáo PCG, điều chỉnh kế hoạch
 
-### Sprint 4 (Tuần 7) – UAT và triển khai
+### Sprint 4 (Tuần 6) – UAT và triển khai
 **Sprint Goal:** Người dùng thật chấp nhận sản phẩm; hệ thống chạy được trên môi trường demo.
 - UAT với ≥ 10 sinh viên (kịch bản, bảng ghi nhận phản hồi)
 - Sửa lỗi nghiêm trọng, hoàn thiện hiệu năng/bảo mật cơ bản
@@ -155,7 +152,7 @@
 - (Có điều kiện) cảnh báo sớm / Google Docs bản đơn giản
 - Khóa phạm vi, đóng băng code ở cuối tuần
 
-### Tuần 8 – Đóng dự án
+### Tuần 7 – Đóng dự án
 - Đánh giá mục tiêu: đạt/không đạt từng G1–G6 kèm số liệu
 - Lessons learned (≥ 3 bài học cụ thể dựa trên minh chứng)
 - Hoàn thiện báo cáo Word (đặt tên NhomXYZ), slide, demo, Mini-PM Report của từng thành viên
@@ -194,23 +191,23 @@
 
 Thang điểm: Xác suất (1–5) × Tác động (1–5) → Điểm; ≥ 15 Cao, 8–14 Trung bình, < 8 Thấp.
 
-| ID | Rủi ro | Xác suất | Tác động | Mức độ | Owner | Biện pháp ứng phó | Loại | Trạng thái |
-|---|---|---|---|---|---|---|---|---|
-| R01 | Google OAuth/giới hạn quyền truy cập Docs làm tích hợp không khả thi | 4 | 4 | Cao | Backend/API | Spike ở Tuần 3; chạy chế độ Testing; dự phòng: import CSV hoặc chỉ đếm revision | Mitigate | Open |
-| R02 | API Trello thay đổi/giới hạn rate limit/lỗi đồng bộ | 3 | 4 | Cao | Backend/API | Lớp adapter riêng, lưu dữ liệu thô, retry, mock API khi test | Mitigate | Open |
-| R03 | Vi phạm quyền riêng tư (thu thập dữ liệu khi chưa có đồng ý, dùng dữ liệu thật khi demo) | 3 | 5 | Cao | PM chính + BA | Consent rõ ràng, dữ liệu mẫu, chỉ lấy dữ liệu tối thiểu, chính sách xóa dữ liệu (tham chiếu Nghị định 13/2023/NĐ-CP) | Avoid | Open |
+| ID | Rủi ro | Xác suất | Tác động | Mức độ | Owner | Biện pháp ứng phó                                                                                                                                   | Loại | Trạng thái |
+|---|---|---|---|---|---|-----------------------------------------------------------------------------------------------------------------------------------------------------|---|---|
+| R01 | Google OAuth/giới hạn quyền truy cập Docs làm tích hợp không khả thi | 4 | 4 | Cao | Backend/API | Spike ở Tuần 2; chạy chế độ Testing; dự phòng: import CSV hoặc chỉ đếm revision                                                                     | Mitigate | Open |
+| R02 | API Trello thay đổi/giới hạn rate limit/lỗi đồng bộ | 3 | 4 | Cao | Backend/API | Viết module tạm thời tương tự các tính năng API của Trello để chữa cháy tạm thời nhưng vẫn đảm bảo vận hành tốt.                                    | Mitigate | Open |
+| R03 | Vi phạm quyền riêng tư (thu thập dữ liệu khi chưa có đồng ý, dùng dữ liệu thật khi demo) | 3 | 5 | Cao | PM chính + BA | Consent rõ ràng, dữ liệu mẫu, chỉ lấy dữ liệu tối thiểu, chính sách xóa dữ liệu (tham chiếu Nghị định 13/2023/NĐ-CP)                                | Avoid | Open |
 | R04 | Chấm chéo "ẩn danh" bị lộ do nhóm nhỏ | 4 | 4 | Cao | BA + Database | Ngưỡng tổng hợp ≥ 3 lượt, chỉ hiển thị trung bình, không lưu liên kết trực tiếp người chấm–người được chấm trong giao diện, ghi rõ giới hạn ẩn danh | Mitigate | Open |
-| R05 | Gian lận dữ liệu (tạo task giả, chia nhỏ task, chỉnh sửa vô nghĩa) | 4 | 4 | Cao | BA | Trọng số theo độ khó, phát hiện bất thường, cho phép phản đối, khai báo thủ công cần xác nhận | Mitigate | Open |
-| R06 | Công thức đóng góp bị cho là thiếu công bằng/khó giải thích | 4 | 4 | Cao | BA | Công thức minh bạch, hiển thị chi tiết, thử nghiệm với dữ liệu thật của nhóm, thu thập phản hồi | Mitigate | Open |
-| R07 | Scope creep (thêm tính năng ngoài MVP) | 4 | 3 | TB | PM chính | Scope Statement, danh sách Out of scope, Change Request bắt buộc | Avoid | Open |
-| R08 | Ước lượng sai effort, trễ tiến độ do chỉ có 4 sprint | 4 | 4 | Cao | PM chính | Buffer 20–30%, ưu tiên MVP, cắt tính năng có điều kiện | Mitigate | Open |
-| R09 | Thành viên thiếu kỹ năng với tích hợp API/bảo mật | 3 | 3 | TB | PM chính | Phân công theo thế mạnh, pair programming, tài liệu hướng dẫn | Mitigate | Open |
-| R10 | Thành viên vắng/quá tải do lịch học và thi | 4 | 3 | TB | PM chính | Lịch họp linh hoạt, người dự phòng cho mỗi phân hệ, theo dõi workload | Mitigate | Open |
-| R11 | Tích hợp muộn, lỗi phát hiện trễ | 3 | 4 | Cao | QA & Deploy | Tích hợp liên tục, vertical slice ngay Sprint 1, CI chạy test | Mitigate | Open |
-| R12 | Không tìm đủ người dùng thử cho UAT | 3 | 3 | TB | BA | Liên hệ sớm các nhóm khác, chuẩn bị bản demo có dữ liệu mẫu, khảo sát online | Mitigate | Open |
-| R13 | Mất dữ liệu/code, mất truy cập hạ tầng | 2 | 5 | TB | QA & Deploy | Git remote, backup CSDL, tài liệu triển khai | Mitigate | Open |
-| R14 | Xung đột nội bộ, đánh giá lẫn nhau căng thẳng | 3 | 3 | TB | PM chính | Team Charter, retrospective, trao đổi thẳng thắn, PCG/GV hỗ trợ khi cần | Mitigate | Open |
-| R15 | Bị coi là copy/AI chưa kiểm chứng, vi phạm quy định | 2 | 5 | TB | PM chính | Tự viết nội dung, kiểm tra đầu ra AI, kiểm tra đạo văn trên LMS, ghi rõ nguồn tham khảo | Avoid | Open |
+| R05 | Gian lận dữ liệu (tạo task giả, chia nhỏ task, chỉnh sửa vô nghĩa) | 4 | 4 | Cao | BA | Trọng số theo độ khó, phát hiện bất thường, cho phép phản đối, khai báo thủ công cần xác nhận                                                       | Mitigate | Open |
+| R06 | Công thức đóng góp bị cho là thiếu công bằng/khó giải thích | 4 | 4 | Cao | BA | Công thức minh bạch, hiển thị chi tiết, thử nghiệm với dữ liệu thật của nhóm, thu thập phản hồi                                                     | Mitigate | Open |
+| R07 | Scope creep (thêm tính năng ngoài MVP) | 4 | 3 | TB | PM chính | Scope Statement, danh sách Out of scope, Change Request bắt buộc                                                                                    | Avoid | Open |
+| R08 | Ước lượng sai effort, trễ tiến độ do chỉ có 4 sprint | 4 | 4 | Cao | PM chính | Buffer 20–30%, ưu tiên MVP, cắt tính năng có điều kiện                                                                                              | Mitigate | Open |
+| R09 | Thành viên thiếu kỹ năng với tích hợp API/bảo mật | 3 | 3 | TB | PM chính | Phân công theo thế mạnh, pair programming, tài liệu hướng dẫn                                                                                       | Mitigate | Open |
+| R10 | Thành viên vắng/quá tải do lịch học và thi | 4 | 3 | TB | PM chính | Lịch họp linh hoạt, người dự phòng cho mỗi phân hệ, theo dõi workload                                                                               | Mitigate | Open |
+| R11 | Tích hợp muộn, lỗi phát hiện trễ | 3 | 4 | Cao | QA & Deploy | Tích hợp liên tục, vertical slice ngay Sprint 1, CI chạy test                                                                                       | Mitigate | Open |
+| R12 | Không tìm đủ người dùng thử cho UAT | 3 | 3 | TB | BA | Liên hệ sớm các nhóm khác, chuẩn bị bản demo có dữ liệu mẫu, khảo sát online                                                                        | Mitigate | Open |
+| R13 | Mất dữ liệu/code, mất truy cập hạ tầng | 2 | 5 | TB | QA & Deploy | Git remote, backup CSDL, tài liệu triển khai                                                                                                        | Mitigate | Open |
+| R14 | Xung đột nội bộ, đánh giá lẫn nhau căng thẳng | 3 | 3 | TB | PM chính | Team Charter, retrospective, trao đổi thẳng thắn, PCG/GV hỗ trợ khi cần                                                                             | Mitigate | Open |
+| R15 | Bị coi là copy/AI chưa kiểm chứng, vi phạm quy định | 2 | 5 | TB | PM chính | Tự viết nội dung, kiểm tra đầu ra AI, kiểm tra đạo văn trên LMS, ghi rõ nguồn tham khảo                                                             | Avoid | Open |
 
 > Khi rủi ro xảy ra, chuyển thành Issue trong Issue Log và ghi hành động khắc phục.
 
