@@ -505,10 +505,22 @@ FLUSH PRIVILEGES;
 
 **Bước 2 – Backend**
 
+Tạo file mật khẩu riêng cho backend (đã `.gitignore`, không commit):
+
 ```bash
-cd backend
+cd fairshare-backend/src/main/resources
+cp application-secret.example.yaml application-secret.yaml
+# mở application-secret.yaml, điền mật khẩu MariaDB vào spring.datasource.password
+```
+
+`application.yaml` tự nạp file này qua `spring.config.import`. Sau đó chạy backend:
+
+```bash
+cd fairshare-backend
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
+
+> Mật khẩu chỉ nằm ở 2 file không commit: `application-secret.yaml` (chạy bằng IDE/mvnw) và `.env` (chạy bằng Docker Compose). Repo chỉ chứa file mẫu `application-secret.example.yaml` và `.env.example` với mật khẩu để trống.
 
 Flyway sẽ tự tạo bảng khi backend khởi động lần đầu. Backend chạy tại http://localhost:8080.
 
