@@ -458,22 +458,37 @@ Chỉnh sửa `.env`. Các biến chính:
 
 ### 6.3 Cách 1: Chạy bằng Docker Compose (nhanh nhất)
 
+Yêu cầu: Docker Desktop (hoặc Docker Engine + Compose v2).
+
 ```bash
-docker compose up --build
+cp .env.example .env          # đổi DB_PASSWORD, DB_ROOT_PASSWORD
+docker compose up -d --build  # lần đầu mất vài phút để build image
+docker compose ps             # db phải ở trạng thái "healthy"
 ```
 
 Sau khi khởi động:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- MariaDB: `localhost:3306`
+- Frontend (Nginx, đã proxy `/api` sang backend): http://localhost
+- Backend API: http://localhost:8080 (kiểm tra nhanh: http://localhost:8080/actuator/health)
+- MariaDB 10.11: `localhost:3306`, CSDL `fairshare`, tài khoản `DB_USER`/`DB_PASSWORD` trong `.env`
 
-Dừng và xóa container:
+Backend chỉ khởi động sau khi MariaDB báo `healthy`, Flyway tự chạy migration `V1`–`V5`.
+
+**Chỉ chạy MariaDB** (khi code backend bằng IntelliJ/`mvnw`):
 
 ```bash
-docker compose down        # giữ dữ liệu
-docker compose down -v     # xóa cả dữ liệu
+docker compose up -d db
+# backend chạy local: đặt DB_USER=fairshare và SPRING_DATASOURCE_PASSWORD=<DB_PASSWORD trong .env>
 ```
+
+Xem log, dừng và xóa container:
+
+```bash
+docker compose logs -f backend
+docker compose down        # giữ dữ liệu
+docker compose down -v     # xóa cả dữ liệu (reset CSDL)
+```
+
+**CI (GitHub Actions):** mỗi lần push/PR, `backend-ci.yml` chạy `mvn verify` (Java 21, MariaDB qua Testcontainers), `frontend-ci.yml` chạy lint + Vitest + build; PR vào `master`/`develop` chạy thêm `docker-ci.yml` (build và khởi động cả 3 container).
 
 ### 6.4 Cách 2: Chạy thủ công
 
@@ -490,10 +505,22 @@ FLUSH PRIVILEGES;
 
 **Bước 2 – Backend**
 
+Tạo file mật khẩu riêng cho backend (đã `.gitignore`, không commit):
+
 ```bash
-cd backend
+cd fairshare-backend/src/main/resources
+cp application-secret.example.yaml application-secret.yaml
+# mở application-secret.yaml, điền mật khẩu MariaDB vào spring.datasource.password
+```
+
+`application.yaml` tự nạp file này qua `spring.config.import`. Sau đó chạy backend:
+
+```bash
+cd fairshare-backend
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
+
+> Mật khẩu chỉ nằm ở 2 file không commit: `application-secret.yaml` (chạy bằng IDE/mvnw) và `.env` (chạy bằng Docker Compose). Repo chỉ chứa file mẫu `application-secret.example.yaml` và `.env.example` với mật khẩu để trống.
 
 Flyway sẽ tự tạo bảng khi backend khởi động lần đầu. Backend chạy tại http://localhost:8080.
 
