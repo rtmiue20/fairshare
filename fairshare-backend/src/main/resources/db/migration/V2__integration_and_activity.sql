@@ -4,6 +4,12 @@ CREATE TABLE IF NOT EXISTS activity_events (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     team_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
+    sprint_id BIGINT NULL,
+    external_action_id VARCHAR(100) NULL UNIQUE,
+    evidence_url VARCHAR(500) NULL,
+    story_points DECIMAL(5,2) NOT NULL DEFAULT 1.00,
+    due_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
     source VARCHAR(50) NOT NULL,
     event_type VARCHAR(100) NOT NULL,
     details TEXT,
@@ -11,5 +17,7 @@ CREATE TABLE IF NOT EXISTS activity_events (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_activity_events_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
-    CONSTRAINT fk_activity_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    CONSTRAINT fk_activity_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_activity_events_sprint FOREIGN KEY (sprint_id) REFERENCES sprints (id) ON DELETE SET NULL
 );
+
