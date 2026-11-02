@@ -40,8 +40,32 @@ jobs:
       - name: Lint (ESLint)
         run: npm run lint
 
+      # Xuất thêm JUnit XML để lưu làm minh chứng test report (M5 – Sprint 3)
       - name: Unit test (Vitest)
-        run: npx vitest run
+        run: npm run test:ci
 
       - name: Type-check & build (tsc + Vite)
         run: npm run build
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-reports
+          path: frontend/test-results/
+          retention-days: 14
+
+      - name: Test summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os, xml.etree.ElementTree as ET
+          p = "test-results/junit.xml"
+          print("### Frontend tests")
+          if not os.path.exists(p):
+              print("Không có file kết quả (test chưa chạy tới bước này).")
+          else:
+              r = ET.parse(p).getroot()
+              t, f, e, s = (int(r.get(k, 0)) for k in ("tests", "failures", "errors", "skipped"))
+              print(f"| Tổng | Pass | Fail | Error | Skip |\n|---|---|---|---|---|\n| {t} | {t-f-e-s} | {f} | {e} | {s} |")
+          PY
