@@ -59,11 +59,12 @@ class SplitServiceTest {
         when(expenseRepository.findById(10L)).thenReturn(Optional.of(expense));
         when(teamMemberRepository.findById(21L)).thenReturn(Optional.of(firstMember));
         when(teamMemberRepository.findById(22L)).thenReturn(Optional.of(secondMember));
-        when(splitRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
     void replaceSplits_savesAllocationsThatExactlyMatchExpenseAmount() {
+        when(splitRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
         List<Split> result = splitService.replaceSplits(10L, List.of(
                 new SplitAllocation(21L, new BigDecimal("40.00")),
                 new SplitAllocation(22L, new BigDecimal("60.00"))));
