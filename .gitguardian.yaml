@@ -1,0 +1,7 @@
+version: 2
+secret:
+  ignored_paths:
+    - "docs/**"
+    - "docs/postman/**"
+    - "**/test/**"
+    - "fairshare-backend/src/test/**"
