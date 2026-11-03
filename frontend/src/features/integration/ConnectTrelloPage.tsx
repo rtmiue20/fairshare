@@ -41,32 +41,50 @@ export const ConnectTrelloPage: React.FC = () => {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <Card title="Tích hợp Trello">
-        <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
+        <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
           Kết nối Trello Board của nhóm để FairShare tự động thu thập và ghi nhận các task đã hoàn thành làm minh chứng.
         </p>
 
         <form onSubmit={handleConnect} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px' }}>Board ID</label>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#cbd5e1' }}>Board ID</label>
             <input
               type="text"
               value={boardId}
               onChange={(e) => setBoardId(e.target.value)}
               placeholder="VD: 60d21b4667d0d8992e610c85"
               required
-              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                backgroundColor: '#0c0d12',
+                color: '#f8fafc',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px' }}>Trello User Token</label>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#cbd5e1' }}>Trello User Token</label>
             <input
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="Nhập API Token Trello"
               required
-              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                backgroundColor: '#0c0d12',
+                color: '#f8fafc',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
 
