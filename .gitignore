@@ -8,3 +8,4 @@ frontend/dist/
 fairshare-backend/target/
 frontend/*.tsbuildinfo
 frontend/test-results/
+.vscode/

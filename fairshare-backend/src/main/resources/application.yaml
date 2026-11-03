@@ -20,3 +20,8 @@ spring:
 
 server:
   port: 8080
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:fairshare-dev-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256} # ggignore
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
