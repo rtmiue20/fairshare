@@ -1,90 +1,125 @@
-# SPRINT 3 – Nền tảng và cơ chế nghiệp vụ cơ bản
+# SPRINT 3 – Nền tảng, nhóm và board/card (khung)
 
-**Thời gian:** Thứ 4, 28/10/2026 → Thứ 3, 03/11/2026  | **Tương ứng:** Sprint 3 trong kế hoạch mới | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 28/10/2026 → Thứ 3, 03/11/2026 | **Tương ứng:** Sprint 3 trong kế hoạch 7 sprint (Sprint 1 trong kế hoạch gốc) | **Trạng thái sprint:** 🔄 Đang thực hiện (Review 03/11)
 
 ## Mục tiêu sprint
-- Hoàn thiện nền tảng ứng dụng: layout chung, routing, trạng thái đăng nhập, xử lý lỗi.
-- Xây dựng cơ chế người dùng, nhóm và dữ liệu cơ sở cho FairShare.
-- Bắt đầu các flow chính để các sprint sau xây tiếp mà không bị chậm vì nền tảng.
+- Có khung xác thực (JWT), layout chung, xử lý lỗi để các module khác nối vào.
+- Có nhóm, sprint, consent (API + màn hình).
+- Có khung module `board` (board, cột, card) tự xây thay cho Trello API; mọi thao tác trên card ghi thành `ActivityEvent`.
+- Có khung `contribution` (`ScoringEngine` v1) và `peerreview` (migration, thiết kế ẩn danh), CI chạy test.
 
-## PCCV theo vai trò
-| Người | Vai trò | Công việc chính | Minh chứng | Deadline |
+## Lịch sinh hoạt
+| Sự kiện | Thời điểm |
+|---|---|
+| Sprint Planning | Thứ 4, 28/10 |
+| Daily (15 phút, chat/họp nhanh) | Hằng ngày |
+| Mốc: M1 giao khung xác thực/JWT + layout chung lên `develop` | Thứ 6, 30/10 |
+| Sprint Review + Retrospective | Thứ 3, 03/11 |
+
+## Phân công công việc (lát cắt dọc)
+| Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
 |---|---|---|---|---|
-| M0 | Quản lý / PM | Chốt backlog sprint 3, xác nhận acceptance criteria, theo dõi tiến độ, demo đầu sprint và review cuối sprint | Backlog sprint, biên bản họp, sprint report | 03/11 |
-| M1 | Frontend 1 | Làm màn hình đăng nhập, đăng ký, layout dashboard, header/sidebar, routing cơ bản | GitHub PR, màn hình chạy được | 02/11 |
-| M2 | Frontend 2 | Làm UI profile/settings, màn hình nhóm, màn hình danh sách thành viên, tích hợp API sơ bộ | Màn hình demo, API mock/real tích hợp | 02/11 |
-| M3 | Backend 1 | Xây dựng API auth: register/login/logout, JWT, phân quyền cơ bản, xác thực session | API, Postman collection, unit test | 02/11 |
-| M4 | Backend 2 | Thiết kế DB: user, group, member, expense, split; migration, repository, entity và service cơ bản | Migration, ERD, repository code | 02/11 |
-| M5 | QA / DevOps | Chuẩn bị CI cơ bản, test case cho auth và user flow, kiểm tra build đầu tiên | CI config, test report | 02/11 |
+| M0 | Sprint Planning, Change Request thay Trello API bằng module `board` nội bộ (cập nhật Change Log, WBS, Gantt, Risk R02, API contract), burndown, báo cáo tuần, khung module `report` | Sprint report, CR, burndown | 03/11 | ⬜ |
+| M1 | Nền tảng: `BaseEntity`, xử lý lỗi, JWT, layout chung, đăng nhập/đăng ký. Board/card (khung): migration, entity, API board/cột/card, ghi `ActivityEvent`, màn hình board cơ bản | Commit, API log, demo | 30/10 (nền tảng), 02/11 (board) | ⬜ |
+| M2 | Nhóm/Sprint/Consent: migration, entity, API tạo nhóm, mời thành viên, consent, sprint; màn hình nhóm và consent | Commit, demo UI | 02/11 | ⬜ |
+| M3 | Đóng góp (khung): migration `contribution`, công thức v1 cùng M2, `ScoringEngine` bản đầu + unit test, dữ liệu mẫu `ActivityEvent` | Commit, test, tài liệu công thức v1 | 02/11 | ⬜ |
+| M4 | Chấm chéo (khung): migration + entity `ReviewRound/Submission/Criterion`, thiết kế cơ chế ẩn danh, tiêu chí | Commit, tài liệu thiết kế ẩn danh | 02/11 | ⬜ |
+| M5 | Test case Sprint 3, bật CI chạy test, kiểm thử auth/nhóm/board | Test case, kết quả test, CI | 02/11 | ⬜ |
 
-## Kế hoạch công việc theo ngày
-### Thứ 4, 28/10 – Planning & dựng nền tảng
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| Cả nhóm | Sprint planning và chốt backlog | Backlog sprint 3 | 28/10, 21:00 |
-| M1 | Layout và routing | Layout chung, route mặc định | 29/10, 12:00 |
-| M3 | Auth API khung | Login/register API skeleton | 29/10, 12:00 |
-| M4 | Schema DB khởi tạo | Migration cơ sở dữ liệu | 29/10, 12:00 |
-| M5 | Setup CI và test env | CI nhánh dev chạy build | 29/10, 21:00 |
-
-### Thứ 5, 29/10 – Tích hợp và cấu trúc dữ liệu
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M1 | Màn hình login/sign up | UI đăng nhập/đăng ký | 30/10, 12:00 |
-| M2 | Profile/settings UI | Form tài khoản | 30/10, 12:00 |
-| M3 | JWT + authorize | Token và kiểm tra quyền | 30/10, 17:00 |
-| M4 | Group/member model | Entity group + member | 30/10, 17:00 |
-| M5 | Test case auth | Test case auth | 30/10, 21:00 |
-
-### Thứ 6, 30/10 – Mốc nền tảng
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M1 | Dashboard chính | Dashboard cơ bản | 31/10, 12:00 |
-| M2 | Màn hình quản lý nhóm | UI group list/detail | 31/10, 12:00 |
-| M3 | API user info + session | API profile/session | 31/10, 17:00 |
-| M4 | Service group + member | CRUD nhóm và thành viên | 31/10, 17:00 |
-| M5 | Regression check auth | Test đầu tiên | 31/10, 21:00 |
-
-### Thứ 7, 31/10 – Kết nối đầu sprint
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M1 | Kết nối UI với auth API | Login/register hoạt động | 01/11, 12:00 |
-| M2 | Demo nhóm + settings | Flow group chạy | 01/11, 12:00 |
-| M3 | Fix lỗi auth | Auth ổn định | 01/11, 17:00 |
-| M4 | Test DB và migration | Migration chạy sạch | 01/11, 21:00 |
-| M5 | QA cho user flow | Checklist sprint 3 | 01/11, 21:00 |
-
-### Chủ nhật, 01/11 – Chuẩn bị demo
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M0 | Tổng hợp tiến độ | Sprint report nháp | 02/11, 12:00 |
-| M1/M2 | Dọn UI / polish | UI nền tảng đẹp hơn | 02/11, 17:00 |
-| M3/M4 | Review API và DB | Chốt base flow | 02/11, 17:00 |
-| M5 | Test full flow | Test log | 02/11, 21:00 |
-
-### Thứ 2, 02/11 – Review và chốt
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| Cả nhóm | Sprint review | Biên bản sprint 3 | 02/11, 21:00 |
-| M0 | Chuẩn bị sprint 4 | Backlog sprint 4 | 03/11, 12:00 |
+## Quy ước nhắc lại
+- Nhánh `feature/<module>-<mô-tả>` → PR vào `develop`, ít nhất 1 người review trong 24 giờ.
+- Flyway dùng số phiên bản theo ngày giờ (ví dụ `V202610281530__create_teams.sql`); file đã merge không sửa.
+- Dữ liệu đọc/tổng hợp lấy qua routine (stored procedure/function) trong MariaDB, tạo bằng migration của module; backend gọi qua `SimpleJdbcCall`/`@Procedure`, hạn chế viết rải rác các hàm kiểu `getAll()`.
+- Mọi task ≤ 2 giờ; việc lớn hơn tách thành (1/2), (2/2)…, mỗi phần có đầu ra riêng.
 
 ## Tiêu chí hoàn thành (DoD)
-- Người dùng có thể đăng nhập/đăng ký và duy trì session.
-- Có CRUD nhóm và thành viên cơ bản trên API và UI.
-- Dữ liệu của user/group/member/expense đã có schema rõ ràng.
-- CI chạy build/test cơ bản thành công.
-- Sprint 3 đã có demo và backlog sprint 4 rõ ràng.
+- Đăng ký/đăng nhập chạy được, token JWT dùng được cho các API khác.
+- Tạo nhóm, mời thành viên, ghi consent, tạo sprint hoạt động trên API và màn hình.
+- Tạo board/cột/card, di chuyển card thì có bản ghi `ActivityEvent` tương ứng.
+- `ScoringEngine` v1 có unit test với dữ liệu mẫu.
+- CI chạy build/test thành công; demo được trên `develop`.
 
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
-| Auth/permission chậm | M3 + M1 làm song song, M0 hỗ trợ quyết định scope |
-| UI không kịp với API | M1 và M2 gắn API sớm hơn chuẩn bị demo |
-| DB schema thay đổi nhiều | M4 giữ migration vững và cập nhật chung trước khi merge |
+| R16: M2/M3/M4 bị chặn bởi nền tảng M1 | M1 giao khung trước 30/10; các module khác làm với dữ liệu giả |
+| R19: M1 quá tải (nền tảng + board/card) | M0 theo dõi sát; ưu tiên khung, phần giao diện kéo thả để Sprint 4 |
+| R18: đụng migration Flyway | Đúng quy ước phiên bản, M3 giữ ERD tổng |
 
-## Báo cáo cuối sprint
+## Báo cáo cuối sprint (điền khi họp Review)
 - Việc hoàn thành: [ ]
 - Việc tồn đọng chuyển sang Sprint 4: [ ]
-- Bài học từ retro: [ ]
+- Bài học từ Retro: [ ]
 
 ---
+
+## Chi tiết lịch của sprint (theo ngày)
+
+> Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học. "Hạn" là thời điểm phải đưa minh chứng lên Drive/GitHub và cập nhật task. Mọi task ≤ 2 giờ; việc lớn hơn đã tách thành các task con (1/2, 2/2…), mỗi task con có đầu ra riêng.
+
+### Thứ 4, 28/10 – Planning & dựng nền tảng
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| Cả nhóm | Sprint Planning | Chia việc, nhắc quy ước Git/Flyway/routine | Sprint backlog | 1h | 28/10, 21:00 |
+| M0 | Change Request thay Trello API | Ghi CR: dùng module `board` nội bộ, cập nhật Change Log, Risk R02, API contract | CR02, Change Log | 1h | 29/10, 12:00 |
+| M1 | Khung dự án + `BaseEntity` | Cấu trúc package, `BaseEntity`, `ApiResponse` | Nhánh `feature/common-base` | 2h | 29/10, 12:00 |
+| M1 | Xử lý lỗi | `GlobalExceptionHandler`, các exception chung | Commit | 1h | 29/10, 12:00 |
+| M2 | Migration nhóm (1/2) | Migration + entity `Team`, `TeamMember` | Migration, entity | 2h | 29/10, 21:00 |
+| M3 | Migration đóng góp | Migration bảng `contribution` | Migration | 2h | 29/10, 21:00 |
+| M4 | Migration chấm chéo (1/2) | `ReviewRound`, `ReviewCriterion` | Migration, entity | 2h | 29/10, 21:00 |
+| M5 | Test case (1/2) | Test case auth, nhóm theo tiêu chí chấp nhận | Test case phần 1 | 2h | 29/10, 21:00 |
+
+### Thứ 5, 29/10 – JWT & API nhóm
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| M1 | JWT (1/2) | Cấu hình Spring Security, API đăng ký/đăng nhập | API auth | 2h | 30/10, 12:00 |
+| M1 | JWT (2/2) | `JwtService`, `JwtAuthenticationFilter`, test | Commit + test | 2h | 30/10, 17:00 |
+| M2 | API nhóm (1/2) | API tạo nhóm, xem chi tiết (dữ liệu giả cho đến khi có JWT) | Endpoint + validation | 2h | 30/10, 21:00 |
+| M2 | Migration nhóm (2/2) | Migration + entity `Consent`, `Sprint` | Migration, entity | 2h | 30/10, 21:00 |
+| M3 | Công thức v1 | Cùng M2 chốt công thức v1 từ v0.1 | Tài liệu công thức v1 | 2h | 30/10, 21:00 |
+| M4 | Migration chấm chéo (2/2) | `ReviewSubmission`, bảng lưu ẩn danh | Migration, entity | 2h | 30/10, 21:00 |
+| M5 | Test case (2/2) | Test case chấm chéo, đóng góp | Test case phần 2 | 1h | 30/10, 21:00 |
+
+### Thứ 6, 30/10 – Mốc giao khung nền tảng
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| M1 | Layout chung (1/2) | Router, layout, component `Button`, `Card`, `Modal` | Layout, component chung | 2h | 30/10, 12:00 |
+| M1 | Trang đăng nhập/đăng ký | Hai màn hình nối với API auth | Màn hình dùng được | 2h | 30/10, 17:00 |
+| M1 | Merge khung | PR vào `develop`, báo cả nhóm | Khung xác thực trên `develop` | 1h | 30/10, 19:00 |
+| M2, M3, M4 | Nối vào xác thực | Kéo `develop`, thay dữ liệu giả bằng xác thực thật | Nhánh cập nhật | 1h | 31/10, 12:00 |
+| M5 | Bật CI | GitHub Actions chạy build + test | Pipeline CI | 2h | 30/10, 21:00 |
+
+### Thứ 7, 31/10 – Board/card và API nhóm
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| M1 | Board/card (1/2) | Migration + entity `Board`, `BoardColumn`, `Card`, người phụ trách | Migration, entity | 2h | 01/11, 12:00 |
+| M1 | Board/card (2/2) | API tạo/sửa/xóa board và cột | Endpoint + validation | 2h | 01/11, 17:00 |
+| M2 | API mời thành viên | Mời, chấp nhận lời mời | Endpoint + validation | 2h | 01/11, 12:00 |
+| M2 | API consent, sprint | Ghi/rút consent, tạo sprint | Endpoint + validation | 2h | 01/11, 21:00 |
+| M4 | Thiết kế ẩn danh | Mô tả cơ chế ẩn danh, cách lưu, ngưỡng tổng hợp | Tài liệu thiết kế ẩn danh | 2h | 01/11, 21:00 |
+
+### Chủ nhật, 01/11 – Card API, màn hình, ScoringEngine
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| M1 | Card API (1/2) | CRUD card, giao việc cho thành viên | Endpoint + validation | 2h | 02/11, 12:00 |
+| M1 | Card API (2/2) | Di chuyển card giữa cột, ghi `ActivityEvent` | Endpoint + bản ghi sự kiện | 2h | 02/11, 17:00 |
+| M2 | Màn hình nhóm | Danh sách/chi tiết nhóm, mời thành viên | Màn hình dùng được | 2h | 02/11, 12:00 |
+| M2 | Màn hình consent | Hộp thoại consent, trạng thái đồng ý | Màn hình dùng được | 2h | 02/11, 17:00 |
+| M3 | `ScoringEngine` (1/2) | Cài đặt công thức v1 | Code `ScoringEngine` | 2h | 02/11, 12:00 |
+| M3 | `ScoringEngine` (2/2) | Unit test với dữ liệu mẫu | Test | 2h | 02/11, 17:00 |
+| M3 | Dữ liệu mẫu | Script dữ liệu mẫu `ActivityEvent` | Script dữ liệu mẫu | 1h | 02/11, 17:00 |
+
+### Thứ 2, 02/11 – Test & tích hợp
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| M1 | Màn hình board khung | Hiển thị cột và card, tạo card | Màn hình board cơ bản | 2h | 02/11, 17:00 |
+| M5 | Kiểm thử | Test auth, nhóm, board API, ghi kết quả | Kết quả test | 2h | 02/11, 21:00 |
+| M1, M2, M3, M4 | Hoàn tất PR | PR vào `develop`, nhờ người liền kề review | PR đã merge | 1h | 02/11, 21:00 |
+| M0 | Khung `report` | Package `report`, endpoint rỗng | Khung module | 2h | 02/11, 21:00 |
+
+### Thứ 3, 03/11 – Review & Retro
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| M0 | Báo cáo tuần 3 | Burndown, tiến độ, cập nhật Risk | Sprint report | 1h | 03/11, 12:00 |
+| Cả nhóm | Sprint Review + Retro | Demo trên `develop`: đăng nhập, nhóm, board/card | Biên bản họp | 1h | 03/11, 21:00 |
+| M0 | Chuẩn bị Sprint 4 | Ghi việc tồn đọng, chọn việc Sprint 4 | Sprint 4 backlog | 1h | 03/11, 22:00 |

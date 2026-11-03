@@ -1,90 +1,86 @@
-# SPRINT 7 – UAT cuối, hardening và đóng dự án
+# SPRINT 7 – Đóng dự án và nộp bài
 
-**Thời gian:** Thứ 4, 25/11/2026 → Thứ 3, 01/12/2026 | **Tương ứng:** Sprint 7 trong kế hoạch mới | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 25/11/2026 → Thứ 5, 26/11/2026 (sprint rút ngắn còn 2 ngày vì hạn nộp là 26/11) | **Tương ứng:** Sprint 7 trong kế hoạch 7 sprint (Tuần 8 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
 
 ## Mục tiêu sprint
-- Hoàn tất hardening cuối cùng, kiểm tra chất lượng và sẵn sàng release.
-- Đóng gói báo cáo cuối, minh chứng kỹ thuật, demo final và báo cáo cá nhân.
-- Thực hiện retrospective cuối cùng và nộp các tài liệu cần thiết cho buổi đánh giá cuối.
+- Chốt báo cáo cuối, slide, Mini-PM Report của cả 6 người, bảng mức độ tham gia.
+- Tập thuyết trình (ai cũng trình bày) và kiểm tra bản demo lần cuối.
+- Họp đóng dự án, rồi **nộp bài trước hạn 26/11** (giờ cụ thể theo LMS/yêu cầu giảng viên).
 
-## PCCV theo vai trò
-| Người | Vai trò | Công việc chính | Minh chứng | Deadline |
+> Toàn bộ nội dung chương đã nộp ở Sprint 6, nên sprint này chỉ chỉnh sửa, kiểm tra và nộp. Nếu có việc nào chưa xong từ Sprint 6, M0 xử lý ngay đầu ngày 25/11.
+
+## Lịch sinh hoạt
+| Sự kiện | Thời điểm |
+|---|---|
+| Sprint Planning (họp nhanh 20 phút) | Thứ 4, 25/11, sáng |
+| Tập thuyết trình (cả nhóm) | Thứ 4, 25/11, 19:00 |
+| Họp đóng dự án + Retrospective cuối | Thứ 4, 25/11, 21:00 |
+| Kiểm tra lần cuối và **nộp bài** | Thứ 5, 26/11 |
+
+## Phân công công việc
+| Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
 |---|---|---|---|---|
-| M0 | Quản lý / PM | Tổng hợp báo cáo cuối, đánh giá G1–G6, lessons learned, kiểm tra link/định dạng, closure checklist | Final report, checklist | 30/11 |
-| M1 | Frontend 1 | Fix UI cuối từ UAT, hỗ trợ demo, chốt flow chính | Demo + fix UI | 30/11 |
-| M2 | Frontend 2 | Hoàn thiện UX, onboarding, màn hình phụ, kiểm tra cross-browser/mobile | Checklist UX | 30/11 |
-| M3 | Backend 1 | Fix bug nghiệp vụ cuối, kiểm tra API response, tối ưu lại logic chính | Final API log | 30/11 |
-| M4 | Backend 2 | Data cleanup, migration cuối, performance final tuning, monitoring/caching | Final benchmark | 30/11 |
-| M5 | QA / DevOps | Full regression, release candidate, demo final, deploy/monitoring, video backup | Release notes, test log | 30/11 |
+| M0 | Chốt báo cáo cuối, kiểm tra link Drive/định dạng/đạo văn, closure checklist, nộp bài | Final report, closure checklist | 26/11 | ⬜ |
+| M1, M2, M3, M4 | Sửa nội dung chương theo góp ý, slide phần của mình, Mini-PM Report bản cuối | Chương bản cuối, slide, Mini-PM Report | 25/11 | ⬜ |
+| M5 | Chuẩn bị demo, kiểm tra bản release và video dự phòng, chốt phần chương kiểm thử | Demo sẵn sàng, chương bản cuối | 25/11 | ⬜ |
+| Cả 6 người | Bảng mức độ tham gia, tập thuyết trình, kiểm tra source code/test log/DB | Bảng đã điền, bản tập đã chạy | 25/11 | ⬜ |
 
-## Kế hoạch công việc theo ngày
-### Thứ 4, 25/11 – Planning & bắt đầu viết
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| Cả nhóm | Sprint planning và chốt mục tiêu final | Sprint backlog | 25/11, 21:00 |
-| M0 | Tạo khung báo cáo cuối | File outline báo cáo | 26/11, 12:00 |
-| M1/M3 | Chốt flow kỹ thuật chính | Demo script | 26/11, 21:00 |
-
-### Thứ 5, 26/11 – Viết chương và demo
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M1 | Kiến trúc & giao diện | Phần trình bày kỹ thuật | 27/11, 12:00 |
-| M2 | Kết quả khảo sát/UAT & trải nghiệm người dùng | Phần UX/UAT | 27/11, 12:00 |
-| M3 | API / logic nghiệp vụ | Phần backend | 27/11, 17:00 |
-| M4 | DB / hiệu năng / dữ liệu | Phần dữ liệu/performance | 27/11, 17:00 |
-| M5 | Test plan + demo final | Kết quả test/demo | 27/11, 21:00 |
-
-### Thứ 6, 27/11 – Hạn nộp nội dung chương
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M0–M5 | Nộp nội dung chương và minh chứng | Các file phần của từng người | 27/11, 21:00 |
-| Cả nhóm | Viết Mini-PM Report cá nhân | Bản nháp cá nhân | 28/11, 12:00 |
-
-### Thứ 7, 28/11 – Tổng hợp
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M0 | Ghép báo cáo cuối | Final report bản 1 | 28/11, 21:00 |
-| M0 | Kiểm tra định dạng và link | Checklist fix format | 29/11, 12:00 |
-| Cả nhóm | Hoàn thiện Mini-PM Report | Mini-PM Report bản 1 | 29/11, 21:00 |
-
-### Chủ nhật, 29/11 – Kiểm tra & slide
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M0 | Kiểm tra đạo văn và link | Kết quả kiểm tra | 29/11, 21:00 |
-| M5 | Chuẩn bị slide, video demo, backup | Slide final | 29/11, 21:00 |
-| Cả nhóm | Bảng mức độ tham gia | Bảng tự đánh giá & nhóm đánh giá | 29/11, 21:00 |
-
-### Thứ 2, 30/11 – Chốt release
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| M0 | Chốt báo cáo cuối | Final report | 30/11, 17:00 |
-| M5 | Release candidate cuối | Release final | 30/11, 17:00 |
-| Cả nhóm | Nộp Mini-PM Report | Bản nộp cuối | 30/11, 17:00 |
-| Cả nhóm | Tập thuyết trình | Kịch bản và timing | 30/11, 21:00 |
-
-### Thứ 3, 01/12 – Đóng dự án
-| Người | Việc | Đầu ra | Hạn |
-|---|---|---|---|
-| Cả nhóm | Kiểm tra lần cuối source code + test logs | Checklist xác nhận | 01/12, 12:00 |
-| Cả nhóm | Họp đóng dự án + retrospective cuối | Biên bản đóng dự án | 01/12, 21:00 |
+## Danh sách kiểm tra đóng dự án (M0)
+- [ ] Final report đủ chương, đặt tên file và định dạng Word theo quy định
+- [ ] Link Drive/GitHub/board mở được, quyền truy cập đúng
+- [ ] Bảng theo dõi mức độ tham gia đã điền đủ 6 người
+- [ ] Mini-PM Report của cả 6 người
+- [ ] Slide và kịch bản demo, đã tập
+- [ ] Kiểm tra đạo văn (< 20%)
+- [ ] Source code, test log, database sẵn sàng mở khi giảng viên yêu cầu
+- [ ] Lessons learned (≥ 3 bài học) đã ghi
+- [ ] G1–G6 đã đánh giá đạt/chưa đạt kèm số liệu
 
 ## Tiêu chí hoàn thành (DoD)
-- Final report, Mini-PM Report và slide đã hoàn thiện đúng định dạng.
-- Demo final chạy ổn định, có backup video nếu cần.
-- Tất cả lỗi nghiêm trọng đã được xử lý hoặc ghi rõ lý do từ chối.
-- Mỗi thành viên có minh chứng đóng góp rõ ràng trong module của mình.
-- Sprint 7 kết thúc với biên bản closure và lessons learned rõ ràng.
+- Mọi tài liệu cuối nộp đúng hạn 26/11 và đúng định dạng.
+- Mỗi thành viên có Mini-PM Report riêng, có minh chứng commit/log theo module của mình.
+- Demo ổn định, có video dự phòng.
+- Có biên bản đóng dự án và lessons learned.
 
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
-| Nộp chậm nội dung | M0 nhắc từ đầu sprint, có deadline nội bộ trước 27/11 |
-| Link/hình ảnh lỗi | M0 kiểm tra bằng tài khoản khác và chuẩn bị bản backup |
-| Demo lỗi | M5 chuẩn bị video dự phòng và kịch bản hiện trường |
+| Còn việc chưa xong từ Sprint 6 | M0 liệt kê từ tối 24/11, xử lý ngay sáng 25/11 |
+| Link/quyền truy cập hỏng khi nộp | M0 kiểm tra bằng tài khoản khác |
+| Demo lỗi khi thuyết trình | M5 chuẩn bị video dự phòng, cả nhóm tập đúng kịch bản |
+| Chỉ còn 2 ngày, không có buffer | Hạn nội bộ: mọi thứ xong tối 25/11, sáng 26/11 chỉ nộp và xử lý sự cố |
 
-## Báo cáo cuối dự án
+## Báo cáo cuối dự án (điền khi họp đóng)
 - Kết quả so với mục tiêu: [ ]
 - Bài học kinh nghiệm: [ ]
 - Đề xuất cải thiện: [ ]
 
 ---
+
+## Chi tiết lịch của sprint (theo ngày)
+
+> Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học và giờ nộp trên LMS. Mọi task ≤ 2 giờ; việc lớn hơn đã tách thành các task con (1/2, 2/2…), mỗi task con có đầu ra riêng.
+
+### Thứ 4, 25/11 – Chốt tài liệu, tập và đóng dự án
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| Cả nhóm | Sprint Planning nhanh | Rà việc còn lại, chia việc hai ngày | Danh sách việc | 20 phút | 25/11, 09:00 |
+| M0 | Chốt báo cáo (1/2) | Sửa báo cáo bản 1 theo góp ý, thống nhất định dạng | Báo cáo bản 2 | 2h | 25/11, 12:00 |
+| M0 | Chốt báo cáo (2/2) | Kiểm tra link Drive, quyền truy cập, đánh số hình/bảng | Checklist link | 2h | 25/11, 17:00 |
+| M0 | Kiểm tra đạo văn | Chạy kiểm tra, sửa đoạn trùng | Kết quả kiểm tra | 1h | 25/11, 17:00 |
+| M1, M2, M3, M4 | Chương bản cuối | Sửa chương theo góp ý của M0 | Chương bản cuối | 1h | 25/11, 12:00 |
+| M1, M2, M3, M4, M5 | Slide phần của mình | Mỗi người làm slide module của mình | Slide phần cá nhân | 2h | 25/11, 17:00 |
+| Cả 6 người | Mini-PM Report bản cuối | Hoàn thiện từ bản nháp Sprint 6 | Mini-PM Report | 2h | 25/11, 17:00 |
+| Cả 6 người | Bảng mức độ tham gia | Điền giờ, minh chứng, % tự đánh giá, % nhóm đánh giá | Bảng đã điền | 1h | 25/11, 17:00 |
+| M5 | Chuẩn bị demo | Kiểm tra bản release, tài khoản demo, video dự phòng | Demo sẵn sàng | 2h | 25/11, 17:00 |
+| M0 | Ghép slide | Gộp slide các phần, thống nhất mẫu | Slide hoàn chỉnh | 1h | 25/11, 18:30 |
+| Cả nhóm | Tập thuyết trình | Ai cũng trình bày, bấm giờ, câu hỏi dự kiến | Bản tập đã chạy | 2h | 25/11, 21:00 |
+| Cả nhóm | Họp đóng dự án + Retro cuối | Xem lại G1–G6, lessons learned, đề xuất cải thiện | Biên bản đóng dự án | 1h | 25/11, 22:00 |
+
+### Thứ 5, 26/11 – Nộp bài
+| Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
+|---|---|---|---|---|---|
+| Cả nhóm | Kiểm tra lần cuối | Source code, test log, database sẵn sàng; link mở được | Checklist xác nhận | 1h | 26/11, 09:00 |
+| M0 | Nộp bài | Nộp báo cáo, slide và các file theo yêu cầu (tên file đúng quy định) | Xác nhận đã nộp | 1h | 26/11, trước giờ hạn LMS |
+| Cả 6 người | Xác nhận Mini-PM Report | Kiểm tra bản của mình đã nằm trong gói nộp | Xác nhận trong nhóm chat | 15 phút | 26/11, trước giờ hạn LMS |
+| M0 | Đóng closure checklist | Tích hết mục, lưu minh chứng nộp bài | Closure checklist hoàn chỉnh | 1h | 26/11, 21:00 |
