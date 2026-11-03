@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/fairshare.iml" filepath="$PROJECT_DIR$/.idea/fairshare.iml" />
-      <module fileurl="file://$PROJECT_DIR$/fairshare-backend/fairshare-backend.iml" filepath="$PROJECT_DIR$/fairshare-backend/fairshare-backend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/fairshare-backend.iml" filepath="$PROJECT_DIR$/.idea/fairshare-backend.iml" />
     </modules>
   </component>
 </project>
