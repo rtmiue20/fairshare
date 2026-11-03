@@ -9,6 +9,7 @@ import { TeamDetailPage } from '../features/team/TeamDetailPage';
 import { ConnectTrelloPage } from '../features/integration/ConnectTrelloPage';
 import { ReviewRoundPage } from '../features/peerreview/ReviewRoundPage';
 import { AlertList } from '../features/alerts/AlertList';
+import { ProfileSettingsPage } from '../features/profile/ProfileSettingsPage';
 
 export const router = createBrowserRouter([
   {
@@ -54,8 +55,16 @@ export const router = createBrowserRouter([
             path: 'alerts',
             element: <AlertList />,
           },
+          {
+            path: 'profile',
+            element: <ProfileSettingsPage />,
+          },
         ],
       },
     ],
+  },
+  {
+    path: '*',
+    element: <Navigate to="/dashboard" replace />,
   },
 ]);

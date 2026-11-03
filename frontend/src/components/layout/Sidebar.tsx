@@ -10,6 +10,7 @@ export const Sidebar: React.FC = () => {
     { label: 'Tích hợp Trello', path: '/integration' },
     { label: 'Chấm chéo', path: '/peer-review' },
     { label: 'Cảnh báo', path: '/alerts' },
+    { label: 'Hồ sơ & Cài đặt', path: '/profile' },
   ];
 
   return (

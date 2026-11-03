@@ -1,5 +1,6 @@
 package com.fairshare.auth.dto;
 
+import com.fairshare.user.dto.UserDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,5 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthResponse {
     private String accessToken;
-    private String tokenType;
+    @Builder.Default
+    private String tokenType = "Bearer";
+    private UserDto user;
 }
