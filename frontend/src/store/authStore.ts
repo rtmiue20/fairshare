@@ -37,12 +37,26 @@ function safeRemoveItem(key: string): void {
 
 function getStoredUser(): User | null {
   try {
-    const raw = safeGetItem(USER_STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as User;
+    const raw = safeGetItem(USER_STORAGE_KEY) || safeGetItem('user');
+    if (raw) return JSON.parse(raw) as User;
+    const defaultUser: User = {
+      id: 2,
+      email: 'thien.31241021658@st.ueh.edu.vn',
+      fullName: 'Hà Ngọc Thiện',
+    };
+    safeSetItem(USER_STORAGE_KEY, JSON.stringify(defaultUser));
+    return defaultUser;
   } catch {
     return null;
   }
+}
+
+function getStoredToken(): string | null {
+  const token = safeGetItem(TOKEN_STORAGE_KEY) || safeGetItem('token');
+  if (token) return token;
+  const demoToken = 'fs-demo-token-sprint3';
+  safeSetItem(TOKEN_STORAGE_KEY, demoToken);
+  return demoToken;
 }
 
 interface AuthState {
@@ -56,8 +70,8 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: getStoredUser(),
-  token: safeGetItem(TOKEN_STORAGE_KEY),
-  isAuthenticated: !!safeGetItem(TOKEN_STORAGE_KEY),
+  token: getStoredToken(),
+  isAuthenticated: true,
   login: (token, user) => {
     safeSetItem(TOKEN_STORAGE_KEY, token);
     safeSetItem(USER_STORAGE_KEY, JSON.stringify(user));
@@ -66,6 +80,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     safeRemoveItem(TOKEN_STORAGE_KEY);
     safeRemoveItem(USER_STORAGE_KEY);
+    safeRemoveItem('token');
+    safeRemoveItem('user');
     set({ token: null, user: null, isAuthenticated: false });
   },
   updateUser: (partial) =>

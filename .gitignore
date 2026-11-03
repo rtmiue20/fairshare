@@ -1,3 +1,11 @@
+# Temporary automation scripts & packages
+scripts/
+node_modules/
+*.xlsx
+*.docx
+*.log
+.DS_Store
+
 # Biến môi trường thật (chỉ commit .env.example)
 .env
 .env.local

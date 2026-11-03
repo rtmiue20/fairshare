@@ -1,4 +1,6 @@
 import React, { HTMLAttributes } from 'react';
+import { twMerge } from 'tailwind-merge';
+import { clsx } from 'clsx';
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
@@ -11,37 +13,35 @@ export const Card: React.FC<CardProps> = ({
   subtitle,
   extra,
   children,
-  style,
+  className,
   ...props
 }) => {
   return (
     <div
-      style={{
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0',
-        padding: '20px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        ...style,
-      }}
+      className={twMerge(
+        clsx(
+          'threeui-glass-card rounded-2xl p-6 transition-all duration-300',
+          'border border-white/[0.08] text-slate-100',
+          className
+        )
+      )}
       {...props}
     >
       {(title || extra) && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-            borderBottom: '1px solid #f1f5f9',
-            paddingBottom: '12px',
-          }}
-        >
+        <div className="flex items-center justify-between pb-4 mb-5 border-b border-white/[0.06]">
           <div>
-            {title && <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{title}</h3>}
-            {subtitle && <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>{subtitle}</p>}
+            {title && (
+              <h3 className="text-base font-semibold text-white tracking-tight">
+                {title}
+              </h3>
+            )}
+            {subtitle && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {subtitle}
+              </p>
+            )}
           </div>
-          {extra && <div>{extra}</div>}
+          {extra && <div className="shrink-0">{extra}</div>}
         </div>
       )}
       {children}
