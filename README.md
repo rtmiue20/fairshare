@@ -425,7 +425,7 @@ Luồng dữ liệu chính:
 ### 6.1 Lấy mã nguồn
 
 ```bash
-git clone <URL-repository>
+git clone https://github.com/rtmiue20/fairshare.git
 cd fairshare
 ```
 
