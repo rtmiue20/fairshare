@@ -2,7 +2,7 @@
 
 **Nền tảng đo lường và minh bạch hóa mức đóng góp trong đồ án nhóm**
 
-Đồ án nhóm môn *Quản lý dự án CNTT* – Trường Đại học Kinh tế TP.HCM (UEH).
+Đồ án nhóm môn *Quản lý dự án CNTT* – Đại học Kinh tế TP.HCM (UEH).
 
 > Trạng thái: đang phát triển (MVP). Cấu trúc thư mục dưới đây là cấu trúc đích của dự án; một số thư mục/tập tin sẽ được bổ sung dần theo từng sprint.
 
