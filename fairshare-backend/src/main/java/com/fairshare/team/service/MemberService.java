@@ -4,9 +4,11 @@ import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.DuplicateResourceException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.team.entity.MemberRole;
+import com.fairshare.team.entity.Team;
 import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
+import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,17 @@ public class MemberService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId)));
         member.setRole(role);
         return teamMemberRepository.save(member);
+    }
+
+    @Transactional
+    public TeamMember inviteByEmail(Long teamId, String email, MemberRole role) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Email is required");
+        }
+        User user = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+        return addMember(teamId, user.getId(), role != null ? role : MemberRole.MEMBER);
     }
 
     @Transactional(readOnly = true)

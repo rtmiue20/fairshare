@@ -10,4 +10,6 @@ import java.util.List;
 public interface ActivityEventRepository extends JpaRepository<ActivityEvent, Long> {
     List<ActivityEvent> findByTeamId(Long teamId);
     List<ActivityEvent> findByTeamIdAndUserId(Long teamId, Long userId);
+    List<ActivityEvent> findBySprintId(Long sprintId);
+    List<ActivityEvent> findBySprintIdAndUserId(Long sprintId, Long userId);
 }

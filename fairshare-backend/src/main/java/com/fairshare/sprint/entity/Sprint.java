@@ -30,4 +30,7 @@ public class Sprint extends BaseEntity {
 
     @Column(name = "end_date")
     private LocalDate endDate;
+
+    @Column(length = 20)
+    private String status = "ACTIVE";
 }
