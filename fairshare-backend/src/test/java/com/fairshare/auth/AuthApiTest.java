@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
+@EnabledIf("isDockerAvailable")
 class AuthApiTest {
+
+    static boolean isDockerAvailable() {
+        try {
+            return org.testcontainers.DockerClientFactory.instance().isDockerAvailable();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     @Autowired
     private MockMvc mvc;
@@ -59,6 +69,7 @@ class AuthApiTest {
 
     @Nested
     @DisplayName("Endpoint nghiệp vụ phải yêu cầu đăng nhập")
+    @EnabledIf("com.fairshare.auth.AuthApiTest#isDockerAvailable")
     class ProtectedEndpoints {
 
         @ParameterizedTest(name = "TC-AUTH-01: GET {0} không có token -> 401")

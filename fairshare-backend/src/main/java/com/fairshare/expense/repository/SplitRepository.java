@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface SplitRepository extends JpaRepository<Split, Long> {
+    List<Split> findByExpenseId(Long expenseId);
     List<Split> findByExpenseIdOrderById(Long expenseId);
     List<Split> findByTeamMemberId(Long teamMemberId);
     void deleteByExpenseId(Long expenseId);

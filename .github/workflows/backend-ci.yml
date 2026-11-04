@@ -50,14 +50,4 @@ jobs:
 
       - name: Test summary
         if: always()
-        run: |
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import glob, xml.etree.ElementTree as ET
-          t = f = e = s = 0
-          for p in glob.glob("target/surefire-reports/TEST-*.xml"):
-              r = ET.parse(p).getroot()
-              t += int(r.get("tests", 0)); f += int(r.get("failures", 0))
-              e += int(r.get("errors", 0)); s += int(r.get("skipped", 0))
-          print("### Backend tests")
-          print(f"| Tổng | Pass | Fail | Error | Skip |\n|---|---|---|---|---|\n| {t} | {t-f-e-s} | {f} | {e} | {s} |")
-          PY
+        run: python ../scripts/summarize-backend.py || python3 ../scripts/summarize-backend.py

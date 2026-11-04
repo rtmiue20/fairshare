@@ -179,6 +179,7 @@ export const BoardView: React.FC = () => {
 
   useEffect(() => {
     loadBoardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
   const handleCreateCard = async (e: React.FormEvent) => {

@@ -57,15 +57,4 @@ jobs:
 
       - name: Test summary
         if: always()
-        run: |
-          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import os, xml.etree.ElementTree as ET
-          p = "test-results/junit.xml"
-          print("### Frontend tests")
-          if not os.path.exists(p):
-              print("Không có file kết quả (test chưa chạy tới bước này).")
-          else:
-              r = ET.parse(p).getroot()
-              t, f, e, s = (int(r.get(k, 0)) for k in ("tests", "failures", "errors", "skipped"))
-              print(f"| Tổng | Pass | Fail | Error | Skip |\n|---|---|---|---|---|\n| {t} | {t-f-e-s} | {f} | {e} | {s} |")
-          PY
+        run: python ../scripts/summarize-frontend.py || python3 ../scripts/summarize-frontend.py
