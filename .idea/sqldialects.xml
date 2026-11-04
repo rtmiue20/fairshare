@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/fairshare-backend/src/main/resources/db/migration/V1__init_schema.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/fairshare-backend/src/main/resources/db/migration/V2__integration_and_activity.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/fairshare-backend/src/main/resources/db/migration/V3__contribution.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/fairshare-backend/src/main/resources/db/migration/V4__peer_review.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/fairshare-backend/src/main/resources/db/migration/V5__alert.sql" dialect="MariaDB" />
+  </component>
+</project>

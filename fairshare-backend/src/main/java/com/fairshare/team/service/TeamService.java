@@ -1,10 +1,14 @@
 package com.fairshare.team.service;
 
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.DuplicateResourceException;
 import com.fairshare.common.exception.ResourceNotFoundException;
+import com.fairshare.team.dto.*;
+import com.fairshare.team.entity.Consent;
 import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
 import com.fairshare.team.entity.TeamMember;
+import com.fairshare.team.repository.ConsentRepository;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
@@ -13,7 +17,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -22,24 +30,26 @@ public class TeamService {
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
+    private final ConsentRepository consentRepository;
 
     @Transactional
-    public Team createTeam(String name, String description, Long ownerId) {
-        if (name == null || name.isBlank()) {
+    public TeamDto createTeam(CreateTeamRequest request, Long ownerId) {
+        if (request.getName() == null || request.getName().isBlank()) {
             throw new BusinessException("Team name is required");
-        }
-        if (name.trim().length() > 255) {
-            throw new BusinessException("Team name must be at most 255 characters");
         }
         if (ownerId == null) {
             throw new BusinessException("Team owner is required");
         }
 
-        Team team = new Team();
-        team.setName(name.trim());
-        team.setDescription(description == null ? null : description.trim());
         User ownerUser = userRepository.findById(ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + ownerId));
+
+        Team team = new Team();
+        team.setName(request.getName().trim());
+        team.setCourseName(request.getCourseName());
+        team.setDescription(request.getDescription());
+        team.setInviteCode(generateUniqueInviteCode());
+
         Team savedTeam = teamRepository.save(team);
 
         TeamMember owner = new TeamMember();
@@ -47,7 +57,16 @@ public class TeamService {
         owner.setUser(ownerUser);
         owner.setRole(MemberRole.LEADER);
         teamMemberRepository.save(owner);
-        return savedTeam;
+
+        // Leader automatically consents
+        Consent consent = new Consent();
+        consent.setTeam(savedTeam);
+        consent.setUser(ownerUser);
+        consent.setAgreed(true);
+        consent.setAgreedAt(LocalDateTime.now());
+        consentRepository.save(consent);
+
+        return mapToDto(savedTeam, MemberRole.LEADER.name());
     }
 
     @Transactional(readOnly = true)
@@ -60,15 +79,124 @@ public class TeamService {
     }
 
     @Transactional(readOnly = true)
-    public List<Team> getTeamsForUser(Long userId) {
+    public TeamDto getTeamDetail(Long teamId, Long currentUserId) {
+        Team team = getById(teamId);
+        List<TeamMember> members = teamMemberRepository.findByTeamId(teamId);
+
+        String currentRole = members.stream()
+                .filter(m -> m.getUser().getId().equals(currentUserId))
+                .findFirst()
+                .map(m -> m.getRole().name())
+                .orElse(null);
+
+        Map<Long, Boolean> consentMap = members.stream()
+                .collect(Collectors.toMap(
+                        m -> m.getUser().getId(),
+                        m -> consentRepository.findByTeamIdAndUserId(teamId, m.getUser().getId())
+                                .map(Consent::isAgreed)
+                                .orElse(false)
+                ));
+
+        List<TeamMemberDto> memberDtos = members.stream()
+                .map(m -> TeamMemberDto.builder()
+                        .id(m.getId())
+                        .userId(m.getUser().getId())
+                        .email(m.getUser().getEmail())
+                        .fullName(m.getUser().getFullName())
+                        .role(m.getRole())
+                        .hasConsented(consentMap.getOrDefault(m.getUser().getId(), false))
+                        .joinedAt(m.getCreatedAt())
+                        .build())
+                .toList();
+
+        TeamDto dto = mapToDto(team, currentRole);
+        dto.setMembers(memberDtos);
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TeamDto> getTeamsForUser(Long userId) {
         if (userId == null) {
             throw new BusinessException("User id is required");
         }
-        if (!userRepository.existsById(userId)) {
-            throw new ResourceNotFoundException("User not found: " + userId);
-        }
-        return teamMemberRepository.findByUserId(userId).stream()
-                .map(member -> member.getTeam())
+        List<TeamMember> memberships = teamMemberRepository.findByUserId(userId);
+        return memberships.stream()
+                .map(m -> {
+                    TeamDto dto = mapToDto(m.getTeam(), m.getRole().name());
+                    return dto;
+                })
                 .toList();
+    }
+
+    @Transactional
+    public TeamDto joinTeamByInviteCode(String inviteCode, Long userId) {
+        if (inviteCode == null || inviteCode.isBlank()) {
+            throw new BusinessException("Invite code is required");
+        }
+        Team team = teamRepository.findByInviteCode(inviteCode.trim().toUpperCase())
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid invite code: " + inviteCode));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        if (teamMemberRepository.existsByTeamIdAndUserId(team.getId(), userId)) {
+            throw new DuplicateResourceException("You are already a member of this team");
+        }
+
+        TeamMember member = new TeamMember();
+        member.setTeam(team);
+        member.setUser(user);
+        member.setRole(MemberRole.MEMBER);
+        teamMemberRepository.save(member);
+
+        return mapToDto(team, MemberRole.MEMBER.name());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean getConsentStatus(Long teamId, Long userId) {
+        return consentRepository.findByTeamIdAndUserId(teamId, userId)
+                .map(Consent::isAgreed)
+                .orElse(false);
+    }
+
+    @Transactional
+    public void recordConsent(Long teamId, Long userId, boolean agreed) {
+        Team team = getById(teamId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        Consent consent = consentRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseGet(() -> {
+                    Consent c = new Consent();
+                    c.setTeam(team);
+                    c.setUser(user);
+                    return c;
+                });
+
+        consent.setAgreed(agreed);
+        consent.setAgreedAt(agreed ? LocalDateTime.now() : null);
+        consentRepository.save(consent);
+    }
+
+    @Transactional
+    public void revokeConsent(Long teamId, Long userId) {
+        recordConsent(teamId, userId, false);
+    }
+
+    private String generateUniqueInviteCode() {
+        return "FS" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+    }
+
+    private TeamDto mapToDto(Team team, String role) {
+        return TeamDto.builder()
+                .id(team.getId())
+                .name(team.getName())
+                .courseName(team.getCourseName())
+                .description(team.getDescription())
+                .inviteCode(team.getInviteCode())
+                .currentRole(role)
+                .createdAt(team.getCreatedAt())
+                .updatedAt(team.getUpdatedAt())
+                .build();
     }
 }

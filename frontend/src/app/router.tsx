@@ -6,6 +6,7 @@ import { RegisterPage } from '../features/auth/RegisterPage';
 import { ContributionDashboard } from '../features/dashboard/ContributionDashboard';
 import { TeamListPage } from '../features/team/TeamListPage';
 import { TeamDetailPage } from '../features/team/TeamDetailPage';
+import { BoardView } from '../features/board/BoardView';
 import { ConnectTrelloPage } from '../features/integration/ConnectTrelloPage';
 import { ReviewRoundPage } from '../features/peerreview/ReviewRoundPage';
 import { AlertList } from '../features/alerts/AlertList';
@@ -42,6 +43,14 @@ export const router = createBrowserRouter([
           {
             path: 'teams/:id',
             element: <TeamDetailPage />,
+          },
+          {
+            path: 'teams/:id/board',
+            element: <BoardView />,
+          },
+          {
+            path: 'board',
+            element: <BoardView />,
           },
           {
             path: 'integration',

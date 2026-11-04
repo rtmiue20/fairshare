@@ -18,5 +18,11 @@ public class Team extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "course_name")
+    private String courseName;
+
     private String description;
+
+    @Column(name = "invite_code", unique = true)
+    private String inviteCode;
 }

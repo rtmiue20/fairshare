@@ -222,6 +222,13 @@ export const TeamDetailPage: React.FC = () => {
 
         {/* Action Buttons: Linear Solid White & Minimalist Border */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            to={`/teams/${currentTeam.id}/board`}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 hover:text-white hover:bg-indigo-800/50 transition-colors"
+          >
+            <Kanban size={13} className="text-indigo-400" />
+            <span>Task Board</span>
+          </Link>
           <button
             onClick={() => setIsConsentOpen(true)}
             className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
