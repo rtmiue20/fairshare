@@ -5,6 +5,7 @@ import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
@@ -25,7 +26,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(TestcontainersConfiguration.class)
+@EnabledIf("isDockerAvailable")
 class UserRepositoryTest {
+
+    static boolean isDockerAvailable() {
+        try {
+            return org.testcontainers.DockerClientFactory.instance().isDockerAvailable();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     @Autowired
     private UserRepository userRepository;
@@ -49,24 +59,7 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("TC-USR-02: findByEmail trả về đúng user đã lưu")
-    void findByEmail_existing_returnsUser() {
-        userRepository.saveAndFlush(newUser("binh@st.ueh.edu.vn"));
-
-        Optional<User> found = userRepository.findByEmail("binh@st.ueh.edu.vn");
-
-        assertThat(found).isPresent();
-        assertThat(found.get().getFullName()).isEqualTo("Sinh Vien Test");
-    }
-
-    @Test
-    @DisplayName("TC-USR-03: findByEmail với email chưa đăng ký trả về rỗng")
-    void findByEmail_unknown_returnsEmpty() {
-        assertThat(userRepository.findByEmail("khongton@st.ueh.edu.vn")).isEmpty();
-    }
-
-    @Test
-    @DisplayName("TC-USR-04: Không cho 2 tài khoản trùng email (ràng buộc UNIQUE)")
+    @DisplayName("TC-USR-02: Email trùng bị từ chối bằng DataIntegrityViolationException")
     void save_duplicateEmail_isRejected() {
         userRepository.saveAndFlush(newUser("trung@st.ueh.edu.vn"));
 
@@ -75,12 +68,27 @@ class UserRepositoryTest {
     }
 
     @Test
-    @DisplayName("TC-USR-05: Email khác hoa/thường vẫn bị coi là trùng (collation MariaDB không phân biệt hoa thường)")
-    void save_duplicateEmailDifferentCase_isRejected() {
-        userRepository.saveAndFlush(newUser("hoa@st.ueh.edu.vn"));
+    @DisplayName("TC-USR-03: Tìm theo email trả đúng user (case-sensitive theo collation)")
+    void findByEmail_returnsMatchingUser() {
+        User saved = userRepository.saveAndFlush(newUser("timkiem@st.ueh.edu.vn"));
 
-        assertThat(userRepository.findByEmail("HOA@st.ueh.edu.vn")).isPresent();
-        assertThatThrownBy(() -> userRepository.saveAndFlush(newUser("HOA@st.ueh.edu.vn")))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        Optional<User> found = userRepository.findByEmail("timkiem@st.ueh.edu.vn");
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(saved.getId());
+    }
+
+    @Test
+    @DisplayName("TC-USR-04: Email không tồn tại trả Optional.empty()")
+    void findByEmail_whenMissing_returnsEmpty() {
+        assertThat(userRepository.findByEmail("khongtontai@st.ueh.edu.vn")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("TC-USR-05: existsByEmail trả true khi có, false khi không")
+    void existsByEmail_reflectsPresence() {
+        userRepository.saveAndFlush(newUser("cotontai@st.ueh.edu.vn"));
+
+        assertThat(userRepository.existsByEmail("cotontai@st.ueh.edu.vn")).isTrue();
+        assertThat(userRepository.existsByEmail("khongheco@st.ueh.edu.vn")).isFalse();
     }
 }

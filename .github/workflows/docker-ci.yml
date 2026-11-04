@@ -25,8 +25,7 @@ jobs:
       - name: Create .env for CI
         run: |
           cp .env.example .env
-          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 16)/" .env
-          sed -i "s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=$(openssl rand -hex 16)/" .env
+          python3 scripts/gen-env.py
 
       - name: Validate compose file
         run: docker compose config --quiet
