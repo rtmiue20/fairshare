@@ -144,7 +144,7 @@ BEGIN
         0.00,                               -- peer_pct để 0.00, chờ module peer review tích hợp sau
         tms.activity_pct,                   -- final_pct tạm thời bằng activity_pct
         NOW(),                              -- calculated_at
-        tms.total_activity_score,           -- tương thích cột score cũ
+        LEAST(tms.total_activity_score, 100.00), -- tương thích cột score cũ (đảm bảo <= 100)
         ROUND(tms.activity_pct / 100.0, 4)  -- tương thích cột percentage cũ
     FROM tmp_member_scores tms
     ON DUPLICATE KEY UPDATE
