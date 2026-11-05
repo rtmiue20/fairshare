@@ -72,6 +72,53 @@ public class TeamController {
         return ResponseEntity.ok(ApiResponse.ok("Thêm thành viên thành công", null));
     }
 
+    @GetMapping("/{teamId}/members")
+    public ResponseEntity<ApiResponse<List<TeamMemberDto>>> getMembers(@PathVariable Long teamId) {
+        List<TeamMember> members = memberService.getMembers(teamId);
+        List<TeamMemberDto> dtos = members.stream()
+                .map(m -> TeamMemberDto.builder()
+                        .id(m.getId())
+                        .userId(m.getUser().getId())
+                        .email(m.getUser().getEmail())
+                        .fullName(m.getUser().getFullName())
+                        .role(m.getRole())
+                        .joinedAt(m.getCreatedAt())
+                        .build())
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok("Danh sách thành viên", dtos));
+    }
+
+    @PutMapping("/{teamId}/members/{userId}/role")
+    public ResponseEntity<ApiResponse<TeamMemberDto>> updateMemberRole(
+            @PathVariable Long teamId,
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateMemberRoleRequest request,
+            Authentication authentication
+    ) {
+        Long currentUserId = getUserId(authentication);
+        TeamMember updated = memberService.updateMemberRole(teamId, userId, request.getRole(), currentUserId);
+        TeamMemberDto dto = TeamMemberDto.builder()
+                .id(updated.getId())
+                .userId(updated.getUser().getId())
+                .email(updated.getUser().getEmail())
+                .fullName(updated.getUser().getFullName())
+                .role(updated.getRole())
+                .joinedAt(updated.getCreatedAt())
+                .build();
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật vai trò thành viên thành công", dto));
+    }
+
+    @DeleteMapping("/{teamId}/members/{userId}")
+    public ResponseEntity<ApiResponse<Void>> removeMember(
+            @PathVariable Long teamId,
+            @PathVariable Long userId,
+            Authentication authentication
+    ) {
+        Long currentUserId = getUserId(authentication);
+        memberService.removeMember(teamId, userId, currentUserId);
+        return ResponseEntity.ok(ApiResponse.ok("Xóa thành viên khỏi nhóm thành công", null));
+    }
+
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<TeamDto>> joinTeam(
             @Valid @RequestBody JoinTeamRequest request,

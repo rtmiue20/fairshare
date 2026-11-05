@@ -63,4 +63,65 @@ public class MemberService {
         }
         return teamMemberRepository.findByTeamId(teamId);
     }
+
+    @Transactional
+    public void removeMember(Long teamId, Long targetUserId, Long currentUserId) {
+        if (teamId == null || targetUserId == null) {
+            throw new BusinessException("Team id và user id không được để trống");
+        }
+        if (!teamRepository.existsById(teamId)) {
+            throw new ResourceNotFoundException("Team not found: " + teamId);
+        }
+
+        if (currentUserId != null && !currentUserId.equals(targetUserId)) {
+            TeamMember caller = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                    .orElseThrow(() -> new BusinessException("Bạn không phải thành viên của nhóm này"));
+            if (caller.getRole() != MemberRole.LEADER) {
+                throw new BusinessException("Chỉ Leader mới có quyền xóa thành viên khỏi nhóm");
+            }
+        }
+
+        TeamMember target = teamMemberRepository.findByTeamIdAndUserId(teamId, targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên trong nhóm"));
+
+        if (target.getRole() == MemberRole.LEADER) {
+            long leaderCount = teamMemberRepository.countByTeamIdAndRole(teamId, MemberRole.LEADER);
+            if (leaderCount <= 1) {
+                throw new BusinessException("Không thể xóa Leader duy nhất của nhóm. Hãy bổ nhiệm Leader khác trước.");
+            }
+        }
+
+        teamMemberRepository.delete(target);
+    }
+
+    @Transactional
+    public TeamMember updateMemberRole(Long teamId, Long targetUserId, MemberRole newRole, Long currentUserId) {
+        if (teamId == null || targetUserId == null || newRole == null) {
+            throw new BusinessException("Team id, user id và vai trò mới không được để trống");
+        }
+        if (!teamRepository.existsById(teamId)) {
+            throw new ResourceNotFoundException("Team not found: " + teamId);
+        }
+
+        if (currentUserId != null) {
+            TeamMember caller = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                    .orElseThrow(() -> new BusinessException("Bạn không phải thành viên của nhóm này"));
+            if (caller.getRole() != MemberRole.LEADER) {
+                throw new BusinessException("Chỉ Leader mới có quyền thay đổi vai trò thành viên");
+            }
+        }
+
+        TeamMember target = teamMemberRepository.findByTeamIdAndUserId(teamId, targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên trong nhóm"));
+
+        if (target.getRole() == MemberRole.LEADER && newRole != MemberRole.LEADER) {
+            long leaderCount = teamMemberRepository.countByTeamIdAndRole(teamId, MemberRole.LEADER);
+            if (leaderCount <= 1) {
+                throw new BusinessException("Không thể giáng chức Leader duy nhất của nhóm. Hãy bổ nhiệm Leader khác trước.");
+            }
+        }
+
+        target.setRole(newRole);
+        return teamMemberRepository.save(target);
+    }
 }
