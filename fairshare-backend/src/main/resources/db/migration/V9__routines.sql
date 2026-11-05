@@ -711,7 +711,7 @@ CREATE PROCEDURE sp_scoring_compute_raw_features(
     IN  p_sprint_id BIGINT,
     OUT p_error     VARCHAR(255)
 )
-BEGIN
+proc_label: BEGIN
     DECLARE v_team_id BIGINT;
     SET p_error = NULL;
     SELECT team_id INTO v_team_id FROM sprints WHERE id = p_sprint_id;
@@ -1150,7 +1150,7 @@ CREATE PROCEDURE sp_scoring_run_pipeline(
     IN  p_sprint_id BIGINT,
     OUT p_error     VARCHAR(255)
 )
-BEGIN
+proc_label: BEGIN
     SET p_error = NULL;
 
     CALL sp_scoring_compute_raw_features(p_sprint_id, @err);
@@ -1565,7 +1565,7 @@ CREATE PROCEDURE sp_expense_split_equal(
     IN  p_expense_id BIGINT,
     OUT p_error      VARCHAR(255)
 )
-BEGIN
+proc_label: BEGIN
     DECLARE v_team_id    BIGINT;
     DECLARE v_amount     DECIMAL(19,2);
     DECLARE v_count      INT;
@@ -1595,7 +1595,7 @@ CREATE PROCEDURE sp_expense_split_by_contribution(
     IN  p_sprint_id  BIGINT,
     OUT p_error      VARCHAR(255)
 )
-BEGIN
+proc_label: BEGIN
     DECLARE v_team_id BIGINT;
     DECLARE v_amount  DECIMAL(19,2);
     SET p_error = NULL;
