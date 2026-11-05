@@ -5,6 +5,8 @@ import com.fairshare.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -36,6 +38,7 @@ public class Card extends BaseEntity {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
+    @JdbcTypeCode(SqlTypes.DECIMAL)
     @Column(name = "story_points", nullable = false)
     private Double storyPoints = 0.0;
 
