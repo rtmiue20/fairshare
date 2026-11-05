@@ -1,5 +1,5 @@
 -- =============================================================================
--- V202611041200: Routine tổng hợp điểm đóng góp thành viên theo Sprint
+-- V11: Routine tổng hợp điểm đóng góp thành viên theo Sprint
 -- Task: M3 (Backend 1) - Sprint 4 / Thẻ 1 Trello
 -- Stored Procedure: sp_calculate_contribution_scores
 -- Target: MariaDB 11.x / MySQL 8.0+
