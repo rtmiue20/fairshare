@@ -7,6 +7,8 @@ import com.fairshare.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -42,15 +44,18 @@ public class ActivityEvent extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String details;
 
+    @JdbcTypeCode(SqlTypes.DECIMAL)
     @Column(name = "story_points")
     private Double storyPoints;
 
+    @JdbcTypeCode(SqlTypes.TINYINT)
     @Column(name = "difficulty_level")
     private Integer difficultyLevel;
 
     @Column(name = "is_on_time")
     private Boolean isOnTime;
 
+    @JdbcTypeCode(SqlTypes.DECIMAL)
     @Column(name = "delay_days")
     private Double delayDays;
 

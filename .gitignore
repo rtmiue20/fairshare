@@ -1,5 +1,4 @@
-# Temporary automation scripts & packages
-scripts/
+# Temporary automation packages
 node_modules/
 *.xlsx
 *.docx
