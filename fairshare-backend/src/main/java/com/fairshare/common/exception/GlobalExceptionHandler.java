@@ -3,6 +3,7 @@ package com.fairshare.common.exception;
 import com.fairshare.common.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -62,13 +63,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class,
-            IllegalArgumentException.class
+            IllegalArgumentException.class,
+            HttpMessageNotReadableException.class
     })
     public ResponseEntity<ApiResponse<Void>> handleBadRequestExceptions(Exception ex) {
+        String msg = "Invalid request: " + ex.getMessage();
+        if (ex instanceof HttpMessageNotReadableException) {
+            msg = "Định dạng dữ liệu không hợp lệ hoặc sai định dạng ngày giờ (due date)";
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 ApiResponse.<Void>builder()
                         .success(false)
-                        .message("Invalid request: " + ex.getMessage())
+                        .message(msg)
                         .build()
         );
     }

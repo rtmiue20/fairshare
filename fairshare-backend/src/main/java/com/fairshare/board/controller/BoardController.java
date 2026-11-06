@@ -110,6 +110,42 @@ public class BoardController {
         return ResponseEntity.ok(ApiResponse.ok("Card updated successfully", updated));
     }
 
+    @PutMapping({"/cards/{cardId}/assignee", "/../cards/{cardId}/assignee"})
+    @PatchMapping({"/cards/{cardId}/assignee", "/../cards/{cardId}/assignee"})
+    public ResponseEntity<ApiResponse<CardDto>> updateCardAssignee(
+            @PathVariable Long cardId,
+            @Valid @RequestBody UpdateAssigneeRequest request,
+            Authentication authentication
+    ) {
+        Long actorId = getUserId(authentication);
+        CardDto updated = boardService.updateAssignee(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Card assignee updated successfully", updated));
+    }
+
+    @PutMapping({"/cards/{cardId}/story-points", "/../cards/{cardId}/story-points"})
+    @PatchMapping({"/cards/{cardId}/story-points", "/../cards/{cardId}/story-points"})
+    public ResponseEntity<ApiResponse<CardDto>> updateCardStoryPoints(
+            @PathVariable Long cardId,
+            @Valid @RequestBody UpdateStoryPointsRequest request,
+            Authentication authentication
+    ) {
+        Long actorId = getUserId(authentication);
+        CardDto updated = boardService.updateStoryPoints(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Card story points updated successfully", updated));
+    }
+
+    @PutMapping({"/cards/{cardId}/due-date", "/../cards/{cardId}/due-date"})
+    @PatchMapping({"/cards/{cardId}/due-date", "/../cards/{cardId}/due-date"})
+    public ResponseEntity<ApiResponse<CardDto>> updateCardDueDate(
+            @PathVariable Long cardId,
+            @Valid @RequestBody UpdateDueDateRequest request,
+            Authentication authentication
+    ) {
+        Long actorId = getUserId(authentication);
+        CardDto updated = boardService.updateDueDate(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Card due date updated successfully", updated));
+    }
+
     @DeleteMapping("/cards/{cardId}")
     public ResponseEntity<ApiResponse<Void>> deleteCard(@PathVariable Long cardId) {
         boardService.deleteCard(cardId);

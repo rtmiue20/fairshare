@@ -3,9 +3,7 @@ package com.fairshare.board;
 import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.entity.ActivitySource;
 import com.fairshare.activity.service.ActivityService;
-import com.fairshare.board.dto.CreateBoardRequest;
-import com.fairshare.board.dto.CreateCardRequest;
-import com.fairshare.board.dto.MoveCardRequest;
+import com.fairshare.board.dto.*;
 import com.fairshare.board.entity.Board;
 import com.fairshare.board.entity.BoardColumn;
 import com.fairshare.board.entity.Card;
@@ -13,8 +11,11 @@ import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.BoardRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.board.service.BoardService;
+import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.repository.SprintRepository;
 import com.fairshare.team.entity.Team;
+import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
@@ -48,6 +49,8 @@ class BoardServiceTest {
     private CardRepository cardRepository;
     @Mock
     private TeamRepository teamRepository;
+    @Mock
+    private TeamMemberRepository teamMemberRepository;
     @Mock
     private UserRepository userRepository;
     @Mock
@@ -193,5 +196,182 @@ class BoardServiceTest {
                 eq(3.0),
                 eq(true) // on-time is true
         );
+    }
+
+    @Test
+    @DisplayName("Updating card assignee succeeds when user is member of the team")
+    void testUpdateAssigneeSuccess() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Implement JWT");
+        card.setStoryPoints(3.0);
+
+        UpdateAssigneeRequest request = UpdateAssigneeRequest.builder()
+                .assigneeId(100L)
+                .build();
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(teamMemberRepository.existsByTeamIdAndUserId(10L, 100L)).thenReturn(true);
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var dto = boardService.updateAssignee(50L, request, 100L);
+
+        assertNotNull(dto);
+        assertEquals(100L, dto.getAssigneeId());
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_ASSIGNEE_UPDATED"),
+                contains("Assigned card 'Implement JWT' to 'Developer'"),
+                any(),
+                isNull(),
+                eq(3.0),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("Updating card assignee throws BusinessException when user does not belong to team")
+    void testUpdateAssigneeFailsWhenUserNotMemberOfTeam() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Implement JWT");
+
+        User outsider = new User();
+        outsider.setId(200L);
+        outsider.setFullName("Outsider");
+
+        UpdateAssigneeRequest request = UpdateAssigneeRequest.builder()
+                .assigneeId(200L)
+                .build();
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(userRepository.findById(200L)).thenReturn(Optional.of(outsider));
+        when(teamMemberRepository.existsByTeamIdAndUserId(10L, 200L)).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                boardService.updateAssignee(50L, request, 100L));
+
+        assertTrue(ex.getMessage().contains("Người phụ trách phải thuộc nhóm"));
+        verify(cardRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Updating card assignee throws BusinessException when assigneeId is null")
+    void testUpdateAssigneeFailsWhenAssigneeIdNull() {
+        UpdateAssigneeRequest request = UpdateAssigneeRequest.builder()
+                .assigneeId(null)
+                .build();
+
+        assertThrows(BusinessException.class, () ->
+                boardService.updateAssignee(50L, request, 100L));
+    }
+
+    @Test
+    @DisplayName("Updating story points succeeds when value is positive integer")
+    void testUpdateStoryPointsSuccess() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Implement JWT");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(3.0);
+
+        UpdateStoryPointsRequest request = UpdateStoryPointsRequest.builder()
+                .storyPoints(5.0)
+                .build();
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var dto = boardService.updateStoryPoints(50L, request, 100L);
+
+        assertNotNull(dto);
+        assertEquals(5.0, dto.getStoryPoints());
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_STORY_POINTS_UPDATED"),
+                contains("Updated story points for card 'Implement JWT' to 5"),
+                any(),
+                isNull(),
+                eq(5.0),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("Updating story points throws BusinessException when value is zero or negative")
+    void testUpdateStoryPointsFailsWhenZeroOrNegative() {
+        UpdateStoryPointsRequest zeroReq = UpdateStoryPointsRequest.builder().storyPoints(0.0).build();
+        UpdateStoryPointsRequest negReq = UpdateStoryPointsRequest.builder().storyPoints(-2.0).build();
+
+        assertThrows(BusinessException.class, () -> boardService.updateStoryPoints(50L, zeroReq, 100L));
+        assertThrows(BusinessException.class, () -> boardService.updateStoryPoints(50L, negReq, 100L));
+    }
+
+    @Test
+    @DisplayName("Updating story points throws BusinessException when value is decimal")
+    void testUpdateStoryPointsFailsWhenDecimal() {
+        UpdateStoryPointsRequest decimalReq = UpdateStoryPointsRequest.builder().storyPoints(2.5).build();
+
+        assertThrows(BusinessException.class, () -> boardService.updateStoryPoints(50L, decimalReq, 100L));
+    }
+
+    @Test
+    @DisplayName("Updating due date succeeds when valid LocalDateTime is passed")
+    void testUpdateDueDateSuccess() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Implement JWT");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(3.0);
+
+        LocalDateTime due = LocalDateTime.now().plusDays(5);
+        UpdateDueDateRequest request = UpdateDueDateRequest.builder()
+                .dueDate(due)
+                .build();
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var dto = boardService.updateDueDate(50L, request, 100L);
+
+        assertNotNull(dto);
+        assertEquals(due, dto.getDueDate());
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_DUE_DATE_UPDATED"),
+                contains("Updated due date for card 'Implement JWT' to"),
+                any(),
+                isNull(),
+                eq(3.0),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("Updating due date throws BusinessException when dueDate is null")
+    void testUpdateDueDateFailsWhenNull() {
+        UpdateDueDateRequest request = UpdateDueDateRequest.builder().dueDate(null).build();
+
+        assertThrows(BusinessException.class, () -> boardService.updateDueDate(50L, request, 100L));
     }
 }
