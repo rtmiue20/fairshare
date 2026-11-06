@@ -2,6 +2,7 @@ package com.fairshare.contribution.controller;
 
 import com.fairshare.common.dto.ApiResponse;
 import com.fairshare.contribution.dto.ContributionDto;
+import com.fairshare.contribution.dto.ContributionSummaryResponse;
 import com.fairshare.contribution.service.ContributionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,22 @@ import java.util.List;
 public class ContributionController {
 
     private final ContributionService contributionService;
+
+    /**
+     * API tổng hợp điểm đóng góp thành viên theo team và sprint.
+     * Kích hoạt Stored Procedure và trả về kết quả mới nhất.
+     *
+     * @param teamId   ID của nhóm
+     * @param sprintId ID của sprint
+     * @return danh sách tóm tắt điểm đóng góp của các thành viên (200 OK)
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<List<ContributionSummaryResponse>> getContributionSummary(
+            @RequestParam("teamId") Long teamId,
+            @RequestParam("sprintId") Long sprintId) {
+        List<ContributionSummaryResponse> summary = contributionService.getContributionSummary(teamId, sprintId);
+        return ResponseEntity.ok(summary);
+    }
 
     @PostMapping("/sprints/{sprintId}/calculate")
     public ResponseEntity<ApiResponse<List<ContributionDto>>> calculateScores(@PathVariable Long sprintId) {
