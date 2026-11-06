@@ -17,3 +17,4 @@ public class UpdateStoryPointsRequest {
     @Positive(message = "Story point phải là số nguyên dương")
     private Double storyPoints;
 }
+
