@@ -1,10 +1,16 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { BoardView } from '../features/board/BoardView';
+import { boardApi } from '../api/board.api';
+import { teamApi } from '../api/team.api';
 
-describe('BoardView Component (Sprint 3)', () => {
-  it('renders standard Kanban columns', () => {
+describe('BoardView Component - Kanban UI (M1 - Frontend)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders standard Kanban columns in order', () => {
     render(
       <MemoryRouter initialEntries={['/teams/1/board']}>
         <BoardView />
@@ -15,6 +21,148 @@ describe('BoardView Component (Sprint 3)', () => {
     expect(screen.getByText('In Progress')).toBeInTheDocument();
     expect(screen.getByText('Review')).toBeInTheDocument();
     expect(screen.getByText('Done')).toBeInTheDocument();
+  });
+
+  it('renders cards with assignee name, story points, and due date', () => {
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Card titles
+    expect(screen.getByText(/Khảo sát thêm 20 sinh viên về Free-rider/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chi tiết card: API cập nhật người phụ trách, story point, hạn/i)).toBeInTheDocument();
+
+    // Assignee names
+    expect(screen.getByText('Hà Ngọc Thiện')).toBeInTheDocument();
+    expect(screen.getByText('Nguyễn Văn Minh Triều')).toBeInTheDocument();
+    expect(screen.getAllByText('Nguyễn Phúc Vương').length).toBeGreaterThan(0);
+
+    // Story points
+    expect(screen.getAllByText(/SP/).length).toBeGreaterThan(0);
+    expect(screen.getByText('2 SP')).toBeInTheDocument();
+    expect(screen.getAllByText('3 SP').length).toBeGreaterThan(0);
+  });
+
+  it('displays overdue badge for past due dates', () => {
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Card id 106 has dueDate: '2026-11-02T23:30:00' which is in the past
+    const overdueBadges = screen.getAllByText(/(Quá hạn)/i);
+    expect(overdueBadges.length).toBeGreaterThan(0);
+  });
+
+  it('handles API loading and populated board data properly', async () => {
+    const mockTeam = {
+      id: 1,
+      name: 'FairShare Dev Team',
+      description: 'Nhóm phát triển FairShare',
+      leaderId: 1,
+      createdAt: '2026-10-01T00:00:00',
+      members: [
+        {
+          id: 1,
+          teamId: 1,
+          user: { id: 1, email: 'leader@ueh.edu.vn', fullName: 'Minh Triều', avatarUrl: '' },
+          role: 'LEADER' as const,
+          hasConsented: true,
+          joinedAt: '2026-10-01T00:00:00',
+        },
+      ],
+    };
+
+    const mockBoards = [
+      {
+        id: 10,
+        teamId: 1,
+        name: 'Sprint 4 Kanban Board',
+        description: 'Bảng theo dõi tiến độ từ API',
+        columns: [
+          {
+            id: 101,
+            boardId: 10,
+            name: 'Backlog Cột 1',
+            position: 0,
+            cards: [
+              {
+                id: 1001,
+                boardId: 10,
+                columnId: 101,
+                title: 'Task được tải từ API',
+                description: 'Nội dung chi tiết từ server',
+                storyPoints: 5,
+                position: 0,
+                assigneeName: 'Minh Triều',
+                assigneeId: 1,
+                dueDate: '2026-11-10T23:30:00',
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    vi.spyOn(teamApi, 'getTeamById').mockResolvedValueOnce({
+      success: true,
+      message: 'OK',
+      data: mockTeam,
+    });
+
+    vi.spyOn(boardApi, 'getBoardsByTeam').mockResolvedValueOnce({
+      success: true,
+      message: 'OK',
+      data: mockBoards,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint 4 Kanban Board')).toBeInTheDocument();
+      expect(screen.getByText('Backlog Cột 1')).toBeInTheDocument();
+      expect(screen.getByText('Task được tải từ API')).toBeInTheDocument();
+      expect(screen.getByText('5 SP')).toBeInTheDocument();
+    });
+  });
+
+  it('handles error state with retry option when API fails', async () => {
+    vi.spyOn(teamApi, 'getTeamById').mockRejectedValueOnce(new Error('Network error'));
+    vi.spyOn(boardApi, 'getBoardsByTeam').mockRejectedValueOnce(new Error('Network error'));
+
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Không thể tải dữ liệu Kanban từ máy chủ/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Thử lại/i })).toBeInTheDocument();
+    });
+  });
+
+  it('opens card detail modal when clicking on a card', () => {
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    const card = screen.getByText(/Khảo sát thêm 20 sinh viên về Free-rider/i);
+    fireEvent.click(card);
+
+    expect(screen.getByText('Chi tiết công việc')).toBeInTheDocument();
+    expect(screen.getByText(/Người phụ trách \(Assignee\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Story Points \(Nguyên dương\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hạn hoàn thành \(Due date\)/i)).toBeInTheDocument();
   });
 
   it('opens add card modal when clicking + Thêm công việc button', () => {
