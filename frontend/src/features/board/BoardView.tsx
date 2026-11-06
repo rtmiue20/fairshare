@@ -283,7 +283,7 @@ export const BoardView: React.FC = () => {
       showToast('Cập nhật chi tiết card thành công!');
       setEditingCard(null);
       loadBoardData();
-    } catch (err: unknown) {
+    } catch {
       // Local fallback update for demo
       const selectedMember = team?.members?.find((m) => m.user.id === editAssigneeId);
       setBoard((prev) => ({
