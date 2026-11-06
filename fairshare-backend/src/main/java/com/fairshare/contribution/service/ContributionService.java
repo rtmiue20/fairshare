@@ -4,8 +4,9 @@ import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.repository.ActivityEventRepository;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.contribution.dto.ContributionDto;
+import com.fairshare.contribution.dto.ContributionSummaryResponse;
 import com.fairshare.contribution.entity.ContributionScore;
-import com.fairshare.contribution.repository.ContributionRepository;
+import com.fairshare.contribution.repository.ContributionScoreRepository;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
 import com.fairshare.team.entity.Team;
@@ -25,11 +26,36 @@ import java.util.List;
 public class ContributionService {
 
     private final ScoringEngine scoringEngine;
-    private final ContributionRepository contributionRepository;
+    private final ContributionScoreRepository contributionScoreRepository;
     private final ActivityEventRepository activityEventRepository;
     private final SprintRepository sprintRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
+
+    /**
+     * Tổng hợp điểm đóng góp thành viên bằng Stored Procedure và trả về DTO tóm tắt.
+     * Flow:
+     * 1. Gọi stored procedure sp_calculate_contribution_scores(teamId, sprintId).
+     * 2. Lấy danh sách ContributionScore đã được tính toán/upsert từ DB.
+     * 3. Chuyển đổi sang List<ContributionSummaryResponse>.
+     *
+     * @param teamId   ID nhóm
+     * @param sprintId ID sprint
+     * @return danh sách điểm tổng hợp của các thành viên
+     */
+    @Transactional
+    public List<ContributionSummaryResponse> getContributionSummary(Long teamId, Long sprintId) {
+        // 1. Gọi stored procedure để tính toán và upsert điểm vào DB
+        contributionScoreRepository.calculateContributionScores(teamId, sprintId);
+
+        // 2. Lấy kết quả mới nhất sau khi tính toán
+        List<ContributionScore> scores = contributionScoreRepository.findByTeamIdAndSprintId(teamId, sprintId);
+
+        // 3. Map sang DTO và trả về
+        return scores.stream()
+                .map(ContributionSummaryResponse::fromEntity)
+                .toList();
+    }
 
     @Transactional
     public List<ContributionDto> calculateAndSaveSprintScores(Long sprintId) {
@@ -41,7 +67,6 @@ public class ContributionService {
         List<User> users = teamMembers.stream().map(TeamMember::getUser).toList();
 
         List<ActivityEvent> events = activityEventRepository.findBySprintId(sprintId);
-        // If no events linked specifically to sprint_id, fallback to team events during sprint range
         if (events.isEmpty()) {
             events = activityEventRepository.findByTeamId(team.getId());
         }
@@ -53,7 +78,7 @@ public class ContributionService {
         for (ScoringEngine.MemberContributionResult res : calculated) {
             User user = res.getUser();
 
-            ContributionScore scoreEntity = contributionRepository
+            ContributionScore scoreEntity = contributionScoreRepository
                     .findBySprintIdAndUserId(sprintId, user.getId())
                     .orElseGet(() -> {
                         ContributionScore cs = new ContributionScore();
@@ -65,7 +90,7 @@ public class ContributionService {
 
             scoreEntity.setScore(res.getFinalScore());
             scoreEntity.setPercentage(res.getPercentage());
-            ContributionScore saved = contributionRepository.save(scoreEntity);
+            ContributionScore saved = contributionScoreRepository.save(scoreEntity);
 
             dtos.add(ContributionDto.builder()
                     .id(saved.getId())
@@ -87,7 +112,7 @@ public class ContributionService {
 
     @Transactional(readOnly = true)
     public List<ContributionDto> getSprintScores(Long sprintId) {
-        List<ContributionScore> existing = contributionRepository.findBySprintId(sprintId);
+        List<ContributionScore> existing = contributionScoreRepository.findBySprintId(sprintId);
         if (existing.isEmpty()) {
             return calculateAndSaveSprintScores(sprintId);
         }
@@ -108,7 +133,7 @@ public class ContributionService {
 
     @Transactional(readOnly = true)
     public List<ContributionDto> getTeamScores(Long teamId) {
-        return contributionRepository.findByTeamId(teamId).stream()
+        return contributionScoreRepository.findByTeamId(teamId).stream()
                 .map(cs -> ContributionDto.builder()
                         .id(cs.getId())
                         .teamId(cs.getTeam().getId())
