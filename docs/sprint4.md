@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | M3 | Đóng góp & Dashboard: routine tổng hợp đóng góp, API truy vết đến sự kiện gốc, dashboard biểu đồ, bảng bằng chứng, bộ lọc theo sprint/người, khai báo thủ công có xác nhận | Commit, API doc, demo | 09/11 | ⬜ |
 | M1 | Board/card hoàn thiện: chi tiết card (người phụ trách, story point, hạn), giao diện kéo thả, ghi sự kiện hoàn thành/đúng hạn, log hoạt động không sửa được | Commit, test, demo | 08/11 | ⬜ |
-| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức | 09/11 | ⬜ |
+| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức, CR-03 | 09/11 | ✅ Hoàn thành |
 | M4 | Chấm chéo: API mở/đóng đợt, nhận đánh giá; form chấm chéo | Commit, demo | 09/11 | ⬜ |
 | M5 | Tích hợp: test các module, ghi defect, môi trường staging | Integration log, defect log | 09/11 | ⬜ |
 | M0 | Rà việc tồn đọng Sprint 3, cập nhật Gantt thực tế, **quyết định tính năng có điều kiện** (CR), báo cáo tuần | Sprint report, CR | 10/11 | ⬜ |

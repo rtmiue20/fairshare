@@ -19,7 +19,7 @@ import {
 import { MemberTable } from './MemberTable';
 import { ConsentDialog } from './ConsentDialog';
 import { teamApi } from '../../api/team.api';
-import type { Team } from '../../types/team';
+import type { Team, Role } from '../../types/team';
 
 // Danh sách 6 thành viên chuẩn xác 100% Nhóm 07 - Đồ án QLDA UEH
 const DEFAULT_TEAM_DATA: Team = {
@@ -179,6 +179,8 @@ export const TeamDetailPage: React.FC = () => {
     };
   }, [id]);
 
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
@@ -189,6 +191,53 @@ export const TeamDetailPage: React.FC = () => {
       setShowInviteModal(false);
       setInviteEmail('');
     }, 1500);
+  };
+
+  const handleUpdateRole = async (userId: number, role: Role) => {
+    try {
+      if (team?.id) {
+        await teamApi.updateMemberRole(team.id, userId, role);
+      }
+      setTeam((prev) => {
+        const base = prev || DEFAULT_TEAM_DATA;
+        return {
+          ...base,
+          members: base.members?.map((m) =>
+            m.user?.id === userId || m.id === userId ? { ...m, role } : m
+          ),
+        };
+      });
+      setActionMessage('Đã cập nhật vai trò thành viên thành công.');
+      setTimeout(() => setActionMessage(null), 3000);
+    } catch {
+      setActionMessage('Không thể cập nhật vai trò (yêu cầu quyền Leader hoặc quy tắc an toàn).');
+      setTimeout(() => setActionMessage(null), 3500);
+    }
+  };
+
+  const handleRemoveMember = async (userId: number) => {
+    const confirmed = window.confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?');
+    if (!confirmed) return;
+
+    try {
+      if (team?.id) {
+        await teamApi.deleteMember(team.id, userId);
+      }
+      setTeam((prev) => {
+        const base = prev || DEFAULT_TEAM_DATA;
+        return {
+          ...base,
+          members: base.members?.filter(
+            (m) => m.user?.id !== userId && m.id !== userId
+          ),
+        };
+      });
+      setActionMessage('Đã xóa thành viên khỏi danh sách nhóm.');
+      setTimeout(() => setActionMessage(null), 3000);
+    } catch {
+      setActionMessage('Không thể xóa thành viên (nhóm phải giữ lại ít nhất 1 Trưởng nhóm).');
+      setTimeout(() => setActionMessage(null), 3500);
+    }
   };
 
   const currentTeam = team || DEFAULT_TEAM_DATA;
@@ -409,9 +458,24 @@ export const TeamDetailPage: React.FC = () => {
             </div>
           </div>
 
+          {actionMessage && (
+            <div className="p-3 bg-zinc-900 border border-zinc-700 rounded-lg text-xs font-mono text-zinc-300 flex items-center justify-between">
+              <span>{actionMessage}</span>
+              <button
+                type="button"
+                onClick={() => setActionMessage(null)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
           <MemberTable
             members={currentTeam.members || []}
             isLeader={true}
+            onUpdateRole={handleUpdateRole}
+            onRemoveMember={handleRemoveMember}
           />
         </div>
       )}

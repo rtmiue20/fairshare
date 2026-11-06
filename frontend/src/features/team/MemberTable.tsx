@@ -7,6 +7,7 @@ import {
   Kanban,
   GitPullRequest,
   Check,
+  Trash2,
 } from 'lucide-react';
 
 interface MemberTableProps {
@@ -16,7 +17,12 @@ interface MemberTableProps {
   isLeader?: boolean;
 }
 
-export const MemberTable: React.FC<MemberTableProps> = ({ members }) => {
+export const MemberTable: React.FC<MemberTableProps> = ({
+  members,
+  onRemoveMember,
+  onUpdateRole,
+  isLeader = false,
+}) => {
   const getInitials = (name?: string, email?: string) => {
     if (name) {
       if (name.includes('Triều')) return 'MT';
@@ -45,6 +51,8 @@ export const MemberTable: React.FC<MemberTableProps> = ({ members }) => {
     return 'Thành viên nhóm phát triển';
   };
 
+  const showActions = isLeader || Boolean(onRemoveMember || onUpdateRole);
+
   return (
     <div className="w-full bg-[#121318] border border-zinc-800/80 rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -56,14 +64,16 @@ export const MemberTable: React.FC<MemberTableProps> = ({ members }) => {
               <th className="py-3 px-5">Vai trò dự án</th>
               <th className="py-3 px-5">Đồng thuận NĐ 13</th>
               <th className="py-3 px-5">Kênh dữ liệu</th>
+              {showActions && <th className="py-3 px-5 text-right">Quản lý</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-850">
             {members.map((member) => {
               const name = member.user?.fullName || member.user?.email || 'Thành viên';
               const initials = getInitials(member.user?.fullName, member.user?.email);
-              const isLead = member.role === 'LEADER' || name.includes('Triều');
+              const isLead = member.role === 'LEADER';
               const isThien = name.includes('Thiện');
+              const targetUserId = member.user?.id || member.id;
 
               return (
                 <tr
@@ -104,10 +114,6 @@ export const MemberTable: React.FC<MemberTableProps> = ({ members }) => {
                         <Crown size={12} className="text-amber-400" />
                         <span>Trưởng nhóm</span>
                       </span>
-                    ) : isThien ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-sky-500/10 text-sky-300 border border-sky-500/20">
-                        <span>BA & Frontend</span>
-                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700/60">
                         <UserIcon size={12} className="text-zinc-400" />
@@ -144,6 +150,36 @@ export const MemberTable: React.FC<MemberTableProps> = ({ members }) => {
                       </span>
                     </div>
                   </td>
+
+                  {/* Management actions */}
+                  {showActions && (
+                    <td className="py-3.5 px-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {onUpdateRole && (
+                          <select
+                            aria-label={`Đổi vai trò cho ${name}`}
+                            value={member.role}
+                            onChange={(e) => onUpdateRole(targetUserId, e.target.value as Role)}
+                            className="bg-zinc-900 border border-zinc-700/80 text-zinc-300 text-[11px] rounded px-2 py-1 focus:outline-none focus:border-amber-500/80 cursor-pointer"
+                          >
+                            <option value="MEMBER">Thành viên</option>
+                            <option value="LEADER">Trưởng nhóm</option>
+                          </select>
+                        )}
+                        {onRemoveMember && (
+                          <button
+                            type="button"
+                            aria-label={`Xóa ${name}`}
+                            onClick={() => onRemoveMember(targetUserId)}
+                            className="p-1.5 rounded text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
+                            title="Xóa thành viên khỏi nhóm"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}
