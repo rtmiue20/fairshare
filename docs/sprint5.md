@@ -22,15 +22,16 @@
 | M4 | Chấm chéo hoàn thiện: `AnonymityAggregator` (ngưỡng ≥ 3 lượt, kiểm tra ngay trong routine), màn hình kết quả, kiểm tra không lộ danh tính; (có điều kiện theo CR 09/11) cảnh báo sớm rule-based | Commit, báo cáo kiểm tra ẩn danh | 16/11 | ⬜ |
 | M0 | Báo cáo PDF: `report` tổng hợp đóng góp, điểm chấm chéo, bằng chứng chính; nút xuất | Commit, demo PDF | 16/11 | ⬜ |
 | M3 | Đóng góp hoàn thiện: tối ưu routine/truy vấn, kiểm thử dữ liệu lớn, chỉnh dashboard theo phản hồi | Commit, kết quả đo trước/sau | 15/11 | ⬜ |
-| M1 | Hoàn thiện nền tảng: bảo mật cơ bản, phân quyền theo vai trò nhóm, sửa lỗi board/tích hợp | Commit, test phân quyền | 15/11 | ⬜ |
-| M2 | BA + nhóm: kịch bản UAT, danh sách ≥ 10 người thử, phiếu phản hồi | Kịch bản UAT, danh sách, phiếu | 16/11 | ⬜ |
-| M5 | Kiểm thử: unit/integration/regression, defect log, đo hiệu năng PDF | Test results, defect log | 16/11 | ⬜ |
+| M1 | Hoàn thiện nền tảng: bảo mật cơ bản, phân quyền theo vai trò nhóm (gồm quyền trên board: leader tạo/sửa bảng và cột, thành viên chỉ sửa/di chuyển thẻ được giao), sửa lỗi board; **gỡ module Trello legacy** (CR-02) | Commit, test phân quyền, PR gỡ legacy | 15/11 | ⬜ |
+| M2 | BA + nhóm: kịch bản UAT (có luồng dùng Task Board: tạo thẻ → di chuyển → xem đóng góp), danh sách ≥ 10 người thử, phiếu phản hồi | Kịch bản UAT, danh sách, phiếu | 16/11 | ⬜ |
+| M5 | Kiểm thử: unit/integration/regression (gồm luồng board → `ActivityEvent` → `ScoringEngine` → dashboard), defect log, đo hiệu năng PDF | Test results, defect log | 16/11 | ⬜ |
 | M0 | Báo cáo tuần 5, cập nhật Risk, Sprint Review/Retro | Sprint report | 17/11 | ⬜ |
 
 ## Tiêu chí hoàn thành (DoD)
 - Với dưới 3 lượt đánh giá thì không hiển thị kết quả, và không suy ra được danh tính người chấm.
 - Xuất được PDF có đóng góp, điểm chấm chéo và bằng chứng chính; thời gian xuất đo được so với mục tiêu G4 (< 10 giây).
-- Phân quyền leader/thành viên đúng, có test.
+- Phân quyền leader/thành viên đúng (kể cả trên board), có test.
+- Module Trello legacy đã gỡ (`integration/trello`, `TrelloClientTest`, fixtures/mock Trello, `ConnectTrelloPage`, `integration.api.ts`, route `integration`); build và CI vẫn xanh; dữ liệu cũ nguồn `TRELLO` (nếu có) không làm lỗi hệ thống.
 - Có kịch bản UAT và ≥ 10 người thử trước khi sang Sprint 6; defect log cập nhật, mỗi lỗi có người nhận.
 
 ## Rủi ro theo dõi
@@ -39,6 +40,7 @@
 | R04: lộ danh tính trong chấm chéo (nhóm ít người) | M4 kiểm thử trường hợp biên, M5 kiểm tra độc lập |
 | PDF chậm hoặc lỗi font tiếng Việt | M5 đo hiệu năng, M0 tối ưu và thử nhiều bộ dữ liệu |
 | R12: chưa đủ người cho UAT | M2 mời ngay từ đầu sprint |
+| Gỡ Trello legacy làm vỡ build/test hoặc dữ liệu cũ | M1 gỡ trong PR riêng, M5 chạy regression đầy đủ trước khi merge; giữ giá trị enum `ActivitySource.TRELLO` nếu còn dữ liệu cũ |
 | Còn ít thời gian sau code freeze | Chỉ nhận sửa lỗi sau 16/11, mọi thay đổi qua CR |
 
 ## Báo cáo cuối sprint (điền khi họp Review)
@@ -67,7 +69,8 @@
 | M4 | Màn hình kết quả (1/2) | Hiển thị điểm tổng hợp theo tiêu chí | Màn hình kết quả | 2h | 13/11, 12:00 |
 | M4 | Màn hình kết quả (2/2) | Ẩn kết quả khi thiếu lượt, thông báo rõ ràng | Màn hình hoàn chỉnh | 1h | 13/11, 17:00 |
 | M1 | Phân quyền (1/2) | Vai trò leader/thành viên trên API | Commit | 2h | 13/11, 21:00 |
-| M1 | Phân quyền (2/2) | Test phân quyền, ẩn nút theo vai trò trên giao diện | Test + giao diện | 2h | 14/11, 12:00 |
+| M1 | Phân quyền (2/2) | Test phân quyền, ẩn nút theo vai trò trên giao diện (gồm `BoardView`) | Test + giao diện | 2h | 14/11, 12:00 |
+| M1 | Gỡ Trello legacy (1/2) | Xóa `integration/trello`, `TrelloClientTest`, fixtures/mock Trello phía backend | PR backend | 2h | 14/11, 21:00 |
 | M3 | Tối ưu truy vấn (1/2) | Đo thời gian routine/truy vấn dashboard | Số đo trước | 2h | 13/11, 21:00 |
 | M2 | Kịch bản UAT (2/2) | Hoàn thiện kịch bản, dữ liệu thử | Kịch bản UAT bản 1 | 1h | 13/11, 12:00 |
 
@@ -78,7 +81,7 @@
 | M0 | PDF nội dung (bổ sung) | Điểm chấm chéo và bằng chứng chính | PDF đầy đủ nội dung | 2h | 14/11, 21:00 |
 | M3 | Tối ưu truy vấn (2/2) | Thêm index, chỉnh routine | Số đo sau | 2h | 14/11, 21:00 |
 | M2 | Mời người thử UAT | Lập danh sách ≥ 10 người, gửi lời mời | Danh sách người thử | 2h | 14/11, 21:00 |
-| M5 | Regression test | Chạy test các module đã có | Test results | 2h | 14/11, 21:00 |
+| M5 | Regression test | Chạy test các module đã có, thêm ca kiểm tra board → `ActivityEvent` → điểm đóng góp | Test results | 2h | 14/11, 21:00 |
 
 ### Thứ 7, 14/11 – Kiểm tra ẩn danh & dữ liệu lớn
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
@@ -87,7 +90,8 @@
 | M4 | Kiểm tra ẩn danh (2/2) | Kiểm tra DB và API không lộ liên kết người chấm | Báo cáo kiểm tra ẩn danh | 2h | 15/11, 21:00 |
 | M4 | (Có điều kiện) cảnh báo sớm | Rule-based: không hoạt động ≥ N ngày thì cảnh báo; chỉ làm nếu CR 09/11 đồng ý | Commit hoặc ghi chú bỏ | 2h | 15/11, 21:00 |
 | M3 | Dữ liệu lớn | Nạp dữ liệu mẫu lớn, đo hiệu năng dashboard | Kết quả đo | 2h | 15/11, 12:00 |
-| M1 | Sửa lỗi tích hợp | Sửa lỗi từ defect log liên quan board/nền tảng | Commit | 2h | 15/11, 12:00 |
+| M1 | Gỡ Trello legacy (2/2) | Xóa `ConnectTrelloPage`, `integration.api.ts`, route `integration` phía frontend; cập nhật README | PR frontend, CI xanh | 2h | 15/11, 12:00 |
+| M1 | Sửa lỗi tích hợp | Sửa lỗi từ defect log liên quan board/nền tảng | Commit | 2h | 15/11, 21:00 |
 
 ### Chủ nhật, 15/11 – Hoàn thiện
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |

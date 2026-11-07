@@ -20,11 +20,11 @@
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
 |---|---|---|---|---|
 | M2 | Tiến hành UAT (≥ 10 người), tổng hợp phản hồi, đo mức hài lòng (G5); viết Chương I, kết quả khảo sát/UAT | Kết quả UAT, nội dung chương | 22/11 (UAT), 23/11 (chương) | ⬜ |
-| M5 | Triển khai demo, user guide, tài khoản demo, video dự phòng; ghi defect UAT; viết chương kiểm thử/triển khai | Release, user guide, URL/video, nội dung chương | 23/11 | ⬜ |
-| M1 | Sửa lỗi nền tảng/board theo defect log; viết chương kiến trúc, board/card, kết quả kỹ thuật | Commit, nội dung chương | 23/11 | ⬜ |
+| M5 | Triển khai demo, user guide (gồm hướng dẫn dùng Task Board), tài khoản demo, video dự phòng; ghi defect UAT; viết chương kiểm thử/triển khai | Release, user guide, URL/video, nội dung chương | 23/11 | ⬜ |
+| M1 | Sửa lỗi nền tảng/board theo defect log; viết chương kiến trúc, board/card, quyết định thay Trello bằng board nội bộ (CR-02) và kết quả kỹ thuật | Commit, nội dung chương | 23/11 | ⬜ |
 | M3 | Sửa lỗi đóng góp/dashboard; viết chương ERD, dữ liệu, routine, công thức, kết quả đo | Commit, nội dung chương | 23/11 | ⬜ |
 | M4 | Sửa lỗi chấm chéo; viết chương chấm chéo, ẩn danh, giới hạn | Commit, nội dung chương | 23/11 | ⬜ |
-| M0 | Khóa phạm vi, theo dõi sửa lỗi; khung báo cáo cuối, đánh giá G1–G6, lessons learned; ghép báo cáo bản 1 | Sprint report, báo cáo bản 1 | 24/11 | ⬜ |
+| M0 | Khóa phạm vi, theo dõi sửa lỗi; khung báo cáo cuối, đánh giá G1–G6 (G1 đánh giá lại theo độ chính xác ghi nhận sự kiện từ Task Board nội bộ do CR-02), lessons learned; ghép báo cáo bản 1 | Sprint report, báo cáo bản 1 | 24/11 | ⬜ |
 | Cả 6 người | Bản nháp Mini-PM Report | Mini-PM Report nháp | 22/11 | ⬜ |
 
 ## Tiêu chí hoàn thành (DoD)
@@ -40,6 +40,7 @@
 | R12: UAT không đủ 10 người | M2 nhắc người thử, có phương án dự phòng là thử trực tiếp |
 | Lỗi nặng phát hiện muộn | M5 phân loại ngay, chủ module sửa trong 24 giờ |
 | Triển khai demo gặp sự cố | M5 chuẩn bị video demo làm phương án dự phòng |
+| Báo cáo/slide còn mô tả Trello API theo kế hoạch cũ | M0 rà soát, mọi chỗ nhắc Trello phải ghi rõ đã thay bằng board nội bộ theo CR-02 |
 | Dồn việc viết báo cáo vào ngày cuối | Hạn nộp chương nội bộ 23/11, M0 nhắc từ 19/11 |
 
 ## Báo cáo cuối sprint (điền khi họp Review)
@@ -76,7 +77,7 @@
 | M1, M3, M4 | Sửa lỗi từ UAT | Xử lý lỗi theo module trong 24 giờ, mở PR | PR merge, defect đóng | 2h | 21/11, 12:00 |
 | M5 | Demo ổn định | Chuẩn bị URL demo, tài khoản demo | Bản demo chạy được | 2h | 21/11, 12:00 |
 | M2 | Chương I (1/2) | Tổng quan, bối cảnh, mục tiêu G1–G6 | Nháp chương I phần 1 | 2h | 21/11, 21:00 |
-| M1 | Chương kiến trúc (1/2) | Kiến trúc hệ thống, module `board` | Nháp chương phần 1 | 2h | 21/11, 21:00 |
+| M1 | Chương kiến trúc (1/2) | Kiến trúc hệ thống, module `board`, lý do và tác động của CR-02 (thay Trello API) | Nháp chương phần 1 | 2h | 21/11, 21:00 |
 | M3 | Chương dữ liệu (1/2) | ERD, quy ước CSDL, routine | Nháp chương phần 1 | 2h | 21/11, 21:00 |
 | M4 | Chương chấm chéo (1/2) | Cơ chế ẩn danh, ngưỡng tổng hợp | Nháp chương phần 1 | 2h | 21/11, 21:00 |
 
@@ -97,7 +98,7 @@
 | M2 | Đóng UAT (2/2) | Tính mức hài lòng (G5), đưa vào chương | Kết quả UAT | 1h | 22/11, 21:00 |
 | M5 | Video demo dự phòng | Quay video demo | Video demo | 2h | 22/11, 21:00 |
 | M5 | Chương kiểm thử | Test plan, kết quả test, triển khai | Nháp chương | 2h | 22/11, 21:00 |
-| M0 | Đánh giá G1–G6 | Thu số liệu, đối chiếu mục tiêu | Bảng G1–G6 nháp | 2h | 23/11, 12:00 |
+| M0 | Đánh giá G1–G6 | Thu số liệu, đối chiếu mục tiêu (G1 theo board nội bộ, ghi rõ thay đổi từ CR-02) | Bảng G1–G6 nháp | 2h | 23/11, 12:00 |
 | Cả 6 người | Mini-PM Report nháp | Viết theo khung 7 mục, gắn minh chứng module mình | Mini-PM Report nháp | 2h | 22/11, 23:00 |
 
 ### Thứ 2, 23/11 – Khóa phạm vi & nộp chương

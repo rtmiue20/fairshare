@@ -1,10 +1,12 @@
 # SPRINT 4 – Bảng đóng góp và board/card hoàn thiện
 
-**Thời gian:** Thứ 4, 04/11/2026 → Thứ 3, 10/11/2026 | **Tương ứng:** Sprint 4 trong kế hoạch 7 sprint (Sprint 2 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 04/11/2026 → Thứ 3, 10/11/2026 | **Tương ứng:** Sprint 4 trong kế hoạch 7 sprint (Sprint 2 trong kế hoạch gốc) | **Trạng thái sprint:** 🔄 Đang thực hiện
+
+> **Căn cứ CR-02:** board/card là module nội bộ (không còn Trello API). Sprint 3 chỉ làm khung; Sprint 4 làm phần nâng cao (kéo thả, chi tiết card, log chống gian lận). Dữ liệu tổng hợp đóng góp từ nay lấy từ `ActivityEvent` nguồn `BOARD`.
 
 ## Mục tiêu sprint
 - Hoàn thiện bảng đóng góp: tổng hợp theo người/sprint, truy vết đến sự kiện gốc, dashboard, bảng bằng chứng, khai báo thủ công có xác nhận.
-- Hoàn thiện board/card (kéo thả, chi tiết card, story point, hạn) và ghi `ActivityEvent` đầy đủ, có log không sửa được để chống gian lận.
+- Hoàn thiện board/card (kéo thả, chi tiết card, story point, hạn) và ghi `ActivityEvent` đầy đủ (`CARD_CREATED`, `CARD_MOVED`, `CARD_COMPLETED` kèm `delay_days`, `is_on_time`), có log không sửa được để chống gian lận.
 - Có API và form chấm chéo, môi trường staging, defect log đầu tiên.
 - Quyết định tính năng có điều kiện (cảnh báo sớm, Google Docs) bằng Change Request.
 
@@ -28,7 +30,8 @@
 
 ## Tiêu chí hoàn thành (DoD)
 - Dashboard hiển thị đóng góp theo sprint/người; bấm vào một chỉ số mở được danh sách sự kiện gốc.
-- Kéo thả card giữa cột hoạt động và sinh `ActivityEvent` đúng loại.
+- Kéo thả card giữa cột hoạt động và sinh `ActivityEvent` nguồn `BOARD` đúng loại; card vào cột hoàn thành có `CARD_COMPLETED`, `delay_days` và `is_on_time` đúng theo hạn chót.
+- Không có API sửa/xóa `ActivityEvent`; xóa card không làm mất sự kiện đã ghi.
 - Form chấm chéo gửi được đánh giá và lưu vào DB.
 - Staging chạy được, defect log có mục đầu tiên và người xử lý.
 - Quyết định về cảnh báo sớm, Google Docs được ghi vào Change Log.
@@ -36,6 +39,7 @@
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
+| R02: phụ thuộc API ngoài | Đã loại bỏ nhờ CR-02 (board nội bộ); chỉ còn theo dõi Google Docs (có điều kiện) |
 | R19: M1 quá tải với giao diện kéo thả | Dùng thư viện kéo thả có sẵn, cắt bớt tính năng card nâng cao nếu trễ |
 | R06: công thức bị cho là thiếu công bằng | M2 + M3 chỉnh theo dữ liệu thật, ghi vào báo cáo kiểm tra công thức |
 | R05: gian lận dữ liệu (tạo/chia nhỏ card giả) | Log hoạt động không sửa được, trọng số theo story point, cho phép phản đối |
