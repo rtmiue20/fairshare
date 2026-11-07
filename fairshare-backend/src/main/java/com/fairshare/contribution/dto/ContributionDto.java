@@ -23,4 +23,17 @@ public class ContributionDto {
     private Integer cardsCompleted;
     private Double totalStoryPoints;
     private Double onTimeRate;
+
+    // Multi-dimensional 4-tier metrics (Sprint 4 - CR-03)
+    private Double d1Output;
+    private Double d2Reliability;
+    private Double d3Collaboration;
+    private Double d4Peer;
+    private Double compositeScore;
+    private Double availabilityFactor;
+    private Double confidenceIntervalLow;
+    private Double confidenceIntervalHigh;
+    private Double distanceToCenter;
+    private Boolean isSuspicious;
+    private Boolean hasSufficientEvidence;
 }
