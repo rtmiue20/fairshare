@@ -19,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -105,6 +108,24 @@ public class ContributionService {
 
             scoreEntity.setScore(res.getFinalScore());
             scoreEntity.setPercentage(res.getPercentage());
+            scoreEntity.setFinalPct(res.getFinalScore());
+            scoreEntity.setD1Output(BigDecimal.valueOf(res.getD1Output()).setScale(4, RoundingMode.HALF_UP));
+            scoreEntity.setD2Reliability(BigDecimal.valueOf(res.getD2Reliability()).setScale(4, RoundingMode.HALF_UP));
+            scoreEntity.setD3Collaboration(BigDecimal.valueOf(res.getD3Collaboration()).setScale(4, RoundingMode.HALF_UP));
+            scoreEntity.setD4Peer(BigDecimal.valueOf(res.getD4Peer()).setScale(4, RoundingMode.HALF_UP));
+            scoreEntity.setCompositeScore(BigDecimal.valueOf(res.getCompositeScore()).setScale(4, RoundingMode.HALF_UP));
+            scoreEntity.setAvailabilityFactor(BigDecimal.valueOf(res.getAvailabilityFactor()).setScale(2, RoundingMode.HALF_UP));
+            if (res.getConfidenceIntervalLow() != null) {
+                scoreEntity.setConfidenceIntervalLow(BigDecimal.valueOf(res.getConfidenceIntervalLow()).setScale(2, RoundingMode.HALF_UP));
+            }
+            if (res.getConfidenceIntervalHigh() != null) {
+                scoreEntity.setConfidenceIntervalHigh(BigDecimal.valueOf(res.getConfidenceIntervalHigh()).setScale(2, RoundingMode.HALF_UP));
+            }
+            scoreEntity.setDistanceToCenter(BigDecimal.valueOf(res.getDistanceToCenter()).setScale(4, RoundingMode.HALF_UP));
+            scoreEntity.setIsSuspicious(res.isSuspicious());
+            scoreEntity.setHasSufficientEvidence(res.isHasSufficientEvidence());
+            scoreEntity.setCalculatedAt(LocalDateTime.now());
+
             ContributionScore saved = contributionScoreRepository.save(scoreEntity);
 
             dtos.add(ContributionDto.builder()
@@ -119,6 +140,17 @@ public class ContributionService {
                     .cardsCompleted(res.getCardsCompleted())
                     .totalStoryPoints(res.getTotalStoryPoints())
                     .onTimeRate(res.getOnTimeRate())
+                    .d1Output(res.getD1Output())
+                    .d2Reliability(res.getD2Reliability())
+                    .d3Collaboration(res.getD3Collaboration())
+                    .d4Peer(res.getD4Peer())
+                    .compositeScore(res.getCompositeScore())
+                    .availabilityFactor(res.getAvailabilityFactor())
+                    .confidenceIntervalLow(res.getConfidenceIntervalLow())
+                    .confidenceIntervalHigh(res.getConfidenceIntervalHigh())
+                    .distanceToCenter(res.getDistanceToCenter())
+                    .isSuspicious(res.isSuspicious())
+                    .hasSufficientEvidence(res.isHasSufficientEvidence())
                     .build());
         }
 
