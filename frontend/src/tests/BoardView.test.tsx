@@ -178,4 +178,40 @@ describe('BoardView Component - Kanban UI (M1 - Frontend)', () => {
     expect(screen.getByText('Tạo công việc mới')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Ví dụ: Hoàn thành thiết kế ERD/i)).toBeInTheDocument();
   });
+
+  it('renders drag-and-drop droppable columns and draggable cards', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Columns should have droppable attributes from @hello-pangea/dnd
+    const droppables = container.querySelectorAll('[data-rfd-droppable-id]');
+    expect(droppables.length).toBeGreaterThan(0);
+
+    // Cards should have draggable attributes from @hello-pangea/dnd
+    const draggables = container.querySelectorAll('[data-rfd-draggable-id]');
+    expect(draggables.length).toBeGreaterThan(0);
+  });
+
+  it('rolls back board state and displays error if moving card fails', async () => {
+    vi.spyOn(boardApi, 'moveCard').mockRejectedValueOnce(new Error('Lỗi máy chủ'));
+
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Click right arrow on first card in "To Do" to move to "In Progress"
+    const moveRightButtons = screen.getAllByTitle(/Chuyển sang In Progress/i);
+    expect(moveRightButtons.length).toBeGreaterThan(0);
+    fireEvent.click(moveRightButtons[0]);
+
+    // Should call API and then rollback on failure
+    await waitFor(() => {
+      expect(screen.getByText(/Không thể chuyển vị trí thẻ trên máy chủ. Đã hoàn tác giao diện./i)).toBeInTheDocument();
+    });
+  });
 });
