@@ -21,6 +21,7 @@ public class CardDto {
     private String assigneeName;
     private String assigneeEmail;
     private Double storyPoints;
+    private Integer difficultyLevel;
     private LocalDateTime dueDate;
     private int position;
     private LocalDateTime createdAt;

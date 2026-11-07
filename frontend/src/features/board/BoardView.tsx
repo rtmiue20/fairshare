@@ -15,7 +15,10 @@ import {
   Clock,
   CheckCircle2,
   Edit3,
-  GripVertical
+  GripVertical,
+  MessageSquare,
+  CheckSquare,
+  Award
 } from 'lucide-react';
 import {
   DragDropContext,
@@ -184,9 +187,18 @@ export const BoardView: React.FC = () => {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editAssigneeId, setEditAssigneeId] = useState<number | undefined>();
   const [editStoryPoints, setEditStoryPoints] = useState<number>(1);
+  const [editDifficultyLevel, setEditDifficultyLevel] = useState<number>(2);
   const [editDueDate, setEditDueDate] = useState<string>('');
   const [editError, setEditError] = useState<string | null>(null);
   const [isUpdatingCard, setIsUpdatingCard] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [checklists, setChecklists] = useState<Array<{ id: number; title: string; completed: boolean }>>([
+    { id: 1, title: 'Thiết kế & cài đặt mã nguồn', completed: false },
+    { id: 2, title: 'Viết unit test & kiểm thử tích hợp', completed: false },
+  ]);
+  const [comments, setComments] = useState<Array<{ id: number; author: string; text: string; time: string }>>([
+    { id: 1, author: 'Minh Triều (Leader)', text: 'Nhớ đối chiếu kỹ dueDate để tránh bị tính trễ nhé @Phúc Vương', time: 'Hôm nay' },
+  ]);
 
   // New Column Modal State
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -248,8 +260,48 @@ export const BoardView: React.FC = () => {
     setEditingCard(card);
     setEditAssigneeId(card.assigneeId);
     setEditStoryPoints(card.storyPoints || 1);
+    setEditDifficultyLevel(card.difficultyLevel || 2);
     setEditDueDate(card.dueDate ? card.dueDate.slice(0, 16) : '');
     setEditError(null);
+  };
+
+  const handleToggleChecklist = async (item: { id: number; title: string; completed: boolean }) => {
+    const updated = !item.completed;
+    setChecklists((prev) =>
+      prev.map((c) => (c.id === item.id ? { ...c, completed: updated } : c))
+    );
+
+    if (updated && editingCard) {
+      try {
+        await boardApi.completeChecklistItem(editingCard.id, item.title);
+        showToast(`Đã hoàn thành: "${item.title}" & ghi nhận điểm Tầng 1!`);
+      } catch {
+        showToast(`Đã ghi nhận hoàn thành mục (Chế độ xem)`);
+      }
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !editingCard) return;
+
+    const newComment = {
+      id: Date.now(),
+      author: 'Tôi',
+      text: commentText.trim(),
+      time: 'Vừa xong',
+    };
+
+    setComments((prev) => [...prev, newComment]);
+    const textToSend = commentText.trim();
+    setCommentText('');
+
+    try {
+      await boardApi.addComment(editingCard.id, textToSend, true);
+      showToast('Đã gửi bình luận & ghi nhận ActivityEvent Tầng 1!');
+    } catch {
+      showToast('Đã gửi bình luận (Chế độ xem)');
+    }
   };
 
   // Submit Card Details Update (Assignee, Story Points, Due Date)
@@ -283,6 +335,10 @@ export const BoardView: React.FC = () => {
         promises.push(boardApi.updateDueDate(editingCard.id, formattedDate));
       }
 
+      if (editDifficultyLevel !== editingCard.difficultyLevel) {
+        promises.push(boardApi.updateCard(editingCard.id, { difficultyLevel: editDifficultyLevel }));
+      }
+
       if (promises.length > 0) {
         await Promise.all(promises);
       }
@@ -300,12 +356,13 @@ export const BoardView: React.FC = () => {
           cards: col.cards.map((c) =>
             c.id === editingCard.id
               ? {
-                  ...c,
-                  assigneeId: editAssigneeId,
-                  assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
-                  storyPoints: editStoryPoints,
-                  dueDate: editDueDate || c.dueDate,
-                }
+                ...c,
+                assigneeId: editAssigneeId,
+                assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
+                storyPoints: editStoryPoints,
+                difficultyLevel: editDifficultyLevel,
+                dueDate: editDueDate || c.dueDate,
+              }
               : c
           ),
         })),
@@ -427,11 +484,14 @@ export const BoardView: React.FC = () => {
       columns: newColumns,
     });
 
-    // 3. Gọi API cập nhật cột/vị trí khi thả
+    // 3. Gọi API cập nhật cột/vị trí khi thả (truyền đầy đủ cột nguồn và cột đích)
     try {
       await boardApi.moveCard(cardId, {
         targetColumnId: destColId,
         position: destIndex,
+        fromColumnId: sourceColId,
+        fromColumnName: sourceCol.name,
+        toColumnName: destCol.name,
       });
 
       const isDone =
@@ -456,6 +516,7 @@ export const BoardView: React.FC = () => {
     if (card.columnId === targetColumnId) return;
 
     const previousBoard = board;
+    const fromCol = board.columns.find((c) => c.id === card.columnId);
     const targetCol = board.columns.find((c) => c.id === targetColumnId);
 
     // Optimistic UI Update
@@ -487,6 +548,9 @@ export const BoardView: React.FC = () => {
       await boardApi.moveCard(card.id, {
         targetColumnId,
         position: 0,
+        fromColumnId: card.columnId,
+        fromColumnName: fromCol?.name,
+        toColumnName: targetCol?.name,
       });
 
       const isDone =
@@ -685,9 +749,8 @@ export const BoardView: React.FC = () => {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`space-y-3 flex-1 overflow-y-auto min-h-[160px] p-1 rounded-lg transition-colors ${
-                      snapshot.isDraggingOver ? 'bg-indigo-950/25 ring-1 ring-indigo-500/30' : ''
-                    }`}
+                    className={`space-y-3 flex-1 overflow-y-auto min-h-[160px] p-1 rounded-lg transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-950/25 ring-1 ring-indigo-500/30' : ''
+                      }`}
                   >
                     {column.cards.length === 0 && !snapshot.isDraggingOver ? (
                       <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-zinc-800/80 rounded-lg text-zinc-500 text-xs">
@@ -704,11 +767,10 @@ export const BoardView: React.FC = () => {
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
                                 {...dragProvided.dragHandleProps}
-                                className={`p-3.5 rounded-lg bg-[#181920] border transition-all space-y-2.5 shadow-sm group cursor-grab active:cursor-grabbing select-none ${
-                                  dragSnapshot.isDragging
+                                className={`p-3.5 rounded-lg bg-[#181920] border transition-all space-y-2.5 shadow-sm group cursor-grab active:cursor-grabbing select-none ${dragSnapshot.isDragging
                                     ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/40 bg-[#1c1e28] rotate-1 scale-[1.02]'
                                     : 'border-zinc-800/80 hover:border-zinc-700'
-                                }`}
+                                  }`}
                                 onClick={() => handleOpenEditCard(card)}
                               >
                                 <div className="flex items-start justify-between gap-2">
@@ -741,11 +803,10 @@ export const BoardView: React.FC = () => {
                                 {card.dueDate && (
                                   <div className="pl-5">
                                     <div
-                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${
-                                        dueInfo.isOverdue
+                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${dueInfo.isOverdue
                                           ? 'bg-red-950/40 text-red-400 border border-red-800/30'
                                           : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/30'
-                                      }`}
+                                        }`}
                                     >
                                       <Clock size={11} className={dueInfo.isOverdue ? 'text-red-400' : 'text-zinc-400'} />
                                       <span>{dueInfo.text}</span>
@@ -902,18 +963,99 @@ export const BoardView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Due date input */}
-              <div className="space-y-1">
-                <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                  <Calendar size={13} className="text-indigo-400" />
-                  <span>Hạn hoàn thành (Due date)</span>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Due date input */}
+                <div className="space-y-1">
+                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                    <Calendar size={13} className="text-indigo-400" />
+                    <span>Hạn hoàn thành (Due date)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                {/* Difficulty Level select (Tầng 1 feature) */}
+                <div className="space-y-1">
+                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                    <Award size={13} className="text-amber-400" />
+                    <span>Độ khó (Tầng 1)</span>
+                  </label>
+                  <select
+                    value={editDifficultyLevel}
+                    onChange={(e) => setEditDifficultyLevel(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value={1}>1 - Dễ (Easy)</option>
+                    <option value={2}>2 - Trung bình (Medium)</option>
+                    <option value={3}>3 - Khó (Hard)</option>
+                    <option value={4}>4 - Rất khó (Very Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Checklist Section */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                  <CheckSquare size={13} className="text-emerald-400" />
+                  <span>Việc cần làm (Checklist - Ghi nhận Tầng 1)</span>
                 </label>
-                <input
-                  type="datetime-local"
-                  value={editDueDate}
-                  onChange={(e) => setEditDueDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
-                />
+                <div className="space-y-1.5 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
+                  {checklists.map((item) => (
+                    <label
+                      key={item.id}
+                      className="flex items-center gap-2 cursor-pointer hover:text-zinc-200 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        onChange={() => handleToggleChecklist(item)}
+                        className="rounded border-zinc-700 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className={item.completed ? 'line-through text-zinc-500' : 'text-zinc-300'}>
+                        {item.title}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comments & @mention Section */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                  <MessageSquare size={13} className="text-sky-400" />
+                  <span>Trao đổi & Hỗ trợ (@mention)</span>
+                </label>
+                <div className="space-y-2 max-h-32 overflow-y-auto bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
+                  {comments.map((cm) => (
+                    <div key={cm.id} className="text-[11px] space-y-0.5">
+                      <div className="flex items-center justify-between text-zinc-400 font-medium">
+                        <span className="text-indigo-300">{cm.author}</span>
+                        <span className="text-[10px] text-zinc-600">{cm.time}</span>
+                      </div>
+                      <p className="text-zinc-300">{cm.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Gõ bình luận hoặc @tên để yêu cầu hỗ trợ..."
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddComment}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-xs whitespace-nowrap"
+                  >
+                    Gửi
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">

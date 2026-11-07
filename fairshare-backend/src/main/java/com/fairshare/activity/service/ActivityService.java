@@ -23,6 +23,16 @@ public class ActivityService {
     public ActivityEvent logActivity(Team team, User user, ActivitySource source, String eventType,
                                      String details, LocalDateTime occurredAt, Sprint sprint,
                                      Double storyPoints, Boolean isOnTime) {
+        return logActivity(team, user, source, eventType, details, occurredAt, sprint,
+                storyPoints, null, isOnTime, 0.0, false, false, false);
+    }
+
+    @Transactional
+    public ActivityEvent logActivity(Team team, User user, ActivitySource source, String eventType,
+                                     String details, LocalDateTime occurredAt, Sprint sprint,
+                                     Double storyPoints, Integer difficultyLevel, Boolean isOnTime,
+                                     Double delayDays, Boolean isHelpfulComment, Boolean isSupportMention,
+                                     Boolean isReviewForOthers) {
         ActivityEvent event = new ActivityEvent();
         event.setTeam(team);
         event.setUser(user);
@@ -32,7 +42,12 @@ public class ActivityService {
         event.setOccurredAt(occurredAt != null ? occurredAt : LocalDateTime.now());
         event.setSprint(sprint);
         event.setStoryPoints(storyPoints != null ? storyPoints : 0.0);
+        event.setDifficultyLevel(difficultyLevel);
         event.setIsOnTime(isOnTime);
+        event.setDelayDays(delayDays != null ? delayDays : 0.0);
+        event.setIsHelpfulComment(isHelpfulComment);
+        event.setIsSupportMention(isSupportMention);
+        event.setIsReviewForOthers(isReviewForOthers);
         return activityEventRepository.save(event);
     }
 

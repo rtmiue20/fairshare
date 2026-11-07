@@ -15,4 +15,10 @@ public class MoveCardRequest {
     private Long targetColumnId;
 
     private Integer position;
+
+    private Long fromColumnId;
+
+    private String fromColumnName;
+
+    private String toColumnName;
 }
