@@ -42,6 +42,7 @@
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp | Kết quả thực tế |
 |---|---|---|
+| R02: phụ thuộc API ngoài (Trello), rate limit, khó chống sửa/xóa lịch sử | CR-02: tự xây board nội bộ, ghi `ActivityEvent` ngay trong hệ thống ([`CR02-Internal-Board-Module.md`](CR02-Internal-Board-Module.md)) | Đã loại bỏ; module Trello cũ giữ ở trạng thái legacy, gỡ ở Sprint 5 |
 | R16: M2/M3/M4 bị chặn bởi nền tảng M1 | M1 giao khung trước 30/10; các module khác làm với dữ liệu giả | Đã hoàn thành bàn giao khung JWT và BaseEntity đúng hạn |
 | R19: M1 quá tải (nền tảng + board/card) | M0 theo dõi sát; ưu tiên khung, phần giao diện kéo thả để Sprint 4 | Đã hoàn thành Board API & Kanban BoardView cơ bản, phần DnD chuyển Sprint 4 |
 | R18: đụng migration Flyway | Đúng quy ước phiên bản, M3 giữ ERD tổng | Đã tạo V10 chuẩn hóa không xung đột |

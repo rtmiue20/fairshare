@@ -34,7 +34,8 @@
 - [ ] Kiểm tra đạo văn (< 20%)
 - [ ] Source code, test log, database sẵn sàng mở khi giảng viên yêu cầu
 - [ ] Lessons learned (≥ 3 bài học) đã ghi
-- [ ] G1–G6 đã đánh giá đạt/chưa đạt kèm số liệu
+- [ ] G1–G6 đã đánh giá đạt/chưa đạt kèm số liệu (G1 nêu rõ đã đổi từ đồng bộ Trello sang Task Board nội bộ theo CR-02)
+- [ ] Báo cáo, slide, README không còn mô tả Trello API như tính năng hiện hành; CR-02 và CR-03 có trong Change Log
 
 ## Tiêu chí hoàn thành (DoD)
 - Mọi tài liệu cuối nộp đúng hạn 26/11 và đúng định dạng.
@@ -47,6 +48,7 @@
 |---|---|
 | Còn việc chưa xong từ Sprint 6 | M0 liệt kê từ tối 24/11, xử lý ngay sáng 25/11 |
 | Link/quyền truy cập hỏng khi nộp | M0 kiểm tra bằng tài khoản khác |
+| Bị hỏi vì sao bỏ Trello | M1 chuẩn bị câu trả lời từ CR-02: phụ thuộc bên thứ ba, rate limit, khó chống sửa/xóa lịch sử; board nội bộ giải quyết R02 |
 | Demo lỗi khi thuyết trình | M5 chuẩn bị video dự phòng, cả nhóm tập đúng kịch bản |
 | Chỉ còn 2 ngày, không có buffer | Hạn nội bộ: mọi thứ xong tối 25/11, sáng 26/11 chỉ nộp và xử lý sự cố |
 
@@ -69,7 +71,7 @@
 | M0 | Chốt báo cáo (2/2) | Kiểm tra link Drive, quyền truy cập, đánh số hình/bảng | Checklist link | 2h | 25/11, 17:00 |
 | M0 | Kiểm tra đạo văn | Chạy kiểm tra, sửa đoạn trùng | Kết quả kiểm tra | 1h | 25/11, 17:00 |
 | M1, M2, M3, M4 | Chương bản cuối | Sửa chương theo góp ý của M0 | Chương bản cuối | 1h | 25/11, 12:00 |
-| M1, M2, M3, M4, M5 | Slide phần của mình | Mỗi người làm slide module của mình | Slide phần cá nhân | 2h | 25/11, 17:00 |
+| M1, M2, M3, M4, M5 | Slide phần của mình | Mỗi người làm slide module của mình (M1 có slide quyết định CR-02: Trello → board nội bộ) | Slide phần cá nhân | 2h | 25/11, 17:00 |
 | Cả 6 người | Mini-PM Report bản cuối | Hoàn thiện từ bản nháp Sprint 6 | Mini-PM Report | 2h | 25/11, 17:00 |
 | Cả 6 người | Bảng mức độ tham gia | Điền giờ, minh chứng, % tự đánh giá, % nhóm đánh giá | Bảng đã điền | 1h | 25/11, 17:00 |
 | M5 | Chuẩn bị demo | Kiểm tra bản release, tài khoản demo, video dự phòng | Demo sẵn sàng | 2h | 25/11, 17:00 |
