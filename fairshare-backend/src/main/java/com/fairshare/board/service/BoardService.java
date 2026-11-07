@@ -14,6 +14,7 @@ import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
 import com.fairshare.team.entity.Team;
+import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
@@ -33,6 +34,7 @@ public class BoardService {
     private final BoardColumnRepository columnRepository;
     private final CardRepository cardRepository;
     private final TeamRepository teamRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
     private final SprintRepository sprintRepository;
     private final ActivityService activityService;
@@ -207,9 +209,14 @@ public class BoardService {
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Assignee not found: " + request.getAssigneeId()));
+            Long teamId = card.getBoard().getTeam().getId();
+            if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, assignee.getId())) {
+                throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");
+            }
             card.setAssignee(assignee);
         }
         if (request.getStoryPoints() != null) {
+            validateStoryPoints(request.getStoryPoints());
             card.setStoryPoints(request.getStoryPoints());
         }
         if (request.getDueDate() != null) {
@@ -219,6 +226,116 @@ public class BoardService {
             card.setPosition(request.getPosition());
         }
         return mapCardToDto(cardRepository.save(card));
+    }
+
+    @Transactional
+    public CardDto updateAssignee(Long cardId, UpdateAssigneeRequest request, Long actorUserId) {
+        if (request == null || request.getAssigneeId() == null) {
+            throw new BusinessException("Người phụ trách không được để trống");
+        }
+
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+
+        User assignee = userRepository.findById(request.getAssigneeId())
+                .orElseThrow(() -> new ResourceNotFoundException("Assignee not found: " + request.getAssigneeId()));
+
+        Long teamId = card.getBoard().getTeam().getId();
+        boolean isMember = teamMemberRepository.existsByTeamIdAndUserId(teamId, assignee.getId());
+        if (!isMember) {
+            throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");
+        }
+
+        card.setAssignee(assignee);
+        Card savedCard = cardRepository.save(card);
+
+        User actor = actorUserId != null ? userRepository.findById(actorUserId).orElse(assignee) : assignee;
+        Sprint activeSprint = getActiveSprintForTeam(teamId);
+        if (actor != null) {
+            activityService.logActivity(
+                    card.getBoard().getTeam(),
+                    actor,
+                    ActivitySource.BOARD,
+                    "CARD_ASSIGNEE_UPDATED",
+                    String.format("Assigned card '%s' to '%s'", card.getTitle(), assignee.getFullName()),
+                    LocalDateTime.now(),
+                    activeSprint,
+                    card.getStoryPoints(),
+                    null
+            );
+        }
+
+        return mapCardToDto(savedCard);
+    }
+
+    @Transactional
+    public CardDto updateStoryPoints(Long cardId, UpdateStoryPointsRequest request, Long actorUserId) {
+        if (request == null || request.getStoryPoints() == null) {
+            throw new BusinessException("Story point không được để trống");
+        }
+
+        validateStoryPoints(request.getStoryPoints());
+
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+
+        card.setStoryPoints(request.getStoryPoints());
+        Card savedCard = cardRepository.save(card);
+
+        User actor = actorUserId != null ? userRepository.findById(actorUserId).orElse(card.getAssignee()) : card.getAssignee();
+        Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
+        if (actor != null) {
+            activityService.logActivity(
+                    card.getBoard().getTeam(),
+                    actor,
+                    ActivitySource.BOARD,
+                    "CARD_STORY_POINTS_UPDATED",
+                    String.format("Updated story points for card '%s' to %.0f", card.getTitle(), request.getStoryPoints()),
+                    LocalDateTime.now(),
+                    activeSprint,
+                    card.getStoryPoints(),
+                    null
+            );
+        }
+
+        return mapCardToDto(savedCard);
+    }
+
+    @Transactional
+    public CardDto updateDueDate(Long cardId, UpdateDueDateRequest request, Long actorUserId) {
+        if (request == null || request.getDueDate() == null) {
+            throw new BusinessException("Hạn (due date) không được để trống");
+        }
+
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+
+        card.setDueDate(request.getDueDate());
+        Card savedCard = cardRepository.save(card);
+
+        User actor = actorUserId != null ? userRepository.findById(actorUserId).orElse(card.getAssignee()) : card.getAssignee();
+        Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
+        if (actor != null) {
+            activityService.logActivity(
+                    card.getBoard().getTeam(),
+                    actor,
+                    ActivitySource.BOARD,
+                    "CARD_DUE_DATE_UPDATED",
+                    String.format("Updated due date for card '%s' to %s", card.getTitle(), request.getDueDate()),
+                    LocalDateTime.now(),
+                    activeSprint,
+                    card.getStoryPoints(),
+                    null
+            );
+        }
+
+        return mapCardToDto(savedCard);
+    }
+
+    private void validateStoryPoints(Double storyPoints) {
+        if (storyPoints == null || storyPoints <= 0 || storyPoints % 1 != 0) {
+            throw new BusinessException("Story point phải là số nguyên dương");
+        }
     }
 
     @Transactional
