@@ -36,6 +36,7 @@ public class ContributionController {
 
     /**
      * API truy xuất bằng chứng đóng góp (danh sách sự kiện gốc) của thành viên theo team và sprint.
+     * Hỗ trợ cả 2 endpoint aliases: /api/contributions/evidence và /api/contributions/trace.
      * Kích hoạt Stored Procedure sp_get_evidence_traceability.
      *
      * @param teamId   ID nhóm
@@ -43,7 +44,7 @@ public class ContributionController {
      * @param userId   ID thành viên
      * @return danh sách sự kiện gốc (200 OK)
      */
-    @GetMapping("/trace")
+    @GetMapping({"/evidence", "/trace"})
     public ResponseEntity<List<EvidenceItemDto>> getEvidenceTraceability(
             @RequestParam("teamId") Long teamId,
             @RequestParam("sprintId") Long sprintId,

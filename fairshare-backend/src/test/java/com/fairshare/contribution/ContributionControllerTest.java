@@ -126,6 +126,55 @@ class ContributionControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/contributions/evidence - Thành công trả về danh sách sự kiện gốc (200 OK)")
+    void getEvidenceTraceability_endpointEvidence_shouldReturn200AndEvidenceList() throws Exception {
+        Long teamId = 1L;
+        Long sprintId = 1L;
+        Long userId = 101L;
+
+        EvidenceItemDto item1 = EvidenceItemDto.Impl.builder()
+                .sourceType("TRELLO")
+                .sourceId(1001L)
+                .taskName("Task M3 Routine Flyway")
+                .storyPoints(new BigDecimal("8.00"))
+                .earnedScore(new BigDecimal("8.00"))
+                .eventTime(null)
+                .status("DONE")
+                .build();
+
+        EvidenceItemDto item2 = EvidenceItemDto.Impl.builder()
+                .sourceType("MANUAL")
+                .sourceId(2001L)
+                .taskName("Hỗ trợ debug CI/CD Testcontainers")
+                .storyPoints(new BigDecimal("2.00"))
+                .earnedScore(new BigDecimal("2.00"))
+                .eventTime(null)
+                .status("APPROVED")
+                .build();
+
+        when(contributionService.getEvidenceTraceability(teamId, sprintId, userId))
+                .thenReturn(List.of(item1, item2));
+
+        mockMvc.perform(get("/api/contributions/evidence")
+                        .param("teamId", "1")
+                        .param("sprintId", "1")
+                        .param("userId", "101")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].sourceType", is("TRELLO")))
+                .andExpect(jsonPath("$[0].sourceId", is(1001)))
+                .andExpect(jsonPath("$[0].taskName", is("Task M3 Routine Flyway")))
+                .andExpect(jsonPath("$[0].storyPoints", is(8.00)))
+                .andExpect(jsonPath("$[0].earnedScore", is(8.00)))
+                .andExpect(jsonPath("$[0].status", is("DONE")))
+                .andExpect(jsonPath("$[1].sourceType", is("MANUAL")))
+                .andExpect(jsonPath("$[1].status", is("APPROVED")));
+
+        verify(contributionService, times(1)).getEvidenceTraceability(teamId, sprintId, userId);
+    }
+
+    @Test
     @DisplayName("GET /api/contributions/trace - Thành công trả về danh sách sự kiện gốc (200 OK)")
     void getEvidenceTraceability_shouldReturn200AndEvidenceList() throws Exception {
         Long teamId = 1L;
