@@ -8,6 +8,7 @@ export interface Card {
   assigneeName?: string;
   assigneeEmail?: string;
   storyPoints?: number;
+  difficultyLevel?: number;
   dueDate?: string;
   position: number;
   createdAt?: string;
@@ -48,6 +49,7 @@ export interface CreateCardPayload {
   description?: string;
   assigneeId?: number;
   storyPoints?: number;
+  difficultyLevel?: number;
   dueDate?: string;
   position?: number;
 }
@@ -55,4 +57,7 @@ export interface CreateCardPayload {
 export interface MoveCardPayload {
   targetColumnId: number;
   position?: number;
+  fromColumnId?: number;
+  fromColumnName?: string;
+  toColumnName?: string;
 }

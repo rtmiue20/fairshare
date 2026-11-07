@@ -57,4 +57,14 @@ export const boardApi = {
     const response = await apiClient.put<ApiResponse<Card>>(`/boards/cards/${cardId}/due-date`, { dueDate });
     return response.data;
   },
+
+  addComment: async (cardId: number, content: string, isHelpful?: boolean): Promise<ApiResponse<void>> => {
+    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/comments`, { content, isHelpful });
+    return response.data;
+  },
+
+  completeChecklistItem: async (cardId: number, itemTitle: string): Promise<ApiResponse<void>> => {
+    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/checklist-items`, { itemTitle });
+    return response.data;
+  },
 };

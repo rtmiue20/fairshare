@@ -29,8 +29,7 @@ public class CardController {
     public ResponseEntity<ApiResponse<CardDto>> updateCard(
             @PathVariable Long cardId,
             @RequestBody UpdateCardRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto updated = boardService.updateCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card updated successfully", updated));
@@ -42,37 +41,31 @@ public class CardController {
         return ResponseEntity.ok(ApiResponse.ok("Card deleted successfully", null));
     }
 
-    @PutMapping("/{cardId}/assignee")
-    @PatchMapping("/{cardId}/assignee")
+    @RequestMapping(value = "/{cardId}/assignee", method = { RequestMethod.PUT, RequestMethod.PATCH })
     public ResponseEntity<ApiResponse<CardDto>> updateAssignee(
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateAssigneeRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto updated = boardService.updateAssignee(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card assignee updated successfully", updated));
     }
 
-    @PutMapping("/{cardId}/story-points")
-    @PatchMapping("/{cardId}/story-points")
+    @RequestMapping(value = "/{cardId}/story-points", method = { RequestMethod.PUT, RequestMethod.PATCH })
     public ResponseEntity<ApiResponse<CardDto>> updateStoryPoints(
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateStoryPointsRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto updated = boardService.updateStoryPoints(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card story points updated successfully", updated));
     }
 
-    @PutMapping("/{cardId}/due-date")
-    @PatchMapping("/{cardId}/due-date")
+    @RequestMapping(value = "/{cardId}/due-date", method = { RequestMethod.PUT, RequestMethod.PATCH })
     public ResponseEntity<ApiResponse<CardDto>> updateDueDate(
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateDueDateRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto updated = boardService.updateDueDate(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card due date updated successfully", updated));
@@ -82,11 +75,30 @@ public class CardController {
     public ResponseEntity<ApiResponse<CardDto>> moveCard(
             @PathVariable Long cardId,
             @Valid @RequestBody MoveCardRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto moved = boardService.moveCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card moved successfully", moved));
+    }
+
+    @PostMapping("/{cardId}/comments")
+    public ResponseEntity<ApiResponse<Void>> addComment(
+            @PathVariable Long cardId,
+            @Valid @RequestBody AddCardCommentRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.addCardComment(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Bình luận thành công", null));
+    }
+
+    @PostMapping("/{cardId}/checklist-items")
+    public ResponseEntity<ApiResponse<Void>> completeChecklistItem(
+            @PathVariable Long cardId,
+            @Valid @RequestBody CompleteChecklistItemRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.completeChecklistItem(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Đã đánh dấu hoàn thành việc cần làm", null));
     }
 
     private Long getUserId(Authentication authentication) {
@@ -98,4 +110,3 @@ public class CardController {
                 .orElse(null);
     }
 }
-

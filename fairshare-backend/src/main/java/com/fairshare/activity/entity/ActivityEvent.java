@@ -59,6 +59,15 @@ public class ActivityEvent extends BaseEntity {
     @Column(name = "delay_days")
     private Double delayDays;
 
+    @Column(name = "is_helpful_comment")
+    private Boolean isHelpfulComment;
+
+    @Column(name = "is_support_mention")
+    private Boolean isSupportMention;
+
+    @Column(name = "is_review_for_others")
+    private Boolean isReviewForOthers;
+
     @Column(name = "occurred_at", nullable = false)
     private LocalDateTime occurredAt;
 }

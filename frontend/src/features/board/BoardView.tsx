@@ -14,8 +14,18 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
-  Edit3
+  Edit3,
+  GripVertical,
+  MessageSquare,
+  CheckSquare,
+  Award
 } from 'lucide-react';
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult
+} from '@hello-pangea/dnd';
 import { boardApi } from '../../api/board.api';
 import { teamApi } from '../../api/team.api';
 import type { Board, BoardColumn, Card } from '../../types/board';
@@ -177,9 +187,18 @@ export const BoardView: React.FC = () => {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editAssigneeId, setEditAssigneeId] = useState<number | undefined>();
   const [editStoryPoints, setEditStoryPoints] = useState<number>(1);
+  const [editDifficultyLevel, setEditDifficultyLevel] = useState<number>(2);
   const [editDueDate, setEditDueDate] = useState<string>('');
   const [editError, setEditError] = useState<string | null>(null);
   const [isUpdatingCard, setIsUpdatingCard] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [checklists, setChecklists] = useState<Array<{ id: number; title: string; completed: boolean }>>([
+    { id: 1, title: 'Thiết kế & cài đặt mã nguồn', completed: false },
+    { id: 2, title: 'Viết unit test & kiểm thử tích hợp', completed: false },
+  ]);
+  const [comments, setComments] = useState<Array<{ id: number; author: string; text: string; time: string }>>([
+    { id: 1, author: 'Minh Triều (Leader)', text: 'Nhớ đối chiếu kỹ dueDate để tránh bị tính trễ nhé @Phúc Vương', time: 'Hôm nay' },
+  ]);
 
   // New Column Modal State
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -241,19 +260,69 @@ export const BoardView: React.FC = () => {
     setEditingCard(card);
     setEditAssigneeId(card.assigneeId);
     setEditStoryPoints(card.storyPoints || 1);
+    setEditDifficultyLevel(card.difficultyLevel || 2);
     setEditDueDate(card.dueDate ? card.dueDate.slice(0, 16) : '');
     setEditError(null);
   };
 
-  // Submit Card Details Update (Assignee, Story Points, Due Date)
+  const handleToggleChecklist = async (item: { id: number; title: string; completed: boolean }) => {
+    const updated = !item.completed;
+    setChecklists((prev) =>
+      prev.map((c) => (c.id === item.id ? { ...c, completed: updated } : c))
+    );
+
+    if (updated && editingCard) {
+      try {
+        await boardApi.completeChecklistItem(editingCard.id, item.title);
+        showToast(`Đã hoàn thành: "${item.title}" & ghi nhận điểm Tầng 1!`);
+      } catch {
+        showToast(`Đã ghi nhận hoàn thành mục (Chế độ xem)`);
+      }
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !editingCard) return;
+
+    const newComment = {
+      id: Date.now(),
+      author: 'Tôi',
+      text: commentText.trim(),
+      time: 'Vừa xong',
+    };
+
+    setComments((prev) => [...prev, newComment]);
+    const textToSend = commentText.trim();
+    setCommentText('');
+
+    try {
+      await boardApi.addComment(editingCard.id, textToSend, true);
+      showToast('Đã gửi bình luận & ghi nhận ActivityEvent Tầng 1!');
+    } catch {
+      showToast('Đã gửi bình luận (Chế độ xem)');
+    }
+  };
+
+  // Submit Card Details Update (Assignee, Story Points, Due Date, Difficulty)
   const handleSaveCardDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCard) return;
 
-    // Client validation
-    if (editStoryPoints <= 0 || !Number.isInteger(Number(editStoryPoints))) {
-      setEditError('Story point phải là số nguyên dương (ví dụ: 1, 2, 3, 5...)');
+    // Client validation: Story points
+    const spNumber = Number(editStoryPoints);
+    if (isNaN(spNumber) || spNumber <= 0 || !Number.isInteger(spNumber)) {
+      setEditError('Story point phải là số nguyên dương lớn hơn 0 (ví dụ: 1, 2, 3, 5...)');
       return;
+    }
+
+    // Client validation: Due date
+    if (editDueDate) {
+      const parsedDate = new Date(editDueDate);
+      if (isNaN(parsedDate.getTime())) {
+        setEditError('Hạn chót không đúng định dạng ngày giờ hợp lệ');
+        return;
+      }
     }
 
     try {
@@ -263,28 +332,28 @@ export const BoardView: React.FC = () => {
       // Call API updates
       const promises: Promise<unknown>[] = [];
 
-      if (editAssigneeId && editAssigneeId !== editingCard.assigneeId) {
+      if (editAssigneeId !== undefined && editAssigneeId !== editingCard.assigneeId) {
         promises.push(boardApi.updateAssignee(editingCard.id, editAssigneeId));
       }
 
-      if (editStoryPoints !== editingCard.storyPoints) {
-        promises.push(boardApi.updateStoryPoints(editingCard.id, editStoryPoints));
+      if (spNumber !== editingCard.storyPoints) {
+        promises.push(boardApi.updateStoryPoints(editingCard.id, spNumber));
       }
 
-      if (editDueDate && editDueDate !== editingCard.dueDate) {
-        const formattedDate = editDueDate.length === 16 ? `${editDueDate}:00` : editDueDate;
+      const formattedDate = editDueDate ? (editDueDate.length === 16 ? `${editDueDate}:00` : editDueDate) : '';
+      if (formattedDate && formattedDate !== editingCard.dueDate) {
         promises.push(boardApi.updateDueDate(editingCard.id, formattedDate));
+      }
+
+      if (editDifficultyLevel !== editingCard.difficultyLevel) {
+        promises.push(boardApi.updateCard(editingCard.id, { difficultyLevel: editDifficultyLevel }));
       }
 
       if (promises.length > 0) {
         await Promise.all(promises);
       }
 
-      showToast('Cập nhật chi tiết card thành công!');
-      setEditingCard(null);
-      loadBoardData();
-    } catch {
-      // Local fallback update for demo
+      // Cập nhật ngay lập tức dữ liệu trên bảng Kanban (Optimistic state update)
       const selectedMember = team?.members?.find((m) => m.user.id === editAssigneeId);
       setBoard((prev) => ({
         ...prev,
@@ -296,16 +365,24 @@ export const BoardView: React.FC = () => {
                   ...c,
                   assigneeId: editAssigneeId,
                   assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
-                  storyPoints: editStoryPoints,
-                  dueDate: editDueDate || c.dueDate,
+                  storyPoints: spNumber,
+                  difficultyLevel: editDifficultyLevel,
+                  dueDate: formattedDate || c.dueDate,
                 }
               : c
           ),
         })),
       }));
 
-      showToast('Đã lưu chi tiết card (Chế độ xem)');
+      showToast('Cập nhật chi tiết card thành công!');
       setEditingCard(null);
+      loadBoardData();
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        'Không thể cập nhật chi tiết thẻ. Vui lòng kiểm tra lại dữ liệu nhập.';
+      setEditError(errorMsg);
     } finally {
       setIsUpdatingCard(false);
     }
@@ -361,46 +438,147 @@ export const BoardView: React.FC = () => {
     }
   };
 
+  // Xử lý kéo thả card giữa các cột (DnD) kèm Optimistic UI và Rollback khi API lỗi
+  const handleDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    // Kéo ra ngoài vùng hợp lệ
+    if (!destination) return;
+
+    // Thả tại chính vị trí cũ trong cùng cột
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const sourceColId = Number(source.droppableId);
+    const destColId = Number(destination.droppableId);
+    const cardId = Number(draggableId);
+    const destIndex = destination.index;
+
+    // 1. Lưu lại trạng thái trước khi kéo thả để phục vụ Rollback nếu API lỗi
+    const previousBoard = board;
+
+    // 2. Cập nhật giao diện lập tức (Optimistic UI Update)
+    const newColumns = board.columns.map((col) => ({
+      ...col,
+      cards: [...col.cards],
+    }));
+
+    const sourceCol = newColumns.find((c) => c.id === sourceColId);
+    const destCol = newColumns.find((c) => c.id === destColId);
+
+    if (!sourceCol || !destCol) return;
+
+    // Lấy card ra khỏi cột nguồn
+    const [movedCard] = sourceCol.cards.splice(source.index, 1);
+    if (!movedCard) return;
+
+    // Cập nhật columnId & position cho card và chèn vào cột đích
+    const updatedCard: Card = {
+      ...movedCard,
+      columnId: destColId,
+      position: destIndex,
+    };
+    destCol.cards.splice(destIndex, 0, updatedCard);
+
+    // Cập nhật lại chỉ số position cho các thẻ trong 2 cột
+    sourceCol.cards.forEach((c, idx) => {
+      c.position = idx;
+    });
+    destCol.cards.forEach((c, idx) => {
+      c.position = idx;
+    });
+
+    setBoard({
+      ...board,
+      columns: newColumns,
+    });
+
+    // 3. Gọi API cập nhật cột/vị trí khi thả (truyền đầy đủ cột nguồn và cột đích)
+    try {
+      await boardApi.moveCard(cardId, {
+        targetColumnId: destColId,
+        position: destIndex,
+        fromColumnId: sourceColId,
+        fromColumnName: sourceCol.name,
+        toColumnName: destCol.name,
+      });
+
+      const isDone =
+        destCol.name.toLowerCase().includes('done') ||
+        destCol.name.toLowerCase().includes('hoàn thành');
+      showToast(
+        isDone
+          ? 'Đã hoàn thành thẻ & ghi nhận điểm đóng góp!'
+          : `Đã di chuyển thẻ sang cột "${destCol.name}"`
+      );
+    } catch {
+      // 4. Hoàn tác (rollback) giao diện nếu API lỗi
+      setBoard(previousBoard);
+      setErrorMessage(
+        'Không thể cập nhật vị trí thẻ trên máy chủ. Đã hoàn tác giao diện về trạng thái ban đầu.'
+      );
+      showToast('Lỗi API: Đã hoàn tác thẻ về vị trí cũ!');
+    }
+  };
+
   const handleMoveCard = async (card: Card, targetColumnId: number) => {
     if (card.columnId === targetColumnId) return;
+
+    const previousBoard = board;
+    const fromCol = board.columns.find((c) => c.id === card.columnId);
+    const targetCol = board.columns.find((c) => c.id === targetColumnId);
+
+    // Optimistic UI Update
+    setBoard((prev) => {
+      let movedCard: Card | null = null;
+      const newCols = prev.columns.map((col) => {
+        const remaining = col.cards.filter((c) => {
+          if (c.id === card.id) {
+            movedCard = { ...c, columnId: targetColumnId };
+            return false;
+          }
+          return true;
+        });
+        return { ...col, cards: remaining };
+      });
+
+      if (movedCard) {
+        return {
+          ...prev,
+          columns: newCols.map((col) =>
+            col.id === targetColumnId ? { ...col, cards: [...col.cards, movedCard!] } : col
+          ),
+        };
+      }
+      return prev;
+    });
 
     try {
       await boardApi.moveCard(card.id, {
         targetColumnId,
         position: 0,
+        fromColumnId: card.columnId,
+        fromColumnName: fromCol?.name,
+        toColumnName: targetCol?.name,
       });
 
-      const targetCol = board.columns.find((c) => c.id === targetColumnId);
-      const isDone = targetCol?.name.toLowerCase().includes('done') || targetCol?.name.toLowerCase().includes('hoàn thành');
-      showToast(isDone ? 'Đã hoàn thành thẻ & ghi nhận điểm đóng góp!' : `Đã chuyển thẻ sang cột "${targetCol?.name}"`);
-
-      loadBoardData();
+      const isDone =
+        targetCol?.name.toLowerCase().includes('done') ||
+        targetCol?.name.toLowerCase().includes('hoàn thành');
+      showToast(
+        isDone
+          ? 'Đã hoàn thành thẻ & ghi nhận điểm đóng góp!'
+          : `Đã chuyển thẻ sang cột "${targetCol?.name}"`
+      );
     } catch {
-      setBoard((prev) => {
-        let movedCard: Card | null = null;
-        const newCols = prev.columns.map((col) => {
-          const remaining = col.cards.filter((c) => {
-            if (c.id === card.id) {
-              movedCard = { ...c, columnId: targetColumnId };
-              return false;
-            }
-            return true;
-          });
-          return { ...col, cards: remaining };
-        });
-
-        if (movedCard) {
-          return {
-            ...prev,
-            columns: newCols.map((col) =>
-              col.id === targetColumnId ? { ...col, cards: [...col.cards, movedCard!] } : col
-            ),
-          };
-        }
-        return prev;
-      });
-
-      showToast('Đã chuyển thẻ công việc');
+      // Rollback nếu API lỗi
+      setBoard(previousBoard);
+      setErrorMessage('Không thể chuyển vị trí thẻ trên máy chủ. Đã hoàn tác giao diện.');
+      showToast('Lỗi API: Đã hoàn tác thẻ về vị trí cũ!');
     }
   };
 
@@ -559,137 +737,165 @@ export const BoardView: React.FC = () => {
         </div>
       )}
 
-      {/* Kanban Board Columns Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-        {sortedColumns.map((column, colIdx) => (
-          <div
-            key={column.id}
-            className="flex flex-col rounded-xl bg-[#121318] border border-zinc-800/80 p-4 space-y-3 min-h-[500px]"
-          >
-            {/* Column Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-indigo-400" />
-                <h3 className="text-sm font-semibold text-zinc-200">{column.name}</h3>
-              </div>
-              <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400">
-                {column.cards.length}
-              </span>
-            </div>
-
-            {/* Cards List */}
-            <div className="space-y-3 flex-1 overflow-y-auto">
-              {column.cards.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-zinc-800/80 rounded-lg text-zinc-500 text-xs">
-                  <span>Chưa có thẻ nào</span>
-                </div>
-              ) : (
-                column.cards.map((card) => {
-                  const dueInfo = formatDueDate(card.dueDate);
-
-                  return (
-                    <div
-                      key={card.id}
-                      className="p-3.5 rounded-lg bg-[#181920] border border-zinc-800/80 hover:border-zinc-700 transition-all space-y-2.5 shadow-sm group cursor-pointer"
-                      onClick={() => handleOpenEditCard(card)}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-xs font-medium text-zinc-100 group-hover:text-indigo-300 transition-colors line-clamp-2">
-                          {card.title}
-                        </h4>
-                        {card.storyPoints !== undefined && (
-                          <span
-                            title="Story Points"
-                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-300 border border-indigo-500/20 whitespace-nowrap"
-                          >
-                            {card.storyPoints} SP
-                          </span>
-                        )}
-                      </div>
-
-                      {card.description && (
-                        <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">
-                          {card.description}
-                        </p>
-                      )}
-
-                      {/* Due Date Indicator */}
-                      {card.dueDate && (
-                        <div
-                          className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${
-                            dueInfo.isOverdue
-                              ? 'bg-red-950/40 text-red-400 border border-red-800/30'
-                              : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/30'
-                          }`}
-                        >
-                          <Clock size={11} className={dueInfo.isOverdue ? 'text-red-400' : 'text-zinc-400'} />
-                          <span>{dueInfo.text}</span>
-                          {dueInfo.isOverdue && <span className="font-semibold">(Quá hạn)</span>}
-                        </div>
-                      )}
-
-                      {/* Card Meta & Actions */}
-                      <div
-                        className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-400"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <User size={12} className="text-zinc-500" />
-                          <span className="truncate max-w-[100px] text-zinc-300">
-                            {card.assigneeName || 'Chưa gán'}
-                          </span>
-                        </div>
-
-                        {/* Move Buttons */}
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleOpenEditCard(card)}
-                            title="Chỉnh sửa chi tiết card"
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-                          >
-                            <Edit3 size={12} />
-                          </button>
-
-                          {colIdx > 0 && (
-                            <button
-                              onClick={() => handleMoveCard(card, sortedColumns[colIdx - 1].id)}
-                              title={`Chuyển sang ${sortedColumns[colIdx - 1].name}`}
-                              className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-                            >
-                              <ArrowLeft size={12} />
-                            </button>
-                          )}
-                          {colIdx < sortedColumns.length - 1 && (
-                            <button
-                              onClick={() => handleMoveCard(card, sortedColumns[colIdx + 1].id)}
-                              title={`Chuyển sang ${sortedColumns[colIdx + 1].name}`}
-                              className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-                            >
-                              <ArrowRight size={12} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Quick Add Card in Column */}
-            <button
-              onClick={() => {
-                setSelectedColumnId(column.id);
-                setShowAddCard(true);
-              }}
-              className="w-full py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850 rounded border border-transparent hover:border-zinc-800 transition-colors flex items-center justify-center gap-1.5"
+      {/* Kanban Board Columns Container with Drag and Drop */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+          {sortedColumns.map((column, colIdx) => (
+            <div
+              key={column.id}
+              className="flex flex-col rounded-xl bg-[#121318] border border-zinc-800/80 p-4 space-y-3 min-h-[500px]"
             >
-              <Plus size={12} />
-              <span>Thêm thẻ</span>
-            </button>
-          </div>
-        ))}
-      </div>
+              {/* Column Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                  <h3 className="text-sm font-semibold text-zinc-200">{column.name}</h3>
+                </div>
+                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400">
+                  {column.cards.length}
+                </span>
+              </div>
+
+              {/* Droppable Cards Container */}
+              <Droppable droppableId={String(column.id)}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`space-y-3 flex-1 overflow-y-auto min-h-[160px] p-1 rounded-lg transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-950/25 ring-1 ring-indigo-500/30' : ''
+                      }`}
+                  >
+                    {column.cards.length === 0 && !snapshot.isDraggingOver ? (
+                      <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-zinc-800/80 rounded-lg text-zinc-500 text-xs">
+                        <span>Chưa có thẻ nào (Kéo thả thẻ vào đây)</span>
+                      </div>
+                    ) : (
+                      column.cards.map((card, index) => {
+                        const dueInfo = formatDueDate(card.dueDate);
+
+                        return (
+                          <Draggable key={card.id} draggableId={String(card.id)} index={index}>
+                            {(dragProvided, dragSnapshot) => (
+                              <div
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                {...dragProvided.dragHandleProps}
+                                className={`p-3.5 rounded-lg bg-[#181920] border transition-all space-y-2.5 shadow-sm group cursor-grab active:cursor-grabbing select-none ${dragSnapshot.isDragging
+                                    ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/40 bg-[#1c1e28] rotate-1 scale-[1.02]'
+                                    : 'border-zinc-800/80 hover:border-zinc-700'
+                                  }`}
+                                onClick={() => handleOpenEditCard(card)}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                                    <GripVertical
+                                      size={14}
+                                      className="text-zinc-600 group-hover:text-zinc-400 mt-0.5 flex-shrink-0 transition-colors"
+                                    />
+                                    <h4 className="text-xs font-medium text-zinc-100 group-hover:text-indigo-300 transition-colors line-clamp-2">
+                                      {card.title}
+                                    </h4>
+                                  </div>
+                                  {card.storyPoints !== undefined && (
+                                    <span
+                                      title="Story Points"
+                                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-300 border border-indigo-500/20 whitespace-nowrap flex-shrink-0"
+                                    >
+                                      {card.storyPoints} SP
+                                    </span>
+                                  )}
+                                </div>
+
+                                {card.description && (
+                                  <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed pl-5">
+                                    {card.description}
+                                  </p>
+                                )}
+
+                                {/* Due Date Indicator */}
+                                {card.dueDate && (
+                                  <div className="pl-5">
+                                    <div
+                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${dueInfo.isOverdue
+                                          ? 'bg-red-950/40 text-red-400 border border-red-800/30'
+                                          : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/30'
+                                        }`}
+                                    >
+                                      <Clock size={11} className={dueInfo.isOverdue ? 'text-red-400' : 'text-zinc-400'} />
+                                      <span>{dueInfo.text}</span>
+                                      {dueInfo.isOverdue && <span className="font-semibold">(Quá hạn)</span>}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Card Meta & Actions */}
+                                <div
+                                  className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-400"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    <User size={12} className="text-zinc-500" />
+                                    <span className="truncate max-w-[100px] text-zinc-300">
+                                      {card.assigneeName || 'Chưa gán'}
+                                    </span>
+                                  </div>
+
+                                  {/* Move Buttons (Accessible alternative to Drag and Drop) */}
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleOpenEditCard(card)}
+                                      title="Chỉnh sửa chi tiết card"
+                                      className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                    >
+                                      <Edit3 size={12} />
+                                    </button>
+
+                                    {colIdx > 0 && (
+                                      <button
+                                        onClick={() => handleMoveCard(card, sortedColumns[colIdx - 1].id)}
+                                        title={`Chuyển sang ${sortedColumns[colIdx - 1].name}`}
+                                        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                      >
+                                        <ArrowLeft size={12} />
+                                      </button>
+                                    )}
+                                    {colIdx < sortedColumns.length - 1 && (
+                                      <button
+                                        onClick={() => handleMoveCard(card, sortedColumns[colIdx + 1].id)}
+                                        title={`Chuyển sang ${sortedColumns[colIdx + 1].name}`}
+                                        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                      >
+                                        <ArrowRight size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })
+                    )}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+
+              {/* Quick Add Card in Column */}
+              <button
+                onClick={() => {
+                  setSelectedColumnId(column.id);
+                  setShowAddCard(true);
+                }}
+                className="w-full py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850 rounded border border-transparent hover:border-zinc-800 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Plus size={12} />
+                <span>Thêm thẻ</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
 
       {/* Modal: Card Detail & Quick Edit (Assignee, Story Points, Due Date) */}
       {editingCard && (
@@ -770,18 +976,99 @@ export const BoardView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Due date input */}
-              <div className="space-y-1">
-                <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                  <Calendar size={13} className="text-indigo-400" />
-                  <span>Hạn hoàn thành (Due date)</span>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Due date input */}
+                <div className="space-y-1">
+                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                    <Calendar size={13} className="text-indigo-400" />
+                    <span>Hạn hoàn thành (Due date)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                {/* Difficulty Level select (Tầng 1 feature) */}
+                <div className="space-y-1">
+                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                    <Award size={13} className="text-amber-400" />
+                    <span>Độ khó (Tầng 1)</span>
+                  </label>
+                  <select
+                    value={editDifficultyLevel}
+                    onChange={(e) => setEditDifficultyLevel(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value={1}>1 - Dễ (Easy)</option>
+                    <option value={2}>2 - Trung bình (Medium)</option>
+                    <option value={3}>3 - Khó (Hard)</option>
+                    <option value={4}>4 - Rất khó (Very Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Checklist Section */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                  <CheckSquare size={13} className="text-emerald-400" />
+                  <span>Việc cần làm (Checklist - Ghi nhận Tầng 1)</span>
                 </label>
-                <input
-                  type="datetime-local"
-                  value={editDueDate}
-                  onChange={(e) => setEditDueDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
-                />
+                <div className="space-y-1.5 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
+                  {checklists.map((item) => (
+                    <label
+                      key={item.id}
+                      className="flex items-center gap-2 cursor-pointer hover:text-zinc-200 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        onChange={() => handleToggleChecklist(item)}
+                        className="rounded border-zinc-700 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className={item.completed ? 'line-through text-zinc-500' : 'text-zinc-300'}>
+                        {item.title}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comments & @mention Section */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                  <MessageSquare size={13} className="text-sky-400" />
+                  <span>Trao đổi & Hỗ trợ (@mention)</span>
+                </label>
+                <div className="space-y-2 max-h-32 overflow-y-auto bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
+                  {comments.map((cm) => (
+                    <div key={cm.id} className="text-[11px] space-y-0.5">
+                      <div className="flex items-center justify-between text-zinc-400 font-medium">
+                        <span className="text-indigo-300">{cm.author}</span>
+                        <span className="text-[10px] text-zinc-600">{cm.time}</span>
+                      </div>
+                      <p className="text-zinc-300">{cm.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Gõ bình luận hoặc @tên để yêu cầu hỗ trợ..."
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddComment}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-xs whitespace-nowrap"
+                  >
+                    Gửi
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
