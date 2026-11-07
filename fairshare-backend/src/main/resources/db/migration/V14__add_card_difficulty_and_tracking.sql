@@ -1,5 +1,5 @@
 -- =============================================================================
--- V13: Bổ sung difficulty_level cho bảng cards để liên kết với đặc trưng Tầng 1
+-- V14: Bổ sung difficulty_level cho bảng cards để liên kết với đặc trưng Tầng 1
 -- =============================================================================
 
 ALTER TABLE cards
