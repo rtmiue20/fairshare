@@ -185,6 +185,80 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "4. Truy vết bằng chứng đóng góp (Evidence Traceability) - Thành công",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array of raw evidence events\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"    if (jsonData.length > 0) {",
+							"        pm.expect(jsonData[0]).to.have.property('sourceType');",
+							"        pm.expect(jsonData[0]).to.have.property('sourceId');",
+							"        pm.expect(jsonData[0]).to.have.property('taskName');",
+							"        pm.expect(jsonData[0]).to.have.property('storyPoints');",
+							"        pm.expect(jsonData[0]).to.have.property('earnedScore');",
+							"        pm.expect(jsonData[0]).to.have.property('status');",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/contributions/trace?teamId=1&sprintId=1&userId=101",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"contributions",
+						"trace"
+					],
+					"query": [
+						{
+							"key": "teamId",
+							"value": "1"
+						},
+						{
+							"key": "sprintId",
+							"value": "1"
+						},
+						{
+							"key": "userId",
+							"value": "101"
+						}
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }
