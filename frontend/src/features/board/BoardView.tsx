@@ -304,15 +304,25 @@ export const BoardView: React.FC = () => {
     }
   };
 
-  // Submit Card Details Update (Assignee, Story Points, Due Date)
+  // Submit Card Details Update (Assignee, Story Points, Due Date, Difficulty)
   const handleSaveCardDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCard) return;
 
-    // Client validation
-    if (editStoryPoints <= 0 || !Number.isInteger(Number(editStoryPoints))) {
-      setEditError('Story point phải là số nguyên dương (ví dụ: 1, 2, 3, 5...)');
+    // Client validation: Story points
+    const spNumber = Number(editStoryPoints);
+    if (isNaN(spNumber) || spNumber <= 0 || !Number.isInteger(spNumber)) {
+      setEditError('Story point phải là số nguyên dương lớn hơn 0 (ví dụ: 1, 2, 3, 5...)');
       return;
+    }
+
+    // Client validation: Due date
+    if (editDueDate) {
+      const parsedDate = new Date(editDueDate);
+      if (isNaN(parsedDate.getTime())) {
+        setEditError('Hạn chót không đúng định dạng ngày giờ hợp lệ');
+        return;
+      }
     }
 
     try {
@@ -322,16 +332,16 @@ export const BoardView: React.FC = () => {
       // Call API updates
       const promises: Promise<unknown>[] = [];
 
-      if (editAssigneeId && editAssigneeId !== editingCard.assigneeId) {
+      if (editAssigneeId !== undefined && editAssigneeId !== editingCard.assigneeId) {
         promises.push(boardApi.updateAssignee(editingCard.id, editAssigneeId));
       }
 
-      if (editStoryPoints !== editingCard.storyPoints) {
-        promises.push(boardApi.updateStoryPoints(editingCard.id, editStoryPoints));
+      if (spNumber !== editingCard.storyPoints) {
+        promises.push(boardApi.updateStoryPoints(editingCard.id, spNumber));
       }
 
-      if (editDueDate && editDueDate !== editingCard.dueDate) {
-        const formattedDate = editDueDate.length === 16 ? `${editDueDate}:00` : editDueDate;
+      const formattedDate = editDueDate ? (editDueDate.length === 16 ? `${editDueDate}:00` : editDueDate) : '';
+      if (formattedDate && formattedDate !== editingCard.dueDate) {
         promises.push(boardApi.updateDueDate(editingCard.id, formattedDate));
       }
 
@@ -343,11 +353,7 @@ export const BoardView: React.FC = () => {
         await Promise.all(promises);
       }
 
-      showToast('Cập nhật chi tiết card thành công!');
-      setEditingCard(null);
-      loadBoardData();
-    } catch {
-      // Local fallback update for demo
+      // Cập nhật ngay lập tức dữ liệu trên bảng Kanban (Optimistic state update)
       const selectedMember = team?.members?.find((m) => m.user.id === editAssigneeId);
       setBoard((prev) => ({
         ...prev,
@@ -356,20 +362,27 @@ export const BoardView: React.FC = () => {
           cards: col.cards.map((c) =>
             c.id === editingCard.id
               ? {
-                ...c,
-                assigneeId: editAssigneeId,
-                assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
-                storyPoints: editStoryPoints,
-                difficultyLevel: editDifficultyLevel,
-                dueDate: editDueDate || c.dueDate,
-              }
+                  ...c,
+                  assigneeId: editAssigneeId,
+                  assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
+                  storyPoints: spNumber,
+                  difficultyLevel: editDifficultyLevel,
+                  dueDate: formattedDate || c.dueDate,
+                }
               : c
           ),
         })),
       }));
 
-      showToast('Đã lưu chi tiết card (Chế độ xem)');
+      showToast('Cập nhật chi tiết card thành công!');
       setEditingCard(null);
+      loadBoardData();
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        'Không thể cập nhật chi tiết thẻ. Vui lòng kiểm tra lại dữ liệu nhập.';
+      setEditError(errorMsg);
     } finally {
       setIsUpdatingCard(false);
     }

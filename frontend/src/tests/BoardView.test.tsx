@@ -214,4 +214,87 @@ describe('BoardView Component - Kanban UI (M1 - Frontend)', () => {
       expect(screen.getByText(/Không thể chuyển vị trí thẻ trên máy chủ. Đã hoàn tác giao diện./i)).toBeInTheDocument();
     });
   });
+
+  it('displays client validation error when entering invalid story points in card detail modal', () => {
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Open card detail modal
+    const card = screen.getByText(/Khảo sát thêm 20 sinh viên về Free-rider/i);
+    fireEvent.click(card);
+
+    expect(screen.getByText('Chi tiết công việc')).toBeInTheDocument();
+
+    // Set invalid story points (-1)
+    const spInput = screen.getByDisplayValue('2');
+    fireEvent.change(spInput, { target: { value: '-1' } });
+
+    // Submit form
+    const saveButton = screen.getByRole('button', { name: /Lưu thay đổi/i });
+    fireEvent.submit(saveButton.closest('form')!);
+
+    // Should display validation error
+    expect(screen.getByText(/Story point phải là số nguyên dương lớn hơn 0/i)).toBeInTheDocument();
+  });
+
+  it('calls update APIs and saves card details successfully in modal', async () => {
+    const updateSpy = vi.spyOn(boardApi, 'updateStoryPoints').mockResolvedValueOnce({
+      success: true,
+      message: 'OK',
+      data: {} as never,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Open card detail modal
+    const card = screen.getByText(/Khảo sát thêm 20 sinh viên về Free-rider/i);
+    fireEvent.click(card);
+
+    // Change story points to 5
+    const spInput = screen.getByDisplayValue('2');
+    fireEvent.change(spInput, { target: { value: '5' } });
+
+    // Click Save
+    const saveButton = screen.getByRole('button', { name: /Lưu thay đổi/i });
+    fireEvent.submit(saveButton.closest('form')!);
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(101, 5);
+    });
+  });
+
+  it('displays API error message when card update API fails', async () => {
+    vi.spyOn(boardApi, 'updateStoryPoints').mockRejectedValueOnce({
+      response: { data: { message: 'Story point vượt quá giới hạn cho phép của sprint' } },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/teams/1/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Open card detail modal
+    const card = screen.getByText(/Khảo sát thêm 20 sinh viên về Free-rider/i);
+    fireEvent.click(card);
+
+    // Change story points to 8
+    const spInput = screen.getByDisplayValue('2');
+    fireEvent.change(spInput, { target: { value: '8' } });
+
+    // Click Save
+    const saveButton = screen.getByRole('button', { name: /Lưu thay đổi/i });
+    fireEvent.submit(saveButton.closest('form')!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Story point vượt quá giới hạn cho phép của sprint/i)).toBeInTheDocument();
+    });
+  });
 });
