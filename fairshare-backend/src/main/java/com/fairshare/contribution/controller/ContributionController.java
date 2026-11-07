@@ -3,6 +3,7 @@ package com.fairshare.contribution.controller;
 import com.fairshare.common.dto.ApiResponse;
 import com.fairshare.contribution.dto.ContributionDto;
 import com.fairshare.contribution.dto.ContributionSummaryResponse;
+import com.fairshare.contribution.dto.EvidenceItemDto;
 import com.fairshare.contribution.service.ContributionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,24 @@ public class ContributionController {
             @RequestParam("sprintId") Long sprintId) {
         List<ContributionSummaryResponse> summary = contributionService.getContributionSummary(teamId, sprintId);
         return ResponseEntity.ok(summary);
+    }
+
+    /**
+     * API truy xuất bằng chứng đóng góp (danh sách sự kiện gốc) của thành viên theo team và sprint.
+     * Kích hoạt Stored Procedure sp_get_evidence_traceability.
+     *
+     * @param teamId   ID nhóm
+     * @param sprintId ID sprint
+     * @param userId   ID thành viên
+     * @return danh sách sự kiện gốc (200 OK)
+     */
+    @GetMapping("/trace")
+    public ResponseEntity<List<EvidenceItemDto>> getEvidenceTraceability(
+            @RequestParam("teamId") Long teamId,
+            @RequestParam("sprintId") Long sprintId,
+            @RequestParam("userId") Long userId) {
+        List<EvidenceItemDto> evidence = contributionService.getEvidenceTraceability(teamId, sprintId, userId);
+        return ResponseEntity.ok(evidence);
     }
 
     @PostMapping("/sprints/{sprintId}/calculate")

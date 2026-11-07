@@ -5,6 +5,7 @@ import com.fairshare.activity.repository.ActivityEventRepository;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.contribution.dto.ContributionDto;
 import com.fairshare.contribution.dto.ContributionSummaryResponse;
+import com.fairshare.contribution.dto.EvidenceItemDto;
 import com.fairshare.contribution.entity.ContributionScore;
 import com.fairshare.contribution.repository.ContributionScoreRepository;
 import com.fairshare.sprint.entity.Sprint;
@@ -55,6 +56,20 @@ public class ContributionService {
         return scores.stream()
                 .map(ContributionSummaryResponse::fromEntity)
                 .toList();
+    }
+
+    /**
+     * Truy xuất danh sách bằng chứng đóng góp (sự kiện gốc) của thành viên theo sprint và team.
+     * Kích hoạt Stored Procedure {@code sp_get_evidence_traceability}.
+     *
+     * @param teamId   ID nhóm
+     * @param sprintId ID sprint
+     * @param userId   ID thành viên
+     * @return danh sách các sự kiện gốc (activity_events & manual_contributions)
+     */
+    @Transactional(readOnly = true)
+    public List<EvidenceItemDto> getEvidenceTraceability(Long teamId, Long sprintId, Long userId) {
+        return contributionScoreRepository.getEvidenceTraceability(teamId, sprintId, userId);
     }
 
     @Transactional
