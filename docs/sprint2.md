@@ -1,6 +1,6 @@
 # SPRINT 2 – Lập kế hoạch & thiết kế
 
-**Thời gian:** Thứ 4, 21/10/2026 → Thứ 3, 27/10/2026 | **Tương ứng:** Tuần 2 | **Trạng thái sprint:** 🔄 Đang thực hiện
+**Thời gian:** Thứ 5, 16/10/2026 → Thứ 4, 22/10/2026 | **Tương ứng:** Tuần 2 (Sprint 2) | **Trạng thái sprint:** ✅ Hoàn thành
 
 ## Mục tiêu sprint
 Có đủ bộ tài liệu kế hoạch (Gantt, RACI, Risk, Comm Plan), kiến trúc, ERD, test plan, prototype, và quan trọng nhất là **chốt hợp đồng API và bảng dùng chung** giữa các module trước khi vào code.
@@ -8,22 +8,22 @@ Có đủ bộ tài liệu kế hoạch (Gantt, RACI, Risk, Comm Plan), kiến t
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 4, 21/10 |
+| Sprint Planning | Thứ 5, 16/10 |
 | Daily | Hằng ngày |
-| Họp chốt API contract (cả nhóm, bắt buộc) | Thứ 2, 26/10 |
-| Sprint Review + Retrospective | Thứ 3, 27/10 |
+| Họp chốt API contract (cả nhóm, bắt buộc) | Thứ 2, 20/10 |
+| Sprint Review + Retrospective | Thứ 4, 22/10 |
 
 ## Phân công công việc
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
 |---|---|---|---|---|
-| M0 | Gantt, RACI, Risk Register, Communication Plan | Gantt, RACI, Risk Register, Comm Plan | 25/10 | ⬜ |
-| M1 | Kiến trúc hệ thống; **spike** Trello API (và Google Docs nếu còn thời gian); thiết kế bảng `ActivityEvent` | Sơ đồ kiến trúc, kết quả spike, thiết kế bảng | 24/10 (spike), 25/10 (thiết kế) | ⬜ |
-| M3 | ERD tổng (tổng hợp từ cả nhóm), quy ước CSDL, kế hoạch dữ liệu mẫu | ERD, quy ước | 26/10 | ⬜ |
-| M2 | Mẫu consent, chính sách dữ liệu, kịch bản UAT, API contract M2 | Consent form, chính sách dữ liệu, kịch bản UAT, API contract | 25/10 | ✅ Hoàn thành |
-| M4 | Prototype tương tác cho module chấm chéo và cảnh báo | Prototype | 25/10 | ⬜ |
-| M5 | Test plan hoàn chỉnh, môi trường dev, CI cơ bản, Docker Compose MariaDB | Test plan, pipeline CI | 26/10 | ⬜ |
-| **Cả nhóm** | **Chốt hợp đồng API và bảng dùng chung** giữa các module | Tài liệu API contract | **26/10** | ⬜ |
-| M0 | Báo cáo tuần 2, Sprint Review/Retro, chuẩn bị Sprint 3 | Báo cáo tuần, biên bản | 27/10 | ⬜ |
+| M0 | Gantt, RACI, Risk Register, Communication Plan | Gantt, RACI, Risk Register, Comm Plan | 21/10 | ✅ Hoàn thành |
+| M1 | Kiến trúc hệ thống; **spike** Trello API (phát hiện hạn chế rate limit); thiết kế bảng `ActivityEvent` | Sơ đồ kiến trúc, kết quả spike, thiết kế bảng | 20/10 | ✅ Hoàn thành |
+| M3 | ERD tổng (tổng hợp từ cả nhóm), quy ước CSDL, kế hoạch dữ liệu mẫu | ERD, quy ước | 21/10 | ✅ Hoàn thành |
+| M2 | Mẫu consent, chính sách dữ liệu, kịch bản UAT, API contract M2 | Consent form, chính sách dữ liệu, kịch bản UAT, API contract | 20/10 | ✅ Hoàn thành |
+| M4 | Prototype tương tác cho module chấm chéo và cảnh báo | Prototype | 21/10 | ✅ Hoàn thành |
+| M5 | Test plan hoàn chỉnh, môi trường dev, CI cơ bản, Docker Compose MariaDB | Test plan, pipeline CI | 21/10 | ✅ Hoàn thành |
+| **Cả nhóm** | **Chốt hợp đồng API và bảng dùng chung** giữa các module | Tài liệu API contract | **21/10** | ✅ Hoàn thành |
+| M0 | Báo cáo tuần 2, Sprint Review/Retro, chuẩn bị Sprint 3 | Báo cáo tuần, biên bản | 22/10 | ✅ Hoàn thành |
 
 ## Chuẩn bị cho Sprint 3 (làm trong sprint này)
 - M1 chuẩn bị sẵn khung dự án Spring Boot/Vite để vào code ngay Sprint 3.

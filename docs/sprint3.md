@@ -1,6 +1,6 @@
 # SPRINT 3 – Nền tảng, nhóm và board/card (khung)
 
-**Thời gian:** Thứ 4, 28/10/2026 → Thứ 3, 03/11/2026 | **Tương ứng:** Sprint 3 trong kế hoạch 7 sprint (Sprint 1 trong kế hoạch gốc) | **Trạng thái sprint:** ✅ Hoàn thành (Đã nghiệm thu Review 03/11)
+**Thời gian:** Thứ 5, 23/10/2026 → Thứ 4, 29/10/2026 | **Tương ứng:** Tuần 3 (Sprint 3) | **Trạng thái sprint:** ✅ Hoàn thành (Đã nghiệm thu Review 29/10)
 
 ## Mục tiêu sprint
 - Có khung xác thực (JWT), layout chung, xử lý lỗi để các module khác nối vào.
