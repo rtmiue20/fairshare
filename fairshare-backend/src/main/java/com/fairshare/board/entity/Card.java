@@ -42,6 +42,10 @@ public class Card extends BaseEntity {
     @Column(name = "story_points", nullable = false)
     private Double storyPoints = 0.0;
 
+    @JdbcTypeCode(SqlTypes.TINYINT)
+    @Column(name = "difficulty_level")
+    private Integer difficultyLevel = 2;
+
     @Column(name = "due_date")
     private LocalDateTime dueDate;
 

@@ -1,7 +1,9 @@
 # PHÂN CÔNG CÔNG VIỆC – FairShare (phiên bản chia theo lát cắt dọc)
 
 **Môn:** Quản lý dự án CNTT – UEH | **Nhóm:** 6 thành viên | **Đề tài:** FairShare
-**Phiên bản:** 2.0 – chuyển từ chia theo tầng (Backend/Frontend/Database riêng) sang **chia theo module dọc**: mỗi người sở hữu một module từ CSDL, backend đến giao diện.
+**Phiên bản:** 2.1 – chuyển từ chia theo tầng (Backend/Frontend/Database riêng) sang **chia theo module dọc**: mỗi người sở hữu một module từ CSDL, backend đến giao diện. Bản 2.1 cập nhật theo **CR-02 (29/10/2026)**: thay tích hợp Trello API bằng module **Task Board nội bộ** (`board`), xem `docs/CR02-Internal-Board-Module.md`.
+
+> **Lưu ý đọc tài liệu:** các mục "Sprint 1/Sprint 2 (Tuần 4/5)" bên dưới là kế hoạch gốc; lịch thực tế theo 7 sprint nằm trong `docs/sprint1.md` … `docs/sprint7.md`. Các dòng liên quan Trello được giữ lại kèm ghi chú CR-02 để truy vết thay đổi.
 
 > Điền tên, MSSV vào các chỗ `[ ]`. Có thể hoán đổi module theo thế mạnh từng người, nhưng phải ghi Change Log.
 
@@ -21,7 +23,7 @@
 | TT | Họ tên                              | MSSV | Phân hệ (Work package) | Vai trò PM mini (theo quy định môn) | Package backend phụ trách | Màn hình frontend phụ trách |
 |---|-------------------------------------|---|---|---|---|---|
 | M0 | Nguyễn Văn Minh Triều (Nhóm trưởng) | 31241027455 | WP0 – Quản lý dự án + Báo cáo PDF | **PM hệ thống chung** | `report` | Nút/trang xuất PDF |
-| M1 | Nguyễn Phúc Vương                   | 31241025017 | WP1 – Nền tảng & Tích hợp Trello | **PM Backend/API & Tích hợp** | `auth`, `user`, `common`, `config`, `integration/*`, `activity` | Đăng nhập/đăng ký, layout chung, kết nối Trello, trạng thái đồng bộ |
+| M1 | Nguyễn Phúc Vương                   | 31241025017 | WP1 – Nền tảng & Task Board nội bộ (CR-02) | **PM Backend/API & Tích hợp** | `auth`, `user`, `common`, `config`, `board`, `activity`, `integration/googledocs` (có điều kiện) | Đăng nhập/đăng ký, layout chung, kết nối Trello, trạng thái đồng bộ |
 | M2 | Hà Ngọc Thiện                       | 31241021658 | WP2 – Nhóm, Sprint & Consent | **PM phân tích nghiệp vụ (BA)** | `team`, `sprint` | Danh sách/chi tiết nhóm, mời thành viên, consent, quản lý sprint |
 | M3 | Ngô Trọng Phúc                      | 31241020074 | WP3 – Đóng góp & Dashboard | **PM Database/Data** | `contribution` (gồm `ScoringEngine`) | Dashboard biểu đồ, bảng bằng chứng truy vết, khai báo đóng góp thủ công |
 | M4 | Triệu Nguyễn Huỳnh Khang            | 31241022785 | WP4 – Chấm chéo ẩn danh & Cảnh báo | **PM Web/Feature (chấm chéo)** | `peerreview` (gồm `AnonymityAggregator`), `alert` | Form chấm chéo, kết quả tổng hợp, danh sách cảnh báo |
@@ -43,7 +45,7 @@
 auth/user/common (M1) ──► team/sprint (M2) ──► peerreview (M4)
         │                      │
         ▼                      ▼
-integration/trello + activity (M1) ──► contribution (M3) ──► report (M0)
+board + activity (M1) ──► contribution (M3) ──► report (M0)
                                                │
                                                └──► alert (M4, có điều kiện)
 ```
@@ -51,8 +53,8 @@ integration/trello + activity (M1) ──► contribution (M3) ──► report 
 | Module | Phụ thuộc vào | Ai chờ ai |
 |---|---|---|
 | `team`, `sprint` | `auth`, `user` | M2 chờ khung xác thực của M1 (ngày 2–3 Sprint 1); trong lúc chờ M2 làm migration, entity và màn hình bằng dữ liệu giả |
-| `integration`, `activity` | `auth`, `team` | M1 tự làm được khung Trello độc lập, nối với `team` khi M2 xong |
-| `contribution` | `activity`, `team`, `sprint` | M3 dùng bảng `ActivityEvent` đã chốt ở Tuần 3 + dữ liệu mẫu để làm trước khi Trello đồng bộ xong |
+| `board`, `activity` | `auth`, `team` | M1 tự làm được khung board độc lập, nối với `team` khi M2 xong (CR-02: thay `integration/trello`) |
+| `contribution` | `activity`, `team`, `sprint` | M3 dùng bảng `ActivityEvent` đã chốt ở Tuần 3 + dữ liệu mẫu để làm trước khi board ghi đủ sự kiện (trước CR-02: trước khi Trello đồng bộ xong) |
 | `peerreview` | `team`, `sprint` | M4 làm độc lập sau khi M2 có `Team/TeamMember/Sprint` |
 | `report` | `contribution`, `peerreview` | M0 làm cuối Sprint 3, dùng API của M3 và M4 |
 
@@ -78,7 +80,7 @@ integration/trello + activity (M1) ──► contribution (M3) ──► report 
 - Layout, router, component dùng chung (`Button`, `Card`, `Modal`...) do M1 tạo ở đầu Sprint 1; các module chỉ thêm trong thư mục `features/<module>/` của mình.
 
 **Định nghĩa hoàn thành (DoD) cho một lát dọc**
-Một chức năng chỉ được tính là xong khi có đủ: migration + entity, API có validation, màn hình dùng được, unit/integration test tối thiểu, cập nhật task Trello và log công việc, demo được trên `develop`.
+Một chức năng chỉ được tính là xong khi có đủ: migration + entity, API có validation, màn hình dùng được, unit/integration test tối thiểu, cập nhật task trên board của nhóm và log công việc, demo được trên `develop`.
 
 ---
 
@@ -94,7 +96,7 @@ R = Thực hiện, A = Chịu trách nhiệm cuối, C = Tham vấn, I = Đượ
 | ERD tổng, quy ước CSDL, dữ liệu mẫu | I | C | C | A/R | C | C |
 | Kiến trúc, nền tảng, xác thực | C | A/R | I | C | C | C |
 | Module nhóm/sprint/consent | I | C | A/R | C | C | C |
-| Tích hợp Trello, activity | I | A/R | C | C | I | C |
+| Task Board nội bộ (CR-02), activity | I | A/R | C | C | I | C |
 | Module đóng góp, dashboard | I | C | C | A/R | I | C |
 | Module chấm chéo, cảnh báo | I | I | C | C | A/R | C |
 | Xuất báo cáo PDF | A/R | I | I | C | C | C |
@@ -123,7 +125,7 @@ R = Thực hiện, A = Chịu trách nhiệm cuối, C = Tham vấn, I = Đượ
 | M2 | Chạy khảo sát, yêu cầu chức năng/phi chức năng, Use Case, BPMN, MVP | Requirement list, Use Case, BPMN, báo cáo khảo sát | [ ] |
 | M2 + M3 | Bản nháp công thức đóng góp và tiêu chí chấm chéo | Công thức v0.1 | [ ] |
 | M0 | Scope Statement, WBS, backlog (ước lượng story point cùng nhóm) | Scope, WBS, backlog | [ ] |
-| M1 | Ước lượng kỹ thuật, đọc Trello API | Ghi chú kỹ thuật | [ ] |
+| M1 | Ước lượng kỹ thuật, đọc Trello API (kết quả spike dẫn tới CR-02) | Ghi chú kỹ thuật | [ ] |
 | M4 | Wireframe sơ bộ form chấm chéo và màn hình kết quả | Wireframe v0.1 | [ ] |
 | M5 | Chiến lược kiểm thử, tiêu chí chấp nhận | Khung test plan | [ ] |
 
@@ -131,28 +133,28 @@ R = Thực hiện, A = Chịu trách nhiệm cuối, C = Tham vấn, I = Đượ
 | Người | Công việc | Sản phẩm/minh chứng | Deadline |
 |---|---|---|---|
 | M0 | Gantt, RACI, Risk Register, Communication Plan | Gantt, RACI, Risk Register, Comm Plan | [ ] |
-| M1 | Kiến trúc hệ thống; **spike** Trello API (và Google Docs nếu còn thời gian); thiết kế bảng `ActivityEvent` | Sơ đồ kiến trúc, kết quả spike, thiết kế bảng | [ ] |
+| M1 | Kiến trúc hệ thống; **spike** Trello API (bộc lộ hạn chế rate limit/phụ thuộc ngoài → CR-02) (và Google Docs nếu còn thời gian); thiết kế bảng `ActivityEvent` | Sơ đồ kiến trúc, kết quả spike, thiết kế bảng | [ ] |
 | M3 | ERD tổng (tổng hợp từ cả nhóm), quy ước CSDL, kế hoạch dữ liệu mẫu | ERD, quy ước | [ ] |
 | M2 | Mẫu consent, chính sách dữ liệu, kịch bản UAT | Consent form, chính sách dữ liệu | [ ] |
 | M4 | Prototype tương tác cho module chấm chéo và cảnh báo | Prototype | [ ] |
 | M5 | Test plan hoàn chỉnh, môi trường dev, CI cơ bản, Docker Compose MariaDB | Test plan, pipeline CI | [ ] |
 | Cả nhóm | **Chốt hợp đồng API và bảng dùng chung** giữa các module | Tài liệu API contract | [ ] |
 
-### Sprint 1 (Tuần 4) – Nền tảng, nhóm, tích hợp Trello (khung)
+### Sprint 1 (Tuần 4) – Nền tảng, nhóm, tích hợp Trello (khung) – *kế hoạch gốc, đã thay bằng board nội bộ theo CR-02, xem `docs/sprint3.md`*
 | Người | Lát cắt dọc | Việc cụ thể | Minh chứng |
 |---|---|---|---|
-| M1 | Nền tảng + Trello | Ngày 1–3: xác thực/JWT, `BaseEntity`, xử lý lỗi, layout chung, trang đăng nhập/đăng ký. Ngày 3–5: kết nối Trello, đồng bộ board/card/member/action vào `ActivityEvent` | Commit, API log, demo đồng bộ |
+| M1 | Nền tảng + Board | Ngày 1–3: xác thực/JWT, `BaseEntity`, xử lý lỗi, layout chung, trang đăng nhập/đăng ký. Ngày 3–5: ~~kết nối Trello, đồng bộ vào `ActivityEvent`~~ → **CR-02:** module `board` nội bộ (`V10`, board/cột/card, ghi `ActivityEvent` nguồn `BOARD`) | Commit, API log, demo đồng bộ |
 | M2 | Nhóm/Sprint/Consent | Migration + entity + API tạo nhóm, mời thành viên, consent, sprint; màn hình nhóm và consent | Commit, demo UI |
 | M3 | Đóng góp (khung) | Migration `contribution`, công thức v1 cùng M2, `ScoringEngine` bản đầu (unit test với dữ liệu mẫu), dữ liệu mẫu `ActivityEvent` | Commit, test, tài liệu công thức v1 |
 | M4 | Chấm chéo (khung) | Migration + entity `ReviewRound/Submission/Criterion`, thiết kế cơ chế ẩn danh, tiêu chí | Commit, thiết kế ẩn danh |
-| M5 | Kiểm thử/CI | Test case Sprint 1, bật CI chạy test, kiểm thử đồng bộ Trello | Test case, kết quả test |
+| M5 | Kiểm thử/CI | Test case Sprint 1, bật CI chạy test, kiểm thử đồng bộ Trello (sau CR-02: kiểm thử board/card) | Test case, kết quả test |
 | M0 | Quản lý | Sprint Planning, burndown, báo cáo tuần, cập nhật Risk; khung module `report` | Sprint report, burndown |
 
 ### Sprint 2 (Tuần 5) – Bảng đóng góp
 | Người | Lát cắt dọc | Việc cụ thể | Minh chứng |
 |---|---|---|---|
 | M3 | Đóng góp & Dashboard | API tổng hợp đóng góp, truy vết đến sự kiện gốc; dashboard biểu đồ, bảng bằng chứng, bộ lọc theo sprint/người; khai báo thủ công có xác nhận | Commit, API doc, demo |
-| M1 | Trello hoàn thiện | Đồng bộ định kỳ/thủ công, xử lý lỗi và rate limit, mã hóa token | Commit, test |
+| M1 | Board hoàn thiện (thay "Trello hoàn thiện" theo CR-02) | Kéo thả card, chi tiết card (người phụ trách, story point, hạn), ghi `CARD_COMPLETED`/`delay_days`/`is_on_time`, log hoạt động không sửa được; Sprint 5: phân quyền board, gỡ module Trello legacy | Commit, test |
 | M2 | Nhóm hoàn thiện + BA | Hoàn thiện quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức |
 | M4 | Chấm chéo | API mở/đóng đợt, nhận đánh giá; form chấm chéo | Commit, demo |
 | M5 | Tích hợp | Test tích hợp các module, ghi defect, môi trường staging | Integration log, defect log |
@@ -191,7 +193,7 @@ R = Thực hiện, A = Chịu trách nhiệm cuối, C = Tham vấn, I = Đượ
 
 ## 7. Trách nhiệm chung của mọi thành viên
 
-- Cập nhật task Trello đúng trạng thái, đúng hạn, gắn minh chứng (link commit, ảnh, tài liệu).
+- Cập nhật task trên Task Board của nhóm đúng trạng thái, đúng hạn, gắn minh chứng (link commit, ảnh, tài liệu).
 - Ghi log công việc hằng tuần (ngày, việc, thời gian, minh chứng).
 - Chủ module chịu trách nhiệm cả migration, API, giao diện và test của module mình; không để một tầng "chờ người khác".
 - Review Pull Request của người liền kề trong sơ đồ phụ thuộc trong vòng 24 giờ.
@@ -208,7 +210,7 @@ R = Thực hiện, A = Chịu trách nhiệm cuối, C = Tham vấn, I = Đượ
 | R16 | Module phía dưới chờ nền tảng của M1 | Cao | M1, M0 | M1 giao khung xác thực trong 2–3 ngày đầu Sprint 1; M2/M3/M4 làm với dữ liệu giả trong lúc chờ |
 | R17 | Mỗi người làm giao diện/API một kiểu, khó thống nhất | TB | M1, M0 | Layout/component chung do M1 tạo, API contract chốt Tuần 3, review chéo PR |
 | R18 | Đụng migration Flyway, lệch schema giữa các máy | TB | M3 | Phiên bản theo ngày giờ, mỗi người chỉ sửa migration của module mình, M3 giữ ERD tổng |
-| R19 | M1 quá tải (nền tảng + tích hợp Trello) | Cao | M0 | Giao người mạnh code nhất; M0 hỗ trợ sau Sprint 1; cắt Google Docs nếu trễ |
+| R19 | M1 quá tải (nền tảng + board nội bộ, sau CR-02 thay tích hợp Trello) | Cao | M0 | Giao người mạnh code nhất; M0 hỗ trợ sau Sprint 1; làm khung board ở Sprint 3, kéo thả nâng cao dời sang Sprint 4; cắt Google Docs nếu trễ |
 | R20 | Thành viên chưa quen một tầng (ví dụ ít làm React) | TB | Từng người, M0 | Pair programming, mẫu component chung, hỗ trợ lẫn nhau, ghi vào Mini-PM Report như một khó khăn đã xử lý |
 
 ---
@@ -218,7 +220,7 @@ R = Thực hiện, A = Chịu trách nhiệm cuối, C = Tham vấn, I = Đượ
 | Thành viên | Phân hệ | Công việc chính đã làm | Thời gian (giờ) | Minh chứng (link) | % tự đánh giá | % nhóm đánh giá |
 |---|---|---|---|---|---|---|
 | [ ] (M0) | PM chung + Report | [ ] | [ ] | [ ] | [ ] | [ ] |
-| [ ] (M1) | Nền tảng + Trello | [ ] | [ ] | [ ] | [ ] | [ ] |
+| [ ] (M1) | Nền tảng + Task Board nội bộ | [ ] | [ ] | [ ] | [ ] | [ ] |
 | [ ] (M2) | Nhóm/Sprint + BA | [ ] | [ ] | [ ] | [ ] | [ ] |
 | [ ] (M3) | Đóng góp + Data | [ ] | [ ] | [ ] | [ ] | [ ] |
 | [ ] (M4) | Chấm chéo + Cảnh báo | [ ] | [ ] | [ ] | [ ] | [ ] |

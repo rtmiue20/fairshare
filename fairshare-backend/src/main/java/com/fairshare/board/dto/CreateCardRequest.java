@@ -22,6 +22,8 @@ public class CreateCardRequest {
 
     private Double storyPoints;
 
+    private Integer difficultyLevel;
+
     private LocalDateTime dueDate;
 
     private Integer position;

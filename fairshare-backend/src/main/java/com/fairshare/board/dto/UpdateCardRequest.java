@@ -16,6 +16,7 @@ public class UpdateCardRequest {
     private String description;
     private Long assigneeId;
     private Double storyPoints;
+    private Integer difficultyLevel;
     private LocalDateTime dueDate;
     private Integer position;
 }

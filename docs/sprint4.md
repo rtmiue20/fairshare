@@ -1,10 +1,12 @@
 # SPRINT 4 – Bảng đóng góp và board/card hoàn thiện
 
-**Thời gian:** Thứ 4, 04/11/2026 → Thứ 3, 10/11/2026 | **Tương ứng:** Sprint 4 trong kế hoạch 7 sprint (Sprint 2 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 4, 04/11/2026 → Thứ 3, 10/11/2026 | **Tương ứng:** Sprint 4 trong kế hoạch 7 sprint (Sprint 2 trong kế hoạch gốc) | **Trạng thái sprint:** 🔄 Đang thực hiện
+
+> **Căn cứ CR-02:** board/card là module nội bộ (không còn Trello API). Sprint 3 chỉ làm khung; Sprint 4 làm phần nâng cao (kéo thả, chi tiết card, log chống gian lận). Dữ liệu tổng hợp đóng góp từ nay lấy từ `ActivityEvent` nguồn `BOARD`.
 
 ## Mục tiêu sprint
 - Hoàn thiện bảng đóng góp: tổng hợp theo người/sprint, truy vết đến sự kiện gốc, dashboard, bảng bằng chứng, khai báo thủ công có xác nhận.
-- Hoàn thiện board/card (kéo thả, chi tiết card, story point, hạn) và ghi `ActivityEvent` đầy đủ, có log không sửa được để chống gian lận.
+- Hoàn thiện board/card (kéo thả, chi tiết card, story point, hạn) và ghi `ActivityEvent` đầy đủ (`CARD_CREATED`, `CARD_MOVED`, `CARD_COMPLETED` kèm `delay_days`, `is_on_time`), có log không sửa được để chống gian lận.
 - Có API và form chấm chéo, môi trường staging, defect log đầu tiên.
 - Quyết định tính năng có điều kiện (cảnh báo sớm, Google Docs) bằng Change Request.
 
@@ -21,14 +23,15 @@
 |---|---|---|---|---|
 | M3 | Đóng góp & Dashboard: routine tổng hợp đóng góp, API truy vết đến sự kiện gốc, dashboard biểu đồ, bảng bằng chứng, bộ lọc theo sprint/người, khai báo thủ công có xác nhận | Commit, API doc, demo | 09/11 | ⬜ |
 | M1 | Board/card hoàn thiện: chi tiết card (người phụ trách, story point, hạn), giao diện kéo thả, ghi sự kiện hoàn thành/đúng hạn, log hoạt động không sửa được | Commit, test, demo | 08/11 | ⬜ |
-| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức | 09/11 | ⬜ |
+| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức, CR-03 | 09/11 | ✅ Hoàn thành |
 | M4 | Chấm chéo: API mở/đóng đợt, nhận đánh giá; form chấm chéo | Commit, demo | 09/11 | ⬜ |
 | M5 | Tích hợp: test các module, ghi defect, môi trường staging | Integration log, defect log | 09/11 | ⬜ |
 | M0 | Rà việc tồn đọng Sprint 3, cập nhật Gantt thực tế, **quyết định tính năng có điều kiện** (CR), báo cáo tuần | Sprint report, CR | 10/11 | ⬜ |
 
 ## Tiêu chí hoàn thành (DoD)
 - Dashboard hiển thị đóng góp theo sprint/người; bấm vào một chỉ số mở được danh sách sự kiện gốc.
-- Kéo thả card giữa cột hoạt động và sinh `ActivityEvent` đúng loại.
+- Kéo thả card giữa cột hoạt động và sinh `ActivityEvent` nguồn `BOARD` đúng loại; card vào cột hoàn thành có `CARD_COMPLETED`, `delay_days` và `is_on_time` đúng theo hạn chót.
+- Không có API sửa/xóa `ActivityEvent`; xóa card không làm mất sự kiện đã ghi.
 - Form chấm chéo gửi được đánh giá và lưu vào DB.
 - Staging chạy được, defect log có mục đầu tiên và người xử lý.
 - Quyết định về cảnh báo sớm, Google Docs được ghi vào Change Log.
@@ -36,6 +39,7 @@
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
+| R02: phụ thuộc API ngoài | Đã loại bỏ nhờ CR-02 (board nội bộ); chỉ còn theo dõi Google Docs (có điều kiện) |
 | R19: M1 quá tải với giao diện kéo thả | Dùng thư viện kéo thả có sẵn, cắt bớt tính năng card nâng cao nếu trễ |
 | R06: công thức bị cho là thiếu công bằng | M2 + M3 chỉnh theo dữ liệu thật, ghi vào báo cáo kiểm tra công thức |
 | R05: gian lận dữ liệu (tạo/chia nhỏ card giả) | Log hoạt động không sửa được, trọng số theo story point, cho phép phản đối |

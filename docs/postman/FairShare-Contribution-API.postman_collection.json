@@ -1,0 +1,338 @@
+{
+	"info": {
+		"_postman_id": "c71a39b4-5281-4e92-b7d1-fairsharecontrib01",
+		"name": "FairShare - Contribution API (M3 - Ngô Trọng Phúc)",
+		"description": "Bộ Postman Collection kiểm thử API tổng hợp đóng góp theo Sprint (Sprint 4 - Thẻ 2)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://127.0.0.1:8080",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Đăng nhập lấy Bearer Token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"var jsonData = pm.response.json();",
+							"if (jsonData.data && jsonData.data.accessToken) {",
+							"    pm.collectionVariables.set(\"accessToken\", jsonData.data.accessToken);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"testphuc@ueh.edu.vn\",\n  \"password\": \"123456password\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. Tổng hợp điểm đóng góp (Summary) - Thành công",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array of member scores\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"    if (jsonData.length > 0) {",
+							"        pm.expect(jsonData[0]).to.have.property('userId');",
+							"        pm.expect(jsonData[0]).to.have.property('trelloScore');",
+							"        pm.expect(jsonData[0]).to.have.property('manualScore');",
+							"        pm.expect(jsonData[0]).to.have.property('activityPct');",
+							"        pm.expect(jsonData[0]).to.have.property('finalPct');",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/contributions/summary?teamId=1&sprintId=1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"contributions",
+						"summary"
+					],
+					"query": [
+						{
+							"key": "teamId",
+							"value": "1"
+						},
+						{
+							"key": "sprintId",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Tổng hợp điểm đóng góp - Thiếu param (400 Bad Request)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 400 Bad Request\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/contributions/summary?teamId=1",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"contributions",
+						"summary"
+					],
+					"query": [
+						{
+							"key": "teamId",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Truy vết bằng chứng đóng góp (Evidence Traceability - /evidence) - Thành công",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array of raw evidence events\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"    if (jsonData.length > 0) {",
+							"        pm.expect(jsonData[0]).to.have.property('sourceType');",
+							"        pm.expect(jsonData[0]).to.have.property('sourceId');",
+							"        pm.expect(jsonData[0]).to.have.property('taskName');",
+							"        pm.expect(jsonData[0]).to.have.property('storyPoints');",
+							"        pm.expect(jsonData[0]).to.have.property('earnedScore');",
+							"        pm.expect(jsonData[0]).to.have.property('status');",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/contributions/evidence?teamId=1&sprintId=1&userId=101",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"contributions",
+						"evidence"
+					],
+					"query": [
+						{
+							"key": "teamId",
+							"value": "1"
+						},
+						{
+							"key": "sprintId",
+							"value": "1"
+						},
+						{
+							"key": "userId",
+							"value": "101"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Truy vết bằng chứng đóng góp (Evidence Traceability - /trace) - Thành công",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array of raw evidence events\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"    if (jsonData.length > 0) {",
+							"        pm.expect(jsonData[0]).to.have.property('sourceType');",
+							"        pm.expect(jsonData[0]).to.have.property('sourceId');",
+							"        pm.expect(jsonData[0]).to.have.property('taskName');",
+							"        pm.expect(jsonData[0]).to.have.property('storyPoints');",
+							"        pm.expect(jsonData[0]).to.have.property('earnedScore');",
+							"        pm.expect(jsonData[0]).to.have.property('status');",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/contributions/trace?teamId=1&sprintId=1&userId=101",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"contributions",
+						"trace"
+					],
+					"query": [
+						{
+							"key": "teamId",
+							"value": "1"
+						},
+						{
+							"key": "sprintId",
+							"value": "1"
+						},
+						{
+							"key": "userId",
+							"value": "101"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

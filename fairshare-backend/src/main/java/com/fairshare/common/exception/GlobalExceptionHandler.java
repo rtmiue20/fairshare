@@ -3,13 +3,16 @@ package com.fairshare.common.exception;
 import com.fairshare.common.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +56,25 @@ public class GlobalExceptionHandler {
                 ApiResponse.<Void>builder()
                         .success(false)
                         .message("Invalid email or password")
+                        .build()
+        );
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            IllegalArgumentException.class,
+            HttpMessageNotReadableException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleBadRequestExceptions(Exception ex) {
+        String msg = "Invalid request: " + ex.getMessage();
+        if (ex instanceof HttpMessageNotReadableException) {
+            msg = "Định dạng dữ liệu không hợp lệ hoặc sai định dạng ngày giờ (due date)";
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                ApiResponse.<Void>builder()
+                        .success(false)
+                        .message(msg)
                         .build()
         );
     }

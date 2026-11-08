@@ -12,6 +12,7 @@
     "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=test-results/junit.xml"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "axios": "^1.7.0",
     "clsx": "^2.1.0",
     "lucide-react": "^0.400.0",

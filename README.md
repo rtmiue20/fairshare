@@ -4,7 +4,9 @@
 
 Đồ án nhóm môn *Quản lý dự án CNTT* – Đại học Kinh tế TP.HCM (UEH).
 
-> Trạng thái: đang phát triển (MVP). Cấu trúc thư mục dưới đây là cấu trúc đích của dự án; một số thư mục/tập tin sẽ được bổ sung dần theo từng sprint.
+> Trạng thái: đang phát triển (MVP, Sprint 4/7, tính đến 07/11/2026). Cấu trúc thư mục dưới đây là cấu trúc đích của dự án; một số thư mục/tập tin sẽ được bổ sung dần theo từng sprint.
+>
+> **Thay đổi quan trọng (CR-02, 29/10/2026):** FairShare không còn dùng Trello REST API. Nhóm tự xây **Task Board nội bộ** (bảng, cột, thẻ) và ghi mọi thao tác trên thẻ thành `ActivityEvent` nguồn `BOARD`. Xem [`docs/CR02-Internal-Board-Module.md`](docs/CR02-Internal-Board-Module.md).
 
 ---
 
@@ -18,7 +20,8 @@ FairShare giúp nhóm sinh viên theo dõi **ai đã làm gì, bao nhiêu và kh
 
 ### 1.3 Điểm khác biệt
 - Ứng dụng quản lý task chỉ cho biết việc nào đã xong.
-- FairShare tự thu thập dữ liệu thật từ công cụ nhóm đang dùng, có bằng chứng truy vết và có cơ chế chấm chéo ẩn danh.
+- FairShare tự thu thập dữ liệu thật từ **Task Board nội bộ** do chính hệ thống quản lý (và Google Docs nếu bật), có bằng chứng truy vết và có cơ chế chấm chéo ẩn danh.
+- Nhóm làm chủ dữ liệu board nên không phụ thuộc dịch vụ ngoài, không bị rate limit, và sự kiện được ghi tự động ngay trong hệ thống (không thể xóa/sửa lịch sử ở nơi khác).
 - FairShare là **công cụ hỗ trợ ra quyết định**, không tự quyết định điểm cuối cùng.
 
 ### 1.4 Tính năng MVP
@@ -26,7 +29,7 @@ FairShare giúp nhóm sinh viên theo dõi **ai đã làm gì, bao nhiêu và kh
 | # | Tính năng | Trạng thái |
 |---|---|---|
 | 1 | Đăng nhập, tạo nhóm, mời thành viên, đồng ý chia sẻ dữ liệu (consent) | Bắt buộc |
-| 2 | Tích hợp Trello: tự động ghi nhận task hoàn thành | Bắt buộc |
+| 2 | Task Board nội bộ (bảng, cột, thẻ, người phụ trách, Story Points, hạn chót): tự động ghi `ActivityEvent` khi tạo/di chuyển/hoàn thành thẻ (thay tích hợp Trello – CR-02) | Bắt buộc |
 | 3 | Bảng đóng góp: biểu đồ tỷ lệ từng người, truy vết bằng chứng | Bắt buộc |
 | 4 | Chấm chéo ẩn danh cuối mỗi sprint | Bắt buộc |
 | 5 | Xuất báo cáo PDF đóng góp | Bắt buộc |
@@ -45,7 +48,7 @@ FairShare giúp nhóm sinh viên theo dõi **ai đã làm gì, bao nhiêu và kh
 | Xuất PDF | OpenPDF hoặc thư viện tương đương (phía backend) |
 | Kiểm thử | JUnit 5, Mockito, Testcontainers (backend); Vitest, React Testing Library (frontend) |
 | Triển khai | Docker, Docker Compose, GitHub Actions (CI) |
-| Quản lý dự án | Trello, GitHub, MS Project/GanttProject |
+| Quản lý dự án | GitHub, MS Project/GanttProject (Task Board của sản phẩm là module nội bộ, không dùng Trello API – CR-02) |
 
 > Có thể thay đổi phiên bản/thư viện cụ thể theo thực tế phát triển. Ghi lại thay đổi quan trọng trong Change Log.
 
@@ -72,14 +75,14 @@ fairshare/
 │   │   └── change_request.md
 │   └── pull_request_template.md
 │
-├── backend/                          # Spring Boot (Maven)
+├── fairshare-backend/                # Spring Boot (Maven)
 │   ├── pom.xml
 │   ├── Dockerfile
 │   ├── mvnw / mvnw.cmd
 │   └── src/
 │       ├── main/
 │       │   ├── java/com/fairshare/
-│       │   │   ├── FairShareApplication.java
+│       │   │   ├── FairShareBackendApplication.java
 │       │   │   │
 │       │   │   ├── config/                    # Cấu hình chung
 │       │   │   │   ├── SecurityConfig.java
@@ -140,18 +143,26 @@ fairshare/
 │       │   │   │   ├── entity/Sprint.java
 │       │   │   │   └── dto/
 │       │   │   │
+│       │   │   ├── board/                     # Task Board nội bộ (CR-02, thay Trello API)
+│       │   │   │   ├── controller/BoardController.java   # /api/boards
+│       │   │   │   ├── service/BoardService.java         # CRUD board/cột/thẻ + ghi ActivityEvent
+│       │   │   │   ├── repository/
+│       │   │   │   │   ├── BoardRepository.java
+│       │   │   │   │   ├── BoardColumnRepository.java
+│       │   │   │   │   └── CardRepository.java
+│       │   │   │   ├── entity/
+│       │   │   │   │   ├── Board.java
+│       │   │   │   │   ├── BoardColumn.java
+│       │   │   │   │   └── Card.java
+│       │   │   │   └── dto/
+│       │   │   │
 │       │   │   ├── integration/               # Tích hợp bên ngoài
 │       │   │   │   ├── common/
 │       │   │   │   │   ├── IntegrationAdapter.java
 │       │   │   │   │   ├── SyncResult.java
 │       │   │   │   │   └── SyncScheduler.java
-│       │   │   │   ├── trello/
-│       │   │   │   │   ├── controller/TrelloController.java
-│       │   │   │   │   ├── client/TrelloClient.java
-│       │   │   │   │   ├── service/TrelloSyncService.java
-│       │   │   │   │   ├── mapper/TrelloEventMapper.java
-│       │   │   │   │   └── dto/
-│       │   │   │   └── googledocs/            # Có điều kiện (Sprint 4)
+│       │   │   │   ├── trello/                # LEGACY – không còn dùng sau CR-02, sẽ gỡ bỏ
+│       │   │   │   └── googledocs/            # Có điều kiện (quyết định ở Sprint 4)
 │       │   │   │       ├── client/GoogleDocsClient.java
 │       │   │   │       ├── service/GoogleDocsSyncService.java
 │       │   │   │       └── dto/
@@ -207,7 +218,13 @@ fairshare/
 │       │       │   ├── V2__integration_and_activity.sql
 │       │       │   ├── V3__contribution.sql
 │       │       │   ├── V4__peer_review.sql
-│       │       │   └── V5__alert.sql
+│       │       │   ├── V5__alert.sql
+│       │       │   ├── V6__expense_and_split.sql
+│       │       │   ├── V7__alter_existing_and_expenses.sql
+│       │       │   ├── V8__scoring_engine.sql
+│       │       │   ├── V9__routines.sql                          # Stored procedure/function/trigger
+│       │       │   ├── V10__create_boards_and_cards.sql          # CR-02: boards, board_columns, cards
+│       │       │   └── V11__create_contribution_summary_routine.sql
 │       │       ├── templates/report/           # Mẫu báo cáo PDF
 │       │       └── seed/
 │       │           └── sample_data.sql         # Dữ liệu mẫu (ghi rõ nguồn)
@@ -215,13 +232,14 @@ fairshare/
 │       └── test/
 │           ├── java/com/fairshare/
 │           │   ├── auth/
-│           │   ├── integration/trello/
+│           │   ├── board/BoardServiceTest.java
+│           │   ├── integration/trello/         # LEGACY (CR-02), sẽ gỡ cùng module trello
 │           │   ├── contribution/ScoringEngineTest.java
 │           │   ├── peerreview/AnonymityAggregatorTest.java
 │           │   └── report/
 │           └── resources/
 │               ├── application-test.yml
-│               └── fixtures/trello/            # JSON mẫu giả lập Trello API
+│               └── fixtures/trello/            # LEGACY (CR-02): JSON mẫu Trello cũ
 │
 ├── frontend/                         # Vite + React + TypeScript
 │   ├── package.json
@@ -251,7 +269,8 @@ fairshare/
 │       │   ├── client.ts             # Axios instance + interceptor
 │       │   ├── auth.api.ts
 │       │   ├── team.api.ts
-│       │   ├── integration.api.ts
+│       │   ├── board.api.ts          # Gọi /api/boards (CR-02)
+│       │   ├── integration.api.ts    # LEGACY (Trello), sẽ gỡ
 │       │   ├── contribution.api.ts
 │       │   ├── peerReview.api.ts
 │       │   └── report.api.ts
@@ -266,7 +285,9 @@ fairshare/
 │       │   │   ├── TeamDetailPage.tsx
 │       │   │   ├── ConsentDialog.tsx
 │       │   │   └── MemberTable.tsx
-│       │   ├── integration/
+│       │   ├── board/
+│       │   │   └── BoardView.tsx              # Kanban: thêm thẻ, phân công, Story Points, di chuyển thẻ (/teams/:id/board)
+│       │   ├── integration/                   # LEGACY (Trello) – sẽ gỡ sau CR-02
 │       │   │   ├── ConnectTrelloPage.tsx
 │       │   │   └── SyncStatusCard.tsx
 │       │   ├── dashboard/
@@ -302,6 +323,7 @@ fairshare/
 │       ├── types/                    # Kiểu dữ liệu dùng chung
 │       │   ├── api.ts
 │       │   ├── team.ts
+│       │   ├── board.ts
 │       │   └── contribution.ts
 │       ├── utils/
 │       │   ├── date.ts
@@ -322,6 +344,9 @@ fairshare/
 │       └── .gitkeep
 │
 ├── docs/                             # Tài liệu môn học và dự án
+│   ├── CR02-Internal-Board-Module.md   # Change Request: Task Board nội bộ thay Trello
+│   ├── CR03-Dieu-Chinh-Cong-Thuc-Dong-Gop.md
+│   ├── sprint1.md … sprint7.md         # Kế hoạch từng sprint
 │   ├── 01-initiation/
 │   │   ├── project-charter.md
 │   │   ├── stakeholder-register.md
@@ -373,9 +398,9 @@ fairshare/
 
 | Thư mục | Vai trò |
 |---|---|
-| `backend/` | API Spring Boot, tổ chức theo module nghiệp vụ (auth, team, integration, contribution, peerreview, report...) |
+| `fairshare-backend/` | API Spring Boot, tổ chức theo module nghiệp vụ (auth, team, board, activity, contribution, peerreview, report...) |
 | `frontend/` | Giao diện React TS, tổ chức theo `features/` (mỗi tính năng một thư mục) |
-| `database/` | ERD, script khởi tạo CSDL. Migration chính nằm trong `backend/src/main/resources/db/migration` |
+| `database/` | ERD, script khởi tạo CSDL. Migration chính nằm trong `fairshare-backend/src/main/resources/db/migration` |
 | `docs/` | Toàn bộ artefact quản lý dự án, sắp theo vòng đời dự án, dùng làm minh chứng cho môn học |
 | `scripts/` | Script hỗ trợ cài đặt, nạp dữ liệu, sao lưu |
 | `.github/` | CI, mẫu Issue/Pull Request |
@@ -389,17 +414,18 @@ fairshare/
 │ React (Vite) │ ─────────────────► │ Spring Boot API  │ ─────────────► │  MariaDB  │
 │  Frontend    │ ◄───────────────── │  (REST + JWT)    │ ◄───────────── │           │
 └──────────────┘                    └────────┬─────────┘                └───────────┘
-                                             │ REST (OAuth/token)
+                                             │ REST (OAuth/token, có điều kiện)
                                              ▼
                                    ┌──────────────────┐
-                                   │ Trello API       │
                                    │ Google Docs API* │   (*có điều kiện)
                                    └──────────────────┘
 ```
 
+Task Board (board, cột, thẻ) là **module nội bộ** của Spring Boot API (`com.fairshare.board`), lưu trực tiếp trong MariaDB, không còn gọi dịch vụ bên ngoài (CR-02).
+
 Luồng dữ liệu chính:
-1. Thành viên đồng ý chia sẻ dữ liệu (consent) và kết nối Trello.
-2. Backend đồng bộ board/card/action của Trello thành các `ActivityEvent` (bằng chứng gốc).
+1. Thành viên đồng ý chia sẻ dữ liệu (consent) và dùng Task Board nội bộ của nhóm (tạo thẻ, phân công, gán Story Points, di chuyển thẻ giữa các cột).
+2. `BoardService` tự động ghi `ActivityEvent` nguồn `BOARD` khi tạo thẻ (`CARD_CREATED`), di chuyển thẻ (`CARD_MOVED`) hoặc hoàn thành thẻ (`CARD_COMPLETED`), kèm độ trễ (`delay_days`) và đúng hạn (`is_on_time`) làm bằng chứng gốc.
 3. `ScoringEngine` tính điểm đóng góp từ các sự kiện theo công thức đã định nghĩa trong `docs/03-analysis-design/contribution-formula.md`.
 4. Cuối sprint, thành viên chấm chéo ẩn danh; `AnonymityAggregator` chỉ trả kết quả khi đủ số lượt đánh giá tối thiểu.
 5. Hệ thống xuất báo cáo PDF gồm tỷ lệ đóng góp, điểm chấm chéo và bằng chứng chính.
@@ -447,8 +473,6 @@ Chỉnh sửa `.env`. Các biến chính:
 | `JWT_SECRET` | Khóa ký JWT (chuỗi ngẫu nhiên đủ dài) | `...` |
 | `JWT_EXPIRATION_MINUTES` | Thời hạn token đăng nhập | `120` |
 | `TOKEN_ENCRYPTION_KEY` | Khóa mã hóa token tích hợp lưu trong DB | `...` |
-| `TRELLO_API_KEY` | API key ứng dụng Trello | `...` |
-| `TRELLO_API_SECRET` | Secret ứng dụng Trello (nếu dùng) | `...` |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID (có điều kiện) | `...` |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (có điều kiện) | `...` |
 | `APP_FRONTEND_URL` | URL frontend (cho CORS/redirect) | `http://localhost:5173` |
@@ -471,7 +495,7 @@ Sau khi khởi động:
 - Backend API: http://localhost:8080 (kiểm tra nhanh: http://localhost:8080/actuator/health)
 - MariaDB 10.11: `localhost:3306`, CSDL `fairshare`, tài khoản `DB_USER`/`DB_PASSWORD` trong `.env`
 
-Backend chỉ khởi động sau khi MariaDB báo `healthy`, Flyway tự chạy migration `V1`–`V5`.
+Backend chỉ khởi động sau khi MariaDB báo `healthy`, Flyway tự chạy migration `V1`–`V11` (gồm `V10` tạo bảng `boards`, `board_columns`, `cards` cho Task Board nội bộ).
 
 **Chỉ chạy MariaDB** (khi code backend bằng IntelliJ/`mvnw`):
 
@@ -551,7 +575,7 @@ Dữ liệu mẫu là dữ liệu tự tạo, **không chứa thông tin cá nh�
 1. **Đăng ký / đăng nhập** vào hệ thống.
 2. **Tạo nhóm** mới, nhập tên nhóm, môn học và danh sách sprint.
 3. **Mời thành viên** bằng email hoặc mã mời.
-4. **Kết nối Trello**: vào mục *Tích hợp*, chọn *Kết nối Trello*, cấp quyền và chọn board của nhóm.
+4. **Dựng Task Board của nhóm**: vào `/teams/:id/board`, tạo board và các cột (ví dụ To Do, In Progress, Review, Done), rồi thêm thẻ công việc.
 5. Theo dõi **Bảng đóng góp** theo thời gian thực (tỷ lệ từng người, bằng chứng truy vết).
 6. Cuối mỗi sprint, **mở đợt chấm chéo** và nhắc thành viên hoàn thành.
 7. Khi cần nộp cho giảng viên, nhấn **Xuất báo cáo PDF**.
@@ -559,8 +583,8 @@ Dữ liệu mẫu là dữ liệu tự tạo, **không chứa thông tin cá nh�
 ### 7.2 Dành cho thành viên
 1. Nhận lời mời và đăng nhập.
 2. Đọc và **đồng ý chia sẻ dữ liệu (consent)** để dữ liệu của bạn được tính vào bảng đóng góp.
-3. Kết nối tài khoản Trello của mình nếu được yêu cầu.
-4. Xem phần đóng góp của bản thân và bằng chứng đi kèm; nếu có việc ngoài Trello, **khai báo đóng góp thủ công** để các thành viên khác xác nhận.
+3. Làm việc trên **Task Board**: nhận thẻ được phân công, cập nhật Story Points/hạn chót và kéo thẻ sang cột tiếp theo; mỗi thao tác tự được ghi thành bằng chứng.
+4. Xem phần đóng góp của bản thân và bằng chứng đi kèm; nếu có việc ngoài Task Board, **khai báo đóng góp thủ công** để các thành viên khác xác nhận.
 5. Cuối sprint, **chấm chéo ẩn danh** các thành viên khác theo tiêu chí: chất lượng, đúng hạn, tinh thần hợp tác.
 
 ### 7.3 Dành cho giảng viên
@@ -585,8 +609,14 @@ Tài liệu đầy đủ xem tại Swagger UI (`/swagger-ui.html`) hoặc `docs/
 | Team | GET | `/api/teams/{id}` | Chi tiết nhóm |
 | Team | POST | `/api/teams/{id}/members` | Mời thành viên |
 | Team | POST | `/api/teams/{id}/consent` | Xác nhận đồng ý chia sẻ dữ liệu |
-| Integration | POST | `/api/teams/{id}/integrations/trello` | Kết nối Trello |
-| Integration | POST | `/api/teams/{id}/integrations/trello/sync` | Đồng bộ thủ công |
+| Board | POST | `/api/boards` | Tạo bảng công việc cho nhóm |
+| Board | GET | `/api/boards/team/{teamId}` | Danh sách bảng của nhóm |
+| Board | GET / PUT / DELETE | `/api/boards/{id}` | Xem / sửa / xóa bảng |
+| Board | POST | `/api/boards/{boardId}/columns` | Tạo cột (To Do, In Progress, Review, Done...) |
+| Board | PUT / DELETE | `/api/boards/columns/{columnId}` | Sửa / xóa cột |
+| Board | POST | `/api/boards/columns/{columnId}/cards` | Tạo thẻ (ghi `ActivityEvent` `CARD_CREATED`) |
+| Board | GET / PUT / DELETE | `/api/boards/cards/{cardId}` | Xem / sửa (người phụ trách, Story Points, hạn chót) / xóa thẻ |
+| Board | PUT | `/api/boards/cards/{cardId}/move` | Di chuyển thẻ (ghi `CARD_MOVED`, hoặc `CARD_COMPLETED` khi vào cột hoàn thành) |
 | Contribution | GET | `/api/teams/{id}/contributions` | Tỷ lệ đóng góp (lọc theo sprint) |
 | Contribution | GET | `/api/teams/{id}/contributions/{userId}/evidence` | Bằng chứng truy vết của một người |
 | Contribution | POST | `/api/teams/{id}/contributions/manual` | Khai báo đóng góp thủ công |
@@ -604,7 +634,7 @@ Tài liệu đầy đủ xem tại Swagger UI (`/swagger-ui.html`) hoặc `docs/
 **Backend**
 
 ```bash
-cd backend
+cd fairshare-backend
 ./mvnw test              # Unit + integration test
 ./mvnw verify            # Kèm kiểm tra đóng gói
 ```
@@ -633,13 +663,13 @@ Test case và kết quả được ghi trong `docs/05-testing/`.
 **Commit** (theo Conventional Commits):
 
 ```
-feat(trello): thêm đồng bộ card hoàn thành
+feat(board): ghi ActivityEvent khi di chuyển thẻ sang cột Done
 fix(peerreview): sửa lỗi lộ danh tính khi ít hơn 3 lượt đánh giá
 docs(plan): cập nhật Gantt tuần 5
 test(scoring): thêm test cho công thức đóng góp
 ```
 
-**Pull Request**: cần ít nhất 1 người review, CI phải pass, gắn liên kết tới task Trello.
+**Pull Request**: cần ít nhất 1 người review, CI phải pass, gắn liên kết tới thẻ/task tương ứng trên Task Board của nhóm.
 
 **Definition of Done**: code đã merge qua PR, có test tương ứng và pass, task board và log công việc đã cập nhật, demo được trên môi trường chung.
 
@@ -648,7 +678,8 @@ test(scoring): thêm test cho công thức đóng góp
 ## 11. Bảo mật và quyền riêng tư
 
 - Chỉ thu thập dữ liệu **tối thiểu** cần cho việc đo đóng góp và chỉ khi thành viên đã đồng ý.
-- Token tích hợp (Trello/Google) được mã hóa khi lưu; thành viên có thể thu hồi quyền và yêu cầu xóa dữ liệu.
+- Token tích hợp Google (nếu bật) được mã hóa khi lưu; thành viên có thể thu hồi quyền và yêu cầu xóa dữ liệu.
+- Dữ liệu Task Board do hệ thống tự quản lý; `ActivityEvent` nguồn `BOARD` được ghi tự động khi thao tác và không có API sửa/xóa, nhằm chống chỉnh sửa lịch sử để gian lận (CR-02).
 - Không dùng dữ liệu cá nhân thật hoặc nhạy cảm khi demo; chỉ dùng dữ liệu mẫu hoặc dữ liệu của chính nhóm đã đồng ý.
 - Kết quả của FairShare là **thông tin tham khảo**, không thay thế đánh giá của nhóm và giảng viên.
 - Tuân thủ nguyên tắc bảo vệ dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP.
@@ -660,23 +691,32 @@ test(scoring): thêm test cho công thức đóng góp
 
 | Giai đoạn | Nội dung chính |
 |---|---|
-| Tuần 1–3 | Khởi động, phân tích, thiết kế, spike kỹ thuật Trello/Google |
-| Sprint 1 (Tuần 4) | Khung dự án, xác thực, quản lý nhóm, consent, đồng bộ Trello |
-| Sprint 2 (Tuần 5) | Công thức đóng góp, bảng đóng góp, truy vết bằng chứng |
-| Sprint 3 (Tuần 6) | Chấm chéo ẩn danh, xuất PDF, kiểm thử tích hợp |
-| Sprint 4 (Tuần 7) | UAT, sửa lỗi, triển khai demo, tính năng có điều kiện |
-| Tuần 8 | Đóng dự án, báo cáo cuối kỳ |
+| Sprint 1–2 | Khởi động, phân tích, thiết kế, spike kỹ thuật (Trello API bộc lộ hạn chế → CR-02) |
+| Sprint 3 (28/10–03/11) ✅ | Nền tảng, nhóm, consent; **khung Task Board nội bộ** (`V10`, board/cột/thẻ, ghi `ActivityEvent` `BOARD`); `ScoringEngine` v1 |
+| Sprint 4 (04/11–10/11) 🔄 | Hoàn thiện board (kéo thả, chi tiết thẻ, log không sửa được); bảng đóng góp + truy vết; form chấm chéo; staging; CR-03 (công thức v1.1) |
+| Sprint 5 (11/11–17/11) | Chấm chéo ẩn danh, báo cáo PDF, phân quyền board theo vai trò, gỡ module Trello legacy, regression, chuẩn bị UAT; code freeze 16/11 |
+| Sprint 6 (18/11–24/11) | UAT ≥ 10 người, sửa lỗi, triển khai demo, viết báo cáo song song |
+| Sprint 7 (25/11–26/11) | Chốt báo cáo, tập thuyết trình, đóng dự án, **nộp bài 26/11** |
 
-Chi tiết xem `docs/02-planning/plan-PM.md`.
+Chi tiết từng sprint xem `docs/sprint1.md` … `docs/sprint7.md`.
+
+### Lịch sử thay đổi (Change Request)
+
+| Mã | Ngày | Nội dung | Tài liệu |
+|---|---|---|---|
+| CR-02 | 29/10/2026 | Thay tích hợp Trello API bằng module Task Board nội bộ (bảng, cột, thẻ), ghi `ActivityEvent` nguồn `BOARD` | [`docs/CR02-Internal-Board-Module.md`](docs/CR02-Internal-Board-Module.md) |
+| CR-03 | 09/11/2026 | Hiệu chỉnh trọng số `ScoringEngine` v1.1; công thức tổng hợp 3 thành phần | [`docs/CR03-Dieu-Chinh-Cong-Thuc-Dong-Gop.md`](docs/CR03-Dieu-Chinh-Cong-Thuc-Dong-Gop.md) |
 
 ---
 
 ## 13. Giới hạn đã biết
 
-- Dữ liệu chỉ phản ánh hoạt động có trên công cụ đã tích hợp; công việc ngoài hệ thống (họp, nghiên cứu, thiết kế offline) cần khai báo thủ công.
+- Dữ liệu chỉ phản ánh hoạt động ghi trên Task Board nội bộ (và Google Docs nếu bật); công việc ngoài hệ thống (họp, nghiên cứu, thiết kế offline) cần khai báo thủ công.
+- Vì board là nội bộ, nhóm phải thực sự dùng FairShare để quản lý công việc; việc làm ngoài board không được tính trừ khi khai báo thủ công.
 - Số task hoặc số lần chỉnh sửa không phản ánh hoàn toàn chất lượng công việc.
 - Ẩn danh trong nhóm nhỏ chỉ ở mức tương đối.
 - Tích hợp Google Docs có thể bị hạn chế bởi chính sách OAuth của Google.
+- Phần kéo thả nâng cao của board hoàn thiện ở Sprint 4; module Trello cũ còn trong mã nguồn ở trạng thái legacy cho tới khi gỡ ở Sprint 5.
 
 ---
 

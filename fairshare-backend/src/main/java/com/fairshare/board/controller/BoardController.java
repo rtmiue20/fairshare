@@ -44,8 +44,7 @@ public class BoardController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<BoardDto>> updateBoard(
             @PathVariable Long id,
-            @RequestBody CreateBoardRequest request
-    ) {
+            @RequestBody CreateBoardRequest request) {
         BoardDto updated = boardService.updateBoard(id, request);
         return ResponseEntity.ok(ApiResponse.ok("Board updated successfully", updated));
     }
@@ -59,8 +58,7 @@ public class BoardController {
     @PostMapping("/{boardId}/columns")
     public ResponseEntity<ApiResponse<BoardColumnDto>> createColumn(
             @PathVariable Long boardId,
-            @Valid @RequestBody CreateColumnRequest request
-    ) {
+            @Valid @RequestBody CreateColumnRequest request) {
         BoardColumnDto created = boardService.createColumn(boardId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Column created successfully", created));
@@ -69,8 +67,7 @@ public class BoardController {
     @PutMapping("/columns/{columnId}")
     public ResponseEntity<ApiResponse<BoardColumnDto>> updateColumn(
             @PathVariable Long columnId,
-            @RequestBody CreateColumnRequest request
-    ) {
+            @RequestBody CreateColumnRequest request) {
         BoardColumnDto updated = boardService.updateColumn(columnId, request);
         return ResponseEntity.ok(ApiResponse.ok("Column updated successfully", updated));
     }
@@ -85,8 +82,7 @@ public class BoardController {
     public ResponseEntity<ApiResponse<CardDto>> createCard(
             @PathVariable Long columnId,
             @Valid @RequestBody CreateCardRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto created = boardService.createCard(columnId, request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -103,11 +99,40 @@ public class BoardController {
     public ResponseEntity<ApiResponse<CardDto>> updateCard(
             @PathVariable Long cardId,
             @RequestBody UpdateCardRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto updated = boardService.updateCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card updated successfully", updated));
+    }
+
+    @RequestMapping(value = "/cards/{cardId}/assignee", method = { RequestMethod.PUT, RequestMethod.PATCH })
+    public ResponseEntity<ApiResponse<CardDto>> updateCardAssignee(
+            @PathVariable Long cardId,
+            @Valid @RequestBody UpdateAssigneeRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        CardDto updated = boardService.updateAssignee(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Card assignee updated successfully", updated));
+    }
+
+    @RequestMapping(value = "/cards/{cardId}/story-points", method = { RequestMethod.PUT, RequestMethod.PATCH })
+    public ResponseEntity<ApiResponse<CardDto>> updateCardStoryPoints(
+            @PathVariable Long cardId,
+            @Valid @RequestBody UpdateStoryPointsRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        CardDto updated = boardService.updateStoryPoints(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Card story points updated successfully", updated));
+    }
+
+    @RequestMapping(value = "/cards/{cardId}/due-date", method = { RequestMethod.PUT, RequestMethod.PATCH })
+    public ResponseEntity<ApiResponse<CardDto>> updateCardDueDate(
+            @PathVariable Long cardId,
+            @Valid @RequestBody UpdateDueDateRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        CardDto updated = boardService.updateDueDate(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Card due date updated successfully", updated));
     }
 
     @DeleteMapping("/cards/{cardId}")
@@ -120,11 +145,30 @@ public class BoardController {
     public ResponseEntity<ApiResponse<CardDto>> moveCard(
             @PathVariable Long cardId,
             @Valid @RequestBody MoveCardRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long actorId = getUserId(authentication);
         CardDto moved = boardService.moveCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card moved successfully", moved));
+    }
+
+    @PostMapping("/cards/{cardId}/comments")
+    public ResponseEntity<ApiResponse<Void>> addComment(
+            @PathVariable Long cardId,
+            @Valid @RequestBody AddCardCommentRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.addCardComment(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Bình luận thành công", null));
+    }
+
+    @PostMapping("/cards/{cardId}/checklist-items")
+    public ResponseEntity<ApiResponse<Void>> completeChecklistItem(
+            @PathVariable Long cardId,
+            @Valid @RequestBody CompleteChecklistItemRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.completeChecklistItem(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Đã đánh dấu hoàn thành việc cần làm", null));
     }
 
     private Long getUserId(Authentication authentication) {
@@ -135,4 +179,5 @@ public class BoardController {
                 .map(User::getId)
                 .orElse(null);
     }
+
 }

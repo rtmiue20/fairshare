@@ -42,4 +42,29 @@ export const boardApi = {
     const response = await apiClient.delete<ApiResponse<void>>(`/boards/cards/${cardId}`);
     return response.data;
   },
+
+  updateAssignee: async (cardId: number, assigneeId: number): Promise<ApiResponse<Card>> => {
+    const response = await apiClient.put<ApiResponse<Card>>(`/boards/cards/${cardId}/assignee`, { assigneeId });
+    return response.data;
+  },
+
+  updateStoryPoints: async (cardId: number, storyPoints: number): Promise<ApiResponse<Card>> => {
+    const response = await apiClient.put<ApiResponse<Card>>(`/boards/cards/${cardId}/story-points`, { storyPoints });
+    return response.data;
+  },
+
+  updateDueDate: async (cardId: number, dueDate: string): Promise<ApiResponse<Card>> => {
+    const response = await apiClient.put<ApiResponse<Card>>(`/boards/cards/${cardId}/due-date`, { dueDate });
+    return response.data;
+  },
+
+  addComment: async (cardId: number, content: string, isHelpful?: boolean): Promise<ApiResponse<void>> => {
+    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/comments`, { content, isHelpful });
+    return response.data;
+  },
+
+  completeChecklistItem: async (cardId: number, itemTitle: string): Promise<ApiResponse<void>> => {
+    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/checklist-items`, { itemTitle });
+    return response.data;
+  },
 };
