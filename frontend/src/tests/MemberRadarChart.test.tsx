@@ -125,3 +125,4 @@ describe('MemberRadarChart Component - Card 5 (M3 - Sprint 4)', () => {
     ).toBeInTheDocument();
   });
 });
+

@@ -204,3 +204,4 @@ export const MemberRadarChart: React.FC<MemberRadarChartProps> = ({ member }) =>
     </div>
   );
 };
+

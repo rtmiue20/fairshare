@@ -12,7 +12,7 @@ import {
   EvidenceItem,
 } from '../../types/contribution';
 import { ExportReportButton } from '../report/ExportReportButton';
-import { AlertTriangle, AlertCircle, CheckCircle2, ChevronRight, BarChart2 } from 'lucide-react';
+import { AlertTriangle, AlertCircle, CheckCircle2, ChevronRight } from 'lucide-react';
 
 const DEFAULT_SCORES: ContributionScore[] = [
   { userId: 1, userName: 'Minh Triều (Leader)', percentage: 0.185, taskCompletedCount: 12, docsEditCount: 34, manualScore: 88, totalScore: 92, peerReviewScore: 4.9 },
@@ -266,13 +266,11 @@ export const ContributionDashboard: React.FC = () => {
         {/* Cột phải: Biểu đồ Radar 4 chiều của thành viên đang chọn */}
         <div className="flex flex-col gap-6 lg:col-span-7">
           <Card
-            title={
-              <div className="flex items-center justify-between">
-                <span>Hồ sơ năng lực 4 chiều (Radar Chart)</span>
-                <span className="text-xs font-normal text-slate-400">
-                  Thành viên: <strong className="text-sky-400">{selectedMember?.userName}</strong>
-                </span>
-              </div>
+            title="Hồ sơ năng lực 4 chiều (Radar Chart)"
+            extra={
+              <span className="text-xs font-normal text-slate-400">
+                Thành viên: <strong className="text-sky-400">{selectedMember?.userName}</strong>
+              </span>
             }
           >
             <MemberRadarChart member={selectedMember} />
@@ -286,16 +284,11 @@ export const ContributionDashboard: React.FC = () => {
 
       {/* Bảng truy vết minh chứng hoạt động (Audit Trail) */}
       <Card
-        title={
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BarChart2 className="h-4 w-4 text-sky-400" />
-              <span>Bằng chứng truy vết minh chứng hoạt động (Audit Trail)</span>
-            </div>
-            <span className="text-xs font-normal text-slate-400">
-              Tổng số sự kiện ghi nhận: {evidenceItems.length}
-            </span>
-          </div>
+        title="Bằng chứng truy vết minh chứng hoạt động (Audit Trail)"
+        extra={
+          <span className="text-xs font-normal text-slate-400">
+            Tổng số sự kiện ghi nhận: {evidenceItems.length}
+          </span>
         }
       >
         <EvidenceTable items={evidenceItems} />
