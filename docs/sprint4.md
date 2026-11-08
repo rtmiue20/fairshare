@@ -1,6 +1,6 @@
 # SPRINT 4 – Bảng đóng góp và board/card hoàn thiện
 
-**Thời gian:** Thứ 4, 04/11/2026 → Thứ 3, 10/11/2026 | **Tương ứng:** Sprint 4 trong kế hoạch 7 sprint (Sprint 2 trong kế hoạch gốc) | **Trạng thái sprint:** 🔄 Đang thực hiện
+**Thời gian:** Thứ 5, 30/10/2026 → Thứ 4, 05/11/2026 | **Tương ứng:** Tuần 4 (Sprint 4) | **Trạng thái sprint:** ✅ Hoàn thành (Đã nghiệm thu Review 05/11)
 
 > **Căn cứ CR-02:** board/card là module nội bộ (không còn Trello API). Sprint 3 chỉ làm khung; Sprint 4 làm phần nâng cao (kéo thả, chi tiết card, log chống gian lận). Dữ liệu tổng hợp đóng góp từ nay lấy từ `ActivityEvent` nguồn `BOARD`.
 
@@ -13,20 +13,20 @@
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 4, 04/11 |
+| Sprint Planning | Thứ 5, 30/10 |
 | Daily | Hằng ngày |
-| Họp quyết định tính năng có điều kiện (CR) | Thứ 2, 09/11 |
-| Sprint Review + Retrospective | Thứ 3, 10/11 |
+| Họp quyết định tính năng có điều kiện (CR) | Thứ 2, 03/11 |
+| Sprint Review + Retrospective | Thứ 4, 05/11 |
 
 ## Phân công công việc (lát cắt dọc)
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
 |---|---|---|---|---|
-| M3 | Đóng góp & Dashboard: routine tổng hợp đóng góp, API truy vết đến sự kiện gốc, dashboard biểu đồ, bảng bằng chứng, bộ lọc theo sprint/người, khai báo thủ công có xác nhận | Commit, API doc, demo | 09/11 | ⬜ |
-| M1 | Board/card hoàn thiện: chi tiết card (người phụ trách, story point, hạn), giao diện kéo thả, ghi sự kiện hoàn thành/đúng hạn, log hoạt động không sửa được | Commit, test, demo | 08/11 | ⬜ |
-| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức, CR-03 | 09/11 | ✅ Hoàn thành |
-| M4 | Chấm chéo: API mở/đóng đợt, nhận đánh giá; form chấm chéo | Commit, demo | 09/11 | ⬜ |
-| M5 | Tích hợp: test các module, ghi defect, môi trường staging | Integration log, defect log | 09/11 | ⬜ |
-| M0 | Rà việc tồn đọng Sprint 3, cập nhật Gantt thực tế, **quyết định tính năng có điều kiện** (CR), báo cáo tuần | Sprint report, CR | 10/11 | ⬜ |
+| M3 | Đóng góp & Dashboard: routine tổng hợp đóng góp, API truy vết đến sự kiện gốc, dashboard biểu đồ, bảng bằng chứng, bộ lọc theo sprint/người, khai báo thủ công có xác nhận | Commit, API doc, demo | 04/11 | ✅ Hoàn thành |
+| M1 | Board/card hoàn thiện: chi tiết card (người phụ trách, story point, hạn), giao diện kéo thả, ghi sự kiện hoàn thành/đúng hạn, log hoạt động không sửa được | Commit, test, demo | 04/11 | ✅ Hoàn thành |
+| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức, CR-03 | 04/11 | ✅ Hoàn thành |
+| M4 | Chấm chéo: API mở/đóng đợt, nhận đánh giá; form chấm chéo | Commit, demo | 04/11 | ✅ Hoàn thành |
+| M5 | Tích hợp: test các module, ghi defect, môi trường staging | Integration log, defect log | 04/11 | ✅ Hoàn thành |
+| M0 | Rà việc tồn đọng Sprint 3, cập nhật Gantt thực tế, **quyết định tính năng có điều kiện** (CR), báo cáo tuần | Sprint report, CR | 05/11 | ✅ Hoàn thành |
 
 ## Tiêu chí hoàn thành (DoD)
 - Dashboard hiển thị đóng góp theo sprint/người; bấm vào một chỉ số mở được danh sách sự kiện gốc.

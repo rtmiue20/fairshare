@@ -1,6 +1,6 @@
 # SPRINT 1 – Khởi động & Phân tích nghiệp vụ
 
-**Thời gian:** Thứ 4, 14/10/2026 → Thứ 3, 20/10/2026 | **Tương ứng:** Tuần 1 (gộp Tuần 1 và Tuần 2 cũ) | **Trạng thái sprint:** ✅ Hoàn thành
+**Thời gian:** Thứ 5, 09/10/2026 → Thứ 4, 15/10/2026 | **Tương ứng:** Tuần 1 (Sprint 1) | **Trạng thái sprint:** ✅ Hoàn thành
 
 ## Mục tiêu sprint
 Khởi động dự án (Project Charter, Team Charter, công cụ quản lý), chốt yêu cầu và phạm vi MVP, có WBS/backlog, bản nháp công thức đóng góp, wireframe sơ bộ và khung test plan.
