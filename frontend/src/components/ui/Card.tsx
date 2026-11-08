@@ -3,7 +3,7 @@ import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  title?: React.ReactNode;
+  title?: string;
   subtitle?: string;
   extra?: React.ReactNode;
 }
@@ -31,9 +31,9 @@ export const Card: React.FC<CardProps> = ({
         <div className="flex items-center justify-between pb-4 mb-5 border-b border-white/[0.06]">
           <div>
             {title && (
-              <div className="text-base font-semibold text-white tracking-tight">
+              <h3 className="text-base font-semibold text-white tracking-tight">
                 {title}
-              </div>
+              </h3>
             )}
             {subtitle && (
               <p className="text-xs text-slate-400 mt-0.5">
