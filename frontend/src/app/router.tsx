@@ -11,8 +11,14 @@ import { ConnectTrelloPage } from '../features/integration/ConnectTrelloPage';
 import { ReviewRoundPage } from '../features/peerreview/ReviewRoundPage';
 import { AlertList } from '../features/alerts/AlertList';
 import { ProfileSettingsPage } from '../features/profile/ProfileSettingsPage';
+import { LandingPage } from '../features/landing/LandingPage';
+import { ReportPage } from '../features/report/ReportPage';
 
 export const router = createBrowserRouter([
+  {
+    path: '/landing',
+    element: <LandingPage />,
+  },
   {
     path: '/login',
     element: <LoginPage />,
@@ -63,6 +69,10 @@ export const router = createBrowserRouter([
           {
             path: 'alerts',
             element: <AlertList />,
+          },
+          {
+            path: 'report',
+            element: <ReportPage />,
           },
           {
             path: 'profile',

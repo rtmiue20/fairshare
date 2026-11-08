@@ -1,3 +1,4 @@
+@import './fairshare-sample.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,54 +6,54 @@
 :root {
   --primary: #6366f1;
   --primary-hover: #4f46e5;
-  --bg-color: #07080c;
-  --card-bg: #121318;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.08);
+  --bg-color: #161616;
+  --card-bg: #1d1d1d;
+  --text-primary: #f4f4f2;
+  --text-secondary: #a6a6a2;
+  --border-color: #303030;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #07080c;
-  color: #f8fafc;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
   -webkit-font-smoothing: antialiased;
 }
 
 /* Form controls dark mode baseline */
 input, textarea, select {
-  background-color: #0c0d12;
-  color: #f8fafc;
-  border-color: rgba(255, 255, 255, 0.12);
+  background-color: var(--surface);
+  color: var(--fg);
+  border-color: var(--line);
 }
 
 input::placeholder, textarea::placeholder {
-  color: #71717a;
+  color: var(--fg3);
 }
 
 /* ThreeUI Glass & Modern Bento helpers */
 .threeui-glass {
-  background: rgba(18, 19, 24, 0.75);
+  background: var(--glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-line);
 }
 
 .threeui-glass-card {
-  background: linear-gradient(180deg, rgba(24, 26, 34, 0.75) 0%, rgba(13, 14, 19, 0.85) 100%);
+  background: var(--surface);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
   box-shadow: 0 20px 48px -20px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
 .threeui-dock {
-  background: rgba(12, 13, 18, 0.85);
+  background: var(--surface);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  box-shadow: 0 22px 52px -24px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 22px 52px -24px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--line);
 }
 
 .threeui-dot-grid {
