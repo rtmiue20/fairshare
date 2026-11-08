@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '../types/api';
-import { ContributionSummary, EvidenceItem } from '../types/contribution';
+import { ContributionSummary, ContributionSummaryItem, EvidenceItem } from '../types/contribution';
 
 export interface ManualContributionPayload {
   title: string;
@@ -15,8 +15,16 @@ export const contributionApi = {
     return response.data;
   },
 
-  getMemberEvidence: async (teamId: number, userId: number): Promise<ApiResponse<EvidenceItem[]>> => {
-    const response = await apiClient.get<ApiResponse<EvidenceItem[]>>(`/teams/${teamId}/contributions/${userId}/evidence`);
+  getContributionSummary: async (teamId: number, sprintId: number): Promise<ContributionSummaryItem[]> => {
+    const response = await apiClient.get<ContributionSummaryItem[]>('/contributions/summary', {
+      params: { teamId, sprintId },
+    });
+    return response.data;
+  },
+
+  getMemberEvidence: async (teamId: number, userId: number, sprintId?: number): Promise<ApiResponse<EvidenceItem[]>> => {
+    const params = sprintId ? { sprintId } : {};
+    const response = await apiClient.get<ApiResponse<EvidenceItem[]>>(`/teams/${teamId}/contributions/${userId}/evidence`, { params });
     return response.data;
   },
 
