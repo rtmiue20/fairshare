@@ -23,8 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -201,6 +201,15 @@ public class BoardService {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
 
+        String oldAssigneeName = card.getAssignee() != null ? card.getAssignee().getFullName() : "Unassigned";
+        Long oldAssigneeId = card.getAssignee() != null ? card.getAssignee().getId() : null;
+        Double oldStoryPoints = card.getStoryPoints() != null ? card.getStoryPoints() : 0.0;
+        LocalDateTime oldDueDate = card.getDueDate();
+
+        boolean assigneeChanged = false;
+        boolean storyPointsChanged = false;
+        boolean dueDateChanged = false;
+
         if (request.getTitle() != null && !request.getTitle().isBlank()) {
             card.setTitle(request.getTitle().trim());
         }
@@ -214,22 +223,95 @@ public class BoardService {
             if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, assignee.getId())) {
                 throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");
             }
+            if (!Objects.equals(oldAssigneeId, assignee.getId())) {
+                assigneeChanged = true;
+            }
             card.setAssignee(assignee);
         }
         if (request.getStoryPoints() != null) {
             validateStoryPoints(request.getStoryPoints());
+            if (!Objects.equals(oldStoryPoints, request.getStoryPoints())) {
+                storyPointsChanged = true;
+            }
             card.setStoryPoints(request.getStoryPoints());
         }
         if (request.getDifficultyLevel() != null) {
             card.setDifficultyLevel(request.getDifficultyLevel());
         }
         if (request.getDueDate() != null) {
+            if (!Objects.equals(oldDueDate, request.getDueDate())) {
+                dueDateChanged = true;
+            }
             card.setDueDate(request.getDueDate());
         }
         if (request.getPosition() != null) {
             card.setPosition(request.getPosition());
         }
-        return mapCardToDto(cardRepository.save(card));
+
+        Card savedCard = cardRepository.save(card);
+
+        User actor = actorUserId != null ? userRepository.findById(actorUserId).orElse(card.getAssignee())
+                : card.getAssignee();
+        Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
+        LocalDateTime now = LocalDateTime.now();
+
+        if (actor != null) {
+            if (assigneeChanged && card.getAssignee() != null) {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "CARD_ASSIGNEE_UPDATED",
+                        String.format("Assigned card '%s' to '%s' (from '%s' -> '%s')",
+                                card.getTitle(), card.getAssignee().getFullName(), oldAssigneeName,
+                                card.getAssignee().getFullName()),
+                        now,
+                        activeSprint,
+                        card.getStoryPoints(),
+                        null);
+            }
+            if (storyPointsChanged) {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "CARD_STORY_POINTS_UPDATED",
+                        String.format("Updated story points for card '%s' to %.0f (from %.0f -> %.0f)",
+                                card.getTitle(), card.getStoryPoints(), oldStoryPoints, card.getStoryPoints()),
+                        now,
+                        activeSprint,
+                        card.getStoryPoints(),
+                        null);
+            }
+            if (dueDateChanged) {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "CARD_DUE_DATE_UPDATED",
+                        String.format("Updated due date for card '%s' to %s (from %s -> %s)",
+                                card.getTitle(), card.getDueDate(),
+                                oldDueDate != null ? oldDueDate : "none", card.getDueDate()),
+                        now,
+                        activeSprint,
+                        card.getStoryPoints(),
+                        null);
+            }
+            if (!assigneeChanged && !storyPointsChanged && !dueDateChanged) {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "CARD_UPDATED",
+                        String.format("Updated details for card '%s'", card.getTitle()),
+                        now,
+                        activeSprint,
+                        card.getStoryPoints(),
+                        null);
+            }
+        }
+
+        return mapCardToDto(savedCard);
     }
 
     @Transactional
@@ -250,6 +332,7 @@ public class BoardService {
             throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");
         }
 
+        String oldAssigneeName = card.getAssignee() != null ? card.getAssignee().getFullName() : "Unassigned";
         card.setAssignee(assignee);
         Card savedCard = cardRepository.save(card);
 
@@ -261,7 +344,8 @@ public class BoardService {
                     actor,
                     ActivitySource.BOARD,
                     "CARD_ASSIGNEE_UPDATED",
-                    String.format("Assigned card '%s' to '%s'", card.getTitle(), assignee.getFullName()),
+                    String.format("Assigned card '%s' to '%s' (from '%s' -> '%s')",
+                            card.getTitle(), assignee.getFullName(), oldAssigneeName, assignee.getFullName()),
                     LocalDateTime.now(),
                     activeSprint,
                     card.getStoryPoints(),
@@ -282,6 +366,7 @@ public class BoardService {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
 
+        Double oldStoryPoints = card.getStoryPoints() != null ? card.getStoryPoints() : 0.0;
         card.setStoryPoints(request.getStoryPoints());
         Card savedCard = cardRepository.save(card);
 
@@ -294,8 +379,8 @@ public class BoardService {
                     actor,
                     ActivitySource.BOARD,
                     "CARD_STORY_POINTS_UPDATED",
-                    String.format("Updated story points for card '%s' to %.0f", card.getTitle(),
-                            request.getStoryPoints()),
+                    String.format("Updated story points for card '%s' to %.0f (from %.0f -> %.0f)",
+                            card.getTitle(), request.getStoryPoints(), oldStoryPoints, request.getStoryPoints()),
                     LocalDateTime.now(),
                     activeSprint,
                     card.getStoryPoints(),
@@ -314,6 +399,7 @@ public class BoardService {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
 
+        String oldDueDateStr = card.getDueDate() != null ? card.getDueDate().toString() : "none";
         card.setDueDate(request.getDueDate());
         Card savedCard = cardRepository.save(card);
 
@@ -326,7 +412,8 @@ public class BoardService {
                     actor,
                     ActivitySource.BOARD,
                     "CARD_DUE_DATE_UPDATED",
-                    String.format("Updated due date for card '%s' to %s", card.getTitle(), request.getDueDate()),
+                    String.format("Updated due date for card '%s' to %s (from %s -> %s)",
+                            card.getTitle(), request.getDueDate(), oldDueDateStr, request.getDueDate()),
                     LocalDateTime.now(),
                     activeSprint,
                     card.getStoryPoints(),
@@ -381,20 +468,21 @@ public class BoardService {
         LocalDateTime now = LocalDateTime.now();
 
         // 1. Khi card chuyển sang cột Done: ghi nhận CARD_COMPLETED kèm storyPoint, độ
-        // khó, thời gian hoàn thành & đối chiếu dueDate tính delay
+        // khó, thời gian hoàn thành & đối chiếu dueDate để phân biệt ON_TIME / LATE
         if (!wasDone && isDone) {
             Boolean isOnTime = true;
             Double delayDays = 0.0;
             if (card.getDueDate() != null) {
                 if (now.isAfter(card.getDueDate())) {
                     isOnTime = false;
-                    long hours = java.time.Duration.between(card.getDueDate(), now).toHours();
+                    long hours = Math.max(1L, java.time.Duration.between(card.getDueDate(), now).toHours());
                     delayDays = Math.max(0.1, Math.round((hours / 24.0) * 10.0) / 10.0);
                 } else {
                     isOnTime = true;
                     delayDays = 0.0;
                 }
             }
+            String completionStatus = Boolean.TRUE.equals(isOnTime) ? "ON_TIME" : "LATE";
 
             User completedUser = assignee != null ? assignee : actor;
             if (completedUser != null) {
@@ -404,8 +492,9 @@ public class BoardService {
                         ActivitySource.BOARD,
                         "CARD_COMPLETED",
                         String.format(
-                                "Completed card '%s' (Story Points: %.1f, Difficulty: %s, On-Time: %s, Delay: %.1f days)",
-                                card.getTitle(), card.getStoryPoints(), card.getDifficultyLevel(), isOnTime, delayDays),
+                                "Completed card '%s' [%s] (From: '%s' -> To: '%s', Story Points: %.1f, Difficulty: %s, On-Time: %s, Delay: %.1f days)",
+                                card.getTitle(), completionStatus, fromColName, toColName, card.getStoryPoints(),
+                                card.getDifficultyLevel(), isOnTime, delayDays),
                         now,
                         activeSprint,
                         card.getStoryPoints(),
@@ -448,8 +537,8 @@ public class BoardService {
                     actor,
                     ActivitySource.BOARD,
                     "REVIEW_CARD",
-                    String.format("Member '%s' reviewed card '%s' (Assignee: '%s')",
-                            actor.getFullName(), card.getTitle(), assignee.getFullName()),
+                    String.format("Member '%s' reviewed card '%s' (Assignee: '%s', From: '%s' -> To: '%s')",
+                            actor.getFullName(), card.getTitle(), assignee.getFullName(), fromColName, toColName),
                     now,
                     activeSprint,
                     card.getStoryPoints(),

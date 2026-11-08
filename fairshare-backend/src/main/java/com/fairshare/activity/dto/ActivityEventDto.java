@@ -16,8 +16,14 @@ public class ActivityEventDto {
     private Long id;
     private Long teamId;
     private Long userId;
+    private Long sprintId;
     private ActivitySource source;
     private String eventType;
     private String details;
+    private Double storyPoints;
+    private Integer difficultyLevel;
+    private Boolean isOnTime;
+    private Double delayDays;
+    private String completionStatus;
     private LocalDateTime occurredAt;
 }

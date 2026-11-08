@@ -1,6 +1,5 @@
 package com.fairshare.board;
 
-import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.entity.ActivitySource;
 import com.fairshare.activity.service.ActivityService;
 import com.fairshare.board.dto.*;
@@ -12,7 +11,6 @@ import com.fairshare.board.repository.BoardRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.board.service.BoardService;
 import com.fairshare.common.exception.BusinessException;
-import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.repository.SprintRepository;
 import com.fairshare.team.entity.Team;
 import com.fairshare.team.repository.TeamMemberRepository;
@@ -23,12 +21,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +36,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Unit tests for BoardService (M1)")
+@DisplayName("Unit tests for BoardService & ActivityEvent Generation (M1)")
 class BoardServiceTest {
 
     @Mock
@@ -65,6 +63,7 @@ class BoardServiceTest {
     private User sampleUser;
     private Board sampleBoard;
     private BoardColumn colTodo;
+    private BoardColumn colInProgress;
     private BoardColumn colDone;
 
     @BeforeEach
@@ -88,6 +87,12 @@ class BoardServiceTest {
         colTodo.setBoard(sampleBoard);
         colTodo.setName("To Do");
         colTodo.setPosition(0);
+
+        colInProgress = new BoardColumn();
+        colInProgress.setId(14L);
+        colInProgress.setBoard(sampleBoard);
+        colInProgress.setName("In Progress");
+        colInProgress.setPosition(1);
 
         colDone = new BoardColumn();
         colDone.setId(12L);
@@ -160,7 +165,7 @@ class BoardServiceTest {
     }
 
     @Test
-    @DisplayName("Moving a card to Done logs a CARD_COMPLETED ActivityEvent with on-time status")
+    @DisplayName("Moving a card to Done before dueDate logs CARD_COMPLETED with ON_TIME status and 0.0 delay")
     void testMoveCardToDoneLogsCardCompleted() {
         Card card = new Card();
         card.setId(50L);
@@ -169,7 +174,8 @@ class BoardServiceTest {
         card.setTitle("Implement JWT");
         card.setAssignee(sampleUser);
         card.setStoryPoints(3.0);
-        card.setDueDate(LocalDateTime.now().plusDays(2)); // not late
+        card.setDifficultyLevel(2);
+        card.setDueDate(LocalDateTime.now().plusDays(2)); // before dueDate -> on-time
 
         MoveCardRequest moveReq = MoveCardRequest.builder()
                 .targetColumnId(12L) // colDone
@@ -185,17 +191,116 @@ class BoardServiceTest {
         var result = boardService.moveCard(50L, moveReq, 100L);
 
         assertNotNull(result);
+        ArgumentCaptor<String> detailsCaptor = ArgumentCaptor.forClass(String.class);
         verify(activityService, times(1)).logActivity(
                 eq(sampleTeam),
                 eq(sampleUser),
                 eq(ActivitySource.BOARD),
                 eq("CARD_COMPLETED"),
-                contains("Completed card 'Implement JWT'"),
+                detailsCaptor.capture(),
                 any(),
                 isNull(),
                 eq(3.0),
                 eq(2),
-                eq(true), // on-time is true
+                eq(true), // isOnTime = true
+                eq(0.0),  // delayDays = 0.0
+                eq(false),
+                eq(false),
+                eq(false)
+        );
+        assertTrue(detailsCaptor.getValue().contains("Completed card 'Implement JWT'"));
+        assertTrue(detailsCaptor.getValue().contains("[ON_TIME]"));
+    }
+
+    @Test
+    @DisplayName("Moving a card to Done after dueDate logs CARD_COMPLETED with LATE status and positive delayDays")
+    void testMoveCardToDoneAfterDueDateLogsLateCardCompleted() {
+        Card card = new Card();
+        card.setId(55L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colInProgress);
+        card.setTitle("Fix Payment Gateway");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(5.0);
+        card.setDifficultyLevel(3);
+        card.setDueDate(LocalDateTime.now().minusDays(2)); // past dueDate -> LATE
+
+        MoveCardRequest moveReq = MoveCardRequest.builder()
+                .targetColumnId(12L) // colDone
+                .position(0)
+                .fromColumnName("In Progress")
+                .toColumnName("Done")
+                .build();
+
+        when(cardRepository.findById(55L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(12L)).thenReturn(Optional.of(colDone));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var result = boardService.moveCard(55L, moveReq, 100L);
+
+        assertNotNull(result);
+        ArgumentCaptor<String> detailsCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Double> delayCaptor = ArgumentCaptor.forClass(Double.class);
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_COMPLETED"),
+                detailsCaptor.capture(),
+                any(),
+                isNull(),
+                eq(5.0),
+                eq(3),
+                eq(false), // isOnTime = false (LATE)
+                delayCaptor.capture(),
+                eq(false),
+                eq(false),
+                eq(false)
+        );
+        assertTrue(detailsCaptor.getValue().contains("Completed card 'Fix Payment Gateway'"));
+        assertTrue(detailsCaptor.getValue().contains("[LATE]"));
+        assertTrue(delayCaptor.getValue() >= 1.9, "Expected delayDays >= 1.9 days, got: " + delayCaptor.getValue());
+    }
+
+    @Test
+    @DisplayName("Moving a card to Done without dueDate defaults to ON_TIME status")
+    void testMoveCardToDoneWithoutDueDateDefaultsToOnTime() {
+        Card card = new Card();
+        card.setId(56L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Setup CI Pipeline");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(2.0);
+        card.setDifficultyLevel(1);
+        card.setDueDate(null); // no due date
+
+        MoveCardRequest moveReq = MoveCardRequest.builder()
+                .targetColumnId(12L) // colDone
+                .position(0)
+                .build();
+
+        when(cardRepository.findById(56L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(12L)).thenReturn(Optional.of(colDone));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        boardService.moveCard(56L, moveReq, 100L);
+
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_COMPLETED"),
+                contains("[ON_TIME]"),
+                any(),
+                isNull(),
+                eq(2.0),
+                eq(1),
+                eq(true),
                 eq(0.0),
                 eq(false),
                 eq(false),
@@ -245,6 +350,46 @@ class BoardServiceTest {
                 eq(false),
                 eq(false),
                 eq(false)
+        );
+    }
+
+    @Test
+    @DisplayName("Moving card between non-Done columns logs CARD_MOVED with source and target column names")
+    void testMoveCardBetweenNormalColumnsLogsCardMoved() {
+        Card card = new Card();
+        card.setId(57L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Build Kanban UI");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(3.0);
+
+        MoveCardRequest moveReq = MoveCardRequest.builder()
+                .targetColumnId(14L) // colInProgress
+                .position(0)
+                .fromColumnName("To Do")
+                .toColumnName("In Progress")
+                .build();
+
+        when(cardRepository.findById(57L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(14L)).thenReturn(Optional.of(colInProgress));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var result = boardService.moveCard(57L, moveReq, 100L);
+
+        assertNotNull(result);
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_MOVED"),
+                contains("Moved card 'Build Kanban UI' from 'To Do' to 'In Progress'"),
+                any(),
+                isNull(),
+                eq(3.0),
+                isNull()
         );
     }
 
@@ -304,7 +449,7 @@ class BoardServiceTest {
     }
 
     @Test
-    @DisplayName("Updating card assignee succeeds when user is member of the team")
+    @DisplayName("Updating card assignee succeeds when user is member of the team and logs old -> new assignee")
     void testUpdateAssigneeSuccess() {
         Card card = new Card();
         card.setId(50L);
@@ -327,17 +472,20 @@ class BoardServiceTest {
 
         assertNotNull(dto);
         assertEquals(100L, dto.getAssigneeId());
+        ArgumentCaptor<String> detailsCaptor = ArgumentCaptor.forClass(String.class);
         verify(activityService, times(1)).logActivity(
                 eq(sampleTeam),
                 eq(sampleUser),
                 eq(ActivitySource.BOARD),
                 eq("CARD_ASSIGNEE_UPDATED"),
-                contains("Assigned card 'Implement JWT' to 'Developer'"),
+                detailsCaptor.capture(),
                 any(),
                 isNull(),
                 eq(3.0),
                 isNull()
         );
+        assertTrue(detailsCaptor.getValue().contains("Assigned card 'Implement JWT' to 'Developer'"));
+        assertTrue(detailsCaptor.getValue().contains("from 'Unassigned' -> 'Developer'"));
     }
 
     @Test
@@ -380,7 +528,7 @@ class BoardServiceTest {
     }
 
     @Test
-    @DisplayName("Updating story points succeeds when value is positive integer")
+    @DisplayName("Updating story points succeeds when value is positive integer and logs old -> new value")
     void testUpdateStoryPointsSuccess() {
         Card card = new Card();
         card.setId(50L);
@@ -403,17 +551,20 @@ class BoardServiceTest {
 
         assertNotNull(dto);
         assertEquals(5.0, dto.getStoryPoints());
+        ArgumentCaptor<String> detailsCaptor = ArgumentCaptor.forClass(String.class);
         verify(activityService, times(1)).logActivity(
                 eq(sampleTeam),
                 eq(sampleUser),
                 eq(ActivitySource.BOARD),
                 eq("CARD_STORY_POINTS_UPDATED"),
-                contains("Updated story points for card 'Implement JWT' to 5"),
+                detailsCaptor.capture(),
                 any(),
                 isNull(),
                 eq(5.0),
                 isNull()
         );
+        assertTrue(detailsCaptor.getValue().contains("Updated story points for card 'Implement JWT' to 5"));
+        assertTrue(detailsCaptor.getValue().contains("from 3 -> 5"));
     }
 
     @Test
@@ -435,7 +586,7 @@ class BoardServiceTest {
     }
 
     @Test
-    @DisplayName("Updating due date succeeds when valid LocalDateTime is passed")
+    @DisplayName("Updating due date succeeds when valid LocalDateTime is passed and logs old -> new due date")
     void testUpdateDueDateSuccess() {
         Card card = new Card();
         card.setId(50L);
@@ -459,17 +610,20 @@ class BoardServiceTest {
 
         assertNotNull(dto);
         assertEquals(due, dto.getDueDate());
+        ArgumentCaptor<String> detailsCaptor = ArgumentCaptor.forClass(String.class);
         verify(activityService, times(1)).logActivity(
                 eq(sampleTeam),
                 eq(sampleUser),
                 eq(ActivitySource.BOARD),
                 eq("CARD_DUE_DATE_UPDATED"),
-                contains("Updated due date for card 'Implement JWT' to"),
+                detailsCaptor.capture(),
                 any(),
                 isNull(),
                 eq(3.0),
                 isNull()
         );
+        assertTrue(detailsCaptor.getValue().contains("Updated due date for card 'Implement JWT' to"));
+        assertTrue(detailsCaptor.getValue().contains("from none ->"));
     }
 
     @Test
@@ -478,6 +632,52 @@ class BoardServiceTest {
         UpdateDueDateRequest request = UpdateDueDateRequest.builder().dueDate(null).build();
 
         assertThrows(BusinessException.class, () -> boardService.updateDueDate(50L, request, 100L));
+    }
+
+    @Test
+    @DisplayName("Updating card details via updateCard logs assignee, story points, and due date change events")
+    void testUpdateCardLogsGranularActivityEvents() {
+        Card card = new Card();
+        card.setId(60L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Full Update Card");
+        card.setStoryPoints(2.0);
+        card.setDueDate(null);
+
+        LocalDateTime newDue = LocalDateTime.now().plusDays(3);
+        UpdateCardRequest req = UpdateCardRequest.builder()
+                .assigneeId(100L)
+                .storyPoints(8.0)
+                .dueDate(newDue)
+                .difficultyLevel(3)
+                .build();
+
+        when(cardRepository.findById(60L)).thenReturn(Optional.of(card));
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(teamMemberRepository.existsByTeamIdAndUserId(10L, 100L)).thenReturn(true);
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var dto = boardService.updateCard(60L, req, 100L);
+
+        assertNotNull(dto);
+        assertEquals(100L, dto.getAssigneeId());
+        assertEquals(8.0, dto.getStoryPoints());
+        assertEquals(newDue, dto.getDueDate());
+
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam), eq(sampleUser), eq(ActivitySource.BOARD),
+                eq("CARD_ASSIGNEE_UPDATED"), contains("from 'Unassigned' -> 'Developer'"),
+                any(), isNull(), eq(8.0), isNull());
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam), eq(sampleUser), eq(ActivitySource.BOARD),
+                eq("CARD_STORY_POINTS_UPDATED"), contains("from 2 -> 8"),
+                any(), isNull(), eq(8.0), isNull());
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam), eq(sampleUser), eq(ActivitySource.BOARD),
+                eq("CARD_DUE_DATE_UPDATED"), contains("from none ->"),
+                any(), isNull(), eq(8.0), isNull());
     }
 
     @Test
