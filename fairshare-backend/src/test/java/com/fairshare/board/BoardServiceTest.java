@@ -190,11 +190,116 @@ class BoardServiceTest {
                 eq(sampleUser),
                 eq(ActivitySource.BOARD),
                 eq("CARD_COMPLETED"),
-                contains("Moved card 'Implement JWT' from 'To Do' to 'Done'"),
+                contains("Completed card 'Implement JWT'"),
                 any(),
                 isNull(),
                 eq(3.0),
-                eq(true) // on-time is true
+                eq(2),
+                eq(true), // on-time is true
+                eq(0.0),
+                eq(false),
+                eq(false),
+                eq(false)
+        );
+    }
+
+    @Test
+    @DisplayName("Moving card from Done back to another column logs CARD_REOPENED (Rework)")
+    void testMoveCardFromDoneLogsRework() {
+        Card card = new Card();
+        card.setId(51L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colDone);
+        card.setTitle("Refactor Auth");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(4.0);
+
+        MoveCardRequest moveReq = MoveCardRequest.builder()
+                .targetColumnId(11L) // colTodo
+                .position(0)
+                .fromColumnName("Done")
+                .toColumnName("To Do")
+                .build();
+
+        when(cardRepository.findById(51L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(11L)).thenReturn(Optional.of(colTodo));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var result = boardService.moveCard(51L, moveReq, 100L);
+
+        assertNotNull(result);
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_REOPENED"),
+                contains("Rework: Card 'Refactor Auth' reopened"),
+                any(),
+                isNull(),
+                eq(4.0),
+                eq(2),
+                isNull(),
+                eq(0.0),
+                eq(false),
+                eq(false),
+                eq(false)
+        );
+    }
+
+    @Test
+    @DisplayName("Moving card to Review by a different member logs REVIEW_CARD")
+    void testMoveCardToReviewByOtherMemberLogsReviewCard() {
+        BoardColumn colReview = new BoardColumn();
+        colReview.setId(13L);
+        colReview.setBoard(sampleBoard);
+        colReview.setName("Review");
+        colReview.setPosition(2);
+
+        User reviewer = new User();
+        reviewer.setId(200L);
+        reviewer.setFullName("Reviewer User");
+
+        Card card = new Card();
+        card.setId(52L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Security Patch");
+        card.setAssignee(sampleUser); // assignee is 100L
+        card.setStoryPoints(2.0);
+
+        MoveCardRequest moveReq = MoveCardRequest.builder()
+                .targetColumnId(13L)
+                .position(0)
+                .fromColumnName("To Do")
+                .toColumnName("Review")
+                .build();
+
+        when(cardRepository.findById(52L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(13L)).thenReturn(Optional.of(colReview));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(reviewer)); // actor is 200L
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var result = boardService.moveCard(52L, moveReq, 200L);
+
+        assertNotNull(result);
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(reviewer),
+                eq(ActivitySource.BOARD),
+                eq("REVIEW_CARD"),
+                contains("reviewed card 'Security Patch'"),
+                any(),
+                isNull(),
+                eq(2.0),
+                eq(2),
+                isNull(),
+                eq(0.0),
+                eq(false),
+                eq(false),
+                eq(true) // isReviewForOthers = true
         );
     }
 
@@ -373,5 +478,107 @@ class BoardServiceTest {
         UpdateDueDateRequest request = UpdateDueDateRequest.builder().dueDate(null).build();
 
         assertThrows(BusinessException.class, () -> boardService.updateDueDate(50L, request, 100L));
+    }
+
+    @Test
+    @DisplayName("Adding card comment logs COMMENT_ADDED and SUPPORT_MENTION if @username is in text")
+    void testAddCardCommentLogsCommentAndMention() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setTitle("Implement API");
+
+        User mentionedUser = new User();
+        mentionedUser.setId(300L);
+        mentionedUser.setEmail("alex@fairshare.com");
+        mentionedUser.setFullName("Alex Member");
+
+        com.fairshare.team.entity.TeamMember tm = new com.fairshare.team.entity.TeamMember();
+        tm.setUser(mentionedUser);
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+        when(teamMemberRepository.findByTeamId(10L)).thenReturn(List.of(tm));
+
+        AddCardCommentRequest req = AddCardCommentRequest.builder()
+                .content("Thanks @alex for supporting this module!")
+                .isHelpful(true)
+                .build();
+
+        boardService.addCardComment(50L, req, 100L);
+
+        // Verify COMMENT_ADDED for sampleUser
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("COMMENT_ADDED"),
+                contains("Commented on card 'Implement API'"),
+                any(),
+                isNull(),
+                eq(0.0),
+                isNull(),
+                isNull(),
+                eq(0.0),
+                eq(true),
+                eq(false),
+                eq(false)
+        );
+
+        // Verify SUPPORT_MENTION for mentionedUser
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(mentionedUser),
+                eq(ActivitySource.BOARD),
+                eq("SUPPORT_MENTION"),
+                contains("Mentioned by Developer in card 'Implement API'"),
+                any(),
+                isNull(),
+                eq(0.0),
+                isNull(),
+                isNull(),
+                eq(0.0),
+                eq(false),
+                eq(true),
+                eq(false)
+        );
+    }
+
+    @Test
+    @DisplayName("Completing checklist item logs CHECKLIST_ITEM_DONE")
+    void testCompleteChecklistItemLogsActivity() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setTitle("Implement API");
+        card.setDifficultyLevel(3);
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        CompleteChecklistItemRequest req = CompleteChecklistItemRequest.builder()
+                .itemTitle("Write unit tests")
+                .build();
+
+        boardService.completeChecklistItem(50L, req, 100L);
+
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CHECKLIST_ITEM_DONE"),
+                contains("Completed checklist item 'Write unit tests' in card 'Implement API'"),
+                any(),
+                isNull(),
+                eq(0.5),
+                eq(3),
+                eq(true),
+                eq(0.0),
+                eq(false),
+                eq(false),
+                eq(false)
+        );
     }
 }
