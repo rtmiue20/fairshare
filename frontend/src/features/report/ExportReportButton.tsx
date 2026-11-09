@@ -4,19 +4,20 @@ import { reportApi } from '../../api/report.api';
 
 export interface ExportReportButtonProps {
   teamId: number;
+  sprintId?: number;
 }
 
-export const ExportReportButton: React.FC<ExportReportButtonProps> = ({ teamId }) => {
+export const ExportReportButton: React.FC<ExportReportButtonProps> = ({ teamId, sprintId = 1 }) => {
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
     try {
       setLoading(true);
-      const blob = await reportApi.downloadPdfReport(teamId);
+      const blob = await reportApi.downloadPdfReport(teamId, sprintId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fairshare-report-team-${teamId}.pdf`;
+      a.download = `fairshare-report-team-${teamId}-sprint-${sprintId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

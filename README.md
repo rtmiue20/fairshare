@@ -4,9 +4,9 @@
 
 Đồ án nhóm môn *Quản lý dự án CNTT* – Đại học Kinh tế TP.HCM (UEH).
 
-> Trạng thái: đang phát triển (MVP, Sprint 4/7, tính đến 07/11/2026). Cấu trúc thư mục dưới đây là cấu trúc đích của dự án; một số thư mục/tập tin sẽ được bổ sung dần theo từng sprint.
+> Trạng thái: đang phát triển (MVP, Sprint 5/7, tính đến 08/11/2026). Cấu trúc thư mục dưới đây là cấu trúc đích của dự án; một số thư mục/tập tin sẽ được bổ sung dần theo từng sprint.
 >
-> **Thay đổi quan trọng (CR-02, 29/10/2026):** FairShare không còn dùng Trello REST API. Nhóm tự xây **Task Board nội bộ** (bảng, cột, thẻ) và ghi mọi thao tác trên thẻ thành `ActivityEvent` nguồn `BOARD`. Xem [`docs/CR02-Internal-Board-Module.md`](docs/CR02-Internal-Board-Module.md).
+> **Thay đổi quan trọng (CR-02, 29/10/2026):** FairShare hoàn toàn không sử dụng Trello REST API bên ngoài (do rate limit nghiêm ngặt và rủi ro bảo mật/bất biến dữ liệu). Nhóm tự xây dựng **phân hệ Task Board nội bộ** (bảng, cột Kanban, thẻ, Story Points, hạn chót) và tự động ghi mọi thao tác thành `ActivityEvent` nguồn `BOARD`. Xem [`docs/CR02-Internal-Board-Module.md`](docs/CR02-Internal-Board-Module.md).
 
 ---
 
@@ -599,33 +599,54 @@ Dữ liệu mẫu là dữ liệu tự tạo, **không chứa thông tin cá nh�
 
 ## 8. API chính (tóm tắt)
 
-Tài liệu đầy đủ xem tại Swagger UI (`/swagger-ui.html`) hoặc `docs/api/openapi.yaml`.
+> [!IMPORTANT]
+> **Lưu ý kiến trúc (Change Request CR-02, 29/10/2026):**
+> FairShare **KHÔNG sử dụng Trello REST API bên ngoài** do các nguyên nhân: giới hạn rate limit nghiêm ngặt của Trello gây cản trở đồng bộ thời gian thực, rủi ro phụ thuộc bên thứ 3 và không thể đảm bảo tính bất biến của dữ liệu/truy vết chống gian lận.
+> Nhóm đã **tự xây dựng toàn bộ phân hệ Task Board nội bộ** (gần giống Trello gồm bảng Kanban, cột, thẻ, Story Points, hạn chót, kéo thả di chuyển thẻ) và tự động ghi nhận `ActivityEvent` (nguồn `BOARD`) trực tiếp vào CSDL.
+> Danh mục dưới đây **chỉ ghi các REST API nội bộ thực tế đang dùng** do backend FairShare (`fairshare-backend`) cung cấp.
 
-| Nhóm | Phương thức | Đường dẫn | Mô tả |
+Tài liệu chi tiết xem tại Swagger UI (`/swagger-ui.html`) hoặc `docs/api/openapi.yaml`.
+
+| Phân hệ | Phương thức | Đường dẫn API | Mô tả chức năng |
 |---|---|---|---|
-| Auth | POST | `/api/auth/register` | Đăng ký |
-| Auth | POST | `/api/auth/login` | Đăng nhập, nhận JWT |
-| Team | POST | `/api/teams` | Tạo nhóm |
-| Team | GET | `/api/teams/{id}` | Chi tiết nhóm |
-| Team | POST | `/api/teams/{id}/members` | Mời thành viên |
-| Team | POST | `/api/teams/{id}/consent` | Xác nhận đồng ý chia sẻ dữ liệu |
-| Board | POST | `/api/boards` | Tạo bảng công việc cho nhóm |
-| Board | GET | `/api/boards/team/{teamId}` | Danh sách bảng của nhóm |
-| Board | GET / PUT / DELETE | `/api/boards/{id}` | Xem / sửa / xóa bảng |
-| Board | POST | `/api/boards/{boardId}/columns` | Tạo cột (To Do, In Progress, Review, Done...) |
-| Board | PUT / DELETE | `/api/boards/columns/{columnId}` | Sửa / xóa cột |
-| Board | POST | `/api/boards/columns/{columnId}/cards` | Tạo thẻ (ghi `ActivityEvent` `CARD_CREATED`) |
-| Board | GET / PUT / DELETE | `/api/boards/cards/{cardId}` | Xem / sửa (người phụ trách, Story Points, hạn chót) / xóa thẻ |
-| Board | PUT | `/api/boards/cards/{cardId}/move` | Di chuyển thẻ (ghi `CARD_MOVED`, hoặc `CARD_COMPLETED` khi vào cột hoàn thành) |
-| Contribution | GET | `/api/teams/{id}/contributions` | Tỷ lệ đóng góp (lọc theo sprint) |
-| Contribution | GET | `/api/teams/{id}/contributions/{userId}/evidence` | Bằng chứng truy vết của một người |
-| Contribution | POST | `/api/teams/{id}/contributions/manual` | Khai báo đóng góp thủ công |
-| Peer review | POST | `/api/teams/{id}/review-rounds` | Mở đợt chấm chéo |
-| Peer review | POST | `/api/review-rounds/{id}/submissions` | Gửi đánh giá |
-| Peer review | GET | `/api/review-rounds/{id}/results` | Kết quả tổng hợp (ẩn danh) |
-| Report | GET | `/api/teams/{id}/report.pdf` | Xuất báo cáo PDF |
+| **Auth** | POST | `/api/auth/register` | Đăng ký tài khoản người dùng mới |
+| **Auth** | POST | `/api/auth/login` | Đăng nhập hệ thống, cấp mã xác thực JWT |
+| **User** | GET | `/api/users/me` | Lấy thông tin cá nhân của người dùng hiện tại |
+| **Team** | POST | `/api/teams` | Khởi tạo nhóm đồ án mới |
+| **Team** | GET | `/api/teams` | Lấy danh sách nhóm người dùng đang tham gia |
+| **Team** | GET | `/api/teams/{teamId}` | Lấy thông tin chi tiết nhóm đồ án |
+| **Team** | POST | `/api/teams/{teamId}/members` | Mời / thêm thành viên vào nhóm đồ án |
+| **Team** | GET | `/api/teams/{teamId}/members` | Lấy danh sách thành viên trong nhóm |
+| **Team** | POST | `/api/teams/{teamId}/sprints` | Tạo mới Sprint cho nhóm đồ án |
+| **Team** | GET | `/api/teams/{teamId}/sprints` | Lấy danh sách các Sprint của nhóm |
+| **Consent** | POST | `/api/teams/{teamId}/consent` | Xác nhận đồng thuận chia sẻ dữ liệu hoạt động |
+| **Consent** | GET | `/api/teams/{teamId}/consent/status` | Kiểm tra trạng thái đồng thuận của thành viên |
+| **Board (Nội bộ)** | POST | `/api/boards` | Tạo bảng công việc nhóm (tự sinh 4 cột: To Do, In Progress, Review, Done) |
+| **Board (Nội bộ)** | GET | `/api/boards/team/{teamId}` | Lấy bảng công việc Task Board của nhóm |
+| **Board (Nội bộ)** | GET / PUT / DELETE | `/api/boards/{id}` | Xem chi tiết (kèm cột & thẻ) / chỉnh sửa / xóa bảng |
+| **Board (Nội bộ)** | POST | `/api/boards/{boardId}/columns` | Thêm cột mới trên bảng công việc |
+| **Board (Nội bộ)** | PUT / DELETE | `/api/boards/columns/{columnId}` | Cập nhật tên, thứ tự sắp xếp / xóa cột |
+| **Board (Nội bộ)** | POST | `/api/boards/columns/{columnId}/cards` | Tạo thẻ công việc (tự động ghi `ActivityEvent` `CARD_CREATED`) |
+| **Card (Nội bộ)** | GET / PUT / DELETE | `/api/cards/{cardId}` | Xem chi tiết thẻ / sửa thông tin / xóa thẻ |
+| **Card (Nội bộ)** | PUT / PATCH | `/api/cards/{cardId}/assignee` | Phân công người phụ trách thẻ |
+| **Card (Nội bộ)** | PUT / PATCH | `/api/cards/{cardId}/story-points` | Cập nhật Story Points (độ khó) cho thẻ |
+| **Card (Nội bộ)** | PUT / PATCH | `/api/cards/{cardId}/due-date` | Cập nhật hạn chót (due date) cho thẻ |
+| **Card (Nội bộ)** | PUT | `/api/cards/{cardId}/move` | Di chuyển thẻ giữa các cột (tự động ghi `CARD_MOVED` hoặc `CARD_COMPLETED` kèm `delay_days`, `is_on_time`) |
+| **Contribution** | GET | `/api/contributions/summary` | Tổng hợp chỉ số đóng góp 4 chiều (D1 Output, D2 Reliability, D3 Collaboration, D4 Peer, % Final, cờ `isEnoughEvidence`, `suspicionFlag`) lọc theo Team và Sprint (dùng cho Radar Chart) |
+| **Contribution** | GET | `/api/contributions/evidence` | Lấy danh sách bằng chứng truy vết hoạt động (`ActivityEvent` nguồn `BOARD`) |
+| **Contribution** | POST | `/api/contributions/sprints/{sprintId}/calculate` | Kích hoạt tính toán điểm đóng góp cho Sprint theo `ScoringEngine` v1.1 |
+| **Contribution** | GET | `/api/contributions/sprints/{sprintId}` | Lấy bảng điểm đóng góp của Sprint |
+| **Activity** | GET | `/api/activities/team/{teamId}` | Danh sách sự kiện hoạt động bất biến của nhóm |
+| **Activity** | GET | `/api/activities/sprint/{sprintId}` | Danh sách sự kiện hoạt động trong Sprint |
+| **Peer Review** | GET | `/api/review-rounds/team/{teamId}` | Lấy danh sách đợt chấm chéo của nhóm |
+| **Peer Review** | GET | `/api/review-rounds/sprint/{sprintId}` | Lấy đợt chấm chéo theo Sprint |
+| **Peer Review** | POST | `/api/review-rounds/{roundId}/submissions` | Gửi phiếu chấm chéo ẩn danh (chất lượng, đúng hạn, hợp tác) |
+| **Peer Review** | GET | `/api/review-rounds/{roundId}/results/{revieweeId}` | Kết quả chấm chéo tổng hợp ẩn danh (chỉ trả kết quả khi đủ ≥ 3 lượt) |
+| **Report** | GET | `/api/reports/teams/{teamId}/sprints/{sprintId}/pdf` | Xuất báo cáo đóng góp Sprint định dạng PDF |
+| **Sprint** | GET | `/api/sprints/{sprintId}` | Chi tiết thông tin Sprint |
+| **Sprint** | PUT | `/api/sprints/{sprintId}/close` | Đóng Sprint và chốt dữ liệu |
 
-> Danh sách trên là thiết kế dự kiến, có thể thay đổi theo từng sprint.
+> Danh sách trên là các API nội bộ thực tế của hệ thống, không phụ thuộc vào bất kỳ API ngoài nào của Trello.
 
 ---
 
@@ -689,14 +710,15 @@ test(scoring): thêm test cho công thức đóng góp
 
 ## 12. Lộ trình phát triển (theo sprint)
 
-| Giai đoạn | Nội dung chính |
-|---|---|
-| Sprint 1–2 | Khởi động, phân tích, thiết kế, spike kỹ thuật (Trello API bộc lộ hạn chế → CR-02) |
-| Sprint 3 (28/10–03/11) ✅ | Nền tảng, nhóm, consent; **khung Task Board nội bộ** (`V10`, board/cột/thẻ, ghi `ActivityEvent` `BOARD`); `ScoringEngine` v1 |
-| Sprint 4 (04/11–10/11) 🔄 | Hoàn thiện board (kéo thả, chi tiết thẻ, log không sửa được); bảng đóng góp + truy vết; form chấm chéo; staging; CR-03 (công thức v1.1) |
-| Sprint 5 (11/11–17/11) | Chấm chéo ẩn danh, báo cáo PDF, phân quyền board theo vai trò, gỡ module Trello legacy, regression, chuẩn bị UAT; code freeze 16/11 |
-| Sprint 6 (18/11–24/11) | UAT ≥ 10 người, sửa lỗi, triển khai demo, viết báo cáo song song |
-| Sprint 7 (25/11–26/11) | Chốt báo cáo, tập thuyết trình, đóng dự án, **nộp bài 26/11** |
+| Giai đoạn | Thời gian | Trạng thái | Nội dung chính |
+|---|---|:---:|---|
+| Tuần 1 (Sprint 1) | 09/10 – 15/10/2026 | ✅ Hoàn thành | Khởi động dự án, Project Charter, Team Charter, khảo sát nhu cầu, xác định phạm vi MVP, WBS, Product Backlog ban đầu. |
+| Tuần 2 (Sprint 2) | 16/10 – 22/10/2026 | ✅ Hoàn thành | Lập kế hoạch & thiết kế (Gantt, RACI, Risk Register, Communication Plan); kiến trúc hệ thống, ERD, prototype UI; spike kỹ thuật phát hiện Trello API bộc lộ hạn chế rate limit nghiêm ngặt. |
+| Tuần 3 (Sprint 3) | 23/10 – 29/10/2026 | ✅ Hoàn thành | Nền tảng xác thực (JWT), quản lý nhóm, consent; đề xuất **CR-02 (29/10)** tự xây dựng **Task Board nội bộ** (`V10`, board/cột/thẻ, ghi `ActivityEvent` `BOARD`) thay thế Trello API; khởi tạo `ScoringEngine` v1. |
+| Tuần 4 (Sprint 4) | 30/10 – 05/11/2026 | ✅ Hoàn thành | Hoàn thiện Task Board nội bộ (kéo thả Kanban, chi tiết thẻ, story points, hạn chót, log chống gian lận); Bảng đóng góp + truy vết bằng chứng (`ActivityEvent` nguồn `BOARD`); đề xuất **CR-03** (công thức tính điểm v1.1); môi trường Staging. |
+| Tuần 5 (Sprint 5) | 06/11 – 12/11/2026 | 🔄 Đang thực hiện | Tích hợp biểu đồ Radar 4 chiều (D1–D4), bộ lọc Sprint & Thành viên trên Dashboard; hoàn thiện chấm chéo ẩn danh (ngưỡng ≥ 3 lượt); xuất báo cáo PDF; phân quyền board theo vai trò; gỡ triệt để mã legacy Trello; chuẩn bị UAT; **code freeze 12/11/2026**. |
+| Tuần 6 (Sprint 6) | 13/11 – 19/11/2026 | ⬜ Chưa bắt đầu | Thử nghiệm chấp nhận người dùng (UAT ≥ 10 người); ghi nhận và sửa lỗi theo Defect Log; triển khai bản demo chính thức; viết tài liệu hướng dẫn và soạn thảo báo cáo song song. |
+| Tuần 7 (Sprint 7) | 20/11 – 26/11/2026 | ⬜ Chưa bắt đầu | Chốt báo cáo toàn văn, slide thuyết trình, tập dượt thuyết trình (tất cả thành viên), rà soát checklist nghiệm thu, đóng dự án, **nộp bài chính thức 26/11/2026**. |
 
 Chi tiết từng sprint xem `docs/sprint1.md` … `docs/sprint7.md`.
 

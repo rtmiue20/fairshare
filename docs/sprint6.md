@@ -1,6 +1,6 @@
 # SPRINT 6 – UAT, triển khai và viết báo cáo
 
-**Thời gian:** Thứ 4, 18/11/2026 → Thứ 3, 24/11/2026 | **Tương ứng:** Sprint 6 trong kế hoạch 7 sprint (Sprint 4 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 5, 13/11/2026 → Thứ 4, 19/11/2026 | **Tương ứng:** Tuần 6 (Sprint 6) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
 
 ## Mục tiêu sprint
 - Chạy UAT với ≥ 10 người, sửa lỗi theo defect log, khóa phạm vi.
@@ -10,11 +10,11 @@
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 4, 18/11 |
+| Sprint Planning | Thứ 5, 13/11 |
 | Daily | Hằng ngày |
-| UAT (cửa sổ thử nghiệm) | Thứ 5, 19/11 → Chủ nhật, 22/11 |
-| Khóa phạm vi, chỉ sửa lỗi; hạn nộp nội dung chương | Thứ 2, 23/11 |
-| Sprint Review + Retrospective | Thứ 3, 24/11 |
+| UAT (cửa sổ thử nghiệm) | Thứ 6, 14/11 → Chủ nhật, 16/11 |
+| Khóa phạm vi, chỉ sửa lỗi; hạn nộp nội dung chương | Thứ 2, 17/11 |
+| Sprint Review + Retrospective | Thứ 4, 19/11 |
 
 ## Phân công công việc
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
