@@ -18,6 +18,7 @@ export interface TeamMember {
 export interface Team {
   id: number;
   name: string;
+  currentRole?: Role;
   courseName?: string;
   description?: string;
   inviteCode?: string;
