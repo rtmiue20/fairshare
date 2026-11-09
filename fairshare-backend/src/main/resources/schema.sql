@@ -726,12 +726,17 @@ CREATE TABLE IF NOT EXISTS manual_contributions
     team_id      BIGINT       NOT NULL,
     sprint_id    BIGINT       NULL COMMENT 'NULL nếu không gán sprint cụ thể',
     user_id      BIGINT       NOT NULL,
-    title        VARCHAR(255) NOT NULL,
+    task_name    VARCHAR(255) NULL COMMENT 'Tên công việc đóng góp ngoài board',
+    evidence_link VARCHAR(500) NULL COMMENT 'Đường dẫn minh chứng ngoài (Docs, Figma, v.v.)',
+    title        VARCHAR(255) NULL,
     description  TEXT         NULL,
     -- Giá trị đóng góp (quy đổi về đơn vị story point tương đương)
+    story_points DECIMAL(10, 2) NULL DEFAULT 0.00 COMMENT 'Story points của đóng góp thủ công',
     equivalent_story_points DECIMAL(5, 1) NULL DEFAULT 0
         COMMENT 'Leader ước lượng story point tương đương để đưa vào Tầng 1',
+    status       VARCHAR(50)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING | APPROVED | REJECTED',
     confirmed    BOOLEAN      NOT NULL DEFAULT FALSE,
+    reviewer_id  BIGINT       NULL COMMENT 'user_id của người duyệt/từ chối',
     confirmed_by BIGINT       NULL COMMENT 'user_id của leader xác nhận',
     confirmed_at TIMESTAMP    NULL,
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -741,6 +746,7 @@ CREATE TABLE IF NOT EXISTS manual_contributions
     CONSTRAINT fk_mc_team         FOREIGN KEY (team_id)      REFERENCES teams   (id) ON DELETE CASCADE,
     CONSTRAINT fk_mc_sprint       FOREIGN KEY (sprint_id)    REFERENCES sprints (id) ON DELETE SET NULL,
     CONSTRAINT fk_mc_user         FOREIGN KEY (user_id)      REFERENCES users   (id) ON DELETE CASCADE,
+    CONSTRAINT fk_mc_reviewer     FOREIGN KEY (reviewer_id)  REFERENCES users   (id) ON DELETE SET NULL,
     CONSTRAINT fk_mc_confirmed_by FOREIGN KEY (confirmed_by) REFERENCES users   (id) ON DELETE SET NULL,
 
     INDEX idx_mc_team_sprint (team_id, sprint_id),

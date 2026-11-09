@@ -61,8 +61,28 @@ export const DashboardHeroCanvas: React.FC = () => {
     let bars = { bh: 0, bg: 0, K: 0, xs: 0, ys: 0, labW: 0, pctW: 0 };
     let s = 0;
     let dirty = true;
-    let t0 = performance.now();
-    let col: any = {};
+    const t0 = performance.now();
+    type ColorRGB = [number, number, number];
+    let col: {
+      fg: ColorRGB;
+      fg3: ColorRGB;
+      line: ColorRGB;
+      acc: ColorRGB;
+      guide: ColorRGB;
+      m: ColorRGB[];
+    } = {
+      fg: [244, 244, 242],
+      fg3: [116, 116, 111],
+      line: [48, 48, 48],
+      acc: [91, 141, 239],
+      guide: [181, 54, 201],
+      m: [
+        [91, 141, 239],
+        [91, 141, 239],
+        [91, 141, 239],
+        [91, 141, 239],
+      ],
+    };
     let ready = false;
     let animId = 0;
 
