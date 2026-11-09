@@ -13,6 +13,7 @@ import { AlertList } from '../features/alerts/AlertList';
 import { ProfileSettingsPage } from '../features/profile/ProfileSettingsPage';
 import { LandingPage } from '../features/landing/LandingPage';
 import { ReportPage } from '../features/report/ReportPage';
+import { ManualContributionPage } from '../features/contribution/ManualContributionPage';
 
 export const router = createBrowserRouter([
   {
@@ -73,6 +74,10 @@ export const router = createBrowserRouter([
           {
             path: 'report',
             element: <ReportPage />,
+          },
+          {
+            path: 'contributions/manual',
+            element: <ManualContributionPage />,
           },
           {
             path: 'profile',

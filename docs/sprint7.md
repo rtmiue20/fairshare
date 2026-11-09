@@ -1,21 +1,22 @@
 # SPRINT 7 – Đóng dự án và nộp bài
 
-**Thời gian:** Thứ 4, 25/11/2026 → Thứ 5, 26/11/2026 (sprint rút ngắn còn 2 ngày vì hạn nộp là 26/11) | **Tương ứng:** Sprint 7 trong kế hoạch 7 sprint (Tuần 8 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 5, 20/11/2026 → Thứ 4, 26/11/2026 | **Tương ứng:** Tuần 7 (Sprint 7) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
 
 ## Mục tiêu sprint
 - Chốt báo cáo cuối, slide, Mini-PM Report của cả 6 người, bảng mức độ tham gia.
 - Tập thuyết trình (ai cũng trình bày) và kiểm tra bản demo lần cuối.
 - Họp đóng dự án, rồi **nộp bài trước hạn 26/11** (giờ cụ thể theo LMS/yêu cầu giảng viên).
 
-> Toàn bộ nội dung chương đã nộp ở Sprint 6, nên sprint này chỉ chỉnh sửa, kiểm tra và nộp. Nếu có việc nào chưa xong từ Sprint 6, M0 xử lý ngay đầu ngày 25/11.
+> Toàn bộ nội dung chương đã nộp ở Sprint 6, nên sprint này chỉ chỉnh sửa, kiểm tra và nộp. Nếu có việc nào chưa xong từ Sprint 6, M0 xử lý ngay đầu sprint.
 
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning (họp nhanh 20 phút) | Thứ 4, 25/11, sáng |
-| Tập thuyết trình (cả nhóm) | Thứ 4, 25/11, 19:00 |
-| Họp đóng dự án + Retrospective cuối | Thứ 4, 25/11, 21:00 |
-| Kiểm tra lần cuối và **nộp bài** | Thứ 5, 26/11 |
+| Sprint Planning (họp 30 phút) | Thứ 5, 20/11 |
+| Hoàn thiện báo cáo & slide cá nhân | 20/11 → 24/11 |
+| Tập thuyết trình (cả nhóm) | Thứ 3, 25/11, 19:00 |
+| Họp đóng dự án + Retrospective cuối | Thứ 3, 25/11, 21:00 |
+| Kiểm tra lần cuối và **nộp bài** | Thứ 4, 26/11 |
 
 ## Phân công công việc
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
@@ -50,7 +51,7 @@
 | Link/quyền truy cập hỏng khi nộp | M0 kiểm tra bằng tài khoản khác |
 | Bị hỏi vì sao bỏ Trello | M1 chuẩn bị câu trả lời từ CR-02: phụ thuộc bên thứ ba, rate limit, khó chống sửa/xóa lịch sử; board nội bộ giải quyết R02 |
 | Demo lỗi khi thuyết trình | M5 chuẩn bị video dự phòng, cả nhóm tập đúng kịch bản |
-| Chỉ còn 2 ngày, không có buffer | Hạn nội bộ: mọi thứ xong tối 25/11, sáng 26/11 chỉ nộp và xử lý sự cố |
+| Hạn chốt nộp bài 26/11 | Hạn nội bộ: mọi thứ hoàn thiện trước tối 25/11, sáng 26/11 chỉ rà soát lần cuối và nộp bài |
 
 ## Báo cáo cuối dự án (điền khi họp đóng)
 - Kết quả so với mục tiêu: [ ]

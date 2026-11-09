@@ -84,15 +84,15 @@
 
 ## 4. Lịch trình tổng thể (7 sprint)
 
-| Sprint | Giai đoạn | Mục tiêu chính | Sản phẩm/minh chứng bắt buộc |
-|---|---|---|---|
-| 1 | Khởi động & phân tích nghiệp vụ | Chốt đề tài, phân vai, khảo sát nhu cầu, xác định MVP, scope, WBS, backlog ban đầu | Project Charter, Stakeholder sơ bộ, Team Charter, task board, repository, Requirement List, Use Case/BPMN, Scope Statement, WBS |
-| 2 | Lập kế hoạch & thiết kế | Gantt, nguồn lực, rủi ro, giao tiếp, kiến trúc, ERD, prototype, spike kỹ thuật | Gantt, RACI, Risk Register, Communication Plan, kiến trúc, ERD, prototype, kết quả spike API |
-| 3 | Sprint 1 – Nền tảng & tích hợp Trello | Xây dựng nền tảng dự án, xác thực, quản lý nhóm, đồng bộ Trello ban đầu | Sprint report, commit, demo increment, issue log |
-| 4 | Sprint 2 – Bảng đóng góp | Thiết kế công thức tính đóng góp, dữ liệu truy vết, dashboard đầu tiên | Integrated build, change log, updated schedule |
-| 5 | Sprint 3 – Chấm chéo & xuất PDF | Chấm chéo ẩn danh, báo cáo PDF, kiểm thử tích hợp | Test cases, defect log, progress report, revised plan |
-| 6 | Sprint 4 – UAT & triển khai | Kiểm thử người dùng, sửa lỗi, triển khai bản demo, tài liệu hướng dẫn | UAT, release, deployment evidence, user guide |
-| 7 | Sprint 5 – Đóng dự án & báo cáo | Đánh giá KPI, final demo, lessons learned, chuẩn bị báo cáo cuối kỳ | Final report, final demo, lessons learned, closure checklist, Mini-PM Report |
+| Sprint | Thời gian | Trạng thái | Giai đoạn / Mục tiêu chính | Sản phẩm/minh chứng bắt buộc |
+|---|---|:---:|---|---|
+| 1 | 09/10 – 15/10/2026 | ✅ Hoàn thành | Khởi động & phân tích nghiệp vụ: chốt đề tài, phân vai, khảo sát nhu cầu, xác định MVP, scope, WBS, backlog ban đầu | Project Charter, Stakeholder sơ bộ, Team Charter, task board, repository, Requirement List, Use Case/BPMN, Scope Statement, WBS |
+| 2 | 16/10 – 22/10/2026 | ✅ Hoàn thành | Lập kế hoạch & thiết kế: Gantt, nguồn lực, rủi ro, giao tiếp, kiến trúc, ERD, prototype; spike kỹ thuật phát hiện giới hạn rate limit của Trello API | Gantt, RACI, Risk Register, Communication Plan, kiến trúc, ERD, prototype, kết quả spike API |
+| 3 | 23/10 – 29/10/2026 | ✅ Hoàn thành | Nền tảng & khung Task Board nội bộ: xác thực (JWT), quản lý nhóm, consent; đề xuất **CR-02** tự xây dựng Task Board nội bộ thay Trello API | Sprint report, commit, demo increment, issue log, CR-02 |
+| 4 | 30/10 – 05/11/2026 | ✅ Hoàn thành | Bảng đóng góp & Task Board hoàn thiện: hoàn thiện kéo thả Kanban, chi tiết thẻ, log chống gian lận; Bảng đóng góp + truy vết; đề xuất **CR-03** (công thức v1.1) | Integrated build, change log, updated schedule, dashboard demo, CR-03 |
+| 5 | 06/11 – 12/11/2026 | 🔄 Đang thực hiện | Chấm chéo ẩn danh, xuất PDF & gỡ mã legacy: hoàn thiện chấm chéo ẩn danh, xuất báo cáo PDF, gỡ module Trello cũ, kiểm thử hồi quy, code freeze 12/11 | Test cases, defect log, progress report, revised plan, PDF report |
+| 6 | 13/11 – 19/11/2026 | ⬜ Chưa bắt đầu | UAT & triển khai: thử nghiệm người dùng (≥ 10 người), sửa lỗi theo defect log, triển khai bản demo, tài liệu hướng dẫn, viết báo cáo song song | UAT feedback, release, deployment evidence, user guide, nháp báo cáo |
+| 7 | 20/11 – 26/11/2026 | ⬜ Chưa bắt đầu | Đóng dự án & nộp bài: chốt báo cáo toàn văn, slide thuyết trình, tập dượt thuyết trình, đóng dự án, **nộp bài 26/11/2026** | Final report, final demo, lessons learned, closure checklist, Mini-PM Report |
 
 > Ghi chú: Nếu GV yêu cầu sprint dài hơn hoặc lịch học kỳ khác, điều chỉnh bảng này và ghi lại bằng Change Request.
 
@@ -117,14 +117,14 @@
 - Soạn mẫu consent và chính sách dữ liệu
 - Thiết lập môi trường dev, CI cơ bản
 
-### Sprint 3 – Nền tảng & tích hợp Trello
-**Sprint Goal:** Người dùng đăng nhập, tạo nhóm, kết nối Trello và thấy dữ liệu card đồng bộ.
+### Sprint 3 – Nền tảng & khung Task Board nội bộ (thay thế Trello theo CR-02)
+**Sprint Goal:** Người dùng đăng nhập, tạo nhóm, consent; tạo bảng công việc nội bộ và ghi nhận `ActivityEvent` khi thao tác thẻ.
 - Cấu trúc dự án, CSDL, xác thực (đăng nhập, phân quyền), quản lý nhóm
 - Chức năng consent
-- Kết nối Trello (token), đồng bộ board/card/member/action vào CSDL
-- Giao diện: đăng nhập, nhóm, kết nối Trello
-- Dữ liệu mẫu, test case Sprint 1
-- **Tiêu chí hoàn thành:** đồng bộ thành công một board mẫu; có demo và log commit
+- Phân hệ Task Board nội bộ: bảng, cột, thẻ, ghi nhận `ActivityEvent` nguồn `BOARD` (thay thế Trello API do hạn chế rate limit - CR-02)
+- Giao diện: đăng nhập, nhóm, bảng Kanban cơ bản
+- Dữ liệu mẫu, test case Sprint 3
+- **Tiêu chí hoàn thành:** tạo bảng và thao tác thẻ thành công; có demo và log commit
 
 ### Sprint 4 – Bảng đóng góp
 **Sprint Goal:** Hiển thị tỷ lệ đóng góp từng thành viên với bằng chứng truy vết.

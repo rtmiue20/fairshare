@@ -1,20 +1,20 @@
 # SPRINT 5 – Chấm chéo ẩn danh, báo cáo PDF và kiểm thử
 
-**Thời gian:** Thứ 4, 11/11/2026 → Thứ 3, 17/11/2026 | **Tương ứng:** Sprint 5 trong kế hoạch 7 sprint (Sprint 3 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
+**Thời gian:** Thứ 5, 06/11/2026 → Thứ 4, 12/11/2026 | **Tương ứng:** Tuần 5 (Sprint 5) | **Trạng thái sprint:** 🔄 Đang thực hiện
 
 ## Mục tiêu sprint
 - Hoàn thiện chấm chéo ẩn danh (chỉ trả kết quả khi đủ ≥ 3 lượt), kiểm tra không lộ danh tính.
 - Xuất báo cáo PDF gồm đóng góp, điểm chấm chéo, bằng chứng chính.
 - Phân quyền theo vai trò nhóm, tối ưu truy vấn/routine, kiểm thử hồi quy.
-- Chuẩn bị UAT (kịch bản, danh sách ≥ 10 người thử, phiếu phản hồi). Code freeze 16/11.
+- Chuẩn bị UAT (kịch bản, danh sách ≥ 10 người thử, phiếu phản hồi). Code freeze 11/11.
 
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 4, 11/11 |
+| Sprint Planning | Thứ 5, 06/11 |
 | Daily | Hằng ngày |
-| Code freeze tính năng mới (chỉ còn sửa lỗi) | Thứ 2, 16/11, 17:00 |
-| Sprint Review + Retrospective | Thứ 3, 17/11 |
+| Code freeze tính năng mới (chỉ còn sửa lỗi) | Thứ 3, 11/11, 17:00 |
+| Sprint Review + Retrospective | Thứ 4, 12/11 |
 
 ## Phân công công việc (lát cắt dọc)
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |

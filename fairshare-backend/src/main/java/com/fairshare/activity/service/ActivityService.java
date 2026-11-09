@@ -51,6 +51,33 @@ public class ActivityService {
         return activityEventRepository.save(event);
     }
 
+    @Transactional
+    public ActivityEvent saveActivity(ActivityEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("ActivityEvent must not be null");
+        }
+        if (event.getId() != null) {
+            throw new UnsupportedOperationException("ActivityEvent log is immutable and cannot be updated");
+        }
+        return activityEventRepository.save(event);
+    }
+
+    public ActivityEvent updateActivity(Long id, ActivityEvent updatedEvent) {
+        throw new UnsupportedOperationException("ActivityEvent log is immutable and cannot be updated");
+    }
+
+    public void deleteActivity(Long id) {
+        throw new UnsupportedOperationException("ActivityEvent log is immutable and cannot be deleted");
+    }
+
+    public void deleteActivity(ActivityEvent event) {
+        throw new UnsupportedOperationException("ActivityEvent log is immutable and cannot be deleted");
+    }
+
+    public void deleteAllActivities() {
+        throw new UnsupportedOperationException("ActivityEvent log is immutable and cannot be deleted");
+    }
+
     @Transactional(readOnly = true)
     public List<ActivityEvent> getEventsByTeam(Long teamId) {
         return activityEventRepository.findByTeamId(teamId);

@@ -103,7 +103,7 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
 
     const ctx2d = cv2d.getContext('2d');
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let t0 = performance.now();
+    const t0 = performance.now();
     let animId = 0;
     let s = scrollProgress;
 
