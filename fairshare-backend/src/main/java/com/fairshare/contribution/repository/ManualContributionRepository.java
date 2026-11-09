@@ -21,3 +21,4 @@ public interface ManualContributionRepository extends JpaRepository<ManualContri
 
     List<ManualContribution> findByTeamIdAndSprintIdAndUserId(Long teamId, Long sprintId, Long userId);
 }
+

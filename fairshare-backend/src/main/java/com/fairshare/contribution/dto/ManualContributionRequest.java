@@ -28,3 +28,4 @@ public class ManualContributionRequest {
     @DecimalMin(value = "0.1", message = "Story points phải lớn hơn hoặc bằng 0.1")
     private BigDecimal storyPoints;
 }
+

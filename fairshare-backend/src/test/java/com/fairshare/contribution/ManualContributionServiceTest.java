@@ -253,3 +253,4 @@ class ManualContributionServiceTest {
         assertThat(results).allMatch(r -> "PENDING".equals(r.getStatus()));
     }
 }
+

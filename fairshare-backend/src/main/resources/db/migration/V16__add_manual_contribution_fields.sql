@@ -21,3 +21,4 @@ WHERE task_name IS NULL AND title IS NOT NULL;
 UPDATE manual_contributions
 SET reviewer_id = confirmed_by
 WHERE reviewer_id IS NULL AND confirmed_by IS NOT NULL;
+

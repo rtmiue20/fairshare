@@ -147,3 +147,4 @@ public class ManualContributionService {
         return ManualContributionResponse.fromEntity(contribution);
     }
 }
+
