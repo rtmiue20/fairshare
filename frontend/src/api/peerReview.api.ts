@@ -9,7 +9,7 @@ export const REVIEW_CRITERIA: { value: ReviewCriterion; label: string }[] = [
   { value: 'COOPERATION', label: 'Hợp tác với thành viên' },
 ];
 
-export type ReviewRoundStatus = 'DRAFT' | 'OPEN' | 'CLOSED';
+export type ReviewRoundStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'AGGREGATED';
 
 export interface ReviewRound {
   id: number;
