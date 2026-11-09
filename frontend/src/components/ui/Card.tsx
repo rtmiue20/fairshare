@@ -14,29 +14,39 @@ export const Card: React.FC<CardProps> = ({
   extra,
   children,
   className,
+  style,
   ...props
 }) => {
   return (
     <div
       className={twMerge(
         clsx(
-          'threeui-glass-card rounded-2xl p-6 transition-all duration-300',
-          'border border-white/[0.08] text-slate-100',
+          'rounded-2xl p-6 transition-all duration-300',
           className
         )
       )}
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--line)',
+        color: 'var(--fg)',
+        boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+        ...style,
+      }}
       {...props}
     >
       {(title || extra) && (
-        <div className="flex items-center justify-between pb-4 mb-5 border-b border-white/[0.06]">
+        <div
+          className="flex items-center justify-between pb-4 mb-5"
+          style={{ borderBottom: '1px solid var(--line)' }}
+        >
           <div>
             {title && (
-              <h3 className="text-base font-semibold text-white tracking-tight">
+              <h3 className="text-base font-semibold tracking-tight" style={{ color: 'var(--fg)', fontFamily: 'var(--f-body)' }}>
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: 'var(--fg3)', fontFamily: 'var(--f-body)' }}>
                 {subtitle}
               </p>
             )}

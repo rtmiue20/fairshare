@@ -16,13 +16,13 @@ function renderLogin() {
   const view = render(
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
+        <Route path="/" element={<div>Trang chủ FairShare</div>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<div>Trang đăng ký</div>} />
         <Route path="/dashboard" element={<div>Trang dashboard</div>} />
       </Routes>
     </MemoryRouter>,
   );
-  // Label chưa gắn htmlFor/id với input (DEF-04) nên chọn theo type
   const email = view.container.querySelector('input[type="email"]') as HTMLInputElement;
   const password = view.container.querySelector('input[type="password"]') as HTMLInputElement;
   return { email, password };
@@ -48,7 +48,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument();
   });
 
-  it('TC-FE-AUTH-05: đăng nhập thành công -> gọi API đúng payload, lưu token, chuyển sang /dashboard', async () => {
+  it('TC-FE-AUTH-05: đăng nhập thành công -> gọi API đúng payload, lưu token, chuyển sang / (Welcome/Landing)', async () => {
     loginMock.mockResolvedValue({
       success: true,
       message: 'OK',
@@ -62,7 +62,7 @@ describe('LoginPage', () => {
 
     fillAndSubmit(email, password);
 
-    expect(await screen.findByText('Trang dashboard')).toBeInTheDocument();
+    expect(await screen.findByText('Trang chủ FairShare')).toBeInTheDocument();
     expect(loginMock).toHaveBeenCalledWith({ email: 'an@st.ueh.edu.vn', password: 'Matkhau@123' });
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(localStorage.getItem('token')).toBe('jwt-abc');
@@ -75,7 +75,7 @@ describe('LoginPage', () => {
     fillAndSubmit(email, password);
 
     expect(await screen.findByText('Email hoặc mật khẩu không đúng')).toBeInTheDocument();
-    expect(screen.queryByText('Trang dashboard')).not.toBeInTheDocument();
+    expect(screen.queryByText('Trang chủ FairShare')).not.toBeInTheDocument();
     expect(localStorage.getItem('token')).toBeNull();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeEnabled());
   });

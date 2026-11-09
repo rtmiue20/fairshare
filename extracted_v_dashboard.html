@@ -1,0 +1,72 @@
+<section class="view" id="v-dashboard" hidden>
+        <div class="hero" id="hero">
+            <div class="stage" id="stage">
+                <canvas id="cv"
+                        aria-label="Biểu đồ điểm neo chuyển động theo thanh cuộn: tên FairShare, tỷ lệ đóng góp, bằng chứng từng người"
+                        role="img"></canvas>
+                <div class="hero-top pad">
+                    <div class="crumb"><span class="eyebrow">Dashboard</span><span class="chip">Sprint 3 / 5</span><span
+                            class="chip acc">Dữ liệu mẫu</span></div>
+                </div>
+                <div class="caps">
+                    <div class="cap" id="capA"><span class="eyebrow">Đo lường đóng góp</span>
+                        <h2>Ai làm gì, bao nhiêu, khi nào.</h2>
+                        <p>Mỗi điểm là một việc có bằng chứng từ Trello hoặc Google Docs.</p></div>
+                    <div class="cap" id="capB"><span class="eyebrow">Tỷ lệ đóng góp</span>
+                        <h2>1.248 hoạt động chia cho 4 người</h2>
+                        <p>Tỷ lệ tính từ task hoàn thành, chỉnh sửa tài liệu và điểm chấm chéo.</p></div>
+                    <div class="cap" id="capC"><span class="eyebrow">Bằng chứng truy vết</span>
+                        <h2>Mỗi thanh có thể mở ra từng hành động</h2>
+                        <p>Cuộn tiếp để xem hoạt động mới nhất và cảnh báo sớm.</p></div>
+                </div>
+                <div class="pager" id="pager">
+                    <button type="button" data-s="0"><span>Tổng quan</span><i></i></button>
+                    <button type="button" data-s="0.46"><span>Tỷ lệ</span><i></i></button>
+                    <button type="button" data-s="0.95"><span>Bằng chứng</span><i></i></button>
+                </div>
+                <div class="cue" id="cue"><span>Cuộn xuống</span><i></i></div>
+            </div>
+        </div>
+        <div class="page after pad">
+            <div class="page-head">
+                <div><span class="eyebrow">Tổng quan Sprint 3</span>
+                    <h1>Nhóm đang đi đúng tiến độ, một người cần được nhắc.</h1></div>
+                <span class="note">Cập nhật lúc 09:42 · Dữ liệu mẫu</span></div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="k">Task hoàn thành</div>
+                    <div class="v">88<small>/ 112</small></div>
+                </div>
+                <div class="stat">
+                    <div class="k">Chỉnh sửa Docs</div>
+                    <div class="v">1.248</div>
+                </div>
+                <div class="stat">
+                    <div class="k">Sprint hiện tại</div>
+                    <div class="v">3<small>/ 5</small></div>
+                </div>
+                <div class="stat">
+                    <div class="k">Cảnh báo</div>
+                    <div class="v" style="color:var(--warn)">1</div>
+                </div>
+            </div>
+            <div class="grid2">
+                <div class="panel">
+                    <div class="panel-h"><h2>Hoạt động gần đây</h2><a class="chip" href="#dong-gop">Xem bằng chứng</a>
+                    </div>
+                    <ul class="feed" id="feedDash"></ul>
+                </div>
+                <div class="stack">
+                    <div class="panel">
+                        <div class="panel-h"><h2>Cảnh báo sớm</h2><span class="chip warn">1 cần xử lý</span></div>
+                        <div id="alertsDash"></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-h"><h2>Tiến độ Sprint 3</h2><span class="mono"
+                                                                            style="color:var(--accent)">62%</span></div>
+                        <div class="bar" style="--c:var(--accent)"><i style="width:62%"></i></div>
+                        <p class="note" style="margin:10px 0 0">12 thẻ chưa xong · còn 4 ngày</p></div>
+                </div>
+            </div>
+        </div>
+    </section>

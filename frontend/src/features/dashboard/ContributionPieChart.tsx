@@ -6,7 +6,8 @@ export interface ContributionPieChartProps {
   data: ContributionScore[];
 }
 
-const COLORS = ['#2563eb', '#16a34a', '#eab308', '#dc2626', '#8b5cf6', '#ec4899'];
+// Matches sample CSS --m1..m4 + --ok + --ital
+const COLORS = ['#5b8def', '#4cc38a', '#e8a33d', '#c06be0', '#3fbfa8', '#a99bff'];
 
 export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data }) => {
   const chartData = data.map((d) => ({
@@ -28,6 +29,7 @@ export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data
             dataKey="value"
             isAnimationActive={false}
             label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+            labelLine={{ stroke: 'var(--fg3)' }}
           >
             {chartData.map((_, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -35,15 +37,17 @@ export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data
           </Pie>
           <Tooltip
             contentStyle={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              backgroundColor: 'var(--surface2)',
+              border: '1px solid var(--line)',
               borderRadius: '8px',
-              color: '#f8fafc',
+              color: 'var(--fg)',
               fontSize: '12px',
             }}
             formatter={(value: number) => [`${value.toFixed(1)}%`, 'Tỷ lệ']}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+          <Legend
+            wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: 'var(--fg2)' }}
+          />
         </PieChart>
       </ResponsiveContainer>
     </div>

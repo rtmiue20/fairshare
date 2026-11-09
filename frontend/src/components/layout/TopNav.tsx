@@ -44,7 +44,7 @@ export const TopNav: React.FC = () => {
   return (
     <header className="top" id="top">
       {/* Brand logo */}
-      <Link to="/landing" className="brand" aria-label="FairShare, về trang giới thiệu">
+      <Link to="/" className="brand" aria-label="FairShare, về trang chủ">
         <i aria-hidden="true" />
         <span>FAIRSHARE</span>
       </Link>

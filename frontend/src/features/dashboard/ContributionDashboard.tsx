@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card } from '../../components/ui/Card';
 import { ContributionPieChart } from './ContributionPieChart';
 import { ContributionTimeline } from './ContributionTimeline';
 import { EvidenceTable } from './EvidenceTable';
@@ -316,6 +315,9 @@ const DEFAULT_AUDIT_TRAIL: EvidenceItemDto[] = [
   { sourceType: 'MANUAL', sourceId: 501, taskName: 'Họp điều phối kỹ thuật với Giảng viên hướng dẫn', storyPoints: 2, earnedScore: 5.0, eventTime: '2026-11-05T16:00:00Z', status: 'APPROVED' },
 ];
 
+// Member color palette matching sample --m1..m4
+const MEMBER_COLORS = ['var(--m1)', 'var(--ok)', 'var(--m3)', 'var(--m2)', 'var(--m4)', 'var(--ital)'];
+
 export const ContributionDashboard: React.FC = () => {
   const [selectedSprintId, setSelectedSprintId] = useState<number>(4);
   const [selectedUserId, setSelectedUserId] = useState<number | 'ALL'>('ALL');
@@ -486,29 +488,49 @@ export const ContributionDashboard: React.FC = () => {
     return summaryItems.find((m) => m.userId === activeRadarUserId) ?? summaryItems[0] ?? null;
   }, [summaryItems, activeRadarUserId]);
 
+  // Stat summary numbers
+  const totalTasks = summaryItems.reduce(
+    (s, m) => s + (scores.find((sc) => sc.userId === m.userId)?.taskCompletedCount ?? 0),
+    0
+  );
+  const suspiciousCount = summaryItems.filter((m) => m.suspicionFlag || m.isSuspicious).length;
+  const insufficientCount = summaryItems.filter((m) => !m.isEnoughEvidence && !m.hasSufficientEvidence).length;
+  const currentSprintLabel = AVAILABLE_SPRINTS.find((s) => s.id === selectedSprintId)?.name?.split(':')[0] ?? `Sprint ${selectedSprintId}`;
+
   return (
-    <div className="flex flex-col gap-6" data-testid="contribution-dashboard">
-      {/* Header trang Dashboard */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div data-testid="contribution-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+      {/* ── Page header ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Bảng đo lường đóng góp</h2>
-          <p className="mt-1 text-xs text-slate-400">
-            Hệ thống phân tích đóng góp đa chiều chuẩn Khoa học Dữ liệu kết hợp Bằng chứng truy vết (Audit Trail)
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>
+            Bảng đo lường đóng góp
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--fg3)' }}>
+            Phân tích đóng góp đa chiều chuẩn Khoa học Dữ liệu · Bằng chứng truy vết (Audit Trail)
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             type="button"
             onClick={() => setIsManualModalOpen(true)}
             data-testid="btn-open-manual-contributions"
-            className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-600/20 px-3.5 py-2 text-xs font-semibold text-indigo-300 shadow-sm transition hover:bg-indigo-600/30 hover:text-white"
+            className="btn ghost"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
           >
-            <Sparkles className="h-4 w-4 text-indigo-400" />
+            <Sparkles style={{ width: 13, height: 13 }} />
             <span>Khai báo ngoài Board</span>
             {pendingCount > 0 && (
               <span
                 data-testid="badge-pending-count"
-                className="flex h-5 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/20 px-1.5 text-[10px] font-bold text-amber-300"
+                className="chip"
+                style={{
+                  background: 'color-mix(in srgb, var(--warn) 18%, transparent)',
+                  color: 'var(--warn)',
+                  border: '1px solid color-mix(in srgb, var(--warn) 35%, transparent)',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                }}
               >
                 {pendingCount} chờ duyệt
               </span>
@@ -518,7 +540,7 @@ export const ContributionDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Bộ lọc Sprint & Thành viên (Card 6) */}
+      {/* ── Filters ── */}
       <DashboardFilters
         sprints={AVAILABLE_SPRINTS}
         selectedSprintId={selectedSprintId}
@@ -529,108 +551,223 @@ export const ContributionDashboard: React.FC = () => {
         isLoading={isLoading}
       />
 
-      {/* Khối Loading Indicator khi đang tải */}
+      {/* ── Loading ── */}
       {isLoading && (
         <div
           data-testid="dashboard-loading"
-          className="flex h-64 flex-col items-center justify-center rounded-2xl border border-white/[0.06] bg-slate-900/40"
+          className="panel"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 200,
+            gap: '0.75rem',
+          }}
         >
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
-          <p className="mt-3 text-xs font-medium text-slate-400">Đang tải và chuẩn hóa dữ liệu thống kê...</p>
+          <Loader2 style={{ width: 28, height: 28, color: 'var(--accent)' }} className="animate-spin" />
+          <p style={{ fontSize: '0.75rem', color: 'var(--fg3)', margin: 0 }}>
+            Đang tải và chuẩn hóa dữ liệu thống kê...
+          </p>
         </div>
       )}
 
-      {/* Khối Empty State khi Sprint không có dữ liệu */}
+      {/* ── Empty State ── */}
       {!isLoading && isSprintEmpty && (
         <div
           data-testid="dashboard-empty-state"
-          className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700/80 bg-slate-900/40 p-12 text-center"
+          className="panel"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '3rem',
+            textAlign: 'center',
+            border: '1px dashed var(--line)',
+            gap: '1rem',
+          }}
         >
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">
-            📂
-          </div>
-          <h3 className="text-lg font-bold text-white">Chưa có dữ liệu đóng góp cho Sprint này</h3>
-          <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-400">
-            Sprint {selectedSprintId} chưa diễn ra hoặc chưa có bất kỳ sự kiện hoạt động nào được ghi nhận từ Task Board nội bộ, Git hoặc Peer Review.
+          <div style={{ fontSize: '2.5rem' }}>📂</div>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--fg)' }}>
+            Chưa có dữ liệu đóng góp cho Sprint này
+          </h3>
+          <p style={{ margin: 0, maxWidth: 420, fontSize: '0.75rem', lineHeight: 1.6, color: 'var(--fg3)' }}>
+            Sprint {selectedSprintId} chưa diễn ra hoặc chưa có bất kỳ sự kiện hoạt động nào được ghi nhận từ Task
+            Board nội bộ, Git hoặc Peer Review.
           </p>
           <button
             onClick={() => setSelectedSprintId(4)}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-indigo-500"
+            className="btn"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw style={{ width: 13, height: 13 }} />
             <span>Quay lại Sprint 4 (Hiện tại)</span>
           </button>
         </div>
       )}
 
-      {/* Nội dung Dashboard chính khi có dữ liệu */}
+      {/* ── Main content ── */}
       {!isLoading && !isSprintEmpty && (
         <>
-          {/* Grid chính: Biểu đồ tròn + Danh sách tóm tắt + Biểu đồ Radar 4 chiều */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* Cột trái: Tỷ lệ tổng thể & Danh sách thành viên */}
-            <div className="flex flex-col gap-6 lg:col-span-5">
-              <Card title="Tỷ lệ đóng góp tổng thể (Pie Chart)">
-                <ContributionPieChart data={scores} />
-              </Card>
+          {/* Stat cards row */}
+          <div className="stats">
+            <div className="stat">
+              <div className="k">Task hoàn thành</div>
+              <div className="v" style={{ color: 'var(--ok)' }}>{totalTasks} <small>{currentSprintLabel}</small></div>
+            </div>
+            <div className="stat">
+              <div className="k">Thành viên</div>
+              <div className="v" style={{ color: 'var(--accent)' }}>{summaryItems.length} <small>đang theo dõi</small></div>
+            </div>
+            <div className="stat">
+              <div className="k">Cần rà soát</div>
+              <div className="v" style={{ color: suspiciousCount > 0 ? 'var(--bad)' : 'var(--fg2)' }}>
+                {suspiciousCount} <small>dấu hiệu bất thường</small>
+              </div>
+            </div>
+            <div className="stat">
+              <div className="k">Thiếu bằng chứng</div>
+              <div className="v" style={{ color: insufficientCount > 0 ? 'var(--warn)' : 'var(--fg2)' }}>
+                {insufficientCount} <small>thành viên</small>
+              </div>
+            </div>
+          </div>
 
-              <Card
-                title={`Danh sách thành viên & Tỷ lệ đóng góp (Sprint ${selectedSprintId})`}
-                extra={
-                  <span className="text-xs text-slate-400">
-                    Hiển thị: <strong>{filteredSummaryItems.length}</strong> thành viên
+          {/* Two-column grid */}
+          <div className="grid2">
+            {/* Left: Pie chart + member list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Pie chart */}
+              <div className="panel">
+                <div className="panel-h">
+                  <span>Tỷ lệ đóng góp tổng thể (Pie Chart)</span>
+                </div>
+                <ContributionPieChart data={scores} />
+              </div>
+
+              {/* Member list */}
+              <div className="panel">
+                <div
+                  className="panel-h"
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span>Danh sách thành viên &amp; Tỷ lệ đóng góp (Sprint {selectedSprintId})</span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--fg3)', fontWeight: 400 }}>
+                    Hiển thị:{' '}
+                    <strong style={{ color: 'var(--fg2)' }}>{filteredSummaryItems.length}</strong> thành viên
                   </span>
-                }
-              >
-                <div className="flex flex-col gap-2">
-                  {filteredSummaryItems.map((member) => {
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {filteredSummaryItems.map((member, idx) => {
                     const isSelected = member.userId === activeRadarUserId;
                     const isSuspicious = member.suspicionFlag ?? member.isSuspicious ?? false;
                     const isEnough = member.isEnoughEvidence ?? member.hasSufficientEvidence ?? true;
+                    const memberColor = MEMBER_COLORS[idx % MEMBER_COLORS.length];
 
                     return (
                       <div
                         key={member.userId}
                         onClick={() => setActiveRadarUserId(member.userId)}
-                        className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${
-                          isSelected
-                            ? 'border-indigo-500 bg-indigo-950/30 shadow-md ring-1 ring-indigo-500/50'
-                            : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/50'
-                        }`}
+                        style={{
+                          cursor: 'pointer',
+                          borderRadius: 10,
+                          padding: '0.6rem 0.75rem',
+                          border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--line)'}`,
+                          background: isSelected
+                            ? 'color-mix(in srgb, var(--accent) 8%, var(--surface))'
+                            : 'var(--surface)',
+                          transition: 'all 0.15s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.75rem',
+                        }}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-xs font-bold text-slate-200">
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.65rem',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          {/* Avatar */}
+                          <div
+                            className="avatar"
+                            style={{
+                              background: `color-mix(in srgb, ${memberColor} 20%, var(--surface2))`,
+                              color: memberColor,
+                              border: `1.5px solid ${memberColor}`,
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              flexShrink: 0,
+                            }}
+                          >
                             {member.userName.charAt(0)}
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-white">{member.userName}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: '0.82rem',
+                                  fontWeight: 600,
+                                  color: 'var(--fg)',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {member.userName}
+                              </span>
                               {isSuspicious && (
-                                <span className="inline-flex items-center gap-1 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-rose-300">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  Rà soát
+                                <span
+                                  className="chip"
+                                  style={{
+                                    background: 'color-mix(in srgb, var(--bad) 15%, transparent)',
+                                    color: 'var(--bad)',
+                                    border: '1px solid color-mix(in srgb, var(--bad) 30%, transparent)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                  }}
+                                >
+                                  <AlertTriangle style={{ width: 10, height: 10 }} /> Rà soát
                                 </span>
                               )}
                               {!isEnough && (
-                                <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
-                                  <AlertCircle className="h-3 w-3" />
-                                  Thiếu BC
+                                <span
+                                  className="chip"
+                                  style={{
+                                    background: 'color-mix(in srgb, var(--warn) 15%, transparent)',
+                                    color: 'var(--warn)',
+                                    border: '1px solid color-mix(in srgb, var(--warn) 30%, transparent)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                  }}
+                                >
+                                  <AlertCircle style={{ width: 10, height: 10 }} /> Thiếu BC
                                 </span>
                               )}
                               {isEnough && !isSuspicious && (
-                                <span className="inline-flex items-center rounded text-emerald-400">
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                </span>
+                                <CheckCircle2 style={{ width: 12, height: 12, color: 'var(--ok)', flexShrink: 0 }} />
                               )}
                             </div>
-                            <div className="text-[11px] text-slate-400">
-                              ID: #{member.userId} • {member.evidenceStatus ?? 'Đầy đủ minh chứng'}
+                            <div style={{ fontSize: '0.67rem', color: 'var(--fg3)', marginTop: 1 }}>
+                              #{member.userId} · {member.evidenceStatus ?? 'Đầy đủ minh chứng'}
                             </div>
                           </div>
                         </div>
 
-                        {/* Nút bấm vào chỉ số % để mở bảng bằng chứng gốc */}
-                        <div className="flex items-center gap-2">
+                        {/* % button + chevron */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -638,74 +775,117 @@ export const ContributionDashboard: React.FC = () => {
                             }}
                             data-testid={`btn-evidence-pct-${member.userId}`}
                             title="Bấm vào chỉ số % để xem bảng bằng chứng gốc"
-                            className="group flex items-center gap-1.5 rounded-lg border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-right transition hover:border-sky-400/50 hover:bg-sky-500/20"
+                            className="btn ghost"
+                            style={{
+                              padding: '0.2rem 0.6rem',
+                              fontSize: '0.88rem',
+                              fontWeight: 800,
+                              color: memberColor,
+                              border: `1px solid color-mix(in srgb, ${memberColor} 35%, transparent)`,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                            }}
                           >
-                            <span className="text-base font-extrabold text-sky-400 group-hover:text-sky-300">
-                              {member.finalPct?.toFixed(1) ?? '0.0'}%
-                            </span>
-                            <Search className="h-3 w-3 text-sky-400 opacity-60 group-hover:opacity-100" />
+                            {member.finalPct?.toFixed(1) ?? '0.0'}%
+                            <Search style={{ width: 10, height: 10, opacity: 0.7 }} />
                           </button>
-                          <ChevronRight className={`h-4 w-4 ${isSelected ? 'text-indigo-400' : 'text-slate-600'}`} />
+                          <ChevronRight
+                            style={{
+                              width: 14,
+                              height: 14,
+                              color: isSelected ? 'var(--accent)' : 'var(--fg3)',
+                            }}
+                          />
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </Card>
+              </div>
             </div>
 
-            {/* Cột phải: Biểu đồ Radar 4 chiều của thành viên đang chọn */}
-            <div className="flex flex-col gap-6 lg:col-span-7">
-              <Card
-                title="Hồ sơ năng lực 4 chiều (Radar Chart)"
-                extra={
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-xs font-normal text-slate-400">
-                      Thành viên: <strong className="text-sky-400">{radarMember?.userName}</strong>
+            {/* Right: Radar + Timeline */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Radar panel */}
+              <div className="panel">
+                <div
+                  className="panel-h"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <span>Hồ sơ năng lực 4 chiều (Radar Chart)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--fg3)' }}>
+                      Thành viên:{' '}
+                      <strong style={{ color: 'var(--accent)' }}>{radarMember?.userName}</strong>
                     </span>
                     {radarMember && (
                       <button
                         onClick={() => handleOpenEvidenceModal(radarMember)}
                         data-testid="btn-view-evidence-radar"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
+                        className="btn ghost"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontSize: '0.72rem',
+                        }}
                       >
-                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
-                        <span>Xem chi tiết bằng chứng</span>
+                        <ShieldCheck style={{ width: 12, height: 12 }} />
+                        Xem chi tiết bằng chứng
                       </button>
                     )}
                   </div>
-                }
-              >
+                </div>
                 <MemberRadarChart member={radarMember} />
-              </Card>
+              </div>
 
-              <Card title="Chi tiết hoạt động thành viên">
+              {/* Timeline/bar chart */}
+              <div className="panel">
+                <div className="panel-h">
+                  <span>Chi tiết hoạt động thành viên</span>
+                </div>
                 <ContributionTimeline data={scores} />
-              </Card>
+              </div>
             </div>
           </div>
 
-          {/* Bảng truy vết minh chứng hoạt động (Audit Trail) */}
-          <Card
-            title="Bằng chứng truy vết minh chứng hoạt động (Audit Trail)"
-            extra={
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-normal text-slate-400">
-                  Tổng số sự kiện ghi nhận: {filteredEvidenceItems.length}
+          {/* Evidence Audit Trail */}
+          <div className="panel">
+            <div
+              className="panel-h"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <span>Bằng chứng truy vết minh chứng hoạt động (Audit Trail)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--fg3)' }}>
+                  {filteredEvidenceItems.length} sự kiện ghi nhận
                 </span>
                 {radarMember && (
                   <button
                     onClick={() => handleOpenEvidenceModal(radarMember)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
+                    className="btn ghost"
+                    style={{ fontSize: '0.72rem' }}
                   >
-                    <span>Mở Modal Chi tiết ↗</span>
+                    Mở Modal Chi tiết ↗
                   </button>
                 )}
               </div>
-            }
-          >
+            </div>
             <EvidenceTable items={filteredEvidenceItems} />
-          </Card>
+          </div>
 
           {/* Modal Bằng chứng truy vết (Card 7) */}
           <EvidenceTraceabilityModal

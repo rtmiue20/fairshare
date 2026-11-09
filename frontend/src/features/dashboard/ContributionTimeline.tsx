@@ -27,30 +27,30 @@ export const ContributionTimeline: React.FC<ContributionTimelineProps> = ({ data
     <div style={{ width: '100%', height: '300px' }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.08)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
           <XAxis
             dataKey="name"
-            stroke="#94a3b8"
+            stroke="var(--fg3)"
             fontSize={11}
-            tick={{ fill: '#94a3b8' }}
+            tick={{ fill: 'var(--fg3)' }}
             interval={0}
             angle={-15}
             textAnchor="end"
           />
-          <YAxis stroke="#94a3b8" fontSize={11} tick={{ fill: '#94a3b8' }} />
+          <YAxis stroke="var(--fg3)" fontSize={11} tick={{ fill: 'var(--fg3)' }} />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              backgroundColor: 'var(--surface2)',
+              border: '1px solid var(--line)',
               borderRadius: '8px',
-              color: '#f8fafc',
+              color: 'var(--fg)',
               fontSize: '12px',
             }}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-          <Bar dataKey="Task Trello" fill="#3b82f6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-          <Bar dataKey="Chỉnh sửa Docs" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-          <Bar dataKey="Điểm thủ công" fill="#f59e0b" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: 'var(--fg2)' }} />
+          <Bar dataKey="Task Trello" fill="var(--m1)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="Chỉnh sửa Docs" fill="var(--ok)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="Điểm thủ công" fill="var(--m3)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>

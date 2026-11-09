@@ -16,6 +16,7 @@ function renderRegister() {
   const view = render(
     <MemoryRouter initialEntries={['/register']}>
       <Routes>
+        <Route path="/" element={<div>Trang chủ FairShare</div>} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<div>Trang đăng nhập</div>} />
         <Route path="/dashboard" element={<div>Trang dashboard</div>} />
@@ -33,7 +34,7 @@ describe('RegisterPage', () => {
     useAuthStore.setState({ user: null, token: null, isAuthenticated: false });
   });
 
-  it('TC-FE-AUTH-08: đăng ký thành công -> gửi đủ họ tên/email/mật khẩu, đăng nhập luôn và vào /dashboard', async () => {
+  it('TC-FE-AUTH-08: đăng ký thành công -> gửi đủ họ tên/email/mật khẩu, đăng nhập luôn và vào / (Welcome/Landing)', async () => {
     registerMock.mockResolvedValue({
       success: true,
       message: 'OK',
@@ -50,7 +51,7 @@ describe('RegisterPage', () => {
     fireEvent.change(password, { target: { value: 'Matkhau@123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Đăng ký' }));
 
-    expect(await screen.findByText('Trang dashboard')).toBeInTheDocument();
+    expect(await screen.findByText('Trang chủ FairShare')).toBeInTheDocument();
     expect(registerMock).toHaveBeenCalledWith({
       fullName: 'Tran Binh',
       email: 'binh@st.ueh.edu.vn',
@@ -69,7 +70,7 @@ describe('RegisterPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Đăng ký' }));
 
     expect(await screen.findByText('Email đã được sử dụng')).toBeInTheDocument();
-    expect(screen.queryByText('Trang dashboard')).not.toBeInTheDocument();
+    expect(screen.queryByText('Trang chủ FairShare')).not.toBeInTheDocument();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
