@@ -7,6 +7,42 @@ export interface EvidenceTableProps {
   items: (EvidenceItemDto | EvidenceItem)[];
 }
 
+interface NormalizedEvidenceItem {
+  sourceType: string;
+  sourceId: number | string;
+  taskName: string;
+  storyPoints?: number;
+  earnedScore: number;
+  eventTime: string;
+  status: string;
+}
+
+function normalizeEvidenceItem(
+  item: EvidenceItemDto | EvidenceItem,
+  index: number,
+): NormalizedEvidenceItem {
+  if ('sourceType' in item) {
+    return {
+      sourceType: item.sourceType || 'BOARD',
+      sourceId: item.sourceId || index + 1,
+      taskName: item.taskName || 'Không có tiêu đề',
+      storyPoints: item.storyPoints,
+      earnedScore: item.earnedScore ?? 0,
+      eventTime: item.eventTime || '',
+      status: item.status || 'DONE',
+    };
+  }
+  return {
+    sourceType: item.source || 'BOARD',
+    sourceId: item.id || index + 1,
+    taskName: item.title || 'Không có tiêu đề',
+    storyPoints: item.weight ? Math.round(item.weight) : undefined,
+    earnedScore: item.weight ?? 0,
+    eventTime: item.timestamp || '',
+    status: 'DONE',
+  };
+}
+
 export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
   if (!items || items.length === 0) {
     return (
@@ -116,15 +152,8 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
         </thead>
         <tbody className="divide-y divide-slate-800/50">
           {items.map((rawItem, index) => {
-            // Chuẩn hóa giữa EvidenceItemDto và EvidenceItem cũ
-            const item = rawItem as any;
-            const sourceType = item.sourceType || item.source || 'BOARD';
-            const sourceId = item.sourceId || item.id || index + 1;
-            const taskName = item.taskName || item.title || 'Không có tiêu đề';
-            const storyPoints = item.storyPoints ?? (item.weight ? Math.round(item.weight) : undefined);
-            const earnedScore = item.earnedScore ?? item.weight ?? 0;
-            const eventTime = item.eventTime || item.timestamp || '';
-            const status = item.status || 'DONE';
+            const item = normalizeEvidenceItem(rawItem, index);
+            const { sourceType, sourceId, taskName, storyPoints, earnedScore, eventTime, status } = item;
 
             return (
               <tr

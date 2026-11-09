@@ -3,11 +3,13 @@ import React, { useEffect, useState } from 'react';
 type ToastListener = (msg: string) => void;
 const listeners = new Set<ToastListener>();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function showToast(message: string) {
   listeners.forEach((fn) => fn(message));
 }
 
 // Alias for convenience
+// eslint-disable-next-line react-refresh/only-export-components
 export const toast = showToast;
 
 export const ToastContainer: React.FC = () => {
