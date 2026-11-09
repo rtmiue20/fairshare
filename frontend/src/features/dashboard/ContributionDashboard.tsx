@@ -6,12 +6,14 @@ import { EvidenceTable } from './EvidenceTable';
 import { MemberRadarChart } from './MemberRadarChart';
 import { DashboardFilters, SprintOption, MemberOption } from './DashboardFilters';
 import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
+import { ManualContributionModal } from './ManualContributionModal';
 import { contributionApi } from '../../api/contribution.api';
 import {
   ContributionScore,
   ContributionSummary,
   ContributionSummaryItem,
   EvidenceItemDto,
+  ManualContributionItem,
 } from '../../types/contribution';
 import { ExportReportButton } from '../report/ExportReportButton';
 import {
@@ -23,6 +25,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Search,
+  Sparkles,
 } from 'lucide-react';
 
 const AVAILABLE_SPRINTS: SprintOption[] = [
@@ -330,6 +333,46 @@ export const ContributionDashboard: React.FC = () => {
   const [modalEvidenceData, setModalEvidenceData] = useState<EvidenceItemDto[]>([]);
   const [modalTargetMember, setModalTargetMember] = useState<ContributionSummaryItem | null>(null);
 
+  // State cho Modal Khai báo & Duyệt đóng góp thủ công (Card 9)
+  const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
+  const [pendingCount, setPendingCount] = useState<number>(3);
+
+  // Xử lý khi có đóng góp thủ công được duyệt -> Cập nhật trực tiếp lên Dashboard
+  const handleContributionApproved = (item: ManualContributionItem) => {
+    const spNumber = Number(item.storyPoints);
+    const earned = Number((spNumber * 2.5).toFixed(1));
+
+    // 1. Thêm vào bảng bằng chứng Audit Trail
+    const newEvidenceItem: EvidenceItemDto = {
+      sourceType: 'MANUAL',
+      sourceId: item.id,
+      taskName: item.taskName,
+      storyPoints: spNumber,
+      earnedScore: earned,
+      eventTime: new Date().toISOString(),
+      status: 'APPROVED',
+    };
+    setEvidence((prev) => [newEvidenceItem, ...prev]);
+
+    // 2. Cập nhật tỷ lệ và điểm số của thành viên trên Dashboard
+    setSummaryItems((prev) =>
+      prev.map((m) => {
+        if (m.userId === item.userId) {
+          const updatedPct = Math.min(100, Number((m.finalPct + spNumber * 0.7).toFixed(1)));
+          return {
+            ...m,
+            finalPct: updatedPct,
+            d1Output: Number(((m.d1Output ?? 1.0) + 0.15).toFixed(2)),
+            evidenceStatus: `Đã bổ sung (+${spNumber} SP ngoài board)`,
+          };
+        }
+        return m;
+      })
+    );
+
+    setPendingCount((prev) => Math.max(0, prev - 1));
+  };
+
   // Re-fetch data whenever selectedSprintId changes
   useEffect(() => {
     setIsLoading(true);
@@ -453,7 +496,26 @@ export const ContributionDashboard: React.FC = () => {
             Hệ thống phân tích đóng góp đa chiều chuẩn Khoa học Dữ liệu kết hợp Bằng chứng truy vết (Audit Trail)
           </p>
         </div>
-        <ExportReportButton teamId={1} />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsManualModalOpen(true)}
+            data-testid="btn-open-manual-contributions"
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-600/20 px-3.5 py-2 text-xs font-semibold text-indigo-300 shadow-sm transition hover:bg-indigo-600/30 hover:text-white"
+          >
+            <Sparkles className="h-4 w-4 text-indigo-400" />
+            <span>Khai báo ngoài Board</span>
+            {pendingCount > 0 && (
+              <span
+                data-testid="badge-pending-count"
+                className="flex h-5 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/20 px-1.5 text-[10px] font-bold text-amber-300"
+              >
+                {pendingCount} chờ duyệt
+              </span>
+            )}
+          </button>
+          <ExportReportButton teamId={1} />
+        </div>
       </div>
 
       {/* Bộ lọc Sprint & Thành viên (Card 6) */}
@@ -655,6 +717,16 @@ export const ContributionDashboard: React.FC = () => {
             selectedUserId={modalTargetMember?.userId}
             sprintId={selectedSprintId}
             finalPct={modalTargetMember?.finalPct}
+          />
+
+          {/* Modal Khai báo & Duyệt đóng góp thủ công (Card 9) */}
+          <ManualContributionModal
+            isOpen={isManualModalOpen}
+            onClose={() => setIsManualModalOpen(false)}
+            teamId={1}
+            sprintId={selectedSprintId}
+            currentUserId={4}
+            onContributionApproved={handleContributionApproved}
           />
         </>
       )}

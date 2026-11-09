@@ -74,3 +74,25 @@ export interface EvidenceItemDto {
   eventTime: string;
   status: string;
 }
+
+export interface ManualContributionRequest {
+  taskName: string;
+  evidenceLink: string;
+  storyPoints: number;
+}
+
+export interface ManualContributionItem {
+  id: number;
+  teamId: number;
+  sprintId?: number;
+  userId: number;
+  userName?: string;
+  taskName: string;
+  evidenceLink: string;
+  storyPoints: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  reviewerId?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
