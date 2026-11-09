@@ -64,3 +64,13 @@ export interface EvidenceItem {
   timestamp: string;
   weight: number;
 }
+
+export interface EvidenceItemDto {
+  sourceType: 'BOARD' | 'MANUAL' | string;
+  sourceId: number;
+  taskName: string;
+  storyPoints?: number;
+  earnedScore?: number;
+  eventTime: string;
+  status: string;
+}

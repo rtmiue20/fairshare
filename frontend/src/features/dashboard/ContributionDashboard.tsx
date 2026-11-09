@@ -5,15 +5,25 @@ import { ContributionTimeline } from './ContributionTimeline';
 import { EvidenceTable } from './EvidenceTable';
 import { MemberRadarChart } from './MemberRadarChart';
 import { DashboardFilters, SprintOption, MemberOption } from './DashboardFilters';
+import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
 import { contributionApi } from '../../api/contribution.api';
 import {
   ContributionScore,
   ContributionSummary,
   ContributionSummaryItem,
-  EvidenceItem,
+  EvidenceItemDto,
 } from '../../types/contribution';
 import { ExportReportButton } from '../report/ExportReportButton';
-import { AlertTriangle, AlertCircle, CheckCircle2, ChevronRight, Loader2, RotateCcw } from 'lucide-react';
+import {
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  Loader2,
+  RotateCcw,
+  ShieldCheck,
+  Search,
+} from 'lucide-react';
 
 const AVAILABLE_SPRINTS: SprintOption[] = [
   { id: 1, name: 'Sprint 1: Khởi động & Đặc tả SRS' },
@@ -49,7 +59,7 @@ const SPRINT_4_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (12 task, 34 docs)',
+    evidenceStatus: 'Đầy đủ (12 task Task Board)',
   },
   {
     userId: 2,
@@ -66,7 +76,7 @@ const SPRINT_4_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (11 task, 42 docs)',
+    evidenceStatus: 'Đầy đủ (11 task Task Board)',
   },
   {
     userId: 3,
@@ -83,7 +93,7 @@ const SPRINT_4_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (9 task, 20 docs)',
+    evidenceStatus: 'Đầy đủ (9 task Task Board)',
   },
   {
     userId: 4,
@@ -100,7 +110,7 @@ const SPRINT_4_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (10 task, 22 docs)',
+    evidenceStatus: 'Đầy đủ (10 task Task Board)',
   },
   {
     userId: 5,
@@ -155,7 +165,7 @@ const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (10 task, 25 docs)',
+    evidenceStatus: 'Đầy đủ (10 task)',
   },
   {
     userId: 2,
@@ -172,7 +182,7 @@ const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (9 task, 30 docs)',
+    evidenceStatus: 'Đầy đủ (9 task)',
   },
   {
     userId: 3,
@@ -189,7 +199,7 @@ const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (11 task, 18 docs)',
+    evidenceStatus: 'Đầy đủ (11 task)',
   },
   {
     userId: 4,
@@ -206,7 +216,7 @@ const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (9 task, 20 docs)',
+    evidenceStatus: 'Đầy đủ (9 task)',
   },
   {
     userId: 5,
@@ -223,7 +233,7 @@ const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (8 task, 15 docs)',
+    evidenceStatus: 'Đầy đủ (8 task)',
   },
   {
     userId: 6,
@@ -240,7 +250,7 @@ const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
     isEnoughEvidence: true,
     isSuspicious: false,
     suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (7 task, 14 docs)',
+    evidenceStatus: 'Đầy đủ (7 task)',
   },
 ];
 
@@ -262,13 +272,45 @@ const DEFAULT_SCORES_S3: ContributionScore[] = [
   { userId: 6, userName: 'Nam Anh (QA)', percentage: 0.159, taskCompletedCount: 7, docsEditCount: 14, manualScore: 77, totalScore: 79, peerReviewScore: 4.65 },
 ];
 
-const DEFAULT_EVIDENCE: EvidenceItem[] = [
-  { id: 1, userId: 2, source: 'TRELLO', activityType: 'COMPLETE_CARD', title: 'Hoàn thành thiết kế màn hình Quản lý Nhóm & Hồ sơ cá nhân', timestamp: '2026-11-02T15:30:00Z', weight: 5, externalUrl: 'https://trello.com/b/fairshare' },
-  { id: 2, userId: 1, source: 'TRELLO', activityType: 'CREATE_SPRINT', title: 'Thiết lập mục tiêu và DoD (Mô hình 7 Sprints)', timestamp: '2026-11-01T09:15:00Z', weight: 4, externalUrl: 'https://trello.com/b/fairshare' },
-  { id: 3, userId: 3, source: 'TRELLO', activityType: 'INTEGRATE_API', title: 'Tích hợp Trello Webhook và kiểm thử kết nối REST API', timestamp: '2026-11-01T14:20:00Z', weight: 5, externalUrl: 'https://github.com/rtmiue20/fairshare' },
-  { id: 4, userId: 4, source: 'GOOGLE_DOCS', activityType: 'EDIT_SECTION', title: 'Cập nhật tài liệu SRS đặc tả yêu cầu chức năng', timestamp: '2026-10-31T20:00:00Z', weight: 3, externalUrl: 'https://docs.google.com' },
-  { id: 5, userId: 5, source: 'MANUAL', activityType: 'PEER_REVIEW', title: 'Kích hoạt vòng chấm chéo ẩn danh tuân thủ NĐ 13/2023', timestamp: '2026-10-30T16:45:00Z', weight: 3 },
-  { id: 6, userId: 6, source: 'TRELLO', activityType: 'DEPLOY_CHECK', title: 'Kiểm thử CI GitHub Actions và rà soát lỗi giao diện', timestamp: '2026-10-29T11:10:00Z', weight: 4, externalUrl: 'https://github.com/rtmiue20/fairshare' },
+// Tập dữ liệu mẫu minh chứng truy vết theo chuẩn CR-02 (nguồn BOARD và MANUAL)
+const SAMPLE_EVIDENCE_BY_USER: Record<number, EvidenceItemDto[]> = {
+  1: [
+    { sourceType: 'BOARD', sourceId: 101, taskName: 'Khởi tạo Sprint 4 & Thiết lập DoD nhóm', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T10:00:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 102, taskName: 'Soạn thảo Change Request CR-03 điều chỉnh công thức', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T14:30:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 103, taskName: 'Rà soát phân quyền Task Board theo vai trò Leader/Member', storyPoints: 3, earnedScore: 7.5, eventTime: '2026-11-05T09:15:00Z', status: 'DONE' },
+    { sourceType: 'MANUAL', sourceId: 501, taskName: 'Họp điều phối kỹ thuật với Giảng viên hướng dẫn', storyPoints: 2, earnedScore: 5.0, eventTime: '2026-11-05T16:00:00Z', status: 'APPROVED' },
+  ],
+  2: [
+    { sourceType: 'BOARD', sourceId: 201, taskName: 'Kiểm tra công thức tính điểm v1.0 trên tập dữ liệu thực tế', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T11:00:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 202, taskName: 'Lập báo cáo kiểm tra công thức Sprint 4 (M2)', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T15:20:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 203, taskName: 'Xây dựng kịch bản UAT phân hệ Task Board nội bộ', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-05T10:45:00Z', status: 'DONE' },
+  ],
+  3: [
+    { sourceType: 'BOARD', sourceId: 301, taskName: 'Phát triển REST API /api/boards và /api/cards', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T16:00:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 302, taskName: 'Tạo Flyway migration V15 đảm bảo tính bất biến ActivityEvent', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T09:30:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 303, taskName: 'Sinh sự kiện hoàn thành/đúng hạn khi di chuyển thẻ Done', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-05T14:10:00Z', status: 'DONE' },
+  ],
+  4: [
+    { sourceType: 'BOARD', sourceId: 401, taskName: 'Xây dựng Radar Chart 4 chiều hiển thị chỉ số D1-D4', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T17:30:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 402, taskName: 'Tích hợp bộ lọc Sprint & Thành viên linh hoạt', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T13:45:00Z', status: 'DONE' },
+    { sourceType: 'BOARD', sourceId: 403, taskName: 'Xây dựng Bảng bằng chứng truy vết (Card 7)', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-05T11:00:00Z', status: 'DONE' },
+  ],
+  5: [
+    { sourceType: 'BOARD', sourceId: 501, taskName: 'Viết Stored Procedure sp_get_evidence_traceability', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T14:00:00Z', status: 'DONE' },
+    { sourceType: 'MANUAL', sourceId: 502, taskName: 'Tối ưu chỉ mục CSDL cho bảng activity_events', storyPoints: 3, earnedScore: 7.5, eventTime: '2026-11-04T16:00:00Z', status: 'APPROVED' },
+  ],
+  6: [
+    { sourceType: 'BOARD', sourceId: 601, taskName: 'Thiết lập Testcontainers kiểm thử DB MariaDB', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-03T10:00:00Z', status: 'DONE' },
+  ],
+};
+
+const DEFAULT_AUDIT_TRAIL: EvidenceItemDto[] = [
+  { sourceType: 'BOARD', sourceId: 101, taskName: 'Khởi tạo Sprint 4 & Thiết lập DoD nhóm', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T10:00:00Z', status: 'DONE' },
+  { sourceType: 'BOARD', sourceId: 201, taskName: 'Kiểm tra công thức tính điểm v1.0 trên tập dữ liệu thực tế', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T11:00:00Z', status: 'DONE' },
+  { sourceType: 'BOARD', sourceId: 301, taskName: 'Phát triển REST API /api/boards và /api/cards', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T16:00:00Z', status: 'DONE' },
+  { sourceType: 'BOARD', sourceId: 401, taskName: 'Xây dựng Radar Chart 4 chiều hiển thị chỉ số D1-D4', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T17:30:00Z', status: 'DONE' },
+  { sourceType: 'BOARD', sourceId: 501, taskName: 'Viết Stored Procedure sp_get_evidence_traceability', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T14:00:00Z', status: 'DONE' },
+  { sourceType: 'MANUAL', sourceId: 501, taskName: 'Họp điều phối kỹ thuật với Giảng viên hướng dẫn', storyPoints: 2, earnedScore: 5.0, eventTime: '2026-11-05T16:00:00Z', status: 'APPROVED' },
 ];
 
 export const ContributionDashboard: React.FC = () => {
@@ -280,7 +322,13 @@ export const ContributionDashboard: React.FC = () => {
 
   const [summary, setSummary] = useState<ContributionSummary | null>(null);
   const [summaryItems, setSummaryItems] = useState<ContributionSummaryItem[]>(SPRINT_4_SUMMARY_ITEMS);
-  const [evidence, setEvidence] = useState<EvidenceItem[]>(DEFAULT_EVIDENCE);
+  const [evidence, setEvidence] = useState<EvidenceItemDto[]>(DEFAULT_AUDIT_TRAIL);
+
+  // State cho Modal truy vết bằng chứng (Card 7)
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState<boolean>(false);
+  const [evidenceModalLoading, setEvidenceModalLoading] = useState<boolean>(false);
+  const [modalEvidenceData, setModalEvidenceData] = useState<EvidenceItemDto[]>([]);
+  const [modalTargetMember, setModalTargetMember] = useState<ContributionSummaryItem | null>(null);
 
   // Re-fetch data whenever selectedSprintId changes
   useEffect(() => {
@@ -304,7 +352,7 @@ export const ContributionDashboard: React.FC = () => {
     Promise.allSettled([
       contributionApi.getContributions(1, selectedSprintId),
       contributionApi.getContributionSummary(1, selectedSprintId),
-      contributionApi.getMemberEvidence(1, typeof selectedUserId === 'number' ? selectedUserId : 1, selectedSprintId),
+      contributionApi.getEvidenceTraceability(1, selectedSprintId, typeof selectedUserId === 'number' ? selectedUserId : 1),
     ])
       .then(([scoresRes, summaryRes, evidenceRes]) => {
         // Dữ liệu Scores
@@ -327,16 +375,39 @@ export const ContributionDashboard: React.FC = () => {
         }
 
         // Dữ liệu minh chứng truy vết
-        if (evidenceRes.status === 'fulfilled' && evidenceRes.value.data) {
-          setEvidence(evidenceRes.value.data);
+        if (evidenceRes.status === 'fulfilled' && evidenceRes.value && evidenceRes.value.length > 0) {
+          setEvidence(evidenceRes.value);
         } else {
-          setEvidence(DEFAULT_EVIDENCE);
+          setEvidence(DEFAULT_AUDIT_TRAIL);
         }
       })
       .finally(() => {
         setIsLoading(false);
       });
   }, [selectedSprintId, selectedUserId]);
+
+  // Hàm mở Modal truy vết bằng chứng cho một thành viên
+  const handleOpenEvidenceModal = async (member: ContributionSummaryItem) => {
+    setModalTargetMember(member);
+    setIsEvidenceModalOpen(true);
+    setEvidenceModalLoading(true);
+
+    try {
+      const data = await contributionApi.getEvidenceTraceability(1, selectedSprintId, member.userId);
+      if (data && Array.isArray(data) && data.length > 0) {
+        setModalEvidenceData(data);
+      } else {
+        const fallback = SAMPLE_EVIDENCE_BY_USER[member.userId] || [];
+        setModalEvidenceData(fallback);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi gọi API truy vết bằng chứng, dùng dữ liệu mẫu nội bộ', err);
+      const fallback = SAMPLE_EVIDENCE_BY_USER[member.userId] || [];
+      setModalEvidenceData(fallback);
+    } finally {
+      setEvidenceModalLoading(false);
+    }
+  };
 
   // Cập nhật activeRadarUserId khi đổi selectedUserId
   const handleSelectMember = (userId: number | 'ALL') => {
@@ -355,7 +426,9 @@ export const ContributionDashboard: React.FC = () => {
   // Lọc bảng bằng chứng theo thành viên được chọn
   const filteredEvidenceItems = useMemo(() => {
     if (selectedUserId === 'ALL') return evidence;
-    return evidence.filter((e) => e.userId === selectedUserId);
+    const memberEv = SAMPLE_EVIDENCE_BY_USER[selectedUserId];
+    if (memberEv && memberEv.length > 0) return memberEv;
+    return evidence;
   }, [evidence, selectedUserId]);
 
   const scores = useMemo(() => {
@@ -416,7 +489,7 @@ export const ContributionDashboard: React.FC = () => {
           </div>
           <h3 className="text-lg font-bold text-white">Chưa có dữ liệu đóng góp cho Sprint này</h3>
           <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-400">
-            Sprint {selectedSprintId} chưa diễn ra hoặc chưa có bất kỳ sự kiện hoạt động (Activity Events) nào được ghi nhận từ Trello, Git hoặc Peer Review.
+            Sprint {selectedSprintId} chưa diễn ra hoặc chưa có bất kỳ sự kiện hoạt động nào được ghi nhận từ Task Board nội bộ, Git hoặc Peer Review.
           </p>
           <button
             onClick={() => setSelectedSprintId(4)}
@@ -494,10 +567,22 @@ export const ContributionDashboard: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* Nút bấm vào chỉ số % để mở bảng bằng chứng gốc */}
                         <div className="flex items-center gap-2">
-                          <span className="text-base font-extrabold text-sky-400">
-                            {member.finalPct?.toFixed(1) ?? '0.0'}%
-                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEvidenceModal(member);
+                            }}
+                            data-testid={`btn-evidence-pct-${member.userId}`}
+                            title="Bấm vào chỉ số % để xem bảng bằng chứng gốc"
+                            className="group flex items-center gap-1.5 rounded-lg border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-right transition hover:border-sky-400/50 hover:bg-sky-500/20"
+                          >
+                            <span className="text-base font-extrabold text-sky-400 group-hover:text-sky-300">
+                              {member.finalPct?.toFixed(1) ?? '0.0'}%
+                            </span>
+                            <Search className="h-3 w-3 text-sky-400 opacity-60 group-hover:opacity-100" />
+                          </button>
                           <ChevronRight className={`h-4 w-4 ${isSelected ? 'text-indigo-400' : 'text-slate-600'}`} />
                         </div>
                       </div>
@@ -512,9 +597,21 @@ export const ContributionDashboard: React.FC = () => {
               <Card
                 title="Hồ sơ năng lực 4 chiều (Radar Chart)"
                 extra={
-                  <span className="text-xs font-normal text-slate-400">
-                    Thành viên: <strong className="text-sky-400">{radarMember?.userName}</strong>
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-normal text-slate-400">
+                      Thành viên: <strong className="text-sky-400">{radarMember?.userName}</strong>
+                    </span>
+                    {radarMember && (
+                      <button
+                        onClick={() => handleOpenEvidenceModal(radarMember)}
+                        data-testid="btn-view-evidence-radar"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-400" />
+                        <span>Xem chi tiết bằng chứng</span>
+                      </button>
+                    )}
+                  </div>
                 }
               >
                 <MemberRadarChart member={radarMember} />
@@ -530,13 +627,35 @@ export const ContributionDashboard: React.FC = () => {
           <Card
             title="Bằng chứng truy vết minh chứng hoạt động (Audit Trail)"
             extra={
-              <span className="text-xs font-normal text-slate-400">
-                Tổng số sự kiện ghi nhận: {filteredEvidenceItems.length}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-normal text-slate-400">
+                  Tổng số sự kiện ghi nhận: {filteredEvidenceItems.length}
+                </span>
+                {radarMember && (
+                  <button
+                    onClick={() => handleOpenEvidenceModal(radarMember)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
+                  >
+                    <span>Mở Modal Chi tiết ↗</span>
+                  </button>
+                )}
+              </div>
             }
           >
             <EvidenceTable items={filteredEvidenceItems} />
           </Card>
+
+          {/* Modal Bằng chứng truy vết (Card 7) */}
+          <EvidenceTraceabilityModal
+            isOpen={isEvidenceModalOpen}
+            onClose={() => setIsEvidenceModalOpen(false)}
+            loading={evidenceModalLoading}
+            evidenceData={modalEvidenceData}
+            selectedUserName={modalTargetMember?.userName ?? ''}
+            selectedUserId={modalTargetMember?.userId}
+            sprintId={selectedSprintId}
+            finalPct={modalTargetMember?.finalPct}
+          />
         </>
       )}
     </div>

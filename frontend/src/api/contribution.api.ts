@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '../types/api';
-import { ContributionSummary, ContributionSummaryItem, EvidenceItem } from '../types/contribution';
+import { ContributionSummary, ContributionSummaryItem, EvidenceItem, EvidenceItemDto } from '../types/contribution';
 
 export interface ManualContributionPayload {
   title: string;
@@ -25,6 +25,17 @@ export const contributionApi = {
   getMemberEvidence: async (teamId: number, userId: number, sprintId?: number): Promise<ApiResponse<EvidenceItem[]>> => {
     const params = sprintId ? { sprintId } : {};
     const response = await apiClient.get<ApiResponse<EvidenceItem[]>>(`/teams/${teamId}/contributions/${userId}/evidence`, { params });
+    return response.data;
+  },
+
+  getEvidenceTraceability: async (
+    teamId: number,
+    sprintId: number,
+    userId: number
+  ): Promise<EvidenceItemDto[]> => {
+    const response = await apiClient.get<EvidenceItemDto[]>('/contributions/evidence', {
+      params: { teamId, sprintId, userId },
+    });
     return response.data;
   },
 
