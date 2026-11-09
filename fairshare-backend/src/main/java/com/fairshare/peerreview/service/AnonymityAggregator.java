@@ -1,11 +1,16 @@
 package com.fairshare.peerreview.service;
 
 import com.fairshare.peerreview.entity.ReviewSubmission;
+import com.fairshare.user.entity.User;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Component
 public class AnonymityAggregator {
@@ -31,20 +36,32 @@ public class AnonymityAggregator {
                     .build();
         }
 
-        int count = submissions.size();
+        Set<Long> reviewerIds = new LinkedHashSet<>();
+        for (ReviewSubmission submission : submissions) {
+            User reviewer = submission.getReviewer();
+            if (reviewer != null && reviewer.getId() != null) {
+                reviewerIds.add(reviewer.getId());
+            }
+        }
+
+        int count = reviewerIds.size();
         boolean safe = count >= threshold;
 
         double sum = 0.0;
         List<String> comments = new ArrayList<>();
+        Set<Long> commenters = new LinkedHashSet<>();
 
         for (ReviewSubmission s : submissions) {
             sum += s.getScore();
-            if (safe && s.getFeedback() != null && !s.getFeedback().isBlank()) {
+            User reviewer = s.getReviewer();
+            Long reviewerId = reviewer == null ? null : reviewer.getId();
+            if (safe && reviewerId != null && s.getFeedback() != null
+                    && !s.getFeedback().isBlank() && commenters.add(reviewerId)) {
                 comments.add(s.getFeedback());
             }
         }
 
-        double avg = count > 0 ? sum / count : 0.0;
+        double avg = safe ? sum / submissions.size() : 0.0;
 
         return AggregatedResult.builder()
                 .revieweeId(revieweeId)

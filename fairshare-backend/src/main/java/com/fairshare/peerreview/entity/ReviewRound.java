@@ -38,4 +38,8 @@ public class ReviewRound extends BaseEntity {
 
     @Column(name = "min_submissions_required", nullable = false)
     private int minSubmissionsRequired = 3;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ReviewRoundStatus status = ReviewRoundStatus.DRAFT;
 }

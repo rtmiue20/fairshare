@@ -469,15 +469,15 @@ CREATE TABLE IF NOT EXISTS review_rounds
     end_date                TIMESTAMP    NULL,
     min_submissions_required INT         NOT NULL DEFAULT 3
         COMMENT 'Ngưỡng tối thiểu để D4 được tính (≥ 3)',
-    status                  VARCHAR(20)  NOT NULL DEFAULT 'OPEN'
-        COMMENT 'OPEN | CLOSED | AGGREGATED',
+    status                  VARCHAR(20)  NOT NULL DEFAULT 'DRAFT'
+        COMMENT 'DRAFT | OPEN | CLOSED | AGGREGATED',
     created_at              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_review_rounds PRIMARY KEY (id),
     CONSTRAINT fk_rr_team   FOREIGN KEY (team_id)   REFERENCES teams   (id) ON DELETE CASCADE,
     CONSTRAINT fk_rr_sprint FOREIGN KEY (sprint_id) REFERENCES sprints (id) ON DELETE CASCADE,
-    CONSTRAINT chk_rr_status CHECK (status IN ('OPEN', 'CLOSED', 'AGGREGATED')),
+    CONSTRAINT chk_rr_status CHECK (status IN ('DRAFT', 'OPEN', 'CLOSED', 'AGGREGATED')),
 
     INDEX idx_rr_team_sprint (team_id, sprint_id)
 );
