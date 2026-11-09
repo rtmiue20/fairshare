@@ -16,3 +16,4 @@ fairshare-backend/target/
 frontend/*.tsbuildinfo
 frontend/test-results/
 .vscode/
+.env.staging
