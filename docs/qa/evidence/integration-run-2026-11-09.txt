@@ -1,0 +1,74 @@
+== Setup trên http://localhost:8081 (run 1794217824)
+   team=2 sprint=2 board=2 cột=['To Do', 'In Progress', 'Review', 'Done']
+
+== Luồng 1: Board -> ActivityEvent -> đóng góp
+[PASS] IT-BRD-01 Tạo card sinh CARD_CREATED nguồn BOARD, gắn đúng sprint
+       mong đợi: 3 sự kiện CARD_CREATED, source=BOARD, sprintId=2
+       thực tế : 3 sự kiện, source=['BOARD']
+[PASS] IT-BRD-02 Kéo card giữa cột thường sinh CARD_MOVED
+       mong đợi: >= 1 CARD_MOVED của B
+       thực tế : 1 sự kiện
+[PASS] IT-BRD-03 Card vào Done trước hạn -> CARD_COMPLETED, is_on_time=true, delay_days=0
+       mong đợi: isOnTime=true, delayDays=0, storyPoints=3
+       thực tế : [(True, 0.0, 3.0)]
+[PASS] IT-BRD-04 Card vào Done sau hạn 1 ngày -> is_on_time=false, delay_days≈1
+       mong đợi: isOnTime=false, 0.9 <= delayDays <= 1.1
+       thực tế : [(False, 1.0)]
+[PASS] IT-BRD-05 API tổng hợp đóng góp (sp_calculate_contribution_scores) trả điểm cho thành viên có card Done
+       mong đợi: HTTP 200; B và C có finalPct > 0
+       thực tế : HTTP 200; user 15: finalPct=0.0, user 16: finalPct=50.0, user 17: finalPct=22.22, user 18: finalPct=27.78
+[PASS] IT-BRD-06 Truy vết bằng chứng của B chứa sự kiện hoàn thành card
+       mong đợi: HTTP 200; có mục chứa 'IT card đúng hạn'
+       thực tế : HTTP 200; 3 mục; sourceType=['TRELLO']
+[FAIL] IT-BRD-07 Nguồn bằng chứng ghi đúng là BOARD (theo CR-02, không còn Trello)
+       mong đợi: sourceType = BOARD
+       thực tế : sourceType = ['TRELLO']
+[PASS] IT-BRD-08 Xóa card không làm mất sự kiện đã ghi
+       mong đợi: HTTP 200; số CARD_COMPLETED giữ nguyên
+       thực tế : HTTP 200; trước=2, sau=2
+[FAIL] IT-BRD-09 Chống gian lận: kéo card vào 'In Progress' nhưng gửi toColumnName='Done'
+       mong đợi: Không sinh CARD_COMPLETED (server phải dùng tên cột thật)
+       thực tế : HTTP 200; 1 CARD_COMPLETED giả cho D
+[FAIL] IT-BRD-10 Người ngoài nhóm xem bảng đóng góp của nhóm
+       mong đợi: HTTP 403
+       thực tế : HTTP 200
+[FAIL] IT-BRD-11 Người ngoài nhóm xem log hoạt động của nhóm
+       mong đợi: HTTP 403
+       thực tế : HTTP 200; 7 sự kiện lộ ra
+
+== Luồng 2: Chấm chéo -> DB -> ẩn danh
+[FAIL] IT-PR-01 API liệt kê đợt chấm theo sprint
+       mong đợi: HTTP 200, có round 2
+       thực tế : HTTP 500; {'success': False, 'message': 'An unexpected error occurred: Could not write JSON: Could not initialize proxy [com.fairshare.sprint.entity.Sprint#2] - no session', 'data': None, 'error': None, 'timestamp': '2026-11-09T16:50:25.573405357'}
+[FAIL] IT-PR-02 Gửi đánh giá: API trả thành công và lưu vào bảng review_submissions
+       mong đợi: HTTP 200; 1 dòng (15, 17, QUALITY, 4)
+       thực tế : HTTP 500; DB: '15\t17\tQUALITY\t4'
+[PASS] IT-PR-03 Response gửi đánh giá không trả lại thông tin người chấm
+       mong đợi: Không có trường reviewer/email trong response
+       thực tế : không có
+[FAIL] IT-PR-04 Dưới 3 lượt (1 lượt): không lộ điểm/nhận xét
+       mong đợi: isAnonymousSafe=false, averageScore ẩn (null/0), feedback rỗng
+       thực tế : HTTP 200; safe=False, avg=4.0, count=1, fb=[]
+[PASS] IT-PR-05 Tự chấm chính mình bị từ chối
+       mong đợi: HTTP 400
+       thực tế : HTTP 400
+[FAIL] IT-PR-06 Điểm ngoài thang 1–5 bị từ chối với lỗi validation
+       mong đợi: HTTP 400
+       thực tế : HTTP 500
+[FAIL] IT-PR-07 Người ngoài nhóm không được chấm thành viên nhóm
+       mong đợi: HTTP 403/400 và KHÔNG có dòng nào trong DB
+       thực tế : HTTP 500; 1 dòng đã lưu vào DB
+[FAIL] IT-PR-08 Một người chấm 3 lần cho cùng người: không được coi là đủ 3 lượt ẩn danh
+       mong đợi: isAnonymousSafe=false (đếm người chấm khác nhau, hoặc chặn chấm trùng)
+       thực tế : safe=True, count=3, fb=['B chấm D lặp lại', 'B chấm D lặp lại', 'B chấm D lặp lại']
+[PASS] IT-PR-09 Đủ 3 người chấm khác nhau: hiện điểm trung bình và nhận xét, không kèm danh tính
+       mong đợi: isAnonymousSafe=true, avg=4.0, 3 nhận xét, không có reviewerId
+       thực tế : safe=True, avg=4.0, fb=3, reviewerId trong response=False
+[PASS] IT-PR-10 Trigger DB tạo alert PEER_REVIEW_SUFFICIENT khi đủ 3 người chấm
+       mong đợi: 1 alert
+       thực tế : 1 alert
+[FAIL] IT-PR-11 Người ngoài nhóm xem kết quả chấm chéo của thành viên
+       mong đợi: HTTP 403
+       thực tế : HTTP 200; avg=4.0
+
+TỔNG: 11/22 PASS
