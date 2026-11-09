@@ -17,10 +17,6 @@ import { ManualContributionPage } from '../features/contribution/ManualContribut
 
 export const router = createBrowserRouter([
   {
-    path: '/landing',
-    element: <LandingPage />,
-  },
-  {
     path: '/login',
     element: <LoginPage />,
   },
@@ -29,16 +25,21 @@ export const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   {
+    path: '/landing',
+    element: <LandingPage />,
+  },
+  {
     path: '/',
     element: <ProtectedRoute />,
     children: [
       {
+        index: true,
+        // Sau khi login, người dùng vào màn hình Welcome / Landing (có 3D Ribbon & Hero) trước khi bấm vào Dashboard
+        element: <LandingPage />,
+      },
+      {
         element: <AppLayout />,
         children: [
-          {
-            index: true,
-            element: <Navigate to="/dashboard" replace />,
-          },
           {
             path: 'dashboard',
             element: <ContributionDashboard />,
@@ -89,6 +90,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/" replace />,
   },
 ]);

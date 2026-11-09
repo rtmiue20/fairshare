@@ -7,12 +7,13 @@ import {
   EyeOff,
   Lock,
   Mail,
-  ShieldCheck,
+  Moon,
   Sparkles,
+  Sun,
 } from 'lucide-react';
 import { useAuth } from './useAuth';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
+import { LandingRibbon } from '../landing/LandingRibbon';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -25,8 +26,9 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Mặc định sau khi login chuyển sang '/' (Welcome / Landing stage theo mẫu UI) chứ chưa vào dashboard
   const redirectPath =
-    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/dashboard';
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
 
   const validateForm = (): boolean => {
     const trimmedEmail = email.trim();
@@ -67,285 +69,334 @@ export const LoginPage: React.FC = () => {
     clearError();
     setValidationError(null);
     loginDemo();
-    navigate('/dashboard', { replace: true });
+    navigate('/', { replace: true });
   };
 
+  const toggleTheme = () => {
+    const r = document.documentElement;
+    const cur = r.dataset.theme || ((typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    r.dataset.theme = next;
+    localStorage.setItem('fs-theme', next);
+  };
+
+  const isLight = document.documentElement.dataset.theme === 'light';
   const displayError = validationError || error;
 
   return (
     <div
+      className="relative min-h-screen w-full flex flex-col justify-between overflow-x-hidden"
       style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #e0f2fe 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '32px 16px',
+        background:
+          'radial-gradient(70% 60% at 68% 38%, color-mix(in srgb, var(--rb2) 14%, transparent), transparent 70%), radial-gradient(50% 50% at 12% 90%, color-mix(in srgb, var(--rb1) 12%, transparent), transparent 70%)',
+        backgroundColor: 'var(--bg)',
+        color: 'var(--fg)',
+        fontFamily: 'var(--f-body)',
       }}
     >
-      <div
+      {/* 3D Helix Ribbon Canvas in the background */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+        <LandingRibbon scrollProgress={0} />
+      </div>
+
+      {/* Top minimal header bar matching FairShare UI */}
+      <header
+        className="relative z-10 w-full flex items-center justify-between px-6 sm:px-12 py-4"
         style={{
-          maxWidth: '940px',
-          width: '100%',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: '28px',
-          alignItems: 'stretch',
+          borderBottom: '1px solid var(--line)',
+          background: 'var(--glass)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        {/* Left column: Brand & Feature Highlights */}
+        <Link to="/" className="brand flex items-center gap-2 text-inherit no-underline" aria-label="FairShare, về trang chủ">
+          <i aria-hidden="true" style={{ width: '14px', height: '14px', border: '1.5px solid currentColor', borderRadius: '3px', display: 'inline-block' }} />
+          <span style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em' }}>
+            FAIRSHARE
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="icon-btn p-2 rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--fg)] hover:opacity-80 transition cursor-pointer flex items-center justify-center"
+            aria-label="Đổi giao diện sáng/tối"
+            title="Đổi giao diện sáng/tối"
+          >
+            {isLight ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+          <Link
+            to="/register"
+            className="btn ghost sm text-xs font-semibold px-4 py-1.5 rounded-full border border-[var(--line)] text-[var(--fg)] hover:bg-[var(--surface2)] transition no-underline"
+          >
+            Đăng ký
+          </Link>
+        </div>
+      </header>
+
+      {/* Main Login Workspace */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
         <div
-          style={{
-            background: 'linear-gradient(145deg, #1e40af 0%, #2563eb 60%, #1d4ed8 100%)',
-            borderRadius: '16px',
-            padding: '36px 32px',
-            color: '#ffffff',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.35)',
-          }}
+          className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center"
         >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-              <div
+          {/* Left Hero Overview */}
+          <div className="lg:col-span-7 flex flex-col gap-6 text-left">
+            <span
+              className="eyebrow"
+              style={{
+                font: '500 11px/1 var(--f-mono)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.14em',
+                color: 'var(--fg3)',
+              }}
+            >
+              Dành cho đồ án nhóm
+            </span>
+
+            <h1
+              className="h-xl font-light text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-tight"
+              style={{ color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
+            >
+              Chia điểm{' '}
+              <em
+                className="it"
                 style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: '18px',
+                  fontFamily: 'var(--f-serif)',
+                  fontStyle: 'italic',
+                  color: 'var(--ital)',
                 }}
               >
-                FS
-              </div>
-              <div>
-                <div style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.3px' }}>
-                  FairShare
-                </div>
-                <div style={{ fontSize: '12px', color: '#bfdbfe' }}>
-                  UEH – Quản lý dự án CNTT
-                </div>
-              </div>
-            </div>
-
-            <h1 style={{ fontSize: '26px', fontWeight: 700, lineHeight: 1.3, marginBottom: '14px' }}>
-              Đo lường & minh bạch hóa mức đóng góp đồ án nhóm
+                công bằng
+              </em>
+              , dựa trên bằng chứng.
             </h1>
 
-            <p style={{ fontSize: '14px', color: '#dbeafe', lineHeight: 1.6, marginBottom: '28px' }}>
-              Giải quyết triệt để tình trạng free-rider bằng dữ liệu hoạt động thực tế từ Trello và đánh giá đồng đẳng ẩn danh.
+            <p
+              className="lede text-sm sm:text-base leading-relaxed"
+              style={{ color: 'var(--fg2)', maxWidth: '520px' }}
+            >
+              FairShare tự ghi nhận ai làm gì, bao nhiêu, khi nào, từ Trello và Google Docs. Giải quyết triệt để tình trạng free-rider bằng dữ liệu hoạt động thực tế.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="flex flex-col gap-3 text-xs sm:text-sm" style={{ color: 'var(--fg)' }}>
               {[
-                'Tự động đồng bộ thẻ công việc hoàn thành từ Trello',
-                'Truy vết bằng chứng đóng góp chi tiết cho từng thành viên',
-                'Chấm chéo ẩn danh cuối mỗi Sprint (ngưỡng an toàn ≥ 3 lượt)',
-              ].map((feature) => (
-                <div key={feature} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
-                  <CheckCircle2 size={17} color="#86efac" style={{ flexShrink: 0 }} />
-                  <span>{feature}</span>
+                'Tự động đồng bộ thẻ công việc hoàn thành từ Trello & Docs',
+                'Minh chứng truy vết chi tiết từng thành viên theo Sprint',
+                'Chấm chéo ẩn danh chuẩn hóa đa chiều (Output, Reliability, Peer)',
+              ].map((feat) => (
+                <div key={feat} className="flex items-center gap-2.5">
+                  <CheckCircle2 size={16} style={{ color: 'var(--ok)', flexShrink: 0 }} />
+                  <span>{feat}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div
-            style={{
-              marginTop: '32px',
-              paddingTop: '16px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '12px',
-              color: '#bfdbfe',
-            }}
-          >
-            <ShieldCheck size={16} />
-            <span>Tuân thủ chính sách đồng thuận dữ liệu (Consent Policy)</span>
-          </div>
-        </div>
-
-        {/* Right column: Login Form */}
-        <Card
-          title="Đăng nhập FairShare"
-          subtitle="Nhập thông tin tài khoản của bạn để truy cập bảng đóng góp"
-          style={{
-            borderRadius: '16px',
-            padding: '32px 28px',
-            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.08)',
-          }}
-        >
-          {displayError && (
+          {/* Right Card: Login Form */}
+          <div className="lg:col-span-5 w-full">
             <div
-              role="alert"
+              className="rounded-3xl p-6 sm:p-8 transition-all"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                marginBottom: '16px',
-                fontSize: '13px',
+                background: 'var(--surface)',
+                border: '1px solid var(--line)',
+                boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.12)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
               }}
             >
-              <AlertCircle size={16} style={{ flexShrink: 0 }} />
-              <span>{displayError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label
-                htmlFor="login-email"
-                style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
-              >
-                Email
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail
-                  size={16}
-                  color="#94a3b8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="login-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder="phucvuong.31241025017@st.ueh.edu.vn"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px 10px 38px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                />
+              <div className="mb-6">
+                <h2
+                  className="text-xl sm:text-2xl font-bold tracking-tight"
+                  style={{ color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
+                >
+                  Đăng nhập FairShare
+                </h2>
+                <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--fg3)' }}>
+                  Nhập thông tin tài khoản của bạn để tiếp tục
+                </p>
               </div>
-            </div>
 
-            <div>
-              <label
-                htmlFor="login-password"
-                style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
-              >
-                Mật khẩu
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock
-                  size={16}
-                  color="#94a3b8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
-                  required
+              {displayError && (
+                <div
+                  role="alert"
+                  className="flex items-center gap-2 p-3 rounded-xl mb-4 text-xs font-medium"
                   style={{
-                    width: '100%',
-                    padding: '10px 38px 10px 38px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#64748b',
-                    padding: '4px',
-                    display: 'inline-flex',
+                    backgroundColor: 'color-mix(in srgb, var(--bad) 10%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--bad) 25%, transparent)',
+                    color: 'var(--bad)',
                   }}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                  <span>{displayError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+                <div>
+                  <label
+                    htmlFor="login-email"
+                    className="block mb-1.5 text-xs font-semibold"
+                    style={{ color: 'var(--fg2)' }}
+                  >
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail
+                      size={15}
+                      style={{
+                        position: 'absolute',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--fg3)',
+                      }}
+                    />
+                    <input
+                      id="login-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (validationError) setValidationError(null);
+                      }}
+                      placeholder="phucvuong.31241025017@st.ueh.edu.vn"
+                      required
+                      className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-3 outline-none transition"
+                      style={{
+                        background: 'var(--surface2)',
+                        border: '1px solid var(--line)',
+                        color: 'var(--fg)',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="login-password"
+                    className="block mb-1.5 text-xs font-semibold"
+                    style={{ color: 'var(--fg2)' }}
+                  >
+                    Mật khẩu
+                  </label>
+                  <div className="relative">
+                    <Lock
+                      size={15}
+                      style={{
+                        position: 'absolute',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--fg3)',
+                      }}
+                    />
+                    <input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (validationError) setValidationError(null);
+                      }}
+                      placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                      required
+                      className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-9 outline-none transition"
+                      style={{
+                        background: 'var(--surface2)',
+                        border: '1px solid var(--line)',
+                        color: 'var(--fg)',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 bg-transparent border-0 cursor-pointer"
+                      style={{ color: 'var(--fg3)' }}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--fg2)' }}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>Ghi nhớ đăng nhập</span>
+                  </label>
+                  <span style={{ color: 'var(--accent)', fontSize: '11px', fontWeight: 500 }}>
+                    Hỗ trợ ST.UEH
+                  </span>
+                </div>
+
+                <Button
+                  type="submit"
+                  isLoading={loading}
+                  className="w-full py-2.5 mt-2"
+                >
+                  Đăng nhập
+                </Button>
+
+                <div className="relative text-center my-1">
+                  <span
+                    className="px-3 text-[11px]"
+                    style={{
+                      color: 'var(--fg3)',
+                      background: 'var(--surface)',
+                    }}
+                  >
+                    hoặc trải nghiệm nhanh
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleQuickDemo}
+                  className="w-full py-2 px-3 rounded-full text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+                  style={{
+                    border: '1px dashed var(--line)',
+                    background: 'var(--surface2)',
+                    color: 'var(--fg)',
+                  }}
+                >
+                  <Sparkles size={14} style={{ color: 'var(--accent)' }} />
+                  <span>Vào nhanh bằng Tài khoản Demo (M1 – Phúc Vương)</span>
                 </button>
-              </div>
+
+                <div className="text-center text-xs mt-2" style={{ color: 'var(--fg2)' }}>
+                  Chưa có tài khoản?{' '}
+                  <Link
+                    to="/register"
+                    className="font-semibold underline ml-1"
+                    style={{ color: 'var(--fg)' }}
+                  >
+                    Đăng ký ngay
+                  </Link>
+                </div>
+              </form>
             </div>
+          </div>
+        </div>
+      </main>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span>Ghi nhớ đăng nhập</span>
-              </label>
-              <span style={{ color: '#2563eb', fontSize: '12px', fontWeight: 500 }}>
-                Hỗ trợ tài khoản sinh viên UEH
-              </span>
-            </div>
-
-            <Button type="submit" isLoading={loading} style={{ width: '100%', padding: '10px 16px', marginTop: '4px' }}>
-              Đăng nhập
-            </Button>
-
-            <div style={{ position: 'relative', textAlign: 'center', margin: '4px 0' }}>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>hoặc trải nghiệm nhanh</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleQuickDemo}
-              style={{
-                width: '100%',
-                padding: '9px 14px',
-                borderRadius: '8px',
-                border: '1px dashed #93c5fd',
-                backgroundColor: '#eff6ff',
-                color: '#1d4ed8',
-                fontSize: '13px',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-              }}
-            >
-              <Sparkles size={15} />
-              <span>Vào nhanh bằng Tài khoản Demo (M1 – Phúc Vương)</span>
-            </button>
-
-            <div style={{ textAlign: 'center', fontSize: '14px', marginTop: '8px', color: '#475569' }}>
-              Chưa có tài khoản?{' '}
-              <Link to="/register" style={{ fontWeight: 600, color: '#2563eb' }}>
-                Đăng ký ngay
-              </Link>
-            </div>
-          </form>
-        </Card>
-      </div>
+      {/* Modern footer */}
+      <footer
+        className="relative z-10 w-full py-4 px-6 text-center text-xs"
+        style={{
+          borderTop: '1px solid var(--line)',
+          background: 'var(--glass)',
+          color: 'var(--fg3)',
+          fontFamily: 'var(--f-mono)',
+        }}
+      >
+        <span>FairShare · Đồ án môn Quản lý dự án CNTT UEH · Tuân thủ NĐ 13/2023/NĐ-CP</span>
+      </footer>
     </div>
   );
 };

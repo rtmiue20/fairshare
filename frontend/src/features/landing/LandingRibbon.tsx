@@ -101,8 +101,15 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
     const cv3d = canvas3dRef.current;
     if (!container || !cv2d || !cv3d) return;
 
-    const ctx2d = cv2d.getContext('2d');
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let ctx2d: CanvasRenderingContext2D | null = null;
+    try {
+      ctx2d = cv2d.getContext('2d');
+    } catch {
+      ctx2d = null;
+    }
+    const reduce = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
     const t0 = performance.now();
     let animId = 0;
     let s = scrollProgress;
@@ -376,8 +383,14 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
 
     animId = requestAnimationFrame(loop);
 
+    const observer = new MutationObserver(() => {
+      applyColors();
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
     return () => {
       cancelAnimationFrame(animId);
+      observer.disconnect();
       window.removeEventListener('resize', resize);
       if (renderer) renderer.dispose();
     };

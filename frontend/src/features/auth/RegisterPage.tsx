@@ -2,27 +2,27 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   AlertCircle,
-  CheckCircle2,
   Eye,
   EyeOff,
   Lock,
   Mail,
-  ShieldCheck,
+  Moon,
+  Sun,
   User,
 } from 'lucide-react';
 import { useAuth } from './useAuth';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
+import { LandingRibbon } from '../landing/LandingRibbon';
 
 function getPasswordStrength(password: string): { label: string; color: string; percent: number } {
-  if (!password) return { label: 'Chưa nhập', color: '#cbd5e1', percent: 0 };
-  if (password.length < 6) return { label: 'Quá ngắn (< 6 ký tự)', color: '#ef4444', percent: 30 };
+  if (!password) return { label: 'Chưa nhập', color: 'var(--fg3)', percent: 0 };
+  if (password.length < 6) return { label: 'Quá ngắn (< 6 ký tự)', color: 'var(--bad)', percent: 30 };
   const hasLetter = /[a-zA-Z]/.test(password);
   const hasNumber = /\d/.test(password);
   if (password.length >= 8 && hasLetter && hasNumber) {
-    return { label: 'Mạnh', color: '#16a34a', percent: 100 };
+    return { label: 'Mạnh', color: 'var(--ok)', percent: 100 };
   }
-  return { label: 'Trung bình', color: '#eab308', percent: 65 };
+  return { label: 'Trung bình', color: 'var(--warn)', percent: 65 };
 }
 
 export const RegisterPage: React.FC = () => {
@@ -50,15 +50,15 @@ export const RegisterPage: React.FC = () => {
       return false;
     }
     if (password.length < 6) {
-      setValidationError('Mật khẩu phải có tối thiểu 6 ký tự.');
+      setValidationError('Mật khẩu phải có ít nhất 6 ký tự.');
       return false;
     }
-    if (confirmPassword && password !== confirmPassword) {
+    if (password !== confirmPassword && confirmPassword) {
       setValidationError('Mật khẩu xác nhận không khớp.');
       return false;
     }
     if (!agreedTerms) {
-      setValidationError('Bạn cần đồng ý với chính sách minh bạch dữ liệu để tiếp tục.');
+      setValidationError('Bạn cần đồng ý với Chính sách bảo vệ dữ liệu để tiếp tục.');
       return false;
     }
     setValidationError(null);
@@ -76,323 +76,340 @@ export const RegisterPage: React.FC = () => {
         password,
         fullName: fullName.trim(),
       });
-      navigate('/dashboard', { replace: true });
+      // Mặc định chuyển sang trang chủ Welcome / Landing theo mẫu UI
+      navigate('/', { replace: true });
     } catch {
       // Error state is handled in useAuth
     }
   };
 
+  const toggleTheme = () => {
+    const r = document.documentElement;
+    const cur = r.dataset.theme || ((typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    r.dataset.theme = next;
+    localStorage.setItem('fs-theme', next);
+  };
+
+  const isLight = document.documentElement.dataset.theme === 'light';
   const displayError = validationError || error;
 
   return (
     <div
+      className="relative min-h-screen w-full flex flex-col justify-between overflow-x-hidden"
       style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #e0f2fe 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '32px 16px',
+        background:
+          'radial-gradient(70% 60% at 68% 38%, color-mix(in srgb, var(--rb2) 14%, transparent), transparent 70%), radial-gradient(50% 50% at 12% 90%, color-mix(in srgb, var(--rb1) 12%, transparent), transparent 70%)',
+        backgroundColor: 'var(--bg)',
+        color: 'var(--fg)',
+        fontFamily: 'var(--f-body)',
       }}
     >
-      <div
+      {/* 3D Helix Ribbon Canvas in the background */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+        <LandingRibbon scrollProgress={0} />
+      </div>
+
+      {/* Top minimal header bar */}
+      <header
+        className="relative z-10 w-full flex items-center justify-between px-6 sm:px-12 py-4"
         style={{
-          maxWidth: '500px',
-          width: '100%',
+          borderBottom: '1px solid var(--line)',
+          background: 'var(--glass)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <Link to="/" className="brand flex items-center gap-2 text-inherit no-underline" aria-label="FairShare, về trang chủ">
+          <i aria-hidden="true" style={{ width: '14px', height: '14px', border: '1.5px solid currentColor', borderRadius: '3px', display: 'inline-block' }} />
+          <span style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em' }}>
+            FAIRSHARE
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="icon-btn p-2 rounded-full border border-[var(--line)] bg-[var(--surface)] text-[var(--fg)] hover:opacity-80 transition cursor-pointer flex items-center justify-center"
+            aria-label="Đổi giao diện sáng/tối"
+          >
+            {isLight ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+          <Link
+            to="/login"
+            className="btn ghost sm text-xs font-semibold px-4 py-1.5 rounded-full border border-[var(--line)] text-[var(--fg)] hover:bg-[var(--surface2)] transition no-underline"
+          >
+            Đăng nhập
+          </Link>
+        </div>
+      </header>
+
+      {/* Main Register Workspace */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+        <div className="w-full max-w-md">
           <div
+            className="rounded-3xl p-6 sm:p-8 transition-all"
             style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-              color: '#ffffff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '18px',
-              marginBottom: '8px',
-              boxShadow: '0 4px 10px rgba(37, 99, 235, 0.25)',
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.12)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
             }}
           >
-            FS
-          </div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-            FairShare – Tạo tài khoản mới
-          </h1>
-          <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-            Tham gia nhóm đồ án và theo dõi đóng góp minh bạch theo từng Sprint
-          </p>
-        </div>
-
-        <Card
-          title="Đăng ký tài khoản FairShare"
-          style={{
-            borderRadius: '16px',
-            padding: '28px',
-            boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.08)',
-          }}
-        >
-          {displayError && (
-            <div
-              role="alert"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                marginBottom: '16px',
-                fontSize: '13px',
-              }}
-            >
-              <AlertCircle size={16} style={{ flexShrink: 0 }} />
-              <span>{displayError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div>
-              <label
-                htmlFor="register-fullname"
-                style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
+            <div className="mb-6">
+              <h2
+                className="text-xl sm:text-2xl font-bold tracking-tight"
+                style={{ color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
               >
-                Họ và tên
-              </label>
-              <div style={{ position: 'relative' }}>
-                <User
-                  size={16}
-                  color="#94a3b8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="register-fullname"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => {
-                    setFullName(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder="VD: Nguyễn Phúc Vương"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px 10px 38px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                />
+                Đăng ký tài khoản FairShare
+              </h2>
+              <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--fg3)' }}>
+                Đăng ký để bắt đầu đo lường đóng góp đồ án nhóm
+              </p>
+            </div>
+
+            {displayError && (
+              <div
+                role="alert"
+                className="flex items-center gap-2 p-3 rounded-xl mb-4 text-xs font-medium"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--bad) 10%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--bad) 25%, transparent)',
+                  color: 'var(--bad)',
+                }}
+              >
+                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                <span>{displayError}</span>
               </div>
-            </div>
+            )}
 
-            <div>
-              <label
-                htmlFor="register-email"
-                style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
-              >
-                Email
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail
-                  size={16}
-                  color="#94a3b8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="register-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder="phucvuong.31241025017@st.ueh.edu.vn"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px 10px 38px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="register-password"
-                style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
-              >
-                Mật khẩu
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock
-                  size={16}
-                  color="#94a3b8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="register-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder="Tối thiểu 6 ký tự"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 38px 10px 38px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#64748b',
-                    padding: '4px',
-                    display: 'inline-flex',
-                  }}
+            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+              <div>
+                <label
+                  htmlFor="register-fullname"
+                  className="block mb-1.5 text-xs font-semibold"
+                  style={{ color: 'var(--fg2)' }}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-
-              {password && (
-                <div style={{ marginTop: '6px' }}>
-                  <div
+                  Họ và tên
+                </label>
+                <div className="relative">
+                  <User
+                    size={15}
                     style={{
-                      height: '4px',
-                      width: '100%',
-                      backgroundColor: '#e2e8f0',
-                      borderRadius: '999px',
-                      overflow: 'hidden',
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--fg3)',
                     }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${strength.percent}%`,
-                        backgroundColor: strength.color,
-                        transition: 'all 0.2s ease',
-                      }}
-                    />
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
-                    Độ mạnh mật khẩu: <strong style={{ color: strength.color }}>{strength.label}</strong>
-                  </div>
+                  />
+                  <input
+                    id="register-fullname"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => {
+                      setFullName(e.target.value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Nguyễn Văn A"
+                    required
+                    className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-3 outline-none transition"
+                    style={{
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--fg)',
+                    }}
+                  />
                 </div>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="register-confirm-password"
-                style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
-              >
-                Xác nhận mật khẩu
-              </label>
-              <div style={{ position: 'relative' }}>
-                <CheckCircle2
-                  size={16}
-                  color="#94a3b8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  id="register-confirm-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder="Nhập lại mật khẩu"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px 10px 38px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '14px',
-                    outline: 'none',
-                  }}
-                />
               </div>
-            </div>
 
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                fontSize: '12px',
-                color: '#475569',
-                cursor: 'pointer',
-                padding: '8px 10px',
-                borderRadius: '8px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={agreedTerms}
-                onChange={(e) => setAgreedTerms(e.target.checked)}
-                style={{ marginTop: '2px' }}
-              />
-              <span>
-                Tôi đồng ý với <strong>Chính sách minh bạch & đồng thuận dữ liệu (Consent)</strong> của FairShare.
-              </span>
-            </label>
+              <div>
+                <label
+                  htmlFor="register-email"
+                  className="block mb-1.5 text-xs font-semibold"
+                  style={{ color: 'var(--fg2)' }}
+                >
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--fg3)',
+                    }}
+                  />
+                  <input
+                    id="register-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="vana.31241025001@st.ueh.edu.vn"
+                    required
+                    className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-3 outline-none transition"
+                    style={{
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--fg)',
+                    }}
+                  />
+                </div>
+              </div>
 
-            <Button type="submit" isLoading={loading} style={{ width: '100%', padding: '10px 16px', marginTop: '4px' }}>
-              Đăng ký
-            </Button>
+              <div>
+                <label
+                  htmlFor="register-password"
+                  className="block mb-1.5 text-xs font-semibold"
+                  style={{ color: 'var(--fg2)' }}
+                >
+                  Mật khẩu
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--fg3)',
+                    }}
+                  />
+                  <input
+                    id="register-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Tối thiểu 6 ký tự"
+                    required
+                    className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-9 outline-none transition"
+                    style={{
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--fg)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 bg-transparent border-0 cursor-pointer"
+                    style={{ color: 'var(--fg3)' }}
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
 
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                fontSize: '12px',
-                color: '#64748b',
-              }}
-            >
-              <ShieldCheck size={14} color="#16a34a" />
-              <span>Dữ liệu cá nhân được bảo vệ theo nguyên tắc tối thiểu</span>
-            </div>
+                {password && (
+                  <div className="mt-2 flex items-center justify-between text-[11px]">
+                    <span style={{ color: strength.color }}>Độ mạnh: {strength.label}</span>
+                    <div className="w-24 h-1.5 rounded-full overflow-hidden bg-[var(--surface2)]">
+                      <div
+                        className="h-full transition-all duration-300"
+                        style={{ width: `${strength.percent}%`, backgroundColor: strength.color }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            <div style={{ textAlign: 'center', fontSize: '14px', marginTop: '4px', color: '#475569' }}>
-              Đã có tài khoản?{' '}
-              <Link to="/login" style={{ fontWeight: 600, color: '#2563eb' }}>
-                Đăng nhập
-              </Link>
-            </div>
-          </form>
-        </Card>
-      </div>
+              <div>
+                <label
+                  htmlFor="register-confirm-password"
+                  className="block mb-1.5 text-xs font-semibold"
+                  style={{ color: 'var(--fg2)' }}
+                >
+                  Xác nhận mật khẩu
+                </label>
+                <div className="relative">
+                  <Lock
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--fg3)',
+                    }}
+                  />
+                  <input
+                    id="register-confirm-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (validationError) setValidationError(null);
+                    }}
+                    placeholder="Nhập lại mật khẩu"
+                    required
+                    className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-9 outline-none transition"
+                    style={{
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--fg)',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs pt-1">
+                <input
+                  type="checkbox"
+                  checked={agreedTerms}
+                  onChange={(e) => setAgreedTerms(e.target.checked)}
+                  className="rounded"
+                />
+                <span style={{ color: 'var(--fg2)' }}>
+                  Đồng ý với chính sách đồng thuận dữ liệu
+                </span>
+              </div>
+
+              <Button
+                type="submit"
+                isLoading={loading}
+                className="w-full py-2.5 mt-2"
+              >
+                Đăng ký
+              </Button>
+
+              <div className="text-center text-xs mt-2" style={{ color: 'var(--fg2)' }}>
+                Đã có tài khoản?{' '}
+                <Link
+                  to="/login"
+                  className="font-semibold underline ml-1"
+                  style={{ color: 'var(--fg)' }}
+                >
+                  Đăng nhập
+                </Link>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer
+        className="relative z-10 w-full py-4 px-6 text-center text-xs"
+        style={{
+          borderTop: '1px solid var(--line)',
+          background: 'var(--glass)',
+          color: 'var(--fg3)',
+          fontFamily: 'var(--f-mono)',
+        }}
+      >
+        <span>FairShare · Đồ án môn Quản lý dự án CNTT UEH</span>
+      </footer>
     </div>
   );
 };
