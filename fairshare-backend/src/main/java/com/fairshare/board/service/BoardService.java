@@ -10,6 +10,7 @@ import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.BoardRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
@@ -821,9 +822,9 @@ public class BoardService {
             return;
         }
         TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .orElseThrow(() -> new BusinessException("Bạn không phải là thành viên của nhóm này"));
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
         if (member.getRole() != MemberRole.LEADER) {
-            throw new BusinessException("Chỉ nhóm trưởng (Leader) mới có quyền " + actionDescription);
+            throw new ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền " + actionDescription);
         }
     }
 
@@ -833,7 +834,7 @@ public class BoardService {
         }
         Long teamId = card.getBoard().getTeam().getId();
         TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, actorId)
-                .orElseThrow(() -> new BusinessException("Bạn không phải là thành viên của nhóm này"));
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
 
         if (member.getRole() == MemberRole.LEADER) {
             return; // Leader có toàn quyền trên mọi thẻ của nhóm
@@ -846,7 +847,7 @@ public class BoardService {
         if (card.getAssignee() == null || card.getAssignee().getId().equals(actorId) || isMoveToReview) {
             return;
         }
-        throw new BusinessException("Thành viên chỉ được phép sửa hoặc di chuyển thẻ được giao cho mình");
+        throw new ForbiddenException("Thành viên chỉ được phép sửa hoặc di chuyển thẻ được giao cho mình");
     }
 
     private TeamMember checkTeamMembership(Long teamId, Long userId) {
@@ -854,6 +855,6 @@ public class BoardService {
             return null;
         }
         return teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .orElseThrow(() -> new BusinessException("Bạn không phải là thành viên của nhóm này"));
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
     }
 }

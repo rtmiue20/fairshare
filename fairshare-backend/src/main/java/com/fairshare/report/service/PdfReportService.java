@@ -63,9 +63,9 @@ public class PdfReportService {
     public byte[] generateSprintReportPdf(Long teamId, Long sprintId, Long requesterId) {
         if (requesterId != null) {
             TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, requesterId)
-                    .orElseThrow(() -> new com.fairshare.common.exception.BusinessException("Bạn không phải là thành viên của nhóm này"));
+                    .orElseThrow(() -> new com.fairshare.common.exception.ForbiddenException("Bạn không phải là thành viên của nhóm này"));
             if (member.getRole() != MemberRole.LEADER) {
-                throw new com.fairshare.common.exception.BusinessException("Chỉ nhóm trưởng (Leader) mới có quyền xuất báo cáo Sprint PDF");
+                throw new com.fairshare.common.exception.ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền xuất báo cáo Sprint PDF");
             }
         }
 
