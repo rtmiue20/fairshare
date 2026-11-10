@@ -23,8 +23,11 @@ public class BoardController {
     private final UserRepository userRepository;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<BoardDto>> createBoard(@Valid @RequestBody CreateBoardRequest request) {
-        BoardDto created = boardService.createBoard(request);
+    public ResponseEntity<ApiResponse<BoardDto>> createBoard(
+            @Valid @RequestBody CreateBoardRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        BoardDto created = boardService.createBoard(request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Board created successfully", created));
     }
@@ -44,22 +47,29 @@ public class BoardController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<BoardDto>> updateBoard(
             @PathVariable Long id,
-            @RequestBody CreateBoardRequest request) {
-        BoardDto updated = boardService.updateBoard(id, request);
+            @RequestBody CreateBoardRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        BoardDto updated = boardService.updateBoard(id, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Board updated successfully", updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteBoard(@PathVariable Long id) {
-        boardService.deleteBoard(id);
+    public ResponseEntity<ApiResponse<Void>> deleteBoard(
+            @PathVariable Long id,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.deleteBoard(id, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Board deleted successfully", null));
     }
 
     @PostMapping("/{boardId}/columns")
     public ResponseEntity<ApiResponse<BoardColumnDto>> createColumn(
             @PathVariable Long boardId,
-            @Valid @RequestBody CreateColumnRequest request) {
-        BoardColumnDto created = boardService.createColumn(boardId, request);
+            @Valid @RequestBody CreateColumnRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        BoardColumnDto created = boardService.createColumn(boardId, request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Column created successfully", created));
     }
@@ -67,14 +77,19 @@ public class BoardController {
     @PutMapping("/columns/{columnId}")
     public ResponseEntity<ApiResponse<BoardColumnDto>> updateColumn(
             @PathVariable Long columnId,
-            @RequestBody CreateColumnRequest request) {
-        BoardColumnDto updated = boardService.updateColumn(columnId, request);
+            @RequestBody CreateColumnRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        BoardColumnDto updated = boardService.updateColumn(columnId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Column updated successfully", updated));
     }
 
     @DeleteMapping("/columns/{columnId}")
-    public ResponseEntity<ApiResponse<Void>> deleteColumn(@PathVariable Long columnId) {
-        boardService.deleteColumn(columnId);
+    public ResponseEntity<ApiResponse<Void>> deleteColumn(
+            @PathVariable Long columnId,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.deleteColumn(columnId, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Column deleted successfully", null));
     }
 
@@ -136,8 +151,11 @@ public class BoardController {
     }
 
     @DeleteMapping("/cards/{cardId}")
-    public ResponseEntity<ApiResponse<Void>> deleteCard(@PathVariable Long cardId) {
-        boardService.deleteCard(cardId);
+    public ResponseEntity<ApiResponse<Void>> deleteCard(
+            @PathVariable Long cardId,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        boardService.deleteCard(cardId, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card deleted successfully", null));
     }
 

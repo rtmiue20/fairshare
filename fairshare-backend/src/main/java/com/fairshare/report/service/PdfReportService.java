@@ -12,6 +12,7 @@ import com.fairshare.peerreview.repository.ReviewSubmissionRepository;
 import com.fairshare.peerreview.service.AnonymityAggregator;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
 import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
@@ -55,6 +56,19 @@ public class PdfReportService {
 
     @Transactional(readOnly = true)
     public byte[] generateSprintReportPdf(Long teamId, Long sprintId) {
+        return generateSprintReportPdf(teamId, sprintId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateSprintReportPdf(Long teamId, Long sprintId, Long requesterId) {
+        if (requesterId != null) {
+            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, requesterId)
+                    .orElseThrow(() -> new com.fairshare.common.exception.BusinessException("Bạn không phải là thành viên của nhóm này"));
+            if (member.getRole() != MemberRole.LEADER) {
+                throw new com.fairshare.common.exception.BusinessException("Chỉ nhóm trưởng (Leader) mới có quyền xuất báo cáo Sprint PDF");
+            }
+        }
+
         long startTime = System.currentTimeMillis();
 
         Team team = teamRepository.findById(teamId)

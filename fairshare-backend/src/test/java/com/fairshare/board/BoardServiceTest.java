@@ -12,7 +12,9 @@ import com.fairshare.board.repository.CardRepository;
 import com.fairshare.board.service.BoardService;
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
+import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
@@ -99,6 +101,28 @@ class BoardServiceTest {
         colDone.setBoard(sampleBoard);
         colDone.setName("Done");
         colDone.setPosition(3);
+
+        TeamMember sampleMember = new TeamMember();
+        sampleMember.setId(1L);
+        sampleMember.setTeam(sampleTeam);
+        sampleMember.setUser(sampleUser);
+        sampleMember.setRole(MemberRole.MEMBER);
+
+        User reviewerUser = new User();
+        reviewerUser.setId(200L);
+        reviewerUser.setEmail("reviewer@fairshare.com");
+        reviewerUser.setFullName("Reviewer User");
+
+        TeamMember reviewerMember = new TeamMember();
+        reviewerMember.setId(2L);
+        reviewerMember.setTeam(sampleTeam);
+        reviewerMember.setUser(reviewerUser);
+        reviewerMember.setRole(MemberRole.MEMBER);
+
+        lenient().when(teamMemberRepository.findByTeamIdAndUserId(eq(10L), eq(100L)))
+                .thenReturn(Optional.of(sampleMember));
+        lenient().when(teamMemberRepository.findByTeamIdAndUserId(eq(10L), eq(200L)))
+                .thenReturn(Optional.of(reviewerMember));
     }
 
     @Test
