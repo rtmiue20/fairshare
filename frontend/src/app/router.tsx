@@ -45,6 +45,14 @@ export const router = createBrowserRouter([
             element: <ContributionDashboard />,
           },
           {
+            path: 'contributions',
+            element: <ContributionDashboard />,
+          },
+          {
+            path: 'dong-gop',
+            element: <ContributionDashboard />,
+          },
+          {
             path: 'teams',
             element: <TeamListPage />,
           },

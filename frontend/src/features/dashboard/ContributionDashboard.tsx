@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { DashboardHeroCanvas } from './DashboardHeroCanvas';
 import { ContributionPieChart } from './ContributionPieChart';
 import { ContributionTimeline } from './ContributionTimeline';
 import { EvidenceTable } from './EvidenceTable';
@@ -508,8 +509,11 @@ export const ContributionDashboard: React.FC = () => {
 
   return (
     <div data-testid="contribution-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* 3D Interactive Hero Canvas from FairShare UI sample */}
+      <DashboardHeroCanvas />
 
-      {/* ── Page header ── */}
+      <div className="pad" style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* ── Page header ── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>
@@ -919,6 +923,7 @@ export const ContributionDashboard: React.FC = () => {
           />
         </>
       )}
+      </div>
     </div>
   );
 };
