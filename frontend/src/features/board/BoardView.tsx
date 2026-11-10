@@ -19,8 +19,7 @@ import {
   MessageSquare,
   CheckSquare,
   Award,
-  Lock,
-  Shield
+  Lock
 } from 'lucide-react';
 import {
   DragDropContext,
