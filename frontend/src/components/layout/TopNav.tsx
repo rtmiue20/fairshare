@@ -34,7 +34,8 @@ export const TopNav: React.FC = () => {
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/teams', label: 'Dự án' },
-    { to: '/board', label: 'Kanban Board' },
+    { to: '/contributions', label: 'Đóng góp' },
+    { to: '/board', label: 'Kanban' },
     { to: '/peer-review', label: 'Chấm chéo' },
     { to: '/integration', label: 'Tích hợp' },
     { to: '/alerts', label: 'Cảnh báo', hasDot: true },
