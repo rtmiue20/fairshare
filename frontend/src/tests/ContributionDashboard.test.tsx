@@ -69,7 +69,7 @@ describe('M1 Frontend Core & Layout Tests', () => {
     expect(screen.getByText('Nguyễn Phúc Vương')).toBeInTheDocument();
     expect(screen.getByText('Bảng đóng góp')).toBeInTheDocument();
     expect(screen.getByText('Danh sách nhóm')).toBeInTheDocument();
-    expect(screen.getByText('Tích hợp Trello')).toBeInTheDocument();
+    expect(screen.getByText('Kanban Board')).toBeInTheDocument();
     expect(screen.getByText('Chấm chéo')).toBeInTheDocument();
   });
 });

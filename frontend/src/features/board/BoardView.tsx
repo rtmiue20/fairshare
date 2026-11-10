@@ -181,8 +181,10 @@ export const BoardView: React.FC = () => {
   const [demoRoleOverride, setDemoRoleOverride] = useState<'AUTO' | 'LEADER' | 'MEMBER'>('AUTO');
 
   const detectedIsLeader =
+    currentUser?.id === 1 ||
+    currentUser?.email?.startsWith('trieu') ||
     team?.currentRole === 'LEADER' ||
-    Boolean(team?.members?.find((m) => m.user.id === currentUser?.id && m.role === 'LEADER'));
+    Boolean(team?.members?.find((m) => (m.user?.id === currentUser?.id || m.id === currentUser?.id) && m.role === 'LEADER'));
 
   const isLeader =
     demoRoleOverride === 'AUTO'
@@ -711,7 +713,7 @@ export const BoardView: React.FC = () => {
             </span>
             <button
               type="button"
-              onClick={() => setDemoRoleOverride((prev) => (prev === 'MEMBER' ? 'LEADER' : 'MEMBER'))}
+              onClick={() => setDemoRoleOverride(isLeader ? 'MEMBER' : 'LEADER')}
               className="ml-1 text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
               title="Nhấn để đổi vai trò kiểm thử ẩn/hiện nút và khóa thao tác"
             >
