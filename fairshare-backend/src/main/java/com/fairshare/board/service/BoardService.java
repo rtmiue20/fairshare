@@ -516,8 +516,15 @@ public class BoardService {
                         () -> new ResourceNotFoundException("Target column not found: " + request.getTargetColumnId()));
 
         BoardColumn fromColumn = card.getColumn();
-        String fromColName = request.getFromColumnName() != null ? request.getFromColumnName() : fromColumn.getName();
-        String toColName = request.getToColumnName() != null ? request.getToColumnName() : targetColumn.getName();
+        if (fromColumn != null && fromColumn.getBoard() != null && targetColumn.getBoard() != null) {
+            if (!fromColumn.getBoard().getId().equals(targetColumn.getBoard().getId())) {
+                throw new BusinessException("Không thể di chuyển thẻ sang cột thuộc bảng khác");
+            }
+        }
+
+        // DEF-11: Luôn dùng tên cột thật từ CSDL thay vì tin cậy tên client gửi lên để chống giả mạo hoàn thành card (R05)
+        String fromColName = fromColumn != null ? fromColumn.getName() : (request.getFromColumnName() != null ? request.getFromColumnName() : "");
+        String toColName = targetColumn.getName();
 
         boolean wasDone = isDoneColumn(fromColName);
         boolean isDone = isDoneColumn(toColName);
