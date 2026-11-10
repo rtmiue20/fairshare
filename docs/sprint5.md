@@ -1,52 +1,49 @@
-# SPRINT 5 – Chấm chéo ẩn danh, báo cáo PDF và kiểm thử
+# SPRINT 5 – Bảng đóng góp và board/card hoàn thiện
 
-**Thời gian:** Thứ 5, 06/11/2026 → Thứ 4, 12/11/2026 | **Tương ứng:** Tuần 5 (Sprint 5) | **Trạng thái sprint:** 🔄 Đang thực hiện
+**Thời gian:** Thứ 4, 04/11/2026 → Thứ 3, 10/11/2026 | **Tương ứng:** Sprint 5 trong kế hoạch 7 sprint (Sprint 2 trong kế hoạch gốc) | **Trạng thái sprint:** ⬜ Chưa bắt đầu
 
 ## Mục tiêu sprint
-- Hoàn thiện chấm chéo ẩn danh (chỉ trả kết quả khi đủ ≥ 3 lượt), kiểm tra không lộ danh tính.
-- Xuất báo cáo PDF gồm đóng góp, điểm chấm chéo, bằng chứng chính (thời gian xuất < 10s - mục tiêu G4).
-- Phân quyền theo vai trò nhóm, tối ưu truy vấn/routine, kiểm thử hồi quy.
-- Cập nhật công thức tổng hợp 3 thành phần (Git 40%, Board 40%, Peer 20%) theo CR-03 và triển khai Cảnh báo sớm rule-based theo CR-04.
-- Chuẩn bị UAT (kịch bản, danh sách ≥ 10 người thử, phiếu phản hồi). Code freeze 11/11 lúc 17:00.
+- Hoàn thiện bảng đóng góp: tổng hợp theo người/sprint, truy vết đến sự kiện gốc, dashboard, bảng bằng chứng, khai báo thủ công có xác nhận.
+- Hoàn thiện board/card (kéo thả, chi tiết card, story point, hạn) và ghi `ActivityEvent` đầy đủ, có log không sửa được để chống gian lận.
+- Có API và form chấm chéo, môi trường staging, defect log đầu tiên.
+- Quyết định tính năng có điều kiện (cảnh báo sớm, Google Docs) bằng Change Request.
 
 ## Lịch sinh hoạt
 | Sự kiện | Thời điểm |
 |---|---|
-| Sprint Planning | Thứ 5, 06/11 |
+| Sprint Planning | Thứ 4, 04/11 |
 | Daily | Hằng ngày |
-| Code freeze tính năng mới (chỉ còn sửa lỗi) | Thứ 3, 11/11, 17:00 |
-| Sprint Review + Retrospective | Thứ 4, 12/11 |
+| Họp quyết định tính năng có điều kiện (CR) | Thứ 2, 09/11 |
+| Sprint Review + Retrospective | Thứ 3, 10/11 |
 
 ## Phân công công việc (lát cắt dọc)
 | Người | Công việc | Sản phẩm/minh chứng | Deadline | Trạng thái |
 |---|---|---|---|---|
-| M4 | Chấm chéo hoàn thiện: `AnonymityAggregator` (ngưỡng ≥ 3 lượt, kiểm tra ngay trong routine), màn hình kết quả, kiểm tra không lộ danh tính; Cảnh báo sớm rule-based (CR-04) | Commit, báo cáo kiểm tra ẩn danh, module alert | 11/11 | 🔄 Đang thực hiện |
-| M0 | Báo cáo PDF: `report` tổng hợp đóng góp, điểm chấm chéo, bằng chứng chính; nút xuất PDF chuẩn hóa, tối ưu hiệu năng < 10s | PR module report, demo PDF (< 1s) | 11/11 | ✅ Đã hoàn thành code & test |
-| M3 | Đóng góp hoàn thiện: cập nhật `ScoringEngine v1.1` (CR-03), tối ưu routine/truy vấn, kiểm thử dữ liệu lớn, chỉnh dashboard theo phản hồi | Commit, kết quả đo trước/sau | 10/11 | 🔄 Đang thực hiện |
-| M1 | Hoàn thiện nền tảng: bảo mật cơ bản, phân quyền theo vai trò nhóm (gồm quyền trên board: leader tạo/sửa bảng và cột, thành viên chỉ sửa/di chuyển thẻ được giao), sửa lỗi board; **gỡ module Trello legacy** (CR-02) | Commit, test phân quyền, PR gỡ legacy | 10/11 | 🔄 Đang thực hiện |
-| M2 | BA + nhóm: kịch bản UAT (có luồng dùng Task Board: tạo thẻ → di chuyển → xem đóng góp), danh sách ≥ 10 người thử, phiếu phản hồi | Kịch bản UAT, danh sách, phiếu | 11/11 | 🔄 Đang thực hiện |
-| M5 | Kiểm thử: unit/integration/regression (gồm luồng board → `ActivityEvent` → `ScoringEngine` → dashboard), defect log, đo hiệu năng PDF | Test results, defect log | 11/11 | 🔄 Đang thực hiện |
-| M0 | Báo cáo tuần 5, cập nhật Risk Register, chủ trì Daily và điều phối Sprint Review/Retro | Sprint report, Risk update | 12/11 | 🔄 Đang thực hiện |
+| M3 | Đóng góp & Dashboard: routine tổng hợp đóng góp, API truy vết đến sự kiện gốc, dashboard biểu đồ, bảng bằng chứng, bộ lọc theo sprint/người, khai báo thủ công có xác nhận | Commit, API doc, demo | 09/11 | ⬜ |
+| M1 | Board/card hoàn thiện: chi tiết card (người phụ trách, story point, hạn), giao diện kéo thả, ghi sự kiện hoàn thành/đúng hạn, log hoạt động không sửa được | Commit, test, demo | 08/11 | ⬜ |
+| M2 | Nhóm hoàn thiện + BA: quản lý thành viên/sprint; kiểm tra công thức với dữ liệu thật của nhóm (có đồng ý), thu thập phản hồi | Báo cáo kiểm tra công thức | 09/11 | ⬜ |
+| M4 | Chấm chéo: API mở/đóng đợt, nhận đánh giá; form chấm chéo | Commit, demo | 09/11 | ⬜ |
+| M5 | Tích hợp: test các module, ghi defect, môi trường staging | Integration log, defect log | 09/11 | ⬜ |
+| M0 | Rà việc tồn đọng Sprint 3, cập nhật Gantt thực tế, **quyết định tính năng có điều kiện** (CR), báo cáo tuần | Sprint report, CR | 10/11 | ⬜ |
 
 ## Tiêu chí hoàn thành (DoD)
-- Với dưới 3 lượt đánh giá thì không hiển thị kết quả, và không suy ra được danh tính người chấm.
-- Xuất được PDF có đóng góp, điểm chấm chéo và bằng chứng chính; thời gian xuất đo được so với mục tiêu G4 (< 10 giây).
-- Phân quyền leader/thành viên đúng (kể cả trên board), có test.
-- Module Trello legacy đã gỡ (`integration/trello`, `TrelloClientTest`, fixtures/mock Trello, `ConnectTrelloPage`, `integration.api.ts`, route `integration`); build và CI vẫn xanh; dữ liệu cũ nguồn `TRELLO` (nếu có) không làm lỗi hệ thống.
-- Có kịch bản UAT và ≥ 10 người thử trước khi sang Sprint 6; defect log cập nhật, mỗi lỗi có người nhận.
+- Dashboard hiển thị đóng góp theo sprint/người; bấm vào một chỉ số mở được danh sách sự kiện gốc.
+- Kéo thả card giữa cột hoạt động và sinh `ActivityEvent` đúng loại.
+- Form chấm chéo gửi được đánh giá và lưu vào DB.
+- Staging chạy được, defect log có mục đầu tiên và người xử lý.
+- Quyết định về cảnh báo sớm, Google Docs được ghi vào Change Log.
 
 ## Rủi ro theo dõi
 | Rủi ro | Biện pháp |
 |---|---|
-| R04: lộ danh tính trong chấm chéo (nhóm ít người) | M4 kiểm thử trường hợp biên, M5 kiểm tra độc lập |
-| PDF chậm hoặc lỗi font tiếng Việt | M5 đo hiệu năng, M0 tối ưu và thử nhiều bộ dữ liệu |
-| R12: chưa đủ người cho UAT | M2 mời ngay từ đầu sprint |
-| Gỡ Trello legacy làm vỡ build/test hoặc dữ liệu cũ | M1 gỡ trong PR riêng, M5 chạy regression đầy đủ trước khi merge; giữ giá trị enum `ActivitySource.TRELLO` nếu còn dữ liệu cũ |
-| Còn ít thời gian sau code freeze | Chỉ nhận sửa lỗi sau 11/11, mọi thay đổi qua CR |
+| R19: M1 quá tải với giao diện kéo thả | Dùng thư viện kéo thả có sẵn, cắt bớt tính năng card nâng cao nếu trễ |
+| R06: công thức bị cho là thiếu công bằng | M2 + M3 chỉnh theo dữ liệu thật, ghi vào báo cáo kiểm tra công thức |
+| R05: gian lận dữ liệu (tạo/chia nhỏ card giả) | Log hoạt động không sửa được, trọng số theo story point, cho phép phản đối |
+| Việc tồn đọng từ Sprint 3 | M0 liệt kê ngày 04/11, ưu tiên xử lý trước việc mới |
 
 ## Báo cáo cuối sprint (điền khi họp Review)
 - Việc hoàn thành: [ ]
-- Việc tồn đọng chuyển sang Sprint 6: [ ]
+- Việc tồn đọng chuyển sang Sprint 5: [ ]
 - Bài học từ Retro: [ ]
 
 ---
@@ -55,63 +52,63 @@
 
 > Giờ họp/deadline là gợi ý, nhóm chỉnh theo lịch học. Mọi task ≤ 2 giờ; việc lớn hơn đã tách thành các task con (1/2, 2/2…), mỗi task con có đầu ra riêng.
 
-### Thứ 5, 06/11 – Planning & Kick-off
+### Thứ 4, 04/11 – Planning
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| Cả nhóm | Sprint Planning | Chia việc theo CR-03 & CR-04 đã chốt ở Sprint 4 | Sprint backlog | 1h | 06/11, 21:00 |
-| M4 | `AnonymityAggregator` (1/2) | Routine tổng hợp, chỉ trả kết quả khi ≥ 3 lượt | Migration chứa routine | 2h | 07/11, 12:00 |
-| M4 | `AnonymityAggregator` (2/2) | Service gọi routine, unit test | Code + test | 2h | 07/11, 21:00 |
-| M0 | PDF (1/2) | Dựng khung PDF, lấy dữ liệu đóng góp từ API của M3 | Khung PDF với dữ liệu thật | 2h | 07/11, 21:00 |
-| M2 | Kịch bản UAT (1/2) | Viết các kịch bản chính, tiêu chí thành công | Kịch bản UAT phần 1 | 2h | 07/11, 21:00 |
+| Cả nhóm | Sprint Planning | Rà việc tồn đọng Sprint 3, chia việc Sprint 4 | Sprint backlog | 1h | 04/11, 21:00 |
+| M3 | Routine tổng hợp (1/2) | Viết routine tổng hợp đóng góp theo người/sprint trong migration | Migration chứa routine | 2h | 05/11, 12:00 |
+| M1 | Chi tiết card | API cập nhật người phụ trách, story point, hạn | Endpoint + validation | 2h | 05/11, 12:00 |
+| M4 | API đợt chấm (1/2) | API mở/đóng đợt chấm chéo | Endpoint + validation | 2h | 05/11, 21:00 |
+| M2 | Quản lý thành viên | API xóa/đổi vai trò thành viên | Endpoint + validation | 2h | 05/11, 21:00 |
 
-### Thứ 6, 07/11 – Kết quả & phân quyền
+### Thứ 5, 05/11 – API tổng hợp
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M4 | Màn hình kết quả (1/2) | Hiển thị điểm tổng hợp theo tiêu chí | Màn hình kết quả | 2h | 08/11, 12:00 |
-| M4 | Màn hình kết quả (2/2) | Ẩn kết quả khi thiếu lượt, thông báo rõ ràng | Màn hình hoàn chỉnh | 1h | 08/11, 17:00 |
-| M1 | Phân quyền (1/2) | Vai trò leader/thành viên trên API | Commit | 2h | 08/11, 21:00 |
-| M1 | Phân quyền (2/2) | Test phân quyền, ẩn nút theo vai trò trên giao diện (gồm `BoardView`) | Test + giao diện | 2h | 09/11, 12:00 |
-| M1 | Gỡ Trello legacy (1/2) | Xóa `integration/trello`, `TrelloClientTest`, fixtures/mock Trello phía backend | PR backend | 2h | 09/11, 21:00 |
-| M3 | Tối ưu truy vấn (1/2) | Đo thời gian routine/truy vấn dashboard | Số đo trước | 2h | 08/11, 21:00 |
-| M2 | Kịch bản UAT (2/2) | Hoàn thiện kịch bản, dữ liệu thử | Kịch bản UAT bản 1 | 1h | 08/11, 12:00 |
+| M3 | Routine tổng hợp (2/2) | Gọi routine từ backend, API tổng hợp đóng góp | API summary + test | 2h | 06/11, 12:00 |
+| M1 | Kanban UI (1/3) | Hiển thị board, cột, card từ API | Màn hình board | 2h | 06/11, 12:00 |
+| M4 | API đợt chấm (2/2) | API nhận đánh giá, kiểm tra hợp lệ | Endpoint + validation | 2h | 06/11, 21:00 |
+| M2 | Màn hình thành viên/sprint | Đổi vai trò, danh sách sprint | Màn hình dùng được | 2h | 06/11, 21:00 |
 
-### Thứ 7, 08/11 – PDF & người thử
+### Thứ 6, 06/11 – Truy vết & kéo thả
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0 | PDF (2/2) | Phần đóng góp + biểu đồ trong PDF | PDF có đóng góp | 2h | 09/11, 12:00 |
-| M0 | PDF nội dung (bổ sung) | Điểm chấm chéo và bằng chứng chính | PDF đầy đủ nội dung | 2h | 09/11, 21:00 |
-| M3 | Tối ưu truy vấn (2/2) | Thêm index, chỉnh routine | Số đo sau | 2h | 09/11, 21:00 |
-| M2 | Mời người thử UAT | Lập danh sách ≥ 10 người, gửi lời mời | Danh sách người thử | 2h | 09/11, 21:00 |
-| M5 | Regression test | Chạy test các module đã có, thêm ca kiểm tra board → `ActivityEvent` → điểm đóng góp | Test results | 2h | 09/11, 21:00 |
+| M3 | Truy vết (1/2) | Routine trả danh sách sự kiện gốc của một chỉ số | Routine + test | 2h | 07/11, 12:00 |
+| M3 | Truy vết (2/2) | API truy vết | Endpoint + test | 2h | 07/11, 17:00 |
+| M1 | Kanban UI (2/3) | Kéo thả card giữa cột | Kéo thả hoạt động | 2h | 07/11, 12:00 |
+| M1 | Kanban UI (3/3) | Màn hình chi tiết card | Màn hình chi tiết card | 2h | 07/11, 17:00 |
+| M4 | Form chấm chéo (1/2) | Màn hình nhập điểm theo tiêu chí | Màn hình form | 2h | 07/11, 21:00 |
+| M5 | Staging (1/2) | Docker Compose cho backend, frontend, MariaDB trên staging | Staging chạy thử | 2h | 07/11, 21:00 |
 
-### Chủ nhật, 09/11 – Kiểm tra ẩn danh & Cảnh báo sớm
+### Thứ 7, 07/11 – Dashboard & sự kiện
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M4 | Kiểm tra ẩn danh (1/2) | Thử trường hợp đủ/thiếu lượt, trùng lượt | Kết quả kiểm tra phần 1 | 2h | 10/11, 12:00 |
-| M4 | Kiểm tra ẩn danh (2/2) | Kiểm tra DB và API không lộ liên kết người chấm | Báo cáo kiểm tra ẩn danh | 2h | 10/11, 21:00 |
-| M4 | Cảnh báo sớm (CR-04) | Rule-based: không hoạt động ≥ 3 ngày thì cảnh báo, thẻ trễ hạn | Commit module alert | 2h | 10/11, 21:00 |
-| M3 | Dữ liệu lớn | Nạp dữ liệu mẫu lớn, đo hiệu năng dashboard | Kết quả đo | 2h | 10/11, 12:00 |
-| M1 | Gỡ Trello legacy (2/2) | Xóa `ConnectTrelloPage`, `integration.api.ts`, route `integration` phía frontend; cập nhật README | PR frontend, CI xanh | 2h | 10/11, 12:00 |
-| M1 | Sửa lỗi tích hợp | Sửa lỗi từ defect log liên quan board/nền tảng | Commit | 2h | 10/11, 21:00 |
+| M3 | Dashboard (1/2) | Biểu đồ tỷ lệ đóng góp | Biểu đồ | 2h | 08/11, 12:00 |
+| M3 | Dashboard (2/2) | Bộ lọc theo sprint/người | Dashboard có bộ lọc | 2h | 08/11, 17:00 |
+| M1 | Sự kiện hoạt động | Sinh sự kiện hoàn thành/đúng hạn; log không sửa được | Commit + test | 2h | 08/11, 17:00 |
+| M4 | Form chấm chéo (2/2) | Kiểm tra hợp lệ, gửi đánh giá | Form hoàn chỉnh | 2h | 08/11, 17:00 |
+| M5 | Staging (2/2) + test tích hợp | Hoàn thiện staging, chạy test tích hợp các module đã merge | Staging, integration log | 2h | 08/11, 21:00 |
+| M2 | Kiểm tra công thức (1/2) | Chạy công thức với dữ liệu thật của nhóm (đã có đồng ý) | Bảng kết quả nháp | 2h | 08/11, 21:00 |
 
-### Thứ 2, 10/11 – Hoàn thiện & Đo hiệu năng
+### Chủ nhật, 08/11 – Bằng chứng & khai báo thủ công
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0 | Hoàn thiện PDF | Nút xuất, font tiếng Việt, thử nhiều nhóm dữ liệu | Demo PDF (< 1s) | 2h | 10/11, 21:00 |
-| M5 | Đo hiệu năng PDF | Đo thời gian xuất, ghi lỗi | Kết quả đo, defect log | 2h | 11/11, 12:00 |
-| M2 | Phiếu phản hồi UAT | Soạn phiếu, cách đo mức hài lòng | Phiếu phản hồi | 2h | 11/11, 12:00 |
-| M3 | Chỉnh dashboard | Chỉnh theo phản hồi nhóm, cập nhật ScoringEngine v1.1 | Commit | 2h | 10/11, 21:00 |
+| M3 | Bảng bằng chứng | Bảng sự kiện gốc, bấm từ dashboard | Màn hình bằng chứng | 2h | 09/11, 12:00 |
+| M3 | Khai báo thủ công (1/2) | API khai báo và xác nhận bởi người khác | Endpoint + test | 2h | 09/11, 17:00 |
+| M3 | Khai báo thủ công (2/2) | Màn hình khai báo/xác nhận | Màn hình dùng được | 2h | 09/11, 21:00 |
+| M1 | Sửa lỗi board | Xử lý lỗi từ staging/test tích hợp | Commit | 2h | 08/11, 21:00 |
+| M2 | Thu phản hồi công thức | Thu phản hồi của thành viên về công thức | Bản nháp phản hồi | 2h | 09/11, 12:00 |
 
-### Thứ 3, 11/11 – Code freeze
+### Thứ 2, 09/11 – Chốt tính năng có điều kiện
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0, M1, M3, M4 | Mở PR cuối | PR vào `develop`, review chéo trong 24h | PR đã merge | 1h | 11/11, 17:00 |
-| M5 | Regression đầy đủ | Chạy lại toàn bộ test trên `develop` | Test results, defect log | 2h | 11/11, 21:00 |
-| M2 | Chốt kịch bản UAT | Kịch bản và danh sách người thử bản cuối | Kịch bản UAT, danh sách | 1h | 11/11, 21:00 |
+| M2 | Báo cáo kiểm tra công thức | Hoàn thiện báo cáo, đề xuất chỉnh công thức | Báo cáo kiểm tra công thức | 2h | 09/11, 17:00 |
+| M4 | Hoàn tất chấm chéo | Demo form + API, PR vào `develop` | PR merge, demo | 1h | 09/11, 17:00 |
+| M5 | Defect log | Phân loại lỗi, giao người xử lý | Defect log | 2h | 09/11, 17:00 |
+| Cả nhóm | Họp CR | Quyết định cảnh báo sớm (rule-based) và Google Docs: giữ hay cắt | CR, Change Log | 1h | 09/11, 21:00 |
 
-### Thứ 4, 12/11 – Review & Retro
+### Thứ 3, 10/11 – Review & Retro
 | Người | Việc | Nội dung thực hiện | Đầu ra | Thời lượng | Hạn |
 |---|---|---|---|---|---|
-| M0 | Báo cáo tuần 5 | Burndown, tiến độ, cập nhật Risk | Sprint report | 1h | 12/11, 12:00 |
-| Cả nhóm | Sprint Review + Retro | Demo PDF, chấm chéo ẩn danh, dashboard | Biên bản họp | 1h | 12/11, 21:00 |
-| M0 | Chuẩn bị Sprint 6 | Chọn lỗi cần sửa, chia việc UAT và viết chương | Sprint 6 backlog | 1h | 12/11, 22:00 |
+| M0 | Cập nhật Gantt, báo cáo tuần 4 | Gantt thực tế, burndown, Risk | Sprint report, Gantt | 2h | 10/11, 12:00 |
+| Cả nhóm | Sprint Review + Retro | Demo dashboard, board kéo thả, form chấm chéo, staging | Biên bản họp | 1h | 10/11, 21:00 |
+| M0 | Chuẩn bị Sprint 5 | Chọn việc Sprint 5 theo CR vừa chốt | Sprint 5 backlog | 1h | 10/11, 22:00 |
