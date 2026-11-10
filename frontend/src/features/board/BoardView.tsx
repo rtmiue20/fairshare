@@ -883,11 +883,12 @@ export const BoardView: React.FC = () => {
                                         className="text-zinc-600 group-hover:text-zinc-400 mt-0.5 flex-shrink-0 transition-colors"
                                       />
                                     ) : (
-                                      <Lock
-                                        size={13}
-                                        className="text-zinc-500 mt-0.5 flex-shrink-0"
+                                      <span
                                         title="Chỉ người được giao việc hoặc Leader mới có thể di chuyển thẻ này"
-                                      />
+                                        className="inline-flex mt-0.5 flex-shrink-0"
+                                      >
+                                        <Lock size={13} className="text-zinc-500" />
+                                      </span>
                                     )}
                                     <h4 className="text-xs font-medium text-zinc-100 group-hover:text-indigo-300 transition-colors line-clamp-2">
                                       {card.title}
