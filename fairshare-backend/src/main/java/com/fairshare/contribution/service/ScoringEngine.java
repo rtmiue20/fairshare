@@ -219,8 +219,8 @@ public class ScoringEngine {
         double[] d4Peer = new double[memberCount];
 
         for (int i = 0; i < memberCount; i++) {
-            // D1: Output = 0.50*z(SP) + 0.25*z(Cards) + 0.25*z(Manual)
-            d1Output[i] = (0.50 * zSp[i]) + (0.25 * zCards[i]) + (0.25 * zManual[i]);
+            // D1: Output = 0.60*z(SP) + 0.20*z(Cards) + 0.20*z(Manual) - Nâng tỷ trọng SP theo CR-03 ScoringEngine v1.1
+            d1Output[i] = (0.60 * zSp[i]) + (0.20 * zCards[i]) + (0.20 * zManual[i]);
 
             // D2: Reliability = 0.60*z(OnTime) - 0.20*z(Rework) - 0.20*z(Latency)
             d2Reliability[i] = (0.60 * zOnTime[i]) - (0.20 * zRework[i]) - (0.20 * zLatency[i]);
@@ -322,8 +322,8 @@ public class ScoringEngine {
 
             boolean hasSufficientEvidence = eventCounts[i] >= 5;
 
-            // Giá trị raw score để tương thích các code hiển thị cũ
-            double rawScore = (rawSp[i] * 1.5) + (rawCards[i] * 3.0) + (rawOnTime[i] * 10.0) + (rawCollab[i] * 2.0);
+            // Giá trị raw score theo CR-03 ScoringEngine v1.1 (SP x 2.5 + Cards x 1.5 + OnTime x 10.0 + Collab x 2.0)
+            double rawScore = (rawSp[i] * 2.5) + (rawCards[i] * 1.5) + (rawOnTime[i] * 10.0) + (rawCollab[i] * 2.0);
 
             results.add(MemberContributionResult.builder()
                     .user(user)

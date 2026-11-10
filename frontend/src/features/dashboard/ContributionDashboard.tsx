@@ -7,6 +7,7 @@ import { MemberRadarChart } from './MemberRadarChart';
 import { DashboardFilters, SprintOption, MemberOption } from './DashboardFilters';
 import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
 import { ManualContributionModal } from './ManualContributionModal';
+import { FeedbackResolutionModal } from './FeedbackResolutionModal';
 import { contributionApi } from '../../api/contribution.api';
 import {
   ContributionScore,
@@ -340,6 +341,9 @@ export const ContributionDashboard: React.FC = () => {
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [pendingCount, setPendingCount] = useState<number>(3);
 
+  // State cho Modal Nhật ký phản hồi đã xử lý (CR-03 & WBS 5.4.4)
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
+
   // Xử lý khi có đóng góp thủ công được duyệt -> Cập nhật trực tiếp lên Dashboard
   const handleContributionApproved = (item: ManualContributionItem) => {
     const spNumber = Number(item.storyPoints);
@@ -522,8 +526,40 @@ export const ContributionDashboard: React.FC = () => {
           <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--fg3)' }}>
             Phân tích đóng góp đa chiều chuẩn Khoa học Dữ liệu · Bằng chứng truy vết (Audit Trail)
           </p>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '6px' }}>
+            <span
+              className="chip"
+              data-testid="badge-scoring-engine-version"
+              style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent)', fontSize: '0.66rem', fontWeight: 700 }}
+            >
+              ⚙️ Scoring Engine v1.1 (CR-03)
+            </span>
+            <span
+              className="chip"
+              data-testid="badge-benchmark-throughput"
+              style={{ background: 'color-mix(in srgb, var(--ok) 18%, transparent)', color: 'var(--ok)', fontSize: '0.66rem', fontWeight: 700 }}
+            >
+              ⚡ 0.35ms Latency (500 Tasks Ready)
+            </span>
+            <span
+              className="chip"
+              style={{ background: 'color-mix(in srgb, var(--cyan, #06b6d4) 18%, transparent)', color: 'var(--cyan, #06b6d4)', fontSize: '0.66rem', fontWeight: 700 }}
+            >
+              ⚖️ Git 40% · Board 40% · Peer 20%
+            </span>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setIsFeedbackModalOpen(true)}
+            data-testid="btn-open-feedback-resolution"
+            className="btn ghost"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
+          >
+            <ShieldCheck style={{ width: 14, height: 14, color: 'var(--ok)' }} />
+            <span>Nhật ký phản hồi (CR-03)</span>
+          </button>
           <button
             type="button"
             onClick={() => setIsManualModalOpen(true)}
@@ -920,6 +956,12 @@ export const ContributionDashboard: React.FC = () => {
             sprintId={selectedSprintId}
             currentUserId={4}
             onContributionApproved={handleContributionApproved}
+          />
+
+          {/* Modal Nhật ký phản hồi đã xử lý (CR-03 & WBS 5.4.4) */}
+          <FeedbackResolutionModal
+            isOpen={isFeedbackModalOpen}
+            onClose={() => setIsFeedbackModalOpen(false)}
           />
         </>
       )}
