@@ -54,9 +54,9 @@ export function useAuth() {
         const demoUser: User = {
           id: 1,
           email: payload.email,
-          fullName: fallbackName || 'Nguyễn Phúc Vương',
+          fullName: fallbackName || 'Thành viên FairShare',
         };
-        login('demo-jwt-token-m1', demoUser);
+        login('demo-jwt-token-guest', demoUser);
         return demoUser;
       }
       const message = extractErrorMessage(err, 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
@@ -98,10 +98,10 @@ export function useAuth() {
   const handleDemoLogin = () => {
     const demoUser: User = {
       id: 1,
-      email: 'phucvuong.31241025017@st.ueh.edu.vn',
-      fullName: 'Nguyễn Phúc Vương',
+      email: 'demo@st.ueh.edu.vn',
+      fullName: 'Thành viên Demo',
     };
-    login('demo-jwt-token-phucvuong-m1', demoUser);
+    login('demo-jwt-token-guest', demoUser);
     return demoUser;
   };
 
