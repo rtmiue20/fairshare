@@ -1,12 +1,16 @@
 package com.fairshare.sprint.service;
 
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.dto.CreateSprintRequest;
 import com.fairshare.sprint.dto.SprintDto;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
+import com.fairshare.team.entity.TeamMember;
+import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,14 +24,23 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final TeamRepository teamRepository;
+    private final TeamMemberRepository teamMemberRepository;
 
     @Transactional
-    public SprintDto createSprint(Long teamId, CreateSprintRequest request) {
+    public SprintDto createSprint(Long teamId, CreateSprintRequest request, Long userId) {
         if (request.getName() == null || request.getName().isBlank()) {
             throw new BusinessException("Sprint name is required");
         }
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
+
+        if (userId != null) {
+            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                    .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+            if (member.getRole() != MemberRole.LEADER) {
+                throw new ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền tạo và mở đợt đánh giá (sprint)");
+            }
+        }
 
         Sprint sprint = new Sprint();
         sprint.setTeam(team);
@@ -37,6 +50,11 @@ public class SprintService {
         sprint.setStatus("ACTIVE");
 
         return mapToDto(sprintRepository.save(sprint));
+    }
+
+    @Transactional
+    public SprintDto createSprint(Long teamId, CreateSprintRequest request) {
+        return createSprint(teamId, request, null);
     }
 
     @Transactional(readOnly = true)
@@ -57,11 +75,25 @@ public class SprintService {
     }
 
     @Transactional
-    public SprintDto closeSprint(Long sprintId) {
+    public SprintDto closeSprint(Long sprintId, Long userId) {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + sprintId));
+
+        if (userId != null) {
+            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(sprint.getTeam().getId(), userId)
+                    .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+            if (member.getRole() != MemberRole.LEADER) {
+                throw new ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền đóng đợt đánh giá (sprint)");
+            }
+        }
+
         sprint.setStatus("CLOSED");
         return mapToDto(sprintRepository.save(sprint));
+    }
+
+    @Transactional
+    public SprintDto closeSprint(Long sprintId) {
+        return closeSprint(sprintId, null);
     }
 
     private SprintDto mapToDto(Sprint sprint) {

@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 import { DashboardHeroCanvas } from './DashboardHeroCanvas';
 import { ContributionPieChart } from './ContributionPieChart';
 import { ContributionTimeline } from './ContributionTimeline';
@@ -320,7 +322,17 @@ const DEFAULT_AUDIT_TRAIL: EvidenceItemDto[] = [
 // Member color palette matching sample --m1..m4
 const MEMBER_COLORS = ['var(--m1)', 'var(--ok)', 'var(--m3)', 'var(--m2)', 'var(--m4)', 'var(--ital)'];
 
-export const ContributionDashboard: React.FC = () => {
+export interface ContributionDashboardProps {
+  teamId?: number;
+}
+
+export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ teamId: propTeamId }) => {
+  const [searchParams] = useSearchParams();
+  const urlTeamId = Number(searchParams.get('teamId'));
+  const currentTeamId = propTeamId || (urlTeamId > 0 ? urlTeamId : 1);
+  const { user } = useAuthStore();
+  const currentUserId = user?.id || 1;
+
   const [selectedSprintId, setSelectedSprintId] = useState<number>(4);
   const [selectedUserId, setSelectedUserId] = useState<number | 'ALL'>('ALL');
   const [activeRadarUserId, setActiveRadarUserId] = useState<number>(1);
@@ -401,9 +413,9 @@ export const ContributionDashboard: React.FC = () => {
 
     // Gọi API thật từ backend
     Promise.allSettled([
-      contributionApi.getContributions(1, selectedSprintId),
-      contributionApi.getContributionSummary(1, selectedSprintId),
-      contributionApi.getEvidenceTraceability(1, selectedSprintId, typeof selectedUserId === 'number' ? selectedUserId : 1),
+      contributionApi.getContributions(currentTeamId, selectedSprintId),
+      contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
+      contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, typeof selectedUserId === 'number' ? selectedUserId : currentUserId),
     ])
       .then(([scoresRes, summaryRes, evidenceRes]) => {
         // Dữ liệu Scores
@@ -435,7 +447,7 @@ export const ContributionDashboard: React.FC = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [selectedSprintId, selectedUserId]);
+  }, [currentTeamId, selectedSprintId, selectedUserId, currentUserId]);
 
   // Hàm mở Modal truy vết bằng chứng cho một thành viên
   const handleOpenEvidenceModal = async (member: ContributionSummaryItem) => {
@@ -444,7 +456,7 @@ export const ContributionDashboard: React.FC = () => {
     setEvidenceModalLoading(true);
 
     try {
-      const data = await contributionApi.getEvidenceTraceability(1, selectedSprintId, member.userId);
+      const data = await contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, member.userId);
       if (data && Array.isArray(data) && data.length > 0) {
         setModalEvidenceData(data);
       } else {
@@ -585,7 +597,7 @@ export const ContributionDashboard: React.FC = () => {
               </span>
             )}
           </button>
-          <ExportReportButton teamId={1} />
+          <ExportReportButton teamId={currentTeamId} />
         </div>
       </div>
 
@@ -952,9 +964,9 @@ export const ContributionDashboard: React.FC = () => {
           <ManualContributionModal
             isOpen={isManualModalOpen}
             onClose={() => setIsManualModalOpen(false)}
-            teamId={1}
+            teamId={currentTeamId}
             sprintId={selectedSprintId}
-            currentUserId={4}
+            currentUserId={currentUserId}
             onContributionApproved={handleContributionApproved}
           />
 

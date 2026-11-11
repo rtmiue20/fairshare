@@ -10,10 +10,13 @@ import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.BoardRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
+import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
@@ -41,8 +44,17 @@ public class BoardService {
 
     @Transactional
     public BoardDto createBoard(CreateBoardRequest request) {
+        return createBoard(request, null);
+    }
+
+    @Transactional
+    public BoardDto createBoard(CreateBoardRequest request, Long actorUserId) {
         Team team = teamRepository.findById(request.getTeamId())
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + request.getTeamId()));
+
+        if (actorUserId != null) {
+            requireLeader(team.getId(), actorUserId, "tạo bảng");
+        }
 
         Board board = new Board();
         board.setTeam(team);
@@ -82,8 +94,18 @@ public class BoardService {
 
     @Transactional
     public BoardDto updateBoard(Long id, CreateBoardRequest request) {
+        return updateBoard(id, request, null);
+    }
+
+    @Transactional
+    public BoardDto updateBoard(Long id, CreateBoardRequest request, Long actorUserId) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Board not found: " + id));
+
+        if (actorUserId != null) {
+            requireLeader(board.getTeam().getId(), actorUserId, "chỉnh sửa thông tin bảng");
+        }
+
         if (request.getName() != null && !request.getName().isBlank()) {
             board.setName(request.getName().trim());
         }
@@ -95,16 +117,33 @@ public class BoardService {
 
     @Transactional
     public void deleteBoard(Long id) {
-        if (!boardRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Board not found: " + id);
+        deleteBoard(id, null);
+    }
+
+    @Transactional
+    public void deleteBoard(Long id, Long actorUserId) {
+        Board board = boardRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Board not found: " + id));
+
+        if (actorUserId != null) {
+            requireLeader(board.getTeam().getId(), actorUserId, "xóa bảng");
         }
-        boardRepository.deleteById(id);
+        boardRepository.delete(board);
     }
 
     @Transactional
     public BoardColumnDto createColumn(Long boardId, CreateColumnRequest request) {
+        return createColumn(boardId, request, null);
+    }
+
+    @Transactional
+    public BoardColumnDto createColumn(Long boardId, CreateColumnRequest request, Long actorUserId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Board not found: " + boardId));
+
+        if (actorUserId != null) {
+            requireLeader(board.getTeam().getId(), actorUserId, "thêm cột vào bảng");
+        }
 
         int position = request.getPosition() != null ? request.getPosition()
                 : columnRepository.findByBoardIdOrderByPositionAsc(boardId).size();
@@ -119,8 +158,17 @@ public class BoardService {
 
     @Transactional
     public BoardColumnDto updateColumn(Long columnId, CreateColumnRequest request) {
+        return updateColumn(columnId, request, null);
+    }
+
+    @Transactional
+    public BoardColumnDto updateColumn(Long columnId, CreateColumnRequest request, Long actorUserId) {
         BoardColumn column = columnRepository.findById(columnId)
                 .orElseThrow(() -> new ResourceNotFoundException("Column not found: " + columnId));
+
+        if (actorUserId != null) {
+            requireLeader(column.getBoard().getTeam().getId(), actorUserId, "chỉnh sửa cột");
+        }
 
         if (request.getName() != null && !request.getName().isBlank()) {
             column.setName(request.getName().trim());
@@ -133,10 +181,18 @@ public class BoardService {
 
     @Transactional
     public void deleteColumn(Long columnId) {
-        if (!columnRepository.existsById(columnId)) {
-            throw new ResourceNotFoundException("Column not found: " + columnId);
+        deleteColumn(columnId, null);
+    }
+
+    @Transactional
+    public void deleteColumn(Long columnId, Long actorUserId) {
+        BoardColumn column = columnRepository.findById(columnId)
+                .orElseThrow(() -> new ResourceNotFoundException("Column not found: " + columnId));
+
+        if (actorUserId != null) {
+            requireLeader(column.getBoard().getTeam().getId(), actorUserId, "xóa cột");
         }
-        columnRepository.deleteById(columnId);
+        columnRepository.delete(column);
     }
 
     @Transactional
@@ -144,6 +200,10 @@ public class BoardService {
         BoardColumn column = columnRepository.findById(columnId)
                 .orElseThrow(() -> new ResourceNotFoundException("Column not found: " + columnId));
         Board board = column.getBoard();
+
+        if (actorUserId != null) {
+            checkTeamMembership(board.getTeam().getId(), actorUserId);
+        }
 
         User assignee = null;
         if (request.getAssigneeId() != null) {
@@ -200,6 +260,7 @@ public class BoardService {
     public CardDto updateCard(Long cardId, UpdateCardRequest request, Long actorUserId) {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        checkCardPermission(card, actorUserId, false);
 
         String oldAssigneeName = card.getAssignee() != null ? card.getAssignee().getFullName() : "Unassigned";
         Long oldAssigneeId = card.getAssignee() != null ? card.getAssignee().getId() : null;
@@ -322,6 +383,7 @@ public class BoardService {
 
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        checkCardPermission(card, actorUserId, false);
 
         User assignee = userRepository.findById(request.getAssigneeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assignee not found: " + request.getAssigneeId()));
@@ -365,6 +427,7 @@ public class BoardService {
 
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        checkCardPermission(card, actorUserId, false);
 
         Double oldStoryPoints = card.getStoryPoints() != null ? card.getStoryPoints() : 0.0;
         card.setStoryPoints(request.getStoryPoints());
@@ -398,6 +461,7 @@ public class BoardService {
 
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        checkCardPermission(card, actorUserId, false);
 
         String oldDueDateStr = card.getDueDate() != null ? card.getDueDate().toString() : "none";
         card.setDueDate(request.getDueDate());
@@ -431,10 +495,15 @@ public class BoardService {
 
     @Transactional
     public void deleteCard(Long cardId) {
-        if (!cardRepository.existsById(cardId)) {
-            throw new ResourceNotFoundException("Card not found: " + cardId);
-        }
-        cardRepository.deleteById(cardId);
+        deleteCard(cardId, null);
+    }
+
+    @Transactional
+    public void deleteCard(Long cardId, Long actorUserId) {
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        checkCardPermission(card, actorUserId, false);
+        cardRepository.delete(card);
     }
 
     @Transactional
@@ -447,12 +516,21 @@ public class BoardService {
                         () -> new ResourceNotFoundException("Target column not found: " + request.getTargetColumnId()));
 
         BoardColumn fromColumn = card.getColumn();
-        String fromColName = request.getFromColumnName() != null ? request.getFromColumnName() : fromColumn.getName();
-        String toColName = request.getToColumnName() != null ? request.getToColumnName() : targetColumn.getName();
+        if (fromColumn != null && fromColumn.getBoard() != null && targetColumn.getBoard() != null) {
+            if (!fromColumn.getBoard().getId().equals(targetColumn.getBoard().getId())) {
+                throw new BusinessException("Không thể di chuyển thẻ sang cột thuộc bảng khác");
+            }
+        }
+
+        // DEF-11: Luôn dùng tên cột thật từ CSDL thay vì tin cậy tên client gửi lên để chống giả mạo hoàn thành card (R05)
+        String fromColName = fromColumn != null ? fromColumn.getName() : (request.getFromColumnName() != null ? request.getFromColumnName() : "");
+        String toColName = targetColumn.getName();
 
         boolean wasDone = isDoneColumn(fromColName);
         boolean isDone = isDoneColumn(toColName);
         boolean isReview = isReviewColumn(toColName);
+
+        checkCardPermission(card, actorUserId, isReview);
 
         card.setColumn(targetColumn);
         if (request.getPosition() != null) {
@@ -595,6 +673,10 @@ public class BoardService {
             throw new BusinessException("Cần đăng nhập để bình luận");
         }
 
+        if (actorUserId != null) {
+            checkTeamMembership(card.getBoard().getTeam().getId(), actorUserId);
+        }
+
         Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
         LocalDateTime now = LocalDateTime.now();
         boolean isHelpful = Boolean.TRUE.equals(request.getIsHelpful())
@@ -661,6 +743,10 @@ public class BoardService {
 
         if (actor == null) {
             throw new BusinessException("Cần đăng nhập để hoàn thành công việc");
+        }
+
+        if (actorUserId != null) {
+            checkTeamMembership(card.getBoard().getTeam().getId(), actorUserId);
         }
 
         Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
@@ -736,5 +822,46 @@ public class BoardService {
                 .createdAt(card.getCreatedAt())
                 .updatedAt(card.getUpdatedAt())
                 .build();
+    }
+
+    private void requireLeader(Long teamId, Long userId, String actionDescription) {
+        if (userId == null) {
+            return;
+        }
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+        if (member.getRole() != MemberRole.LEADER) {
+            throw new ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền " + actionDescription);
+        }
+    }
+
+    private void checkCardPermission(Card card, Long actorId, boolean isMoveToReview) {
+        if (actorId == null) {
+            return;
+        }
+        Long teamId = card.getBoard().getTeam().getId();
+        TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, actorId)
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+
+        if (member.getRole() == MemberRole.LEADER) {
+            return; // Leader có toàn quyền trên mọi thẻ của nhóm
+        }
+
+        // Thành viên chỉ được phép sửa/di chuyển thẻ nếu:
+        // 1. Thẻ chưa được gán cho ai (unassigned)
+        // 2. Thẻ được gán cho chính thành viên đó
+        // 3. Kéo sang cột Review để đánh giá chéo cho đồng đội
+        if (card.getAssignee() == null || card.getAssignee().getId().equals(actorId) || isMoveToReview) {
+            return;
+        }
+        throw new ForbiddenException("Thành viên chỉ được phép sửa hoặc di chuyển thẻ được giao cho mình");
+    }
+
+    private TeamMember checkTeamMembership(Long teamId, Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
     }
 }

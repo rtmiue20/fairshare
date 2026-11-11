@@ -19,6 +19,7 @@ import {
 import { MemberTable } from './MemberTable';
 import { ConsentDialog } from './ConsentDialog';
 import { teamApi } from '../../api/team.api';
+import { useAuthStore } from '../../store/authStore';
 import type { Team, Role } from '../../types/team';
 
 // Danh sách 6 thành viên chuẩn xác 100% Nhóm 07 - Đồ án QLDA UEH
@@ -240,7 +241,11 @@ export const TeamDetailPage: React.FC = () => {
     }
   };
 
+  const { user: currentUser } = useAuthStore();
   const currentTeam = team || DEFAULT_TEAM_DATA;
+  const isLeader =
+    currentTeam.currentRole === 'LEADER' ||
+    Boolean(currentTeam.members?.find((m) => m.user?.id === currentUser?.id && m.role === 'LEADER'));
   const membersCount = currentTeam.members?.length || 6;
 
   return (
@@ -286,13 +291,15 @@ export const TeamDetailPage: React.FC = () => {
             <span>Cài đặt Consent</span>
           </button>
 
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-sm"
-          >
-            <UserPlus size={13} />
-            <span>+ Mời thành viên</span>
-          </button>
+          {isLeader && (
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-sm"
+            >
+              <UserPlus size={13} />
+              <span>+ Mời thành viên</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -473,7 +480,7 @@ export const TeamDetailPage: React.FC = () => {
 
           <MemberTable
             members={currentTeam.members || []}
-            isLeader={true}
+            isLeader={isLeader}
             onUpdateRole={handleUpdateRole}
             onRemoveMember={handleRemoveMember}
           />

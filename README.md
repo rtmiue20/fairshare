@@ -161,7 +161,6 @@ fairshare/
 │       │   │   │   │   ├── IntegrationAdapter.java
 │       │   │   │   │   ├── SyncResult.java
 │       │   │   │   │   └── SyncScheduler.java
-│       │   │   │   ├── trello/                # LEGACY – không còn dùng sau CR-02, sẽ gỡ bỏ
 │       │   │   │   └── googledocs/            # Có điều kiện (quyết định ở Sprint 4)
 │       │   │   │       ├── client/GoogleDocsClient.java
 │       │   │   │       ├── service/GoogleDocsSyncService.java
@@ -233,13 +232,12 @@ fairshare/
 │           ├── java/com/fairshare/
 │           │   ├── auth/
 │           │   ├── board/BoardServiceTest.java
-│           │   ├── integration/trello/         # LEGACY (CR-02), sẽ gỡ cùng module trello
+│           │   ├── activity/ActivitySourceBackwardCompatibilityTest.java
 │           │   ├── contribution/ScoringEngineTest.java
 │           │   ├── peerreview/AnonymityAggregatorTest.java
 │           │   └── report/
 │           └── resources/
-│               ├── application-test.yml
-│               └── fixtures/trello/            # LEGACY (CR-02): JSON mẫu Trello cũ
+│               └── application-test.yml
 │
 ├── frontend/                         # Vite + React + TypeScript
 │   ├── package.json
@@ -270,7 +268,6 @@ fairshare/
 │       │   ├── auth.api.ts
 │       │   ├── team.api.ts
 │       │   ├── board.api.ts          # Gọi /api/boards (CR-02)
-│       │   ├── integration.api.ts    # LEGACY (Trello), sẽ gỡ
 │       │   ├── contribution.api.ts
 │       │   ├── peerReview.api.ts
 │       │   └── report.api.ts
@@ -287,9 +284,6 @@ fairshare/
 │       │   │   └── MemberTable.tsx
 │       │   ├── board/
 │       │   │   └── BoardView.tsx              # Kanban: thêm thẻ, phân công, Story Points, di chuyển thẻ (/teams/:id/board)
-│       │   ├── integration/                   # LEGACY (Trello) – sẽ gỡ sau CR-02
-│       │   │   ├── ConnectTrelloPage.tsx
-│       │   │   └── SyncStatusCard.tsx
 │       │   ├── dashboard/
 │       │   │   ├── ContributionDashboard.tsx
 │       │   │   ├── ContributionPieChart.tsx
@@ -738,7 +732,7 @@ Chi tiết từng sprint xem `docs/sprint1.md` … `docs/sprint7.md`.
 - Số task hoặc số lần chỉnh sửa không phản ánh hoàn toàn chất lượng công việc.
 - Ẩn danh trong nhóm nhỏ chỉ ở mức tương đối.
 - Tích hợp Google Docs có thể bị hạn chế bởi chính sách OAuth của Google.
-- Phần kéo thả nâng cao của board hoàn thiện ở Sprint 4; module Trello cũ còn trong mã nguồn ở trạng thái legacy cho tới khi gỡ ở Sprint 5.
+- Module Trello legacy (cả backend và frontend) đã được gỡ bỏ hoàn toàn ở Sprint 5, bảo toàn tương thích ngược cho dữ liệu cũ qua enum `ActivitySource.TRELLO`.
 
 ---
 

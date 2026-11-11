@@ -12,7 +12,9 @@ import com.fairshare.board.repository.CardRepository;
 import com.fairshare.board.service.BoardService;
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
+import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
@@ -99,6 +101,28 @@ class BoardServiceTest {
         colDone.setBoard(sampleBoard);
         colDone.setName("Done");
         colDone.setPosition(3);
+
+        TeamMember sampleMember = new TeamMember();
+        sampleMember.setId(1L);
+        sampleMember.setTeam(sampleTeam);
+        sampleMember.setUser(sampleUser);
+        sampleMember.setRole(MemberRole.MEMBER);
+
+        User reviewerUser = new User();
+        reviewerUser.setId(200L);
+        reviewerUser.setEmail("reviewer@fairshare.com");
+        reviewerUser.setFullName("Reviewer User");
+
+        TeamMember reviewerMember = new TeamMember();
+        reviewerMember.setId(2L);
+        reviewerMember.setTeam(sampleTeam);
+        reviewerMember.setUser(reviewerUser);
+        reviewerMember.setRole(MemberRole.MEMBER);
+
+        lenient().when(teamMemberRepository.findByTeamIdAndUserId(eq(10L), eq(100L)))
+                .thenReturn(Optional.of(sampleMember));
+        lenient().when(teamMemberRepository.findByTeamIdAndUserId(eq(10L), eq(200L)))
+                .thenReturn(Optional.of(reviewerMember));
     }
 
     @Test
@@ -780,5 +804,71 @@ class BoardServiceTest {
                 eq(false),
                 eq(false)
         );
+    }
+
+    @Test
+    @DisplayName("DEF-11: Moving card to In Progress with forged toColumnName='Done' must NOT log CARD_COMPLETED")
+    void testMoveCardToInProgressWithForgedDoneHeaderDoesNotComplete() {
+        Card card = new Card();
+        card.setId(60L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Defect 11 Verification Card");
+        card.setAssignee(sampleUser);
+        card.setStoryPoints(5.0);
+
+        MoveCardRequest forgedReq = MoveCardRequest.builder()
+                .targetColumnId(14L) // colInProgress
+                .toColumnName("Done") // Client forges "Done" string!
+                .build();
+
+        when(cardRepository.findById(60L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(14L)).thenReturn(Optional.of(colInProgress));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(100L)).thenReturn(Optional.of(sampleUser));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        boardService.moveCard(60L, forgedReq, 100L);
+
+        // Verify that CARD_COMPLETED was NOT logged; instead CARD_MOVED is logged with actual column name "In Progress"
+        verify(activityService, never()).logActivity(
+                any(), any(), any(), eq("CARD_COMPLETED"), any(), any(), any(), any(), any()
+        );
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(sampleUser),
+                eq(ActivitySource.BOARD),
+                eq("CARD_MOVED"),
+                eq("Moved card 'Defect 11 Verification Card' from 'To Do' to 'In Progress'"),
+                any(),
+                isNull(),
+                eq(5.0),
+                isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("DEF-11: Moving card to a column of a different board must throw BusinessException")
+    void testMoveCardToDifferentBoardColumnThrowsException() {
+        Board anotherBoard = new Board();
+        anotherBoard.setId(999L);
+
+        BoardColumn foreignColumn = new BoardColumn();
+        foreignColumn.setId(88L);
+        foreignColumn.setBoard(anotherBoard);
+        foreignColumn.setName("Done");
+
+        Card card = new Card();
+        card.setId(70L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Cross Board Move");
+
+        when(cardRepository.findById(70L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(88L)).thenReturn(Optional.of(foreignColumn));
+
+        MoveCardRequest req = MoveCardRequest.builder().targetColumnId(88L).build();
+
+        assertThrows(BusinessException.class, () -> boardService.moveCard(70L, req, 100L));
     }
 }

@@ -40,6 +40,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler({ForbiddenException.class, org.springframework.security.access.AccessDeniedException.class})
+    public ResponseEntity<ApiResponse<Void>> handleForbiddenException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ApiResponse.<Void>builder()
+                        .success(false)
+                        .message(ex.getMessage() != null ? ex.getMessage() : "Bạn không có quyền thực hiện thao tác này")
+                        .build()
+        );
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
@@ -90,6 +100,16 @@ public class GlobalExceptionHandler {
                         .success(false)
                         .message("Validation failed")
                         .data(errors)
+                        .build()
+        );
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse.<Void>builder()
+                        .success(false)
+                        .message("Tài nguyên hoặc endpoint không tồn tại: " + ex.getResourcePath())
                         .build()
         );
     }

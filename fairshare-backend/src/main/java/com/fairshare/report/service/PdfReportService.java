@@ -12,6 +12,7 @@ import com.fairshare.peerreview.repository.ReviewSubmissionRepository;
 import com.fairshare.peerreview.service.AnonymityAggregator;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
 import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
@@ -19,6 +20,7 @@ import com.fairshare.team.repository.TeamRepository;
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.pdf.*;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -53,14 +56,83 @@ public class PdfReportService {
     private static final Color TEXT_MUTED = new Color(100, 116, 139);      // Slate-500 #64748b
     private static final Color BORDER_COLOR = new Color(226, 232, 240);    // Slate-200 #e2e8f0
 
-    @Transactional(readOnly = true)
+    private byte[] regularFontBytes;
+    private byte[] boldFontBytes;
+
+    @PostConstruct
+    public void initFonts() {
+        try (InputStream is = getClass().getResourceAsStream("/fonts/Arial.ttf")) {
+            if (is != null) {
+                regularFontBytes = is.readAllBytes();
+            }
+        } catch (Exception e) {
+            log.warn("Could not load regular font from classpath: {}", e.getMessage());
+        }
+
+        try (InputStream is = getClass().getResourceAsStream("/fonts/Arial-Bold.ttf")) {
+            if (is != null) {
+                boldFontBytes = is.readAllBytes();
+            }
+        } catch (Exception e) {
+            log.warn("Could not load bold font from classpath: {}", e.getMessage());
+        }
+    }
+
+    private BaseFont getRegularBaseFont() {
+        try {
+            if (regularFontBytes != null) {
+                return BaseFont.createFont("Arial.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, regularFontBytes, null);
+            }
+        } catch (Exception e) {
+            log.warn("Could not create Unicode regular BaseFont, falling back to Helvetica: {}", e.getMessage());
+        }
+        try {
+            return BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize fallback font", e);
+        }
+    }
+
+    private BaseFont getBoldBaseFont() {
+        try {
+            if (boldFontBytes != null) {
+                return BaseFont.createFont("Arial-Bold.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, boldFontBytes, null);
+            }
+        } catch (Exception e) {
+            log.warn("Could not create Unicode bold BaseFont, falling back to Helvetica-Bold: {}", e.getMessage());
+        }
+        try {
+            return BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize fallback bold font", e);
+        }
+    }
+
+    @Transactional
     public byte[] generateSprintReportPdf(Long teamId, Long sprintId) {
+        return generateSprintReportPdf(teamId, sprintId, null);
+    }
+
+    @Transactional
+    public byte[] generateSprintReportPdf(Long teamId, Long sprintId, Long requesterId) {
+        if (requesterId != null) {
+            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, requesterId)
+                    .orElseThrow(() -> new com.fairshare.common.exception.ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+            if (member.getRole() != MemberRole.LEADER) {
+                throw new com.fairshare.common.exception.ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền xuất báo cáo Sprint PDF");
+            }
+        }
+
         long startTime = System.currentTimeMillis();
 
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + sprintId));
+
+        if (sprint.getTeam() == null || !sprint.getTeam().getId().equals(teamId)) {
+            throw new ResourceNotFoundException("Sprint id " + sprintId + " does not belong to team " + teamId);
+        }
 
         // 1. Lấy dữ liệu đóng góp thành viên từ ContributionService (M3)
         List<ContributionSummaryResponse> contributions = Collections.emptyList();
@@ -108,31 +180,35 @@ public class PdfReportService {
             PdfWriter.getInstance(document, out);
             document.open();
 
-            // Font styles
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, PRIMARY_COLOR);
-            Font subTitleFont = FontFactory.getFont(FontFactory.HELVETICA, 10, TEXT_MUTED);
-            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, TEXT_DARK);
-            Font textFont = FontFactory.getFont(FontFactory.HELVETICA, 9, TEXT_DARK);
-            Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, TEXT_DARK);
-            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
-            Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_MUTED);
+            // Font styles Unicode (Arial)
+            BaseFont regularBf = getRegularBaseFont();
+            BaseFont boldBf = getBoldBaseFont();
+
+            Font titleFont = new Font(boldBf, 15, Font.NORMAL, PRIMARY_COLOR);
+            Font subTitleFont = new Font(regularBf, 9, Font.NORMAL, TEXT_MUTED);
+            Font orgFont = new Font(boldBf, 10, Font.NORMAL, TEXT_MUTED);
+            Font sectionFont = new Font(boldBf, 11, Font.NORMAL, TEXT_DARK);
+            Font textFont = new Font(regularBf, 9, Font.NORMAL, TEXT_DARK);
+            Font boldFont = new Font(boldBf, 9, Font.NORMAL, TEXT_DARK);
+            Font headerFont = new Font(boldBf, 9, Font.NORMAL, Color.WHITE);
+            Font smallFont = new Font(regularBf, 8, Font.NORMAL, TEXT_MUTED);
 
             // Header Section
-            Paragraph header = new Paragraph("TRUONG DAI HOC KINH TE TP. HO CHI MINH (UEH)", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TEXT_MUTED));
+            Paragraph header = new Paragraph("TRƯỜNG ĐẠI HỌC KINH TẾ TP. HỒ CHÍ MINH (UEH)", orgFont);
             header.setAlignment(Element.ALIGN_CENTER);
             document.add(header);
 
-            Paragraph course = new Paragraph("KHOA CONG NGHE THONG TIN KINH DOANH - MON QUAN LY DU AN CNTT", smallFont);
+            Paragraph course = new Paragraph("KHOA CÔNG NGHỆ THÔNG TIN KINH DOANH - MÔN QUẢN LÝ DỰ ÁN CNTT", smallFont);
             course.setAlignment(Element.ALIGN_CENTER);
             document.add(course);
 
-            Paragraph title = new Paragraph("BAO CAO DONG GOP VA MINH BACH HOA NANG SUAT - FAIRSHARE", titleFont);
+            Paragraph title = new Paragraph("BÁO CÁO ĐÓNG GÓP VÀ MINH BẠCH HOÁ NĂNG SUẤT - FAIRSHARE", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             title.setSpacingBefore(8);
             title.setSpacingAfter(4);
             document.add(title);
 
-            Paragraph instructor = new Paragraph("Giang vien huong dan: TS. Nguyen Manh Tuan | Thoi gian xuat: " + LocalDateTime.now().format(DATE_TIME_FMT), subTitleFont);
+            Paragraph instructor = new Paragraph("Giảng viên hướng dẫn: TS. Nguyễn Mạnh Tuấn | Thời gian xuất: " + LocalDateTime.now().format(DATE_TIME_FMT), subTitleFont);
             instructor.setAlignment(Element.ALIGN_CENTER);
             instructor.setSpacingAfter(15);
             document.add(instructor);
@@ -145,14 +221,14 @@ public class PdfReportService {
             String sprintDates = (sprint.getStartDate() != null ? sprint.getStartDate().format(DATE_ONLY_FMT) : "N/A") + " - " + 
                                  (sprint.getEndDate() != null ? sprint.getEndDate().format(DATE_ONLY_FMT) : "N/A");
 
-            addMetaCell(metaTable, "Nhom thuc hien: " + team.getName() + " (Ma: " + team.getInviteCode() + ")", boldFont);
-            addMetaCell(metaTable, "Giai doan danh gia: " + sprint.getName() + " (" + (sprint.getStatus() != null ? sprint.getStatus() : "ACTIVE") + ")", boldFont);
-            addMetaCell(metaTable, "Thoi gian Sprint: " + sprintDates, textFont);
-            addMetaCell(metaTable, "Co so phap ly: Nghi dinh 13/2023/ND-CP ve Bao ve du lieu ca nhan (100% Consent)", textFont);
+            addMetaCell(metaTable, "Nhóm thực hiện: " + team.getName() + " (Mã: " + team.getInviteCode() + ")", boldFont);
+            addMetaCell(metaTable, "Giai đoạn đánh giá: " + sprint.getName() + " (" + (sprint.getStatus() != null ? sprint.getStatus() : "ACTIVE") + ")", boldFont);
+            addMetaCell(metaTable, "Thời gian Sprint: " + sprintDates, textFont);
+            addMetaCell(metaTable, "Cơ sở pháp lý: Nghị định 13/2023/NĐ-CP về Bảo vệ dữ liệu cá nhân (100% Consent)", textFont);
             document.add(metaTable);
 
-            // SECTION 1: Bang tong hop dong gop
-            Paragraph sec1 = new Paragraph("1. BANG TONG HOP MUC DONG GOP THANH VIEN (Scoring v1.1 - CR-03)", sectionFont);
+            // SECTION 1: Bảng tổng hợp đóng góp
+            Paragraph sec1 = new Paragraph("1. BẢNG TỔNG HỢP MỨC ĐÓNG GÓP THÀNH VIÊN (Scoring v1.1 - CR-03)", sectionFont);
             sec1.setSpacingBefore(5);
             sec1.setSpacingAfter(8);
             document.add(sec1);
@@ -163,7 +239,7 @@ public class PdfReportService {
             summaryTable.setSpacingAfter(15);
 
             // Table Header
-            String[] headers = {"Thanh vien", "D1 Output", "D2 Tin cay", "D3 Hop tac", "Diem Tong", "Cham cheo", "Dong gop %"};
+            String[] headers = {"Thành viên", "D1 Output", "D2 Tin cậy", "D3 Hợp tác", "Điểm Tổng", "Chấm chéo", "Đóng góp %"};
             for (String h : headers) {
                 PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
                 cell.setBackgroundColor(PRIMARY_COLOR);
@@ -193,7 +269,7 @@ public class PdfReportService {
                 double pct = c != null && c.getFinalPct() != null ? c.getFinalPct().doubleValue() : 0.0;
 
                 AnonymityAggregator.AggregatedResult peer = peerReviewMap.get(uid);
-                String peerStr = (peer != null && peer.isAnonymousSafe()) ? String.format(Locale.US, "%.1f/5", peer.getAverageScore()) : "Chua du luot";
+                String peerStr = (peer != null && peer.isAnonymousSafe()) ? String.format(Locale.US, "%.1f/5", peer.getAverageScore()) : "Chưa đủ lượt";
 
                 addTableRow(summaryTable, name + "\n(" + email + ")", textFont, Element.ALIGN_LEFT);
                 addTableRow(summaryTable, String.format(Locale.US, "%.1f", d1), textFont, Element.ALIGN_CENTER);
@@ -205,8 +281,8 @@ public class PdfReportService {
             }
             document.add(summaryTable);
 
-            // SECTION 2: Bang chung truy vet
-            Paragraph sec2 = new Paragraph("2. MINH CHUNG TRUY VET HOAT DONG CHINH (Evidence Traceability)", sectionFont);
+            // SECTION 2: Bằng chứng truy vết
+            Paragraph sec2 = new Paragraph("2. MINH CHỨNG TRUY VẾT HOẠT ĐỘNG CHÍNH (Evidence Traceability)", sectionFont);
             sec2.setSpacingBefore(5);
             sec2.setSpacingAfter(8);
             document.add(sec2);
@@ -216,7 +292,7 @@ public class PdfReportService {
             evidenceTable.setWidths(new float[]{1.4f, 1.8f, 1.2f, 2.6f, 1.0f});
             evidenceTable.setSpacingAfter(15);
 
-            String[] evHeaders = {"Thoi diem", "Thanh vien", "Nguon / Loai", "Chi tiet su kien", "Dung han"};
+            String[] evHeaders = {"Thời điểm", "Thành viên", "Nguồn / Loại", "Chi tiết sự kiện", "Đúng hạn"};
             for (String h : evHeaders) {
                 PdfPCell cell = new PdfPCell(new Phrase(h, headerFont));
                 cell.setBackgroundColor(new Color(71, 85, 105)); // Slate-600
@@ -227,7 +303,7 @@ public class PdfReportService {
             }
 
             if (topEvents.isEmpty()) {
-                PdfPCell emptyCell = new PdfPCell(new Phrase("Chua co su kien truy vet trong Sprint nay", textFont));
+                PdfPCell emptyCell = new PdfPCell(new Phrase("Chưa có sự kiện truy vết trong Sprint này", textFont));
                 emptyCell.setColspan(5);
                 emptyCell.setPadding(8);
                 emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
@@ -238,7 +314,7 @@ public class PdfReportService {
                     String memberName = ev.getUser() != null && ev.getUser().getFullName() != null ? ev.getUser().getFullName() : "User";
                     String type = (ev.getSource() != null ? ev.getSource().name() : "") + " / " + (ev.getEventType() != null ? ev.getEventType() : "");
                     String details = ev.getDetails() != null ? ev.getDetails() : "Event ID #" + ev.getId();
-                    String onTime = Boolean.TRUE.equals(ev.getIsOnTime()) ? "Dung han" : "Tre han";
+                    String onTime = Boolean.TRUE.equals(ev.getIsOnTime()) ? "Đúng hạn" : "Trễ hạn";
 
                     addTableRow(evidenceTable, time, smallFont, Element.ALIGN_CENTER);
                     addTableRow(evidenceTable, memberName, smallFont, Element.ALIGN_LEFT);
@@ -249,16 +325,16 @@ public class PdfReportService {
             }
             document.add(evidenceTable);
 
-            // SECTION 3: Xac nhan cua Nhom truong (M0)
-            Paragraph sec3 = new Paragraph("3. XAC NHAN VA CAM KET TINH MINH BACH", sectionFont);
+            // SECTION 3: Xác nhận của Nhóm trưởng (M0)
+            Paragraph sec3 = new Paragraph("3. XÁC NHẬN VÀ CAM KẾT TÍNH MINH BẠCH", sectionFont);
             sec3.setSpacingBefore(5);
             sec3.setSpacingAfter(8);
             document.add(sec3);
 
             Paragraph cert = new Paragraph(
-                    "Bao cao duoc tao tu dong boi He thong FairShare dua tren du lieu nhat ky bat bien (Activity Logs). " +
-                    "Moi chi so dong gop deu co kha nang truy vet ve su kien goc nham dam bao tinh cong bang, loai bo hien tuong free-rider. " +
-                    "Toan bo thanh vien da xac nhan dong y chia se du lieu theo Chinh sach Bao mat cua Nhom.",
+                    "Báo cáo được tạo tự động bởi Hệ thống FairShare dựa trên dữ liệu nhật ký bất biến (Activity Logs). " +
+                    "Mọi chỉ số đóng góp đều có khả năng truy vết về sự kiện gốc nhằm đảm bảo tính công bằng, loại bỏ hiện tượng free-rider. " +
+                    "Toàn bộ thành viên đã xác nhận đồng ý chia sẻ dữ liệu theo Chính sách Bảo mật của Nhóm.",
                     smallFont
             );
             cert.setSpacingAfter(15);
@@ -268,12 +344,19 @@ public class PdfReportService {
             PdfPTable signTable = new PdfPTable(2);
             signTable.setWidthPercentage(100);
 
-            PdfPCell leftCell = new PdfPCell(new Phrase("Xac nhan cua Ban giam sat (PCG)\n\n\n(Ky va ghi ro ho ten)", boldFont));
+            PdfPCell leftCell = new PdfPCell(new Phrase("Xác nhận của Ban giám sát (PCG)\n\n\n(Ký và ghi rõ họ tên)", boldFont));
             leftCell.setBorder(Rectangle.NO_BORDER);
             leftCell.setHorizontalAlignment(Element.ALIGN_CENTER);
             signTable.addCell(leftCell);
 
-            PdfPCell rightCell = new PdfPCell(new Phrase("Dai dien Nhom - Nhom truong (M0)\n\nNguyen Van Minh Trieu\n(Da ky dien tu)", boldFont));
+            String leaderName = teamMembers.stream()
+                    .filter(m -> m.getRole() == MemberRole.LEADER && m.getUser() != null)
+                    .map(m -> m.getUser().getFullName())
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse("Nguyễn Văn Minh Triều");
+
+            PdfPCell rightCell = new PdfPCell(new Phrase("Đại diện Nhóm - Nhóm trưởng (M0)\n\n" + leaderName + "\n(Đã ký điện tử)", boldFont));
             rightCell.setBorder(Rectangle.NO_BORDER);
             rightCell.setHorizontalAlignment(Element.ALIGN_CENTER);
             signTable.addCell(rightCell);

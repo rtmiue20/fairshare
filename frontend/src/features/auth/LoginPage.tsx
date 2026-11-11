@@ -260,7 +260,7 @@ export const LoginPage: React.FC = () => {
                         setEmail(e.target.value);
                         if (validationError) setValidationError(null);
                       }}
-                      placeholder="phucvuong.31241025017@st.ueh.edu.vn"
+                      placeholder="name@st.ueh.edu.vn"
                       required
                       className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-3 outline-none transition"
                       style={{
@@ -366,7 +366,7 @@ export const LoginPage: React.FC = () => {
                   }}
                 >
                   <Sparkles size={14} style={{ color: 'var(--accent)' }} />
-                  <span>Vào nhanh bằng Tài khoản Demo (M1 – Phúc Vương)</span>
+                  <span>Khám phá ngay bằng Tài khoản Demo</span>
                 </button>
 
                 <div className="text-center text-xs mt-2" style={{ color: 'var(--fg2)' }}>
