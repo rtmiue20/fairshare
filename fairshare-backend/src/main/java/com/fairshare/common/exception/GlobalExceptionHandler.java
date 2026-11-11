@@ -40,6 +40,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler({ForbiddenException.class, org.springframework.security.access.AccessDeniedException.class})
+    public ResponseEntity<ApiResponse<Void>> handleForbiddenException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ApiResponse.<Void>builder()
+                        .success(false)
+                        .message(ex.getMessage() != null ? ex.getMessage() : "Bạn không có quyền thực hiện thao tác này")
+                        .build()
+        );
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(

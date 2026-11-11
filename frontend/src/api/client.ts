@@ -21,8 +21,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = error.config?.url || '';
+    const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+
+    // DEF-03: Không redirect reload trang khi 401 bắt nguồn từ /auth/login hoặc /auth/register để giữ thông báo lỗi
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('token');
+      localStorage.removeItem('fairshare_user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

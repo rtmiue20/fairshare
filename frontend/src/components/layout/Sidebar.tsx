@@ -7,7 +7,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { label: 'Bảng đóng góp', path: '/dashboard' },
     { label: 'Danh sách nhóm', path: '/teams' },
-    { label: 'Tích hợp Trello', path: '/integration' },
+    { label: 'Kanban Board', path: '/board' },
     { label: 'Chấm chéo', path: '/peer-review' },
     { label: 'Cảnh báo', path: '/alerts' },
     { label: 'Hồ sơ & Cài đặt', path: '/profile' },

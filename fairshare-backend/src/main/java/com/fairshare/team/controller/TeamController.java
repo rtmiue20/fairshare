@@ -34,8 +34,7 @@ public class TeamController {
     @PostMapping
     public ResponseEntity<ApiResponse<TeamDto>> createTeam(
             @Valid @RequestBody CreateTeamRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         TeamDto created = teamService.createTeam(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -52,8 +51,7 @@ public class TeamController {
     @GetMapping("/{teamId}")
     public ResponseEntity<ApiResponse<TeamDto>> getTeamDetail(
             @PathVariable Long teamId,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         TeamDto detail = teamService.getTeamDetail(teamId, userId);
         return ResponseEntity.ok(ApiResponse.ok("Chi tiết nhóm", detail));
@@ -62,8 +60,7 @@ public class TeamController {
     @PostMapping("/{teamId}/members")
     public ResponseEntity<ApiResponse<Void>> inviteMember(
             @PathVariable Long teamId,
-            @Valid @RequestBody InviteMemberRequest request
-    ) {
+            @Valid @RequestBody InviteMemberRequest request) {
         MemberRole role = MemberRole.MEMBER;
         if (request.getRole() != null && request.getRole().equalsIgnoreCase("LEADER")) {
             role = MemberRole.LEADER;
@@ -93,8 +90,7 @@ public class TeamController {
             @PathVariable Long teamId,
             @PathVariable Long userId,
             @Valid @RequestBody UpdateMemberRoleRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long currentUserId = getUserId(authentication);
         TeamMember updated = memberService.updateMemberRole(teamId, userId, request.getRole(), currentUserId);
         TeamMemberDto dto = TeamMemberDto.builder()
@@ -112,8 +108,7 @@ public class TeamController {
     public ResponseEntity<ApiResponse<Void>> removeMember(
             @PathVariable Long teamId,
             @PathVariable Long userId,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long currentUserId = getUserId(authentication);
         memberService.removeMember(teamId, userId, currentUserId);
         return ResponseEntity.ok(ApiResponse.ok("Xóa thành viên khỏi nhóm thành công", null));
@@ -122,8 +117,7 @@ public class TeamController {
     @PostMapping("/join")
     public ResponseEntity<ApiResponse<TeamDto>> joinTeam(
             @Valid @RequestBody JoinTeamRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         TeamDto joined = teamService.joinTeamByInviteCode(request.getInviteCode(), userId);
         return ResponseEntity.ok(ApiResponse.ok("Tham gia nhóm thành công", joined));
@@ -132,8 +126,7 @@ public class TeamController {
     @GetMapping("/{teamId}/consent/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getConsentStatus(
             @PathVariable Long teamId,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         boolean consented = teamService.getConsentStatus(teamId, userId);
         return ResponseEntity.ok(ApiResponse.ok("Trạng thái cam kết dữ liệu", Map.of("consented", consented)));
@@ -143,8 +136,7 @@ public class TeamController {
     public ResponseEntity<ApiResponse<Void>> submitConsent(
             @PathVariable Long teamId,
             @RequestBody ConsentRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         teamService.recordConsent(teamId, userId, request.isConsented());
         return ResponseEntity.ok(ApiResponse.ok("Ký cam kết dữ liệu thành công", null));
@@ -153,8 +145,7 @@ public class TeamController {
     @DeleteMapping("/{teamId}/consent")
     public ResponseEntity<ApiResponse<Void>> revokeConsent(
             @PathVariable Long teamId,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long userId = getUserId(authentication);
         teamService.revokeConsent(teamId, userId);
         return ResponseEntity.ok(ApiResponse.ok("Rút cam kết dữ liệu thành công", null));
@@ -163,9 +154,10 @@ public class TeamController {
     @PostMapping("/{teamId}/sprints")
     public ResponseEntity<ApiResponse<SprintDto>> createSprint(
             @PathVariable Long teamId,
-            @Valid @RequestBody CreateSprintRequest request
-    ) {
-        SprintDto sprint = sprintService.createSprint(teamId, request);
+            @Valid @RequestBody CreateSprintRequest request,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        SprintDto sprint = sprintService.createSprint(teamId, request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Tạo sprint thành công", sprint));
     }

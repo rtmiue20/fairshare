@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { showToast } from '../../components/ui/Toast';
 import { reportApi } from '../../api/report.api';
+import { useAuthStore } from '../../store/authStore';
 
 interface ReportMember {
   name: string;
@@ -23,6 +24,8 @@ const REPORT_MEMBERS: ReportMember[] = [
 
 export const ReportPage: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
+  const { user: currentUser } = useAuthStore();
+  const isLeader = currentUser?.id === 1 || currentUser?.email?.startsWith('trieu');
 
   const handleDownloadBackendPdf = async () => {
     try {
@@ -64,15 +67,25 @@ export const ReportPage: React.FC = () => {
           <button className="btn ghost sq sm" type="button" onClick={handlePrintPreview}>
             🖨️ Xem trước / In
           </button>
-          <button
-            className="btn sq sm"
-            id="pdfBtn"
-            type="button"
-            onClick={handleDownloadBackendPdf}
-            disabled={downloading}
-          >
-            {downloading ? '⏳ Đang tạo PDF...' : '📄 Tải file PDF chính thức'}
-          </button>
+          {isLeader ? (
+            <button
+              className="btn sq sm"
+              id="pdfBtn"
+              type="button"
+              onClick={handleDownloadBackendPdf}
+              disabled={downloading}
+              style={{ padding: '8px 16px', borderRadius: 6, cursor: 'pointer', background: '#1a56db', color: '#fff', border: 'none', fontWeight: 600 }}
+            >
+              {downloading ? '⏳ Đang tạo PDF...' : '📄 Tải file PDF chính thức'}
+            </button>
+          ) : (
+            <span
+              style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', padding: '0 8px' }}
+              title="Chỉ Leader mới có quyền xuất file PDF báo cáo chính thức"
+            >
+              🔒 Xuất PDF: Chỉ dành cho Leader
+            </span>
+          )}
         </div>
       </div>
 

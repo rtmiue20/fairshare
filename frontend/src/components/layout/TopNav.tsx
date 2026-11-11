@@ -37,7 +37,6 @@ export const TopNav: React.FC = () => {
     { to: '/contributions', label: 'Đóng góp' },
     { to: '/board', label: 'Kanban' },
     { to: '/peer-review', label: 'Chấm chéo' },
-    { to: '/integration', label: 'Tích hợp' },
     { to: '/alerts', label: 'Cảnh báo', hasDot: true },
     { to: '/report', label: 'Báo cáo' },
   ];
