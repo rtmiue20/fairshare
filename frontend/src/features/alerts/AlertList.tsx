@@ -27,32 +27,6 @@ interface BackendAlertDto {
   createdAt?: string;
 }
 
-const DEFAULT_ALERTS: AlertItem[] = [
-  {
-    id: 1,
-    level: 'warn',
-    title: 'Triệu Nguyễn Huỳnh Khang chưa có hoạt động 6 ngày',
-    desc: 'Vượt ngưỡng 5 ngày theo quy định Agile. Nên nhắn nhóm trưởng kiểm tra.',
-    timeAgo: '10 phút trước',
-    inactiveDays: 6,
-    memberName: 'Triệu Nguyễn Huỳnh Khang',
-  },
-  {
-    id: 2,
-    level: 'acc',
-    title: 'Sprint 4 còn 4 ngày',
-    desc: 'Hiện còn 4 thẻ công việc chưa hoàn thành trên Task Board nội bộ.',
-    timeAgo: '1 giờ trước',
-  },
-  {
-    id: 3,
-    level: 'ok',
-    title: 'Chấm chéo Sprint 3 đã đủ phiếu',
-    desc: 'Nhận đủ ≥ 3 phiếu đánh giá ẩn danh từ các thành viên, điểm trung bình đã chốt.',
-    timeAgo: 'Hôm qua',
-  },
-];
-
 function mapBackendAlert(dto: BackendAlertDto): AlertItem {
   const parts = (dto.message || '').split(' · ');
   const title = parts[0] || dto.alertType;
@@ -73,8 +47,8 @@ function mapBackendAlert(dto: BackendAlertDto): AlertItem {
     timeAgo: dto.createdAt
       ? new Date(dto.createdAt).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       : 'Vừa cập nhật',
-    inactiveDays: level === 'warn' ? 6 : undefined,
-    memberName: dto.userName || 'Triệu Nguyễn Huỳnh Khang',
+    inactiveDays: level === 'warn' ? 5 : undefined,
+    memberName: dto.userName || 'Thành viên nhóm',
   };
 }
 
@@ -90,7 +64,7 @@ export const AlertList: React.FC = () => {
     }
   }, [initialized, fetchTeams]);
 
-  const [alerts, setAlerts] = useState<AlertItem[]>(currentTeamId === 1 ? DEFAULT_ALERTS : []);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [thresholdDays, setThresholdDays] = useState<number>(5);
 
   useEffect(() => {
@@ -102,13 +76,13 @@ export const AlertList: React.FC = () => {
           if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
             setAlerts(res.data.data.map(mapBackendAlert));
           } else {
-            setAlerts(currentTeamId === 1 ? DEFAULT_ALERTS : []);
+            setAlerts([]);
           }
         }
       })
       .catch(() => {
         if (mounted) {
-          setAlerts(currentTeamId === 1 ? DEFAULT_ALERTS : []);
+          setAlerts([]);
         }
       });
     return () => {

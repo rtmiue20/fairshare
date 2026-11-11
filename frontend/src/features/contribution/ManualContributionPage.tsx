@@ -1,28 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { ManualContributionForm } from '../dashboard/ManualContributionForm';
-import { PendingContributionsList } from '../dashboard/PendingContributionsList';
+import { PendingContributionsList, MemberInfo } from '../dashboard/PendingContributionsList';
 import { ManualContributionItem } from '../../types/contribution';
-import { Sparkles, ArrowLeft, ShieldCheck, UserCheck } from 'lucide-react';
+import { Sparkles, ArrowLeft, ShieldCheck, UserCheck, ChevronRight } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { teamApi } from '../../api/team.api';
+import { peerReviewApi } from '../../api/peerReview.api';
 
-interface SwitcherUser {
+interface SprintOption {
   id: number;
   name: string;
-  role: string;
+  isCurrent?: boolean;
 }
-
-const DEMO_USERS: SwitcherUser[] = [
-  { id: 4, name: 'Ngô Trọng Phúc (M3 - Data & Dashboard)', role: 'FE/DB' },
-  { id: 2, name: 'Hà Ngọc Thiện (M2 - BA & Board)', role: 'BA' },
-  { id: 3, name: 'Nguyễn Phúc Vương (M1 - Backend)', role: 'BE' },
-  { id: 1, name: 'Võ Minh Triều (Leader)', role: 'Lead' },
-  { id: 5, name: 'Trần Thị Bích (M4 - QA)', role: 'QA' },
-  { id: 6, name: 'Lê Hoàng Nam (M5 - DevOps)', role: 'DevOps' },
-];
 
 export const ManualContributionPage: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
@@ -30,53 +22,94 @@ export const ManualContributionPage: React.FC = () => {
   const urlTeamId = Number(searchParams.get('teamId'));
   const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
 
+  const { user } = useAuthStore();
+  const [currentUserId, setCurrentUserId] = useState<number>(user?.id || 1);
+  const [selectedSprintId, setSelectedSprintId] = useState<number>(1);
+  const [sprints, setSprints] = useState<SprintOption[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<MemberInfo[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
   useEffect(() => {
     if (!initialized) {
       fetchTeams();
     }
   }, [initialized, fetchTeams]);
 
-  const { user } = useAuthStore();
-  const [currentUserId, setCurrentUserId] = useState<number>(user?.id || 4);
-  const [selectedSprintId, setSelectedSprintId] = useState<number>(4);
-  const [availableUsers, setAvailableUsers] = useState<SwitcherUser[]>(DEMO_USERS);
-  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-  const [successBanner, setSuccessBanner] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user?.id) {
-      setCurrentUserId(user.id);
-    }
-  }, [user?.id]);
-
+  // Đồng bộ danh sách Sprints thực tế của dự án
   useEffect(() => {
     let mounted = true;
-    teamApi
-      .getMembers(currentTeamId)
+    peerReviewApi
+      .getSprints(currentTeamId)
       .then((res) => {
         if (!mounted) return;
-        if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-          setAvailableUsers(
-            res.data.map((m) => {
-              const raw = m as unknown as { userId?: number; fullName?: string };
-              const uId = m.user?.id ?? raw.userId ?? m.id;
-              const uName = m.user?.fullName ?? raw.fullName ?? `Thành viên #${uId}`;
-              return {
-                id: uId,
-                name: `${uName} (${m.role === 'LEADER' ? 'Leader' : 'Thành viên'})`,
-                role: m.role,
-              };
-            })
-          );
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const list = res.data.map((sp, idx) => ({
+            id: sp.id,
+            name: sp.name || `Sprint ${idx + 1}`,
+            isCurrent: sp.status === 'ACTIVE',
+          }));
+          setSprints(list);
+          const activeSp = list.find((s) => s.isCurrent) || list[0];
+          setSelectedSprintId(activeSp.id);
+        } else {
+          setSprints([{ id: 1, name: 'Sprint 1', isCurrent: true }]);
+          setSelectedSprintId(1);
         }
       })
       .catch(() => {
-        // Fallback to DEMO_USERS
+        if (!mounted) return;
+        setSprints([{ id: 1, name: 'Sprint 1', isCurrent: true }]);
+        setSelectedSprintId(1);
       });
     return () => {
       mounted = false;
     };
   }, [currentTeamId]);
+
+  // Đồng bộ danh sách thành viên thực tế của dự án
+  useEffect(() => {
+    let mounted = true;
+    teamApi
+      .getTeamById(currentTeamId)
+      .then((res) => {
+        if (!mounted) return;
+        if (res?.data?.members && Array.isArray(res.data.members) && res.data.members.length > 0) {
+          const list: MemberInfo[] = res.data.members.map((m) => {
+            const raw = m as unknown as { userId?: number; fullName?: string };
+            const uId = m.user?.id ?? raw.userId ?? m.id;
+            const uName = m.user?.fullName ?? raw.fullName ?? m.user?.email ?? `Thành viên #${uId}`;
+            const roleText = m.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên';
+            return {
+              id: uId,
+              name: uName,
+              fullName: uName,
+              role: roleText,
+            };
+          });
+          setAvailableUsers(list);
+
+          // Nếu user đang đăng nhập nằm trong nhóm, chọn user đó; nếu không chọn thành viên đầu tiên
+          if (user?.id && list.some((u) => u.id === user.id)) {
+            setCurrentUserId(user.id);
+          } else if (list.length > 0) {
+            setCurrentUserId(list[0].id);
+          }
+        }
+      })
+      .catch(() => {
+        if (!mounted) return;
+        if (user?.id) {
+          setAvailableUsers([
+            { id: user.id, name: user.fullName || 'Người dùng hiện tại', role: 'Thành viên' },
+          ]);
+          setCurrentUserId(user.id);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [currentTeamId, user?.id, user?.fullName]);
 
   const handleFormSuccess = (newItem: ManualContributionItem) => {
     setRefreshTrigger((prev) => prev + 1);
@@ -98,94 +131,69 @@ export const ManualContributionPage: React.FC = () => {
   }
 
   return (
-    <div className="page pad" data-testid="manual-contribution-page">
-      {/* Header Điều hướng & Tiêu đề theo mẫu sample_ui */}
-      <div className="page-head">
-        <div>
-          <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+    <div
+      className="page pad space-y-6"
+      data-testid="manual-contribution-page"
+      style={{ maxWidth: '1240px', margin: '0 auto', overflowY: 'visible' }}
+    >
+      {/* Header Điều hướng & Tiêu đề tinh gọn chuẩn web thật */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-zinc-800/80">
+        <div className="space-y-1.5">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-mono">
             <Link
               to="/dashboard"
-              className="btn ghost"
-              style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+              className="hover:text-zinc-300 transition-colors flex items-center gap-1"
             >
               <ArrowLeft size={12} />
-              Dashboard
+              <span>Dashboard</span>
             </Link>
-            <span>Đóng góp ngoài Board · CR-02 &amp; M3</span>
+            <ChevronRight size={12} className="text-zinc-600" />
+            <span className="text-zinc-300">Đóng góp ngoài Task Board</span>
           </div>
-          <h1>Khai báo &amp; Xét duyệt đóng góp thủ công</h1>
-          <p className="lede">
-            Ghi nhận công việc ngoài Task Board (Figma, SRS, Tech Research) và xét duyệt chéo chống gian lận (Anti-Fraud Gate).
+
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+            <span>Khai báo &amp; Xét duyệt đóng góp</span>
+          </h1>
+
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-3xl leading-relaxed">
+            Ghi nhận minh chứng độc lập (tài liệu, thiết kế, nghiên cứu) và xét duyệt chéo giữa các thành viên.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.35rem 0.65rem',
-              borderRadius: '8px',
-              background: 'var(--surface)',
-              border: '1px solid var(--line)',
-              fontSize: '0.75rem',
-            }}
-          >
-            <span style={{ color: 'var(--fg3)' }}>Sprint:</span>
+        {/* 2 Dropdown đồng bộ: Sprint và Thành viên */}
+        <div className="flex items-center gap-2.5 flex-wrap flex-shrink-0">
+          {/* Dropdown 1: Sprint */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#121318] border border-zinc-800/90 text-xs">
+            <span className="text-zinc-500 font-mono">Sprint:</span>
             <select
+              aria-label="Chọn Sprint"
               value={selectedSprintId}
               onChange={(e) => setSelectedSprintId(Number(e.target.value))}
-              style={{
-                background: 'var(--surface2)',
-                color: 'var(--fg)',
-                border: '1px solid var(--line)',
-                borderRadius: '6px',
-                padding: '0.2rem 0.45rem',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-              }}
+              className="bg-transparent text-zinc-200 font-medium font-mono focus:outline-none cursor-pointer text-xs"
             >
-              {[1, 2, 3, 4].map((sp) => (
-                <option key={sp} value={sp}>
-                  Sprint {sp}
+              {sprints.map((sp) => (
+                <option key={sp.id} value={sp.id} className="bg-zinc-900 text-zinc-200">
+                  {sp.name} {sp.isCurrent ? '• Đang chạy' : ''}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* User Switcher phục vụ kiểm thử Anti-Fraud linh hoạt */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.35rem 0.65rem',
-              borderRadius: '8px',
-              background: 'var(--surface)',
-              border: '1px solid var(--line)',
-              fontSize: '0.75rem',
-            }}
-          >
-            <UserCheck size={14} style={{ color: 'var(--accent)' }} />
-            <span style={{ color: 'var(--fg3)' }}>Thao tác với tư cách:</span>
+          {/* Dropdown 2: Thao tác với tư cách thành viên */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#121318] border border-zinc-800/90 text-xs">
+            <UserCheck size={14} className="text-indigo-400 shrink-0" />
+            <span className="text-zinc-500 font-mono">Tài khoản:</span>
             <select
               data-testid="user-switcher-select"
+              aria-label="Thao tác với tư cách"
               value={currentUserId}
               onChange={(e) => setCurrentUserId(Number(e.target.value))}
-              style={{
-                background: 'var(--surface2)',
-                color: 'var(--fg)',
-                border: '1px solid var(--line)',
-                borderRadius: '6px',
-                padding: '0.2rem 0.45rem',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-              }}
+              className="bg-transparent text-zinc-200 font-medium focus:outline-none cursor-pointer text-xs max-w-[220px] truncate"
             >
               {availableUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+                <option key={u.id} value={u.id} className="bg-zinc-900 text-zinc-200">
+                  {u.name} ({u.role})
                 </option>
               ))}
             </select>
@@ -195,51 +203,26 @@ export const ManualContributionPage: React.FC = () => {
 
       {/* Thông báo banner khi thao tác thành công */}
       {successBanner && (
-        <div
-          style={{
-            marginBottom: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            borderRadius: '10px',
-            border: '1px solid color-mix(in srgb, var(--ok) 40%, var(--line))',
-            background: 'color-mix(in srgb, var(--ok) 12%, var(--surface))',
-            padding: '0.75rem 1rem',
-            fontSize: '0.8rem',
-            color: 'var(--ok)',
-          }}
-        >
-          <Sparkles size={15} />
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-medium text-emerald-300">
+          <Sparkles size={15} className="shrink-0 text-emerald-400" />
           <span>{successBanner}</span>
         </div>
       )}
 
-      {/* Anti-Fraud Banner */}
-      <div
-        className="panel"
-        style={{
-          marginBottom: '1.25rem',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '0.75rem',
-          background: 'color-mix(in srgb, var(--accent) 8%, var(--surface))',
-          borderColor: 'color-mix(in srgb, var(--accent) 30%, var(--line))',
-        }}
-      >
-        <ShieldCheck size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '0.15rem' }} />
-        <div style={{ fontSize: '0.78rem', lineHeight: 1.55, color: 'var(--fg2)' }}>
-          <strong style={{ color: 'var(--fg)', display: 'block', marginBottom: '0.15rem' }}>
-            Quy tắc chống gian lận (Anti-Fraud Gate)
+      {/* Anti-Fraud Banner - Viết lại ngắn gọn, rõ ràng, không lộ code biến */}
+      <div className="p-4 rounded-xl bg-[#121318] border border-zinc-800/80 flex items-start gap-3 shadow-xs">
+        <ShieldCheck size={18} className="text-indigo-400 shrink-0 mt-0.5" />
+        <div className="text-xs leading-relaxed text-zinc-400">
+          <strong className="text-zinc-200 block mb-1">
+            Nguyên tắc đánh giá chéo công bằng (Anti-Fraud Gate)
           </strong>
-          Hệ thống không cho phép thành viên tự duyệt hoặc tự cho điểm đóng góp của chính mình (
-          <code style={{ color: 'var(--accent)' }}>currentUserId === item.userId</code>). Mọi đóng góp bắt buộc phải được
-          thành viên khác trong nhóm kiểm tra minh chứng trước khi tích hợp vào điểm tổng kết trên Dashboard.
+          Thành viên không được phép tự phê duyệt bài đóng góp do chính mình khai báo. Mọi minh chứng phải được ít nhất một thành viên khác trong nhóm kiểm tra và xác nhận trước khi điểm được ghi nhận chính thức vào hệ thống.
         </div>
       </div>
 
       {/* Grid 2 cột: Bên trái Form khai báo - Bên phải Danh sách chờ duyệt */}
-      <div className="grid2">
-        <div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-5">
           <ManualContributionForm
             teamId={currentTeamId}
             sprintId={selectedSprintId}
@@ -248,11 +231,12 @@ export const ManualContributionPage: React.FC = () => {
           />
         </div>
 
-        <div>
+        <div className="lg:col-span-7">
           <PendingContributionsList
             teamId={currentTeamId}
             sprintId={selectedSprintId}
             currentUserId={currentUserId}
+            members={availableUsers}
             refreshTrigger={refreshTrigger}
             onReviewed={handleReviewed}
           />

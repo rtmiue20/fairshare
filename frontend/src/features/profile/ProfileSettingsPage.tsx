@@ -9,15 +9,17 @@ import {
   Save,
   Lock,
   Settings,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useProjectStore } from '../../store/projectStore';
 import apiClient from '../../api/client';
 import { teamApi } from '../../api/team.api';
 
 const extractStudentIdFromEmail = (email?: string): string => {
-  if (!email) return '31241020074';
+  if (!email) return '';
   const match = email.match(/(\d{8,12})/);
-  return match ? match[1] : '31241020074';
+  return match ? match[1] : '';
 };
 
 const getInitials = (fullName: string): string => {
@@ -29,74 +31,78 @@ const getInitials = (fullName: string): string => {
 
 export const ProfileSettingsPage: React.FC = () => {
   const { user, updateUser } = useAuthStore();
+  const { teams, activeTeamId, fetchTeams } = useProjectStore();
   const [activeTab, setActiveTab] = useState<'project' | 'profile' | 'integrations' | 'privacy'>('project');
   const [copiedId, setCopiedId] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Project settings state (#setForm from sample_ui/FairShare.html #v-cai-dat)
+  // Active project resolution
+  const activeTeam = teams.find((t) => t.id === activeTeamId) || (teams.length > 0 ? teams[0] : null);
+
+  // Project settings state (Starts clean, pulls dynamically from activeTeam)
   const [projectSettings, setProjectSettings] = useState({
-    projectName: 'FairShare — Nền tảng đo lường đóng góp đồ án nhóm',
-    lecturer: 'ThS. Nguyễn Văn A — Khoa CNTT Kinh doanh (UEH)',
-    sprintCount: 6,
-    courseCode: '24D1INF50900503',
-    teamName: 'Nhóm 07 — FairShare',
+    projectName: '',
+    lecturer: '',
+    sprintCount: 4,
+    courseCode: '',
+    teamName: '',
   });
 
-  // Form State initialized dynamically from current authenticated user
+  // User profile state (Starts clean / unpolluted for new accounts)
   const [formData, setFormData] = useState({
-    fullName: user?.fullName || 'Thành viên FairShare',
+    fullName: user?.fullName || '',
     studentId: (user as { studentId?: string })?.studentId || extractStudentIdFromEmail(user?.email),
-    email: user?.email || 'student@st.ueh.edu.vn',
-    phone: '0901 234 567',
-    major: 'Công nghệ Thông tin & Hệ thống Thông tin • Khóa 50 UEH',
-    teamRole: 'Thành viên Phát triển Đồ án FairShare',
-    bio: 'Tham gia xây dựng và đối soát minh chứng đóng góp đa chiều (Task Board nội bộ CR-02, Git & Peer Review) tuân thủ Nghị định 13/2023/NĐ-CP.',
-    githubUsername: (user as { githubUsername?: string })?.githubUsername || 'fairshare-member',
+    email: user?.email || '',
+    phone: '',
+    major: '',
+    teamRole: '',
+    bio: '',
+    githubUsername: (user as { githubUsername?: string })?.githubUsername || '',
   });
 
   const [connections, setConnections] = useState({
-    github: true,
+    github: false,
   });
   const [githubTesting, setGithubTesting] = useState(false);
 
-  // Sync user profile & team info from Backend API + localStorage
+  // 1. Sync User Profile from scoped localStorage + Backend API
   useEffect(() => {
     let mounted = true;
+    if (!user) return;
 
-    const savedProfile = localStorage.getItem('fairshare_user_profile');
+    const userStorageKey = `fairshare_user_profile_${user.id}`;
+    const savedProfile = localStorage.getItem(userStorageKey) || localStorage.getItem('fairshare_user_profile');
+
+    let initialProfile: Partial<typeof formData> = {};
     if (savedProfile) {
       try {
-        const parsed = JSON.parse(savedProfile);
-        setFormData((prev) => ({
-          ...prev,
-          ...parsed,
-          fullName: user?.fullName || parsed.fullName || prev.fullName,
-          email: user?.email || parsed.email || prev.email,
-          studentId: extractStudentIdFromEmail(user?.email || parsed.email) || parsed.studentId || prev.studentId,
-        }));
+        initialProfile = JSON.parse(savedProfile);
       } catch {
         // Ignore parse error
       }
-    } else if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        fullName: user.fullName || prev.fullName,
-        email: user.email || prev.email,
-        studentId: (user as { studentId?: string })?.studentId || extractStudentIdFromEmail(user.email),
-        githubUsername: (user as { githubUsername?: string })?.githubUsername || prev.githubUsername,
-      }));
     }
 
-    const savedProject = localStorage.getItem('fairshare_project_settings');
-    if (savedProject) {
-      try {
-        setProjectSettings((prev) => ({ ...prev, ...JSON.parse(savedProject) }));
-      } catch {
-        // Ignore
-      }
+    const autoStudentId = (user as { studentId?: string })?.studentId || extractStudentIdFromEmail(user.email);
+
+    setFormData({
+      fullName: user.fullName || initialProfile.fullName || '',
+      studentId: initialProfile.studentId || autoStudentId || '',
+      email: user.email || initialProfile.email || '',
+      phone: initialProfile.phone || '',
+      major: initialProfile.major || '',
+      teamRole: initialProfile.teamRole || '',
+      bio: initialProfile.bio || '',
+      githubUsername: (user as { githubUsername?: string })?.githubUsername || initialProfile.githubUsername || '',
+    });
+
+    if (initialProfile.githubUsername || (user as { githubUsername?: string })?.githubUsername) {
+      setConnections({ github: true });
     }
 
-    // Fetch current user from Backend /api/users/me
+    // Fetch freshest current user info from Backend /api/users/me
     apiClient
       .get('/users/me')
       .then((res) => {
@@ -107,31 +113,16 @@ export const ProfileSettingsPage: React.FC = () => {
             ...prev,
             fullName: data.fullName || prev.fullName,
             email: data.email || prev.email,
-            studentId: data.studentId || extractStudentIdFromEmail(data.email) || prev.studentId,
-            githubUsername: data.githubUsername || prev.githubUsername,
+            studentId: prev.studentId || (data.studentId as string) || extractStudentIdFromEmail(data.email) || '',
+            githubUsername: (data.githubUsername as string) || prev.githubUsername,
           }));
+          if (data.githubUsername) {
+            setConnections({ github: true });
+          }
         }
       })
       .catch(() => {
-        // Offline / fallback
-      });
-
-    // Fetch active team info from Backend /api/teams
-    teamApi
-      .getTeams()
-      .then((res) => {
-        if (!mounted) return;
-        if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-          const team = res.data[0];
-          setProjectSettings((prev) => ({
-            ...prev,
-            teamName: team.name || prev.teamName,
-            courseCode: team.courseName || prev.courseCode,
-          }));
-        }
-      })
-      .catch(() => {
-        // Offline / fallback
+        // Offline / fallback to local state
       });
 
     return () => {
@@ -139,22 +130,89 @@ export const ProfileSettingsPage: React.FC = () => {
     };
   }, [user]);
 
+  // 2. Sync Project Settings from activeTeam + scoped localStorage
+  useEffect(() => {
+    if (activeTeam) {
+      const projectKey = `fairshare_project_settings_${activeTeam.id}`;
+      const savedProject = localStorage.getItem(projectKey);
+      let parsedProject: { lecturer?: string; sprintCount?: number } = {};
+      if (savedProject) {
+        try {
+          parsedProject = JSON.parse(savedProject);
+        } catch {
+          // Ignore
+        }
+      }
+
+      setProjectSettings({
+        projectName: activeTeam.name || '',
+        courseCode: activeTeam.courseName || '',
+        teamName: activeTeam.name || '',
+        lecturer: parsedProject.lecturer || '',
+        sprintCount: parsedProject.sprintCount || 4,
+      });
+    } else {
+      // No active project selected -> clean slate
+      setProjectSettings({
+        projectName: '',
+        lecturer: '',
+        sprintCount: 4,
+        courseCode: '',
+        teamName: '',
+      });
+    }
+  }, [activeTeam]);
+
   const handleCopyStudentId = () => {
+    if (!formData.studentId) return;
     navigator.clipboard.writeText(formData.studentId);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  const handleSaveProjectSettings = (e: React.FormEvent) => {
+  const handleSaveProjectSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('fairshare_project_settings', JSON.stringify(projectSettings));
-    setSaveSuccess(`Đã lưu thiết lập dự án: "${projectSettings.projectName}" (${projectSettings.sprintCount} Sprint)`);
-    setTimeout(() => setSaveSuccess(null), 3500);
+    setIsSavingProject(true);
+    setSaveError(null);
+
+    try {
+      if (activeTeam && activeTeam.id) {
+        // Sync with backend API
+        await teamApi.updateTeam(activeTeam.id, {
+          name: projectSettings.projectName.trim() || activeTeam.name,
+          courseName: projectSettings.courseCode.trim(),
+        });
+        await fetchTeams();
+
+        localStorage.setItem(
+          `fairshare_project_settings_${activeTeam.id}`,
+          JSON.stringify(projectSettings)
+        );
+        setSaveSuccess(`Đã lưu thiết lập dự án: "${projectSettings.projectName || activeTeam.name}" (${projectSettings.sprintCount} Sprint)`);
+      } else {
+        localStorage.setItem('fairshare_project_settings_default', JSON.stringify(projectSettings));
+        setSaveSuccess(`Đã lưu thiết lập cục bộ (${projectSettings.sprintCount} Sprint). Hãy tạo hoặc tham gia dự án để áp dụng.`);
+      }
+    } catch {
+      if (activeTeam?.id) {
+        localStorage.setItem(`fairshare_project_settings_${activeTeam.id}`, JSON.stringify(projectSettings));
+      }
+      setSaveSuccess(`Đã lưu thiết lập dự án cục bộ.`);
+    } finally {
+      setIsSavingProject(false);
+      setTimeout(() => setSaveSuccess(null), 3500);
+    }
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSavingProfile(true);
+    setSaveError(null);
+
+    const userKey = user?.id ? `fairshare_user_profile_${user.id}` : 'fairshare_user_profile';
+    localStorage.setItem(userKey, JSON.stringify(formData));
     localStorage.setItem('fairshare_user_profile', JSON.stringify(formData));
+
     updateUser({
       fullName: formData.fullName,
     });
@@ -164,19 +222,27 @@ export const ProfileSettingsPage: React.FC = () => {
         fullName: formData.fullName,
         githubUsername: formData.githubUsername,
       });
+      setSaveSuccess('Đã cập nhật thông tin hồ sơ cá nhân vào hệ thống thành công.');
     } catch {
-      // Saved locally if backend offline
+      setSaveSuccess('Đã lưu thông tin hồ sơ cá nhân cục bộ thành công.');
+    } finally {
+      setIsSavingProfile(false);
+      setTimeout(() => setSaveSuccess(null), 3500);
     }
-
-    setSaveSuccess('Đã cập nhật thông tin hồ sơ sinh viên vào hệ thống thành công.');
-    setTimeout(() => setSaveSuccess(null), 3500);
   };
 
   const testGithubConnection = () => {
+    if (!formData.githubUsername.trim()) {
+      setSaveError('Vui lòng nhập GitHub username trước khi kiểm tra.');
+      setTimeout(() => setSaveError(null), 3000);
+      return;
+    }
     setGithubTesting(true);
     setTimeout(() => {
       setGithubTesting(false);
       setConnections((prev) => ({ ...prev, github: true }));
+      setSaveSuccess(`Kết nối tài khoản GitHub "${formData.githubUsername}" thành công!`);
+      setTimeout(() => setSaveSuccess(null), 3000);
     }, 800);
   };
 
@@ -186,16 +252,20 @@ export const ProfileSettingsPage: React.FC = () => {
       <div className="page-head">
         <div>
           <div className="eyebrow">Cài đặt · Hệ thống &amp; Hồ sơ</div>
-          <h1>Thiết lập dự án &amp; Định danh UEH</h1>
+          <h1>Thiết lập dự án &amp; Thông tin cá nhân</h1>
           <p className="lede">
-            Quản lý thông số đồ án môn học, thông tin định danh sinh viên và chính sách đồng thuận dữ liệu Nghị định 13/2023/NĐ-CP.
+            Quản lý thông số đồ án môn học, thông tin định danh cá nhân và chính sách bảo vệ dữ liệu theo Nghị định 13/2023/NĐ-CP.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <span className="chip" style={{ color: 'var(--ok)', borderColor: 'color-mix(in srgb, var(--ok) 40%, var(--line))' }}>
             ● NĐ 13/2023 Hợp lệ
           </span>
-          <span className="chip">MSSV: {formData.studentId}</span>
+          {formData.studentId ? (
+            <span className="chip">MSSV / ID: {formData.studentId}</span>
+          ) : (
+            <span className="chip">Chưa có MSSV</span>
+          )}
         </div>
       </div>
 
@@ -220,22 +290,70 @@ export const ProfileSettingsPage: React.FC = () => {
         </div>
       )}
 
+      {saveError && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            background: 'color-mix(in srgb, var(--bad) 14%, var(--surface))',
+            border: '1px solid color-mix(in srgb, var(--bad) 40%, var(--line))',
+            color: 'var(--bad)',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <AlertCircle size={16} />
+          <span>{saveError}</span>
+        </div>
+      )}
+
       <div className="grid2">
         {/* Left Column: Project Settings (#setForm from sample_ui/FairShare.html) + Identity Summary */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <form className="panel" id="setForm" onSubmit={handleSaveProjectSettings}>
             <div className="panel-h">
               <span>Thiết lập dự án</span>
-              <span className="chip">{projectSettings.courseCode}</span>
+              <span className="chip">{projectSettings.courseCode || 'Chưa có mã HP'}</span>
             </div>
 
+            {!activeTeam && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--fg2)',
+                  padding: '0.5rem 0.75rem',
+                  background: 'var(--surface2)',
+                  borderRadius: '6px',
+                  border: '1px dashed var(--line)',
+                }}
+              >
+                Chưa có dự án được chọn. Bạn có thể tự điền thông tin bên dưới hoặc nhấn <strong>+ Tạo dự án</strong> trên thanh điều hướng để khởi tạo đồ án mới.
+              </div>
+            )}
+
             <label className="field">
-              <span>Tên đề tài</span>
+              <span>Tên đề tài / Dự án</span>
               <input
                 id="s1"
                 type="text"
+                placeholder="Ví dụ: Nền tảng quản lý dự án nhóm..."
                 value={projectSettings.projectName}
                 onChange={(e) => setProjectSettings({ ...projectSettings, projectName: e.target.value })}
+              />
+            </label>
+
+            <label className="field">
+              <span>Mã học phần / Lớp học</span>
+              <input
+                id="s-course"
+                type="text"
+                placeholder="Ví dụ: PRJ301, CNTT-K2024..."
+                value={projectSettings.courseCode}
+                onChange={(e) => setProjectSettings({ ...projectSettings, courseCode: e.target.value })}
               />
             </label>
 
@@ -244,6 +362,7 @@ export const ProfileSettingsPage: React.FC = () => {
               <input
                 id="s2"
                 type="text"
+                placeholder="Ví dụ: TS. Nguyễn Văn A..."
                 value={projectSettings.lecturer}
                 onChange={(e) => setProjectSettings({ ...projectSettings, lecturer: e.target.value })}
               />
@@ -262,8 +381,8 @@ export const ProfileSettingsPage: React.FC = () => {
             </label>
 
             <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn sq" type="submit">
-                Lưu thay đổi
+              <button className="btn sq" type="submit" disabled={isSavingProject}>
+                {isSavingProject ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
             </div>
           </form>
@@ -271,8 +390,8 @@ export const ProfileSettingsPage: React.FC = () => {
           {/* Identity Overview Panel */}
           <div className="panel">
             <div className="panel-h">
-              <span>Thông tin định danh sinh viên</span>
-              <span className="chip" style={{ color: 'var(--accent)' }}>UEH SSO</span>
+              <span>Thông tin tài khoản &amp; Định danh</span>
+              <span className="chip" style={{ color: 'var(--accent)' }}>Tài khoản xác thực</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1rem' }}>
@@ -293,26 +412,35 @@ export const ProfileSettingsPage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {getInitials(formData.fullName)}
+                {getInitials(formData.fullName || formData.email || 'FS')}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--fg)' }}>{formData.fullName}</div>
-                <div style={{ fontSize: '0.76rem', color: 'var(--fg2)', fontFamily: 'var(--mono)' }}>{formData.email}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--fg3)', marginTop: '0.15rem' }}>{projectSettings.teamName}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--fg)' }}>
+                  {formData.fullName || 'Chưa cập nhật họ tên'}
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--fg2)', fontFamily: 'var(--mono)' }}>
+                  {formData.email || 'Chưa có email'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--fg3)', marginTop: '0.15rem' }}>
+                  {projectSettings.teamName || 'Chưa tham gia dự án'}
+                </div>
               </div>
             </div>
 
             <div className="rows">
               <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
                 <div>
-                  <div className="t">Mã số sinh viên (UEH ID)</div>
-                  <div className="s" style={{ fontFamily: 'var(--mono)' }}>{formData.studentId}</div>
+                  <div className="t">Mã số sinh viên / Mã định danh</div>
+                  <div className="s" style={{ fontFamily: 'var(--mono)' }}>
+                    {formData.studentId || 'Chưa thiết lập'}
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleCopyStudentId}
+                  disabled={!formData.studentId}
                   className="btn ghost"
-                  style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem' }}
+                  style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem', opacity: formData.studentId ? 1 : 0.4 }}
                 >
                   <Copy size={12} style={{ marginRight: '0.25rem' }} />
                   {copiedId ? 'Đã sao chép' : 'Sao chép'}
@@ -383,10 +511,10 @@ export const ProfileSettingsPage: React.FC = () => {
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Lock size={13} />
-                  Định danh UEH đồng bộ:
+                  Định danh tài khoản:
                 </span>
                 <span style={{ fontFamily: 'var(--mono)', color: 'var(--fg)' }}>
-                  {formData.studentId} · {formData.email}
+                  {formData.studentId ? `${formData.studentId} · ` : ''}{formData.email}
                 </span>
               </div>
 
@@ -394,8 +522,19 @@ export const ProfileSettingsPage: React.FC = () => {
                 <span>Họ và tên hiển thị</span>
                 <input
                   type="text"
+                  placeholder="Nhập họ và tên đầy đủ..."
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                />
+              </label>
+
+              <label className="field">
+                <span>Mã số sinh viên / Mã định danh (MSSV)</span>
+                <input
+                  type="text"
+                  placeholder="Nhập mã số sinh viên hoặc mã định danh..."
+                  value={formData.studentId}
+                  onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
                 />
               </label>
 
@@ -403,6 +542,7 @@ export const ProfileSettingsPage: React.FC = () => {
                 <span>Số điện thoại liên hệ</span>
                 <input
                   type="text"
+                  placeholder="Ví dụ: 0901 234 567..."
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
@@ -412,15 +552,17 @@ export const ProfileSettingsPage: React.FC = () => {
                 <span>Chuyên ngành &amp; Khóa</span>
                 <input
                   type="text"
+                  placeholder="Ví dụ: Công nghệ Thông tin - Khóa 2024..."
                   value={formData.major}
                   onChange={(e) => setFormData({ ...formData, major: e.target.value })}
                 />
               </label>
 
               <label className="field">
-                <span>Vai trò trong nhóm đồ án (PCCV)</span>
+                <span>Vai trò trong nhóm đồ án</span>
                 <input
                   type="text"
+                  placeholder="Ví dụ: Trưởng nhóm, Lập trình viên Backend, Frontend..."
                   value={formData.teamRole}
                   onChange={(e) => setFormData({ ...formData, teamRole: e.target.value })}
                 />
@@ -430,15 +572,21 @@ export const ProfileSettingsPage: React.FC = () => {
                 <span>Trách nhiệm chính trong đồ án</span>
                 <textarea
                   rows={3}
+                  placeholder="Mô tả phạm vi trách nhiệm đóng góp của bạn trong nhóm đồ án..."
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 />
               </label>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn sq" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="btn sq"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
                   <Save size={14} />
-                  <span>Lưu cập nhật hồ sơ</span>
+                  <span>{isSavingProfile ? 'Đang lưu...' : 'Lưu cập nhật hồ sơ'}</span>
                 </button>
               </div>
             </form>

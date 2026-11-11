@@ -46,7 +46,7 @@ export const AnimatedTopDock: React.FC<AnimatedTopDockProps> = () => {
               FairShare
             </span>
             <span className="text-[10px] text-zinc-500 font-mono hidden md:inline-block">
-              Đồ án UEH
+              Đồ án nhóm
             </span>
           </div>
         </Link>

@@ -1,3 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <!-- Background rounded tile for high contrast in all browser themes -->
+    <linearGradient id="fsBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111318"/>
+      <stop offset="100%" stop-color="#08090c"/>
+    </linearGradient>
+    <linearGradient id="fsCyanBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="fsIndigoViolet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <filter id="fsGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#2563eb" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Background tile -->
+  <rect width="32" height="32" rx="7.5" fill="url(#fsBg)"/>
+  <rect width="32" height="32" rx="7.5" fill="none" stroke="#27272a" stroke-width="0.8"/>
+
+  <!-- Top-Right Quadrant (Violet/Indigo) -->
+  <rect x="12.5" y="6.5" width="13" height="13" rx="3.2" 
+        stroke="url(#fsIndigoViolet)" stroke-width="2.2" 
+        fill="#1e1b4b" fill-opacity="0.4"/>
+
+  <!-- Bottom-Left Quadrant (Cyan/Electric Blue) -->
+  <rect x="6.5" y="12.5" width="13" height="13" rx="3.2" 
+        stroke="url(#fsCyanBlue)" stroke-width="2.2" 
+        fill="#0f172a" fill-opacity="0.75"
+        filter="url(#fsGlow)"/>
+
+  <!-- Center Consensus Core (Point of Fair Equilibrium) -->
+  <circle cx="16" cy="16" r="2.2" fill="#38bdf8"/>
+  <circle cx="16" cy="16" r="1.1" fill="#ffffff"/>
 </svg>

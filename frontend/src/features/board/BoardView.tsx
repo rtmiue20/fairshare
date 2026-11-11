@@ -73,7 +73,7 @@ const DEFAULT_BOARD: Board = {
           boardId: 1,
           columnId: 1,
           title: 'Khảo sát thêm 20 sinh viên về Free-rider',
-          description: 'Mở rộng mẫu khảo sát đồ án UEH',
+          description: 'Mở rộng mẫu khảo sát đồ án',
           storyPoints: 2,
           position: 0,
           assigneeName: 'Hà Ngọc Thiện',
@@ -85,7 +85,7 @@ const DEFAULT_BOARD: Board = {
           boardId: 1,
           columnId: 1,
           title: 'Thiết kế giao diện xuất báo cáo PDF',
-          description: 'Tuân thủ mẫu báo cáo đồ án QLDA UEH',
+          description: 'Tuân thủ mẫu báo cáo đồ án',
           storyPoints: 3,
           position: 1,
           assigneeName: 'Nguyễn Văn Minh Triều',
@@ -193,10 +193,16 @@ export const BoardView: React.FC = () => {
   const [demoRoleOverride, setDemoRoleOverride] = useState<'AUTO' | 'LEADER' | 'MEMBER'>('AUTO');
 
   const detectedIsLeader =
+    !currentUser ||
     currentUser?.id === 1 ||
     currentUser?.email?.startsWith('trieu') ||
     team?.currentRole === 'LEADER' ||
-    Boolean(team?.members?.find((m) => (m.user?.id === currentUser?.id || m.id === currentUser?.id) && m.role === 'LEADER'));
+    Boolean(
+      team?.members?.find((m) => {
+        const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+        return (uId === currentUser?.id || m.id === currentUser?.id) && m.role === 'LEADER';
+      })
+    );
 
   const isLeader =
     demoRoleOverride === 'AUTO'
@@ -247,12 +253,53 @@ export const BoardView: React.FC = () => {
     try {
       const teamRes = await teamApi.getTeamById(teamId);
       if (teamRes?.data) {
-        setTeam(teamRes.data);
+        const rawTeam = teamRes.data;
+        const normalizedMembers = (rawTeam.members || []).map((m: unknown) => {
+          const mem = m as {
+            id: number;
+            userId?: number;
+            fullName?: string;
+            email?: string;
+            role?: 'LEADER' | 'MEMBER';
+            hasConsented?: boolean;
+            joinedAt?: string;
+            user?: { id: number; fullName: string; email: string };
+          };
+          const uId = mem.user?.id ?? mem.userId ?? mem.id;
+          const uName = mem.user?.fullName ?? mem.fullName ?? mem.email ?? `Thành viên #${uId}`;
+          const uEmail = mem.user?.email ?? mem.email ?? '';
+          return {
+            ...mem,
+            id: mem.id,
+            userId: uId,
+            fullName: uName,
+            email: uEmail,
+            role: mem.role || 'MEMBER',
+            hasConsented: Boolean(mem.hasConsented),
+            joinedAt: mem.joinedAt || '',
+            user: mem.user || {
+              id: uId,
+              fullName: uName,
+              email: uEmail,
+            },
+          };
+        });
+        setTeam({
+          ...rawTeam,
+          members: normalizedMembers,
+        });
       }
 
       const boardRes = await boardApi.getBoardsByTeam(teamId);
       if (boardRes?.data && boardRes.data.length > 0) {
-        setBoard(boardRes.data[0]);
+        const currentB = boardRes.data[0];
+        setBoard(currentB);
+        if (currentB.columns && currentB.columns.length > 0) {
+          setSelectedColumnId((prevId) => {
+            const exists = currentB.columns.some((c) => c.id === prevId);
+            return exists ? prevId : currentB.columns[0].id;
+          });
+        }
       } else {
         try {
           const createRes = await boardApi.createBoard({
@@ -383,7 +430,14 @@ export const BoardView: React.FC = () => {
       }
 
       // Cập nhật ngay lập tức dữ liệu trên bảng Kanban (Optimistic state update)
-      const selectedMember = team?.members?.find((m) => m.user.id === editAssigneeId);
+      const selectedMember = team?.members?.find((m) => {
+        const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+        return uId === editAssigneeId;
+      });
+      const updatedAssigneeName = selectedMember
+        ? (selectedMember.user?.fullName || (selectedMember as unknown as { fullName?: string }).fullName || 'Thành viên')
+        : undefined;
+
       setBoard((prev) => ({
         ...prev,
         columns: prev.columns.map((col) => ({
@@ -393,7 +447,7 @@ export const BoardView: React.FC = () => {
               ? {
                   ...c,
                   assigneeId: editAssigneeId,
-                  assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
+                  assigneeName: updatedAssigneeName !== undefined ? updatedAssigneeName : c.assigneeName,
                   storyPoints: spNumber,
                   difficultyLevel: editDifficultyLevel,
                   dueDate: formattedDate || c.dueDate,
@@ -421,8 +475,13 @@ export const BoardView: React.FC = () => {
     e.preventDefault();
     if (!newCardTitle.trim()) return;
 
+    const targetColId =
+      sortedColumns.find((c) => c.id === selectedColumnId)?.id ??
+      sortedColumns[0]?.id ??
+      selectedColumnId;
+
     try {
-      await boardApi.createCard(selectedColumnId, {
+      await boardApi.createCard(targetColId, {
         title: newCardTitle.trim(),
         description: newCardDesc.trim() || undefined,
         storyPoints: newCardStoryPoints,
@@ -439,23 +498,31 @@ export const BoardView: React.FC = () => {
       loadBoardData();
     } catch {
       // Fallback local update
+      const assigned = team?.members?.find((m) => {
+        const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+        return uId === newCardAssigneeId;
+      });
+      const assignedName = assigned
+        ? (assigned.user?.fullName || (assigned as unknown as { fullName?: string }).fullName || 'Thành viên')
+        : 'Thành viên';
+
       const newCard: Card = {
         id: Date.now(),
         boardId: board.id,
-        columnId: selectedColumnId,
+        columnId: targetColId,
         title: newCardTitle,
         description: newCardDesc,
         storyPoints: newCardStoryPoints,
         dueDate: newCardDueDate || undefined,
         position: 99,
-        assigneeName: team?.members?.find((m) => m.user.id === newCardAssigneeId)?.user.fullName || 'Thành viên',
+        assigneeName: assignedName,
         assigneeId: newCardAssigneeId,
       };
 
       setBoard((prev) => ({
         ...prev,
         columns: prev.columns.map((col) =>
-          col.id === selectedColumnId ? { ...col, cards: [...col.cards, newCard] } : col
+          col.id === targetColId ? { ...col, cards: [...(col.cards || []), newCard] } : col
         ),
       }));
 
@@ -669,7 +736,7 @@ export const BoardView: React.FC = () => {
     .sort((a, b) => a.position - b.position)
     .map((col) => ({
       ...col,
-      cards: [...col.cards].sort((a, b) => a.position - b.position),
+      cards: [...(col.cards || [])].sort((a, b) => a.position - b.position),
     }));
 
   if (initialized && teams.length === 0 && routeTeamId === 0 && queryTeamId === 0) {
@@ -677,7 +744,10 @@ export const BoardView: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div
+      className="space-y-6 max-w-7xl mx-auto pb-12 px-4 sm:px-6 lg:px-8"
+      style={{ paddingTop: 'calc(var(--top) + 24px)' }}
+    >
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 shadow-2xl text-xs font-medium animate-in fade-in slide-in-from-bottom-5 duration-200">
@@ -1088,11 +1158,19 @@ export const BoardView: React.FC = () => {
                     className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="">-- Chưa chỉ định --</option>
-                    {team?.members?.map((m) => (
-                      <option key={m.user.id} value={m.user.id}>
-                        {m.user.fullName} ({m.role})
-                      </option>
-                    ))}
+                    {team?.members?.map((m) => {
+                      const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+                      const uName =
+                        m.user?.fullName ??
+                        (m as unknown as { fullName?: string }).fullName ??
+                        (m as unknown as { email?: string }).email ??
+                        `Thành viên #${uId}`;
+                      return (
+                        <option key={uId} value={uId}>
+                          {uName} ({m.role})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -1313,11 +1391,19 @@ export const BoardView: React.FC = () => {
                   className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
                 >
                   <option value="">-- Chưa chỉ định --</option>
-                  {team?.members?.map((m) => (
-                    <option key={m.user.id} value={m.user.id}>
-                      {m.user.fullName} ({m.role})
-                    </option>
-                  ))}
+                  {team?.members?.map((m) => {
+                    const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+                    const uName =
+                      m.user?.fullName ??
+                      (m as unknown as { fullName?: string }).fullName ??
+                      (m as unknown as { email?: string }).email ??
+                      `Thành viên #${uId}`;
+                    return (
+                      <option key={uId} value={uId}>
+                        {uName} ({m.role})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

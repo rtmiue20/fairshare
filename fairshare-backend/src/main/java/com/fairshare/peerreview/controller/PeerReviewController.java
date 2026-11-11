@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,6 +42,7 @@ public class PeerReviewController {
     }
 
     @GetMapping("/team/{teamId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<ReviewRoundDto>>> getRoundsByTeam(@PathVariable Long teamId) {
         List<ReviewRound> rounds = peerReviewService.getRoundsByTeam(teamId);
         return ResponseEntity.ok(ApiResponse.ok("Danh sách đợt chấm chéo",
@@ -48,6 +50,7 @@ public class PeerReviewController {
     }
 
     @GetMapping("/sprint/{sprintId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<ReviewRoundDto>>> getRoundsBySprint(@PathVariable Long sprintId) {
         List<ReviewRound> rounds = peerReviewService.getRoundsBySprint(sprintId);
         return ResponseEntity.ok(ApiResponse.ok("Đợt chấm chéo theo sprint",

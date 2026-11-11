@@ -19,6 +19,7 @@ export const LandingPage: React.FC = () => {
   const storyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    document.title = 'FairShare — Nền tảng đo lường đóng góp đồ án nhóm';
     const handleScroll = () => {
       if (!storyRef.current) return;
       const r = storyRef.current.getBoundingClientRect();

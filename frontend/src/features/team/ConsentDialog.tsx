@@ -67,7 +67,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
                 Đồng thuận Dữ liệu cá nhân (Consent)
               </h3>
               <p className="text-[11px] text-zinc-500 font-mono">
-                Tuân thủ Nghị định 13/2023/NĐ-CP • Đồ án UEH
+                Tuân thủ Nghị định 13/2023/NĐ-CP • Bảo vệ dữ liệu đồ án
               </p>
             </div>
           </div>
