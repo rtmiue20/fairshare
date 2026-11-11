@@ -1,6 +1,7 @@
 package com.fairshare.board;
 
 import com.fairshare.board.controller.BoardController;
+import com.fairshare.board.controller.CardController;
 import com.fairshare.board.dto.*;
 import com.fairshare.board.service.BoardService;
 import com.fairshare.common.exception.ForbiddenException;
@@ -90,8 +91,9 @@ class RolePermissionControllerTest {
         SprintController sprintController = new SprintController(sprintService, userRepository);
         ReportController reportController = new ReportController(pdfReportService, userRepository);
         TeamController teamController = new TeamController(teamService, memberService, sprintService, userRepository);
+        CardController cardController = new CardController(boardService, userRepository);
 
-        mockMvc = MockMvcBuilders.standaloneSetup(boardController, sprintController, reportController, teamController)
+        mockMvc = MockMvcBuilders.standaloneSetup(boardController, sprintController, reportController, teamController, cardController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -268,6 +270,66 @@ class RolePermissionControllerTest {
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("PUT /api/cards/{id}/move: Thành viên di chuyển thẻ của mình qua endpoint trực tiếp -> 200 OK (PERM-04)")
+        void testMemberCanMoveOwnCardDirectApi() throws Exception {
+            MoveCardRequest req = MoveCardRequest.builder()
+                    .targetColumnId(202L)
+                    .fromColumnName("To Do")
+                    .toColumnName("In Progress")
+                    .build();
+
+            CardDto card = CardDto.builder().id(500L).title("Member Task").build();
+            when(boardService.moveCard(eq(500L), any(), eq(2L))).thenReturn(card);
+
+            mockMvc.perform(put("/api/cards/500/move")
+                            .principal(memberAuth)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("PUT /api/cards/{id}/move: Thành viên di chuyển thẻ người khác qua endpoint trực tiếp -> 403 Forbidden (PERM-03)")
+        void testMemberCannotMoveOthersCardDirectApi() throws Exception {
+            MoveCardRequest req = MoveCardRequest.builder()
+                    .targetColumnId(202L)
+                    .fromColumnName("To Do")
+                    .toColumnName("In Progress")
+                    .build();
+
+            when(boardService.moveCard(eq(501L), any(), eq(2L)))
+                    .thenThrow(new ForbiddenException("Thành viên chỉ được phép sửa hoặc di chuyển thẻ được giao cho mình"));
+
+            mockMvc.perform(put("/api/cards/501/move")
+                            .principal(memberAuth)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value("Thành viên chỉ được phép sửa hoặc di chuyển thẻ được giao cho mình"));
+        }
+
+        @Test
+        @DisplayName("PUT /api/cards/{id}/move: Người ngoài nhóm di chuyển thẻ -> 403 Forbidden (PERM-06)")
+        void testOutsiderCannotMoveCardDirectApi() throws Exception {
+            MoveCardRequest req = MoveCardRequest.builder()
+                    .targetColumnId(204L)
+                    .fromColumnName("In Progress")
+                    .toColumnName("Done")
+                    .build();
+
+            when(boardService.moveCard(eq(501L), any(), eq(2L)))
+                    .thenThrow(new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+
+            mockMvc.perform(put("/api/cards/501/move")
+                            .principal(memberAuth)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value("Bạn không phải là thành viên của nhóm này"));
         }
 
         @Test

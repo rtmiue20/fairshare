@@ -33,6 +33,9 @@ public class ReportController {
             @PathVariable Long sprintId,
             Authentication authentication) {
         Long requesterId = getUserId(authentication);
+        if (requesterId == null) {
+            throw new com.fairshare.common.exception.ForbiddenException("Bạn không có quyền truy cập báo cáo này");
+        }
         byte[] pdfBytes = pdfReportService.generateSprintReportPdf(teamId, sprintId, requesterId);
 
         HttpHeaders headers = new HttpHeaders();

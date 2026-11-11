@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   Copy,
   Github,
-  Trello,
+  Kanban,
   Link2,
   ChevronRight,
   Info,
@@ -29,17 +29,14 @@ export const ProfileSettingsPage: React.FC = () => {
     major: 'Hệ thống Thông tin Doanh nghiệp (MIS) • Khóa 50',
     teamRole: 'Phân tích nghiệp vụ (BA) & Phát triển Frontend',
     bio: 'Phụ trách mô đun Quản lý Nhóm, Thiết lập Sprint, Chính sách Đồng thuận NĐ 13/2023 và Giao diện người dùng FairShare.',
-    trelloUsername: 'hangocthien_ueh',
     githubUsername: 'HNTRHunter',
   });
 
-  // Trello & GitHub Connection status
+  // GitHub Connection status
   const [connections, setConnections] = useState({
-    trello: true,
     github: true,
   });
 
-  const [trelloTesting, setTrelloTesting] = useState(false);
   const [githubTesting, setGithubTesting] = useState(false);
 
   useEffect(() => {
@@ -65,14 +62,6 @@ export const ProfileSettingsPage: React.FC = () => {
     localStorage.setItem('fairshare_user_profile', JSON.stringify(formData));
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
-  };
-
-  const testTrelloConnection = () => {
-    setTrelloTesting(true);
-    setTimeout(() => {
-      setTrelloTesting(false);
-      setConnections((prev) => ({ ...prev, trello: true }));
-    }, 1200);
   };
 
   const testGithubConnection = () => {
@@ -364,52 +353,26 @@ export const ProfileSettingsPage: React.FC = () => {
                 <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-400 flex items-start gap-2.5">
                   <Info size={16} className="text-zinc-400 shrink-0 mt-0.5" />
                   <span>
-                    Liên kết tài khoản Trello và GitHub để hệ thống tự động thu thập minh chứng hoạt động (commits, pull requests, thẻ công việc) phục vụ tính điểm đóng góp công bằng.
+                    Hệ thống tự động thu thập minh chứng hoạt động từ Task Board nội bộ và tài khoản GitHub phục vụ tính điểm đóng góp công bằng.
                   </span>
                 </div>
 
-                {/* Trello Integration */}
+                {/* Task Board Integration (CR-02) */}
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-sky-950/60 border border-sky-800/60 flex items-center justify-center text-sky-400">
-                        <Trello size={18} />
+                        <Kanban size={18} />
                       </div>
                       <div>
-                        <h4 className="text-xs font-semibold text-zinc-200">Trello Workspace</h4>
-                        <p className="text-[11px] text-zinc-400">Thu thập thẻ bài tập và tiến độ sprint</p>
+                        <h4 className="text-xs font-semibold text-zinc-200">Task Board Nội Bộ (CR-02)</h4>
+                        <p className="text-[11px] text-zinc-400">Tự động đồng bộ thẻ công việc từ Kanban Board nội bộ</p>
                       </div>
                     </div>
-                    {connections.trello ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                        <CheckCircle2 size={12} />
-                        Đã kết nối
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
-                        Chưa liên kết
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                    <div className="sm:col-span-2">
-                      <input
-                        type="text"
-                        placeholder="Trello username (vd: hangocthien_ueh)"
-                        value={formData.trelloUsername}
-                        onChange={(e) => setFormData({ ...formData, trelloUsername: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs text-zinc-200 bg-zinc-900 focus:outline-none focus:border-zinc-600 transition-colors"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={testTrelloConnection}
-                      disabled={trelloTesting}
-                      className="px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors disabled:opacity-50"
-                    >
-                      {trelloTesting ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
-                    </button>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
+                      <CheckCircle2 size={12} />
+                      Đang kích hoạt
+                    </span>
                   </div>
                 </div>
 
