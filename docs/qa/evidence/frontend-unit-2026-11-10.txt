@@ -1,0 +1,5 @@
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > renders LoginPage with email, password inputs and demo login button
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > validates empty email on LoginPage submit
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > renders RegisterPage with required fields
+ Test Files  15 passed (15)
+      Tests  65 passed (65)

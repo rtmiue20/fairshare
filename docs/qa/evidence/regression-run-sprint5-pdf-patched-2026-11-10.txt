@@ -1,0 +1,109 @@
+== Setup trên http://localhost:8081 (run 1794316310)
+   team=4 sprint=8 board=3
+
+== SCR: board -> ActivityEvent -> ScoringEngine v1.1
+[PASS] SCR-01 POST /calculate chạy ScoringEngine cho cả 6 thành viên
+       mong đợi: HTTP 200, 6 dòng
+       thực tế : HTTP 200, 6 dòng
+[PASS] SCR-02 Tổng tỷ lệ đóng góp của nhóm = 100% (API trả dạng tỷ lệ 0–1 hoặc 0–100)
+       mong đợi: tổng ≈ 1.0 hoặc ≈ 100
+       thực tế : tổng = 0.9999
+[PASS] SCR-03 Cùng 3 SP: hoàn thành đúng hạn (B) được điểm cao hơn trễ hạn (C)
+       mong đợi: score(B) > score(C)
+       thực tế : B=31.42, C=13.69
+[PASS] SCR-04 Thành viên không có hoạt động (F) không cao hơn người có card Done
+       mong đợi: score(F) ≤ min(B, C, E)
+       thực tế : F=4.08, B=31.42, C=13.69, E=31.42
+[PASS] SCR-05 Chỉ tạo card 8 SP (D) không cao hơn người hoàn thành 3 SP đúng hạn (E) – liên quan DEF-17
+       mong đợi: score(D) ≤ score(E)
+       thực tế : D=15.30, E=31.42
+[PASS] SCR-06 Điểm ScoringEngine được lưu và đọc lại đúng (GET /contributions/sprints/{id})
+       mong đợi: HTTP 200, điểm trùng với kết quả /calculate
+       thực tế : HTTP 200, 6 dòng, khớp=True
+[PASS] SCR-07 Regression luồng đầy đủ: F hoàn thành card mới -> tính lại -> điểm F tăng
+       mong đợi: score(F) sau > trước
+       thực tế : trước=4.08, sau=36.65
+[PASS] SCR-08 Hai nguồn điểm thống nhất: ScoringEngine (/calculate) và routine (/summary) xếp cùng người đứng đầu
+       mong đợi: Người có điểm cao nhất giống nhau
+       thực tế : Engine: Phú ; routine: Phú (routine: Ánh=0.0, Bích=16.67, Cường=16.67, Dũng=22.22, Én=16.67, Phú=27.78)
+
+== DASH: API mà dashboard gọi
+[FAIL] DASH-01 Dashboard lấy teamId theo nhóm đang chọn, không gán cứng
+       mong đợi: Không có lời gọi contributionApi.*(1, ...)
+       thực tế : 4 lời gọi gán cứng teamId=1 (ContributionDashboard.tsx)
+[FAIL] DASH-02 API điểm dashboard gọi: GET /api/teams/{teamId}/contributions (contribution.api.ts)
+       mong đợi: HTTP 200
+       thực tế : HTTP 500
+[PASS] DASH-03 API biểu đồ dashboard: GET /api/contributions/summary
+       mong đợi: HTTP 200, 6 thành viên
+       thực tế : HTTP 200, 6 dòng
+[PASS] DASH-04 API truy vết dashboard: GET /api/contributions/evidence
+       mong đợi: HTTP 200, có card của B
+       thực tế : HTTP 200, 2 mục
+[FAIL] DASH-05 API bằng chứng thành viên: GET /api/teams/{teamId}/contributions/{userId}/evidence (contribution.api.ts)
+       mong đợi: HTTP 200
+       thực tế : HTTP 500
+
+== PERM: phân quyền leader/thành viên trên board
+[FAIL] PERM-01 Thành viên thường tạo cột -> bị chặn
+       mong đợi: HTTP 403
+       thực tế : HTTP 201
+[FAIL] PERM-02 Thành viên thường đổi tên board -> bị chặn
+       mong đợi: HTTP 403
+       thực tế : HTTP 200
+[FAIL] PERM-03 Thành viên kéo card được giao cho người khác -> bị chặn
+       mong đợi: HTTP 403
+       thực tế : HTTP 200
+[PASS] PERM-04 Thành viên kéo card của chính mình -> được phép
+       mong đợi: HTTP 200
+       thực tế : HTTP 200
+[PASS] PERM-05 Leader tạo cột -> được phép
+       mong đợi: HTTP 200/201
+       thực tế : HTTP 201
+[FAIL] PERM-06 Người ngoài nhóm kéo card của nhóm -> bị chặn
+       mong đợi: HTTP 403
+       thực tế : HTTP 200
+
+== TRL: gỡ Trello legacy (CR-02)
+[FAIL] TRL-01 Đã xóa module/test/trang Trello legacy theo DoD
+       mong đợi: 0 đường dẫn còn tồn tại
+       thực tế : còn 4/4: trello, TrelloClientTest.java, ConnectTrelloPage.tsx, integration.api.ts
+[FAIL] TRL-02 Router frontend không còn route integration / ConnectTrelloPage
+       mong đợi: 0 file tham chiếu
+       thực tế : 4 file: frontend/src/components/layout/AnimatedTopDock.tsx, frontend/src/components/layout/Sidebar.tsx, frontend/src/app/router.tsx, frontend/src/features/integration/ConnectTrelloPage.tsx
+[PASS] TRL-03 Dữ liệu cũ nguồn TRELLO không làm lỗi summary / calculate / activities / PDF
+       mong đợi: HTTP 200 cả 4
+       thực tế : HTTP [200, 200, 200, 200]
+
+== PDF: hiệu năng (G4 < 10 s) và nội dung
+   sprint 1: 100 sự kiện, lạnh 0.077s, p50 0.059s, p95 0.078s, max 0.078s, 5.2 KB
+   sprint 2: 100 sự kiện, lạnh 0.056s, p50 0.043s, p95 0.059s, max 0.059s, 5.2 KB
+   sprint 3: 100 sự kiện, lạnh 0.038s, p50 0.024s, p95 0.044s, max 0.044s, 5.1 KB
+   sprint 4: 100 sự kiện, lạnh 0.047s, p50 0.033s, p95 0.040s, max 0.040s, 5.1 KB
+[PASS] PDF-01 G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (500 sự kiện), 11 lần/sprint
+       mong đợi: Mọi lần HTTP 200, file %PDF hợp lệ, chậm nhất < 10 s
+       thực tế : chậm nhất 0.078s; p50 theo sprint = [0.059, 0.043, 0.024, 0.033]s
+[PASS] PDF-02 PDF có phần đóng góp của đủ 6 thành viên
+       mong đợi: Đủ 6 tên trong PDF
+       thực tế : thiếu 0: -
+[PASS] PDF-03 PDF có điểm chấm chéo khi đủ 3 người chấm (sprint 4 có 3 lượt cho thành viên 1)
+       mong đợi: Có điểm dạng x.x/5
+       thực tế : có
+[PASS] PDF-04 PDF có bằng chứng chính (sự kiện gốc)
+       mong đợi: Có tên task trong seed (vd. '#4xx')
+       thực tế : có
+[FAIL] PDF-05 Tiếng Việt có dấu hiển thị đúng trong PDF (tên thành viên)
+       mong đợi: Đủ 6 tên có dấu, vd. 'Trần Thị Bích'
+       thực tế : HTTP 200; đúng 0/6; ví dụ dòng trong PDF: 'Trn Th Bích'
+[FAIL] PDF-06 Người ngoài nhóm tải PDF của nhóm khác
+       mong đợi: HTTP 403
+       thực tế : HTTP 200
+[PASS] PDF-07 Sprint không tồn tại
+       mong đợi: HTTP 404
+       thực tế : HTTP 404
+[FAIL] PDF-08 Ghép team 1 với sprint của nhóm khác
+       mong đợi: HTTP 400/404 (sprint không thuộc team)
+       thực tế : HTTP 200 – vẫn xuất PDF
+
+Theo nhóm: SCR 8/8, DASH 2/5, PERM 2/6, TRL 1/3, PDF 5/8
+TỔNG: 18/30 PASS

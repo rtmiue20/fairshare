@@ -1,0 +1,17 @@
+== 1. Trạng thái container
+  [PASS] db: healthy
+  [PASS] backend: healthy
+  [PASS] frontend: healthy
+== 2. Flyway migration
+  [PASS] Successfully applied 18 migrations to schema `fairshare`
+== 3. DB không mở cổng ra ngoài
+  [PASS] 3306 không publish
+== 4. Frontend + reverse proxy /api
+  [PASS] index.html tại http://localhost:8081
+  [PASS] /api/teams chưa đăng nhập -> 401 (proxy tới backend OK)
+== 5. Đăng ký + đăng nhập qua Nginx
+  [PASS] register smoke_1794315763_19975@staging.local
+  [PASS] login trả JWT
+  [PASS] /api/teams có token -> 200
+
+SMOKE TEST: PASS

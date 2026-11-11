@@ -11,8 +11,8 @@ Cách chạy (sau khi ./scripts/staging-up.sh báo PASS):
 Kết quả: in bảng ra màn hình và ghi docs/qa/integration-result-sprint4.json
 Thoát với mã 1 nếu có ca FAIL (để CI/người chạy thấy ngay).
 
-Ghi chú: backend CHƯA có API mở đợt chấm chéo (PeerReviewService.createRound không được
-controller nào gọi), nên script tạo đợt chấm bằng SQL qua `docker compose exec db`.
+Cập nhật 10/11: đợt chấm được tạo/mở qua API mới của M4 (POST /api/review-rounds/sprint/{id}, /open);
+SQL trong container DB chỉ dùng để đối chiếu dữ liệu đã lưu.
 """
 import json
 import os
@@ -195,9 +195,18 @@ check("IT-BRD-11", "Người ngoài nhóm xem log hoạt động của nhóm",
 
 # ============================================================================= LUỒNG 2
 print("\n== Luồng 2: Chấm chéo -> DB -> ẩn danh")
-sql(f"INSERT INTO review_rounds (team_id, sprint_id, name, start_date, end_date, min_submissions_required) "
-    f"VALUES ({team_id}, {sprint_id}, 'IT Round {RUN}', NOW() - INTERVAL 1 DAY, NOW() + INTERVAL 3 DAY, 3)")
-round_id = int(sql(f"SELECT id FROM review_rounds WHERE name='IT Round {RUN}'"))
+# Từ PR #57 (M4): tạo đợt bằng API (trạng thái DRAFT) rồi mở (OPEN). Người ngoài/thành viên thường không được tạo.
+st_x, _ = call("POST", f"/api/review-rounds/sprint/{sprint_id}", {"name": "Thử tạo bởi thành viên"}, B["token"])
+st, r = call("POST", f"/api/review-rounds/sprint/{sprint_id}",
+             {"name": f"IT Round {RUN}",
+              "startDate": (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
+              "endDate": (now + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%S")}, A["token"])
+round_id = (data(r) or {}).get("id")
+st_open, r_open = call("POST", f"/api/review-rounds/{round_id}/open", token=A["token"])
+check("IT-PR-00", "Trưởng nhóm tạo + mở đợt chấm qua API; thành viên thường không được tạo",
+      "Tạo 201, mở 200 (OPEN); thành viên B tạo -> 4xx",
+      f"tạo HTTP {st}, mở HTTP {st_open} ({(data(r_open) or {}).get('status')}); B tạo -> HTTP {st_x}",
+      st == 201 and st_open == 200 and 400 <= st_x < 500)
 st, r = call("GET", f"/api/review-rounds/sprint/{sprint_id}", token=A["token"])
 check("IT-PR-01", "API liệt kê đợt chấm theo sprint", "HTTP 200, có round " + str(round_id),
       f"HTTP {st}; {[x.get('id') for x in (data(r) or [])] if st == 200 else r}",
@@ -206,7 +215,7 @@ check("IT-PR-01", "API liệt kê đợt chấm theo sprint", "HTTP 200, có rou
 
 def submit(reviewer, reviewee, score, fb="Làm tốt", crit="QUALITY"):
     return call("POST", f"/api/review-rounds/{round_id}/submissions",
-                {"revieweeId": reviewee["id"], "criterion": crit, "score": score, "feedback": fb},
+                {"revieweeId": reviewee["id"], "scores": [{"criterion": crit, "score": score}], "feedback": fb},
                 reviewer["token"])
 
 
@@ -221,9 +230,9 @@ check("IT-PR-02", "Gửi đánh giá: API trả thành công và lưu vào bản
       f"HTTP 200; 1 dòng ({A['id']}, {C['id']}, QUALITY, 4)", f"HTTP {st}; DB: {rows!r}",
       st == 200 and rows.split() == [str(A["id"]), str(C["id"]), "QUALITY", "4"])
 check("IT-PR-03", "Response gửi đánh giá không trả lại thông tin người chấm",
-      "Không có trường reviewer/email trong response",
-      "có reviewer trong response" if "reviewer" in json.dumps(r) else "không có",
-      "reviewer" not in json.dumps(r) and A["email"] not in json.dumps(r))
+      "HTTP 200, không có trường reviewer/email trong response",
+      f"HTTP {st}; " + ("có reviewer trong response" if "reviewer" in json.dumps(r) else "không có"),
+      st == 200 and "reviewer" not in json.dumps(r) and A["email"] not in json.dumps(r))
 
 st, res = result(C, C["token"])
 check("IT-PR-04", "Dưới 3 lượt (1 lượt): không lộ điểm/nhận xét",
@@ -244,14 +253,14 @@ check("IT-PR-07", "Người ngoài nhóm không được chấm thành viên nh�
 # Dọn lượt chấm của người ngoài (nếu lỡ được lưu) để không làm sai IT-PR-09
 sql(f"DELETE FROM review_submissions WHERE review_round_id={round_id} AND reviewer_id={E['id']}")
 
-for _ in range(3):
-    submit(B, D, 1, "B chấm D lặp lại")
+dup = [submit(B, D, 1, "B chấm D lặp lại")[0] for _ in range(3)]
 st, res = result(D, D["token"])
 check("IT-PR-08", "Một người chấm 3 lần cho cùng người: không được coi là đủ 3 lượt ẩn danh",
-      "isAnonymousSafe=false (đếm người chấm khác nhau, hoặc chặn chấm trùng)",
-      f"safe={res.get('anonymousSafe', res.get('isAnonymousSafe'))}, count={res.get('submissionCount')}, "
-      f"fb={res.get('feedbackComments')}",
-      not res.get("anonymousSafe", res.get("isAnonymousSafe")))
+      "Lần 2, 3 bị từ chối (4xx) và isAnonymousSafe=false",
+      f"HTTP các lần gửi={dup}; safe={res.get('anonymousSafe', res.get('isAnonymousSafe'))}, "
+      f"count={res.get('submissionCount')}, fb={res.get('feedbackComments')}",
+      dup[0] == 200 and all(400 <= c < 500 for c in dup[1:])
+      and not res.get("anonymousSafe", res.get("isAnonymousSafe")))
 
 submit(B, C, 5, "Phản hồi từ B cho C")
 submit(D, C, 3, "Phản hồi từ D cho C")

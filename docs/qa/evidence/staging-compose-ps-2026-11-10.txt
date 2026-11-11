@@ -1,0 +1,4 @@
+NAME                 IMAGE                        STATUS                   PORTS
+fairshare-backend    fairshare-staging-backend    Up 2 minutes (healthy)   0.0.0.0:8080->8080/tcp
+fairshare-db         mariadb:10.11                Up 2 minutes (healthy)   3306/tcp
+fairshare-frontend   fairshare-staging-frontend   Up 2 minutes (healthy)   0.0.0.0:8081->80/tcp
