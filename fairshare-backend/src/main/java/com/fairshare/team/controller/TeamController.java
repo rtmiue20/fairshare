@@ -1,6 +1,10 @@
 package com.fairshare.team.controller;
 
 import com.fairshare.common.dto.ApiResponse;
+import com.fairshare.common.security.TeamSecurityService;
+import com.fairshare.contribution.dto.ContributionDto;
+import com.fairshare.contribution.dto.EvidenceItemDto;
+import com.fairshare.contribution.service.ContributionService;
 import com.fairshare.sprint.dto.CreateSprintRequest;
 import com.fairshare.sprint.dto.SprintDto;
 import com.fairshare.sprint.service.SprintService;
@@ -13,23 +17,46 @@ import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/teams")
-@RequiredArgsConstructor
 public class TeamController {
 
     private final TeamService teamService;
     private final MemberService memberService;
     private final SprintService sprintService;
     private final UserRepository userRepository;
+    private final ContributionService contributionService;
+    private final TeamSecurityService teamSecurityService;
+
+    public TeamController(TeamService teamService, MemberService memberService, SprintService sprintService, UserRepository userRepository) {
+        this(teamService, memberService, sprintService, userRepository, null, null);
+    }
+
+    @Autowired
+    public TeamController(TeamService teamService,
+                          MemberService memberService,
+                          SprintService sprintService,
+                          UserRepository userRepository,
+                          @Autowired(required = false) ContributionService contributionService,
+                          @Autowired(required = false) TeamSecurityService teamSecurityService) {
+        this.teamService = teamService;
+        this.memberService = memberService;
+        this.sprintService = sprintService;
+        this.userRepository = userRepository;
+        this.contributionService = contributionService;
+        this.teamSecurityService = teamSecurityService;
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<TeamDto>> createTeam(
@@ -166,6 +193,54 @@ public class TeamController {
     public ResponseEntity<ApiResponse<List<SprintDto>>> getSprints(@PathVariable Long teamId) {
         List<SprintDto> sprints = sprintService.getSprintsByTeam(teamId);
         return ResponseEntity.ok(ApiResponse.ok("Danh sách sprint", sprints));
+    }
+
+    @GetMapping("/{teamId}/contributions")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTeamContributions(
+            @PathVariable Long teamId,
+            @RequestParam(value = "sprintId", required = false) Long sprintId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
+        List<ContributionDto> scores = List.of();
+        if (contributionService != null) {
+            scores = sprintId != null
+                    ? contributionService.getSprintScores(sprintId)
+                    : contributionService.getTeamScores(teamId);
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("teamId", teamId);
+        data.put("sprintId", sprintId);
+        data.put("scores", scores != null ? scores : List.of());
+        data.put("updatedAt", LocalDateTime.now().toString());
+
+        return ResponseEntity.ok(ApiResponse.ok("Điểm đóng góp nhóm", data));
+    }
+
+    @GetMapping("/{teamId}/contributions/{userId}/evidence")
+    public ResponseEntity<ApiResponse<List<EvidenceItemDto>>> getMemberEvidence(
+            @PathVariable Long teamId,
+            @PathVariable Long userId,
+            @RequestParam(value = "sprintId", required = false) Long sprintId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
+        Long sid = sprintId;
+        if (sid == null) {
+            List<SprintDto> sprints = sprintService.getSprintsByTeam(teamId);
+            if (sprints != null && !sprints.isEmpty()) {
+                sid = sprints.get(sprints.size() - 1).getId();
+            } else {
+                sid = 1L;
+            }
+        }
+        List<EvidenceItemDto> evidence = contributionService != null
+                ? contributionService.getEvidenceTraceability(teamId, sid, userId)
+                : List.of();
+        return ResponseEntity.ok(ApiResponse.ok("Bằng chứng đóng góp thành viên", evidence != null ? evidence : List.of()));
     }
 
     private Long getUserId(Authentication authentication) {

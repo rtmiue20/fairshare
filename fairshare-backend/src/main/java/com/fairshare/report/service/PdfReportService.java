@@ -54,12 +54,12 @@ public class PdfReportService {
     private static final Color TEXT_MUTED = new Color(100, 116, 139);      // Slate-500 #64748b
     private static final Color BORDER_COLOR = new Color(226, 232, 240);    // Slate-200 #e2e8f0
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] generateSprintReportPdf(Long teamId, Long sprintId) {
         return generateSprintReportPdf(teamId, sprintId, null);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public byte[] generateSprintReportPdf(Long teamId, Long sprintId, Long requesterId) {
         if (requesterId != null) {
             TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, requesterId)
@@ -75,6 +75,10 @@ public class PdfReportService {
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found with id: " + teamId));
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + sprintId));
+
+        if (sprint.getTeam() != null && !sprint.getTeam().getId().equals(teamId)) {
+            throw new ResourceNotFoundException("Sprint id " + sprintId + " does not belong to team " + teamId);
+        }
 
         // 1. Lấy dữ liệu đóng góp thành viên từ ContributionService (M3)
         List<ContributionSummaryResponse> contributions = Collections.emptyList();
