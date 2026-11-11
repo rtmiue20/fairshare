@@ -20,7 +20,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
   // Create form state
   const [projectName, setProjectName] = useState('');
-  const [courseName, setCourseName] = useState('Quản lý Dự án CNTT — UEH');
+  const [courseName, setCourseName] = useState('');
   const [description, setDescription] = useState('');
 
   // Join form state
@@ -250,7 +250,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                 <span>Môn học / Lớp học phần</span>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Quản lý Dự án CNTT — 24D1INF50900503"
+                  placeholder="Ví dụ: Quản lý Dự án CNTT, Phát triển Web..."
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
                 />

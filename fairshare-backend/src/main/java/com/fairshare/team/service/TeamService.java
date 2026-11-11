@@ -234,6 +234,25 @@ public class TeamService {
         recordConsent(teamId, userId, false);
     }
 
+    @Transactional
+    public TeamDto updateTeam(Long teamId, CreateTeamRequest request, Long userId) {
+        if (teamId == null) {
+            throw new BusinessException("Team id is required");
+        }
+        Team team = getById(teamId);
+        if (request.getName() != null && !request.getName().isBlank()) {
+            team.setName(request.getName().trim());
+        }
+        if (request.getCourseName() != null) {
+            team.setCourseName(request.getCourseName().trim());
+        }
+        if (request.getDescription() != null) {
+            team.setDescription(request.getDescription().trim());
+        }
+        Team saved = teamRepository.save(team);
+        return getTeamDetail(saved.getId(), userId);
+    }
+
     private String generateUniqueInviteCode() {
         return "FS" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
     }

@@ -194,11 +194,11 @@ public class PdfReportService {
             Font smallFont = new Font(regularBf, 8, Font.NORMAL, TEXT_MUTED);
 
             // Header Section
-            Paragraph header = new Paragraph("TRƯỜNG ĐẠI HỌC KINH TẾ TP. HỒ CHÍ MINH (UEH)", orgFont);
+            Paragraph header = new Paragraph("FAIRSHARE · HỆ THỐNG ĐO LƯỜNG ĐÓNG GÓP ĐỒ ÁN NHÓM", orgFont);
             header.setAlignment(Element.ALIGN_CENTER);
             document.add(header);
 
-            Paragraph course = new Paragraph("KHOA CÔNG NGHỆ THÔNG TIN KINH DOANH - MÔN QUẢN LÝ DỰ ÁN CNTT", smallFont);
+            Paragraph course = new Paragraph("BÁO CÁO NGHIỆM THU ĐÓNG GÓP & MINH BẠCH NĂNG SUẤT THÀNH VIÊN", smallFont);
             course.setAlignment(Element.ALIGN_CENTER);
             document.add(course);
 
@@ -208,7 +208,7 @@ public class PdfReportService {
             title.setSpacingAfter(4);
             document.add(title);
 
-            Paragraph instructor = new Paragraph("Giảng viên hướng dẫn: TS. Nguyễn Mạnh Tuấn | Thời gian xuất: " + LocalDateTime.now().format(DATE_TIME_FMT), subTitleFont);
+            Paragraph instructor = new Paragraph("Hệ thống đánh giá đa chiều Agile Scrum | Thời gian xuất: " + LocalDateTime.now().format(DATE_TIME_FMT), subTitleFont);
             instructor.setAlignment(Element.ALIGN_CENTER);
             instructor.setSpacingAfter(15);
             document.add(instructor);

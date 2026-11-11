@@ -12,65 +12,27 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+export interface MemberInfo {
+  id: number;
+  name: string;
+  role?: string;
+  fullName?: string;
+}
+
 export interface PendingContributionsListProps {
   teamId: number;
   sprintId?: number;
   currentUserId: number;
+  members?: MemberInfo[];
   onReviewed?: (item: ManualContributionItem, action: 'APPROVE' | 'REJECT') => void;
   refreshTrigger?: number;
 }
 
-// Dữ liệu mẫu phong phú mô phỏng đóng góp ngoài Task Board
-const FALLBACK_PENDING_CONTRIBUTIONS: ManualContributionItem[] = [
-  {
-    id: 101,
-    teamId: 1,
-    sprintId: 4,
-    userId: 4, // Trọng Phúc (FE) - trùng currentUserId mặc định để test Anti-Fraud
-    taskName: 'Nghiên cứu tài liệu Figma UI kit và thiết kế bảng tra cứu bằng chứng',
-    evidenceLink: 'https://figma.com/file/fairshare-evidence-traceability-ui',
-    storyPoints: 3.0,
-    status: 'PENDING',
-    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 102,
-    teamId: 1,
-    sprintId: 4,
-    userId: 2, // Ngọc Thiện (BA)
-    taskName: 'Biên soạn tài liệu đặc tả phi chức năng (NFR) và quy trình chấm chéo',
-    evidenceLink: 'https://docs.google.com/document/d/fairshare-srs-v2-nfr',
-    storyPoints: 2.5,
-    status: 'PENDING',
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-  {
-    id: 103,
-    teamId: 1,
-    sprintId: 4,
-    userId: 3, // Phúc Vương (BE)
-    taskName: 'Spike kỹ thuật: Đánh giá cơ chế chống gian lận và tối ưu MariaDB indexing',
-    evidenceLink: 'https://github.com/rtmiue20/fairshare/wiki/MariaDB-Indexing-Benchmark',
-    storyPoints: 4.0,
-    status: 'PENDING',
-    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
-  },
-];
-
-// Mapping tên người dùng hiển thị
-const USER_NAME_MAP: Record<number, { name: string; role: string }> = {
-  1: { name: 'Minh Triều', role: 'Leader' },
-  2: { name: 'Ngọc Thiện', role: 'BA' },
-  3: { name: 'Phúc Vương', role: 'Backend' },
-  4: { name: 'Trọng Phúc', role: 'Frontend' },
-  5: { name: 'Huỳnh Khang', role: 'Data Sci' },
-  6: { name: 'Nam Anh', role: 'QA' },
-};
-
 export const PendingContributionsList: React.FC<PendingContributionsListProps> = ({
   teamId,
-  sprintId = 4,
+  sprintId = 1,
   currentUserId,
+  members = [],
   onReviewed,
   refreshTrigger = 0,
 }) => {
@@ -87,15 +49,13 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
     setStatusNotification(null);
     try {
       const response = await contributionApi.getPendingManualContributions(teamId, sprintId);
-      if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+      if (response && response.data && Array.isArray(response.data)) {
         setItems(response.data);
       } else {
-        // Nếu API trả về mảng rỗng (hoặc môi trường test/demo), nạp dữ liệu mẫu
-        setItems(FALLBACK_PENDING_CONTRIBUTIONS);
+        setItems([]);
       }
     } catch {
-      // Fallback khi offline hoặc backend chưa kết nối
-      setItems(FALLBACK_PENDING_CONTRIBUTIONS);
+      setItems([]);
     } finally {
       setIsLoading(false);
     }
@@ -159,30 +119,44 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
     }
   };
 
+  const getInitials = (name?: string) => {
+    if (!name) return 'TV';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const currentUserMember = members.find((m) => m.id === currentUserId);
+  const currentUserName = currentUserMember?.name || currentUserMember?.fullName || (currentUserId ? `User #${currentUserId}` : 'Tôi');
+
   return (
     <div
       data-testid="pending-contributions-container"
-      className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl"
+      className="flex flex-col gap-4 rounded-xl border border-zinc-800/80 bg-[#121318] p-5 sm:p-6 shadow-sm"
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <Clock className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Danh sách đóng góp đang chờ duyệt (Pending Review)</h3>
-            <p className="text-xs text-slate-400">
-              Cơ chế xét duyệt chéo giữa các thành viên với ràng buộc Anti-Fraud nghiêm ngặt
+            <h3 className="text-sm font-semibold text-zinc-100">
+              Danh sách đóng góp đang chờ duyệt (Pending Review)
+            </h3>
+            <p className="text-xs text-zinc-400">
+              Xét duyệt chéo giữa các thành viên đảm bảo tính khách quan
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300">
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300 font-mono">
             {items.length} mục chờ duyệt
           </span>
-          <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
-            Bạn: User #{currentUserId} ({USER_NAME_MAP[currentUserId]?.name ?? 'Tôi'})
+          <span className="rounded-md border border-zinc-700 bg-zinc-800/80 px-2.5 py-0.5 text-[11px] font-medium text-zinc-300 font-mono">
+            Tài khoản: <strong className="text-zinc-100">{currentUserName}</strong>
           </span>
         </div>
       </div>
@@ -210,23 +184,23 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
       {isLoading ? (
         <div
           data-testid="pending-contributions-loading"
-          className="flex flex-col items-center justify-center gap-2 py-10 text-slate-400"
+          className="flex flex-col items-center justify-center gap-2 py-12 text-zinc-500"
         >
-          <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
-          <span className="text-xs">Đang tải danh sách đóng góp chờ duyệt...</span>
+          <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
+          <span className="text-xs font-mono">Đang tải danh sách đóng góp chờ duyệt...</span>
         </div>
       ) : items.length === 0 ? (
         /* Empty State */
         <div
           data-testid="pending-contributions-empty"
-          className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 py-10 text-center"
+          className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-12 text-center"
         >
-          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-400">
-            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+          <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-850 text-zinc-400">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <p className="text-xs font-semibold text-white">Không có đóng góp nào đang chờ duyệt</p>
-          <p className="mt-1 text-[11px] text-slate-400">
-            Tất cả các khai báo ngoài Task Board của Sprint này đã được xét duyệt đầy đủ.
+          <p className="text-xs font-semibold text-zinc-200">Không có đóng góp nào đang chờ duyệt</p>
+          <p className="mt-1 text-[11px] text-zinc-500 max-w-sm">
+            Tất cả các minh chứng ngoài Task Board của Sprint này đã được xét duyệt đầy đủ.
           </p>
         </div>
       ) : (
@@ -234,7 +208,7 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs" data-testid="pending-contributions-table">
             <thead>
-              <tr className="border-b border-slate-800 text-[11px] font-semibold text-slate-400">
+              <tr className="border-b border-zinc-800 text-[11px] font-semibold text-zinc-400">
                 <th className="pb-2.5 pl-2">Người khai báo</th>
                 <th className="pb-2.5">Tên công việc & Minh chứng</th>
                 <th className="pb-2.5 text-center">Story Points</th>
@@ -242,48 +216,46 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
                 <th className="pb-2.5 pr-2 text-right">Thao tác xét duyệt</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-zinc-800/60">
               {items.map((item) => {
                 const isOwner = item.userId === currentUserId;
                 const isProcessing = reviewingId === item.id;
-                const memberInfo = USER_NAME_MAP[item.userId] || {
-                  name: `Thành viên #${item.userId}`,
-                  role: 'Member',
-                };
+                const member = members.find((m) => m.id === item.userId);
+                const memberName = member?.name || member?.fullName || `Thành viên #${item.userId}`;
+                const memberRole = member?.role || 'Thành viên';
 
                 return (
                   <tr
                     key={item.id}
-                    data-testid={`pending-row-${item.id}`}
-                    className={`group transition hover:bg-slate-800/40 ${
-                      isOwner ? 'bg-amber-950/10' : ''
+                    className={`transition-colors ${
+                      isOwner ? 'bg-indigo-950/10' : 'hover:bg-zinc-850/40'
                     }`}
                   >
                     {/* Cột 1: Người khai báo */}
                     <td className="py-3 pl-2 align-middle">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-bold ${
+                          className={`flex h-7 w-7 items-center justify-center rounded-md font-bold text-[10px] shrink-0 ${
                             isOwner
-                              ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/30'
-                              : 'bg-indigo-500/20 text-indigo-300'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              : 'bg-zinc-800 text-zinc-200 border border-zinc-700'
                           }`}
                         >
-                          {memberInfo.name.charAt(0)}
+                          {getInitials(memberName)}
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-white">
-                              {memberInfo.name}
+                            <span className="font-semibold text-zinc-100 text-xs">
+                              {memberName}
                             </span>
                             {isOwner && (
-                              <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-300">
+                              <span className="rounded bg-indigo-500/20 border border-indigo-500/30 px-1.5 py-0.2 text-[9px] font-bold text-indigo-300 font-mono">
                                 BẠN
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-slate-400">
-                            {memberInfo.role} • ID #{item.userId}
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            {memberRole}
                           </span>
                         </div>
                       </div>
@@ -291,7 +263,7 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
 
                     {/* Cột 2: Tên công việc & link minh chứng */}
                     <td className="max-w-xs py-3 pr-3 align-middle">
-                      <div className="font-medium text-slate-200 line-clamp-2">
+                      <div className="font-medium text-zinc-200 line-clamp-2">
                         {item.taskName}
                       </div>
                       {item.evidenceLink && (
@@ -312,14 +284,14 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
 
                     {/* Cột 3: Story Points */}
                     <td className="py-3 text-center align-middle">
-                      <span className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 font-bold text-purple-300">
+                      <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-300 font-mono">
                         <Sparkles className="h-3 w-3" />
                         +{Number(item.storyPoints).toFixed(1)} SP
                       </span>
                     </td>
 
                     {/* Cột 4: Thời gian gửi */}
-                    <td className="py-3 text-[11px] text-slate-400 align-middle whitespace-nowrap">
+                    <td className="py-3 text-[11px] text-zinc-500 font-mono align-middle whitespace-nowrap">
                       {formatDate(item.createdAt)}
                     </td>
 
@@ -329,10 +301,10 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
                         /* Khóa Anti-Fraud: Chính chủ không được tự duyệt */
                         <div
                           data-testid={`anti-fraud-badge-${item.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 shadow-sm"
-                          title="Bạn không thể tự duyệt bài của mình (Anti-Fraud Rule)"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 shadow-xs"
+                          title="Bạn không thể tự duyệt bài của mình"
                         >
-                          <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+                          <ShieldAlert className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                           <span>Bạn không thể tự duyệt bài của mình</span>
                         </div>
                       ) : (
@@ -343,7 +315,7 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
                             onClick={() => handleReview(item, 'APPROVE')}
                             disabled={isProcessing}
                             data-testid={`btn-approve-${item.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-600/20 px-2.5 py-1 text-[11px] font-bold text-emerald-300 transition hover:bg-emerald-600 hover:text-white disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-600 hover:text-white disabled:opacity-50"
                           >
                             {isProcessing ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -358,7 +330,7 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
                             onClick={() => handleReview(item, 'REJECT')}
                             disabled={isProcessing}
                             data-testid={`btn-reject-${item.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-600/20 px-2.5 py-1 text-[11px] font-bold text-rose-300 transition hover:bg-rose-600 hover:text-white disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-300 transition hover:bg-rose-600 hover:text-white disabled:opacity-50"
                           >
                             {isProcessing ? (
                               <Loader2 className="h-3 w-3 animate-spin" />

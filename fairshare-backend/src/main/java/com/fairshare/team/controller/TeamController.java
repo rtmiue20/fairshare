@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -84,6 +85,19 @@ public class TeamController {
         return ResponseEntity.ok(ApiResponse.ok("Chi tiết nhóm", detail));
     }
 
+    @PutMapping("/{teamId}")
+    public ResponseEntity<ApiResponse<TeamDto>> updateTeam(
+            @PathVariable Long teamId,
+            @RequestBody CreateTeamRequest request,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
+        Long userId = getUserId(authentication);
+        TeamDto updated = teamService.updateTeam(teamId, request, userId);
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật thông tin dự án thành công", updated));
+    }
+
     @PostMapping("/{teamId}/members")
     public ResponseEntity<ApiResponse<Void>> inviteMember(
             @PathVariable Long teamId,
@@ -97,6 +111,7 @@ public class TeamController {
     }
 
     @GetMapping("/{teamId}/members")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<TeamMemberDto>>> getMembers(@PathVariable Long teamId) {
         List<TeamMember> members = memberService.getMembers(teamId);
         List<TeamMemberDto> dtos = members.stream()

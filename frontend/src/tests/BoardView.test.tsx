@@ -297,4 +297,65 @@ describe('BoardView Component - Kanban UI (M1 - Frontend)', () => {
       expect(screen.getByText(/Story point vượt quá giới hạn cho phép của sprint/i)).toBeInTheDocument();
     });
   });
+
+  it('allows clicking "+ Thêm thẻ" on all 4 columns when backend returns flat TeamMemberDto without crashing', async () => {
+    vi.spyOn(teamApi, 'getTeamById').mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        id: 2,
+        name: 'Dự án Tài chính sinh viên',
+        createdAt: '2026-11-10T00:00:00Z',
+        members: [
+          {
+            id: 1,
+            userId: 5,
+            fullName: 'Ngô Trọng Phúc',
+            email: 'test02@gmail.com',
+            role: 'LEADER',
+            hasConsented: true,
+            joinedAt: '2026-11-10T00:00:00Z',
+          } as unknown as import('../types/team').TeamMember,
+        ],
+      },
+    });
+
+    vi.spyOn(boardApi, 'getBoardsByTeam').mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: [
+        {
+          id: 20,
+          teamId: 2,
+          name: 'Task Board',
+          description: 'Kanban',
+          columns: [
+            { id: 101, boardId: 20, name: 'To Do', position: 0, cards: [] },
+            { id: 102, boardId: 20, name: 'In Progress', position: 1, cards: [] },
+            { id: 103, boardId: 20, name: 'Review', position: 2, cards: [] },
+            { id: 104, boardId: 20, name: 'Done', position: 3, cards: [] },
+          ],
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/teams/2/board']}>
+        <BoardView />
+      </MemoryRouter>
+    );
+
+    // Wait for columns to render
+    await waitFor(() => {
+      expect(screen.getAllByText('Thêm thẻ').length).toBe(4);
+    });
+
+    // Click "Thêm thẻ" on column 1 (To Do)
+    const addCardButtons = screen.getAllByText('Thêm thẻ');
+    fireEvent.click(addCardButtons[0]);
+
+    // Modal should open without TypeError and show member in select
+    expect(screen.getByText('Tạo công việc mới')).toBeInTheDocument();
+    expect(screen.getByText('Ngô Trọng Phúc (LEADER)')).toBeInTheDocument();
+  });
 });

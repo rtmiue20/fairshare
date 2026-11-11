@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { FairShareIcon } from '../ui/Icons';
+import { FairShareLogo } from '../ui/FairShareLogo';
 import { showToast } from '../ui/Toast';
 import { FolderPlus } from 'lucide-react';
 import { CreateProjectModal } from '../../features/team/CreateProjectModal';
@@ -69,9 +70,8 @@ export const TopNav: React.FC = () => {
       <header className="top" id="top">
         {/* Brand logo & Project selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Link to="/" className="brand" aria-label="FairShare, về trang chủ">
-            <i aria-hidden="true" />
-            <span>FAIRSHARE</span>
+          <Link to="/" className="brand" aria-label="FairShare, về trang chủ" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+            <FairShareLogo size={22} />
           </Link>
 
           {isAuthenticated && (

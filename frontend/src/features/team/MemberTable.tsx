@@ -1,5 +1,6 @@
 import React from 'react';
 import { TeamMember, Role } from '../../types/team';
+import { useAuthStore } from '../../store/authStore';
 import {
   ShieldCheck,
   Crown,
@@ -23,15 +24,11 @@ export const MemberTable: React.FC<MemberTableProps> = ({
   onUpdateRole,
   isLeader = false,
 }) => {
+  const { user: currentUser } = useAuthStore();
+
   const getInitials = (name?: string, email?: string) => {
     if (name) {
-      if (name.includes('Triều')) return 'MT';
-      if (name.includes('Thiện')) return 'HT';
-      if (name.includes('Vương')) return 'PV';
-      if (name.includes('Phúc')) return 'TP';
-      if (name.includes('Khang')) return 'TK';
-      if (name.includes('Nam Anh')) return 'NA';
-      const parts = name.trim().split(' ');
+      const parts = name.trim().split(/\s+/);
       if (parts.length >= 2) {
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
       }
@@ -40,18 +37,21 @@ export const MemberTable: React.FC<MemberTableProps> = ({
     return (email?.substring(0, 2) || 'TV').toUpperCase();
   };
 
-  const getSubTitle = (name?: string) => {
-    if (!name) return 'Thành viên dự án';
-    if (name.includes('Triều')) return 'Trưởng nhóm đồ án (Team Leader)';
-    if (name.includes('Thiện')) return 'Phân tích nghiệp vụ (BA) & Frontend';
-    if (name.includes('Vương')) return 'Kỹ sư Backend & Tích hợp Trello/Git';
-    if (name.includes('Phúc')) return 'Phát triển Frontend & Dữ liệu đóng góp';
-    if (name.includes('Khang')) return 'Phát triển Tính năng & Chấm chéo';
-    if (name.includes('Nam Anh')) return 'Đảm bảo CLPM (QA/QC) & Triển khai';
+  const getSubTitle = (role?: Role) => {
+    if (role === 'LEADER') return 'Trưởng nhóm đồ án (Team Leader)';
     return 'Thành viên nhóm phát triển';
   };
 
   const showActions = isLeader || Boolean(onRemoveMember || onUpdateRole);
+
+  if (!members || members.length === 0) {
+    return (
+      <div className="w-full bg-[#121318] border border-zinc-800/80 rounded-xl p-8 text-center text-zinc-400">
+        <p className="text-sm font-medium">Chưa có thành viên nào trong dự án</p>
+        <p className="text-xs text-zinc-500 mt-1">Hãy mời thành viên bằng mã mời hoặc email để bắt đầu phân chia công việc.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-[#121318] border border-zinc-800/80 rounded-xl overflow-hidden">
@@ -60,7 +60,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
           <thead>
             <tr className="bg-zinc-900/60 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
               <th className="py-3 px-5">Thành viên</th>
-              <th className="py-3 px-5">Email UEH / MSSV</th>
+              <th className="py-3 px-5">Email / Mã định danh</th>
               <th className="py-3 px-5">Vai trò dự án</th>
               <th className="py-3 px-5">Đồng thuận NĐ 13</th>
               <th className="py-3 px-5">Kênh dữ liệu</th>
@@ -69,11 +69,11 @@ export const MemberTable: React.FC<MemberTableProps> = ({
           </thead>
           <tbody className="divide-y divide-zinc-850">
             {members.map((member) => {
-              const name = member.user?.fullName || member.user?.email || 'Thành viên';
-              const initials = getInitials(member.user?.fullName, member.user?.email);
+              const name = member.user?.fullName || member.fullName || member.user?.email || member.email || 'Thành viên';
+              const initials = getInitials(name, member.user?.email || member.email);
               const isLead = member.role === 'LEADER';
-              const isThien = name.includes('Thiện');
-              const targetUserId = member.user?.id || member.id;
+              const targetUserId = member.user?.id || member.userId || member.id;
+              const isCurrentUser = Boolean(currentUser && (currentUser.id === targetUserId || currentUser.email === (member.user?.email || member.email)));
 
               return (
                 <tr
@@ -89,14 +89,14 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                       <div>
                         <div className="font-semibold text-zinc-100 flex items-center gap-1.5">
                           <span>{name}</span>
-                          {isThien && (
+                          {isCurrentUser && (
                             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                               Bạn
                             </span>
                           )}
                         </div>
                         <div className="text-[11px] text-zinc-400 mt-0.5">
-                          {getSubTitle(name)}
+                          {getSubTitle(member.role)}
                         </div>
                       </div>
                     </div>
@@ -104,7 +104,7 @@ export const MemberTable: React.FC<MemberTableProps> = ({
 
                   {/* Email / MSSV */}
                   <td className="py-3.5 px-5 text-zinc-400 font-mono text-xs">
-                    {member.user?.email}
+                    {member.user?.email || member.email}
                   </td>
 
                   {/* Project Role */}
@@ -124,11 +124,18 @@ export const MemberTable: React.FC<MemberTableProps> = ({
 
                   {/* Consent Status */}
                   <td className="py-3.5 px-5">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <ShieldCheck size={12} className="text-emerald-400" />
-                      <span>Đã xác nhận</span>
-                      <Check size={11} className="text-emerald-400 stroke-[3]" />
-                    </span>
+                    {member.hasConsented ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <ShieldCheck size={12} className="text-emerald-400" />
+                        <span>Đã xác nhận</span>
+                        <Check size={11} className="text-emerald-400 stroke-[3]" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <ShieldCheck size={12} className="text-amber-400" />
+                        <span>Chờ xác nhận</span>
+                      </span>
+                    )}
                   </td>
 
                   {/* Connected channels */}
@@ -136,14 +143,14 @@ export const MemberTable: React.FC<MemberTableProps> = ({
                     <div className="flex items-center gap-1.5 font-mono text-[11px]">
                       <span
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800 hover:border-zinc-700 transition-colors"
-                        title="Trello Board Connected"
+                        title="Kanban Board Connected"
                       >
                         <Kanban size={11} className="text-sky-400" />
-                        <span>Trello</span>
+                        <span>Kanban</span>
                       </span>
                       <span
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800 hover:border-zinc-700 transition-colors"
-                        title="GitHub Repository Connected"
+                        title="Git Repository Connected"
                       >
                         <GitPullRequest size={11} className="text-indigo-400" />
                         <span>Git</span>

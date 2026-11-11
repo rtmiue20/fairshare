@@ -16,7 +16,6 @@ import { ManualContributionModal } from './ManualContributionModal';
 import { FeedbackResolutionModal } from './FeedbackResolutionModal';
 import { contributionApi } from '../../api/contribution.api';
 import {
-  ContributionScore,
   ContributionSummary,
   ContributionSummaryItem,
   EvidenceItemDto,
@@ -43,286 +42,6 @@ const AVAILABLE_SPRINTS: SprintOption[] = [
   { id: 5, name: 'Sprint 5: Tối ưu & Báo cáo Đồ án' },
 ];
 
-const DEFAULT_MEMBERS: MemberOption[] = [
-  { id: 1, name: 'Minh Triều', role: 'Leader' },
-  { id: 2, name: 'Ngọc Thiện', role: 'BA' },
-  { id: 3, name: 'Phúc Vương', role: 'BE' },
-  { id: 4, name: 'Trọng Phúc', role: 'FE' },
-  { id: 5, name: 'Huỳnh Khang', role: 'Data' },
-  { id: 6, name: 'Nam Anh', role: 'QA' },
-];
-
-// Dữ liệu mẫu Sprint 4
-const SPRINT_4_SUMMARY_ITEMS: ContributionSummaryItem[] = [
-  {
-    userId: 1,
-    userName: 'Minh Triều (Leader)',
-    finalPct: 18.5,
-    d1Output: 1.25,
-    d2Reliability: 1.1,
-    d3Collaboration: 0.95,
-    d4Peer: 1.05,
-    compositeScore: 1.15,
-    confidenceIntervalLow: 16.2,
-    confidenceIntervalHigh: 20.8,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (12 task Task Board)',
-  },
-  {
-    userId: 2,
-    userName: 'Ngọc Thiện (BA)',
-    finalPct: 17.8,
-    d1Output: 1.15,
-    d2Reliability: 1.2,
-    d3Collaboration: 1.0,
-    d4Peer: 0.9,
-    compositeScore: 1.08,
-    confidenceIntervalLow: 15.6,
-    confidenceIntervalHigh: 19.9,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (11 task Task Board)',
-  },
-  {
-    userId: 3,
-    userName: 'Phúc Vương (BE)',
-    finalPct: 16.5,
-    d1Output: 0.85,
-    d2Reliability: 0.9,
-    d3Collaboration: 0.7,
-    d4Peer: 0.8,
-    compositeScore: 0.82,
-    confidenceIntervalLow: 14.5,
-    confidenceIntervalHigh: 18.4,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (9 task Task Board)',
-  },
-  {
-    userId: 4,
-    userName: 'Trọng Phúc (FE)',
-    finalPct: 16.2,
-    d1Output: 0.9,
-    d2Reliability: 0.85,
-    d3Collaboration: 0.95,
-    d4Peer: 0.85,
-    compositeScore: 0.88,
-    confidenceIntervalLow: 14.1,
-    confidenceIntervalHigh: 18.2,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (10 task Task Board)',
-  },
-  {
-    userId: 5,
-    userName: 'Huỳnh Khang (Data)',
-    finalPct: 15.8,
-    d1Output: 2.1,
-    d2Reliability: -0.8,
-    d3Collaboration: -0.6,
-    d4Peer: -1.2,
-    compositeScore: 0.65,
-    confidenceIntervalLow: 12.8,
-    confidenceIntervalHigh: 18.9,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: true,
-    suspicionFlag: true,
-    evidenceStatus: 'Cần rà soát (D1 cao, D4 thấp)',
-  },
-  {
-    userId: 6,
-    userName: 'Nam Anh (QA)',
-    finalPct: 15.2,
-    d1Output: -0.5,
-    d2Reliability: 0.1,
-    d3Collaboration: 0.2,
-    d4Peer: 0.0,
-    compositeScore: 0.1,
-    confidenceIntervalLow: 13.0,
-    confidenceIntervalHigh: 17.5,
-    hasSufficientEvidence: false,
-    isEnoughEvidence: false,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Chưa đủ bằng chứng (< 5 events)',
-  },
-];
-
-// Dữ liệu mẫu Sprint 3
-const SPRINT_3_SUMMARY_ITEMS: ContributionSummaryItem[] = [
-  {
-    userId: 1,
-    userName: 'Minh Triều (Leader)',
-    finalPct: 17.5,
-    d1Output: 0.9,
-    d2Reliability: 1.0,
-    d3Collaboration: 1.1,
-    d4Peer: 1.0,
-    compositeScore: 1.0,
-    confidenceIntervalLow: 15.8,
-    confidenceIntervalHigh: 19.2,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (10 task)',
-  },
-  {
-    userId: 2,
-    userName: 'Ngọc Thiện (BA)',
-    finalPct: 17.2,
-    d1Output: 0.8,
-    d2Reliability: 1.1,
-    d3Collaboration: 0.9,
-    d4Peer: 0.95,
-    compositeScore: 0.95,
-    confidenceIntervalLow: 15.5,
-    confidenceIntervalHigh: 18.9,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (9 task)',
-  },
-  {
-    userId: 3,
-    userName: 'Phúc Vương (BE)',
-    finalPct: 16.8,
-    d1Output: 1.0,
-    d2Reliability: 0.9,
-    d3Collaboration: 0.8,
-    d4Peer: 0.85,
-    compositeScore: 0.89,
-    confidenceIntervalLow: 15.1,
-    confidenceIntervalHigh: 18.5,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (11 task)',
-  },
-  {
-    userId: 4,
-    userName: 'Trọng Phúc (FE)',
-    finalPct: 16.5,
-    d1Output: 0.85,
-    d2Reliability: 0.8,
-    d3Collaboration: 0.9,
-    d4Peer: 0.9,
-    compositeScore: 0.86,
-    confidenceIntervalLow: 14.8,
-    confidenceIntervalHigh: 18.2,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (9 task)',
-  },
-  {
-    userId: 5,
-    userName: 'Huỳnh Khang (Data)',
-    finalPct: 16.1,
-    d1Output: 0.7,
-    d2Reliability: 0.8,
-    d3Collaboration: 0.8,
-    d4Peer: 0.8,
-    compositeScore: 0.78,
-    confidenceIntervalLow: 14.2,
-    confidenceIntervalHigh: 18.0,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (8 task)',
-  },
-  {
-    userId: 6,
-    userName: 'Nam Anh (QA)',
-    finalPct: 15.9,
-    d1Output: 0.65,
-    d2Reliability: 0.85,
-    d3Collaboration: 0.75,
-    d4Peer: 0.8,
-    compositeScore: 0.76,
-    confidenceIntervalLow: 14.0,
-    confidenceIntervalHigh: 17.8,
-    hasSufficientEvidence: true,
-    isEnoughEvidence: true,
-    isSuspicious: false,
-    suspicionFlag: false,
-    evidenceStatus: 'Đầy đủ (7 task)',
-  },
-];
-
-const DEFAULT_SCORES_S4: ContributionScore[] = [
-  { userId: 1, userName: 'Minh Triều (Leader)', percentage: 0.185, taskCompletedCount: 12, docsEditCount: 34, manualScore: 88, totalScore: 92, peerReviewScore: 4.9 },
-  { userId: 2, userName: 'Ngọc Thiện (BA)', percentage: 0.178, taskCompletedCount: 11, docsEditCount: 42, manualScore: 89, totalScore: 90, peerReviewScore: 4.85 },
-  { userId: 3, userName: 'Phúc Vương (BE)', percentage: 0.165, taskCompletedCount: 9, docsEditCount: 20, manualScore: 84, totalScore: 86, peerReviewScore: 4.75 },
-  { userId: 4, userName: 'Trọng Phúc (FE)', percentage: 0.162, taskCompletedCount: 10, docsEditCount: 22, manualScore: 82, totalScore: 85, peerReviewScore: 4.7 },
-  { userId: 5, userName: 'Huỳnh Khang (Data)', percentage: 0.158, taskCompletedCount: 8, docsEditCount: 18, manualScore: 80, totalScore: 83, peerReviewScore: 4.8 },
-  { userId: 6, userName: 'Nam Anh (QA)', percentage: 0.152, taskCompletedCount: 7, docsEditCount: 16, manualScore: 78, totalScore: 81, peerReviewScore: 4.75 },
-];
-
-const DEFAULT_SCORES_S3: ContributionScore[] = [
-  { userId: 1, userName: 'Minh Triều (Leader)', percentage: 0.175, taskCompletedCount: 10, docsEditCount: 25, manualScore: 85, totalScore: 88, peerReviewScore: 4.8 },
-  { userId: 2, userName: 'Ngọc Thiện (BA)', percentage: 0.172, taskCompletedCount: 9, docsEditCount: 30, manualScore: 86, totalScore: 87, peerReviewScore: 4.8 },
-  { userId: 3, userName: 'Phúc Vương (BE)', percentage: 0.168, taskCompletedCount: 11, docsEditCount: 18, manualScore: 82, totalScore: 85, peerReviewScore: 4.7 },
-  { userId: 4, userName: 'Trọng Phúc (FE)', percentage: 0.165, taskCompletedCount: 9, docsEditCount: 20, manualScore: 80, totalScore: 83, peerReviewScore: 4.7 },
-  { userId: 5, userName: 'Huỳnh Khang (Data)', percentage: 0.161, taskCompletedCount: 8, docsEditCount: 15, manualScore: 78, totalScore: 80, peerReviewScore: 4.6 },
-  { userId: 6, userName: 'Nam Anh (QA)', percentage: 0.159, taskCompletedCount: 7, docsEditCount: 14, manualScore: 77, totalScore: 79, peerReviewScore: 4.65 },
-];
-
-// Tập dữ liệu mẫu minh chứng truy vết theo chuẩn CR-02 (nguồn BOARD và MANUAL)
-const SAMPLE_EVIDENCE_BY_USER: Record<number, EvidenceItemDto[]> = {
-  1: [
-    { sourceType: 'BOARD', sourceId: 101, taskName: 'Khởi tạo Sprint 4 & Thiết lập DoD nhóm', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T10:00:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 102, taskName: 'Soạn thảo Change Request CR-03 điều chỉnh công thức', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T14:30:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 103, taskName: 'Rà soát phân quyền Task Board theo vai trò Leader/Member', storyPoints: 3, earnedScore: 7.5, eventTime: '2026-11-05T09:15:00Z', status: 'DONE' },
-    { sourceType: 'MANUAL', sourceId: 501, taskName: 'Họp điều phối kỹ thuật với Giảng viên hướng dẫn', storyPoints: 2, earnedScore: 5.0, eventTime: '2026-11-05T16:00:00Z', status: 'APPROVED' },
-  ],
-  2: [
-    { sourceType: 'BOARD', sourceId: 201, taskName: 'Kiểm tra công thức tính điểm v1.0 trên tập dữ liệu thực tế', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T11:00:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 202, taskName: 'Lập báo cáo kiểm tra công thức Sprint 4 (M2)', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T15:20:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 203, taskName: 'Xây dựng kịch bản UAT phân hệ Task Board nội bộ', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-05T10:45:00Z', status: 'DONE' },
-  ],
-  3: [
-    { sourceType: 'BOARD', sourceId: 301, taskName: 'Phát triển REST API /api/boards và /api/cards', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T16:00:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 302, taskName: 'Tạo Flyway migration V15 đảm bảo tính bất biến ActivityEvent', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T09:30:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 303, taskName: 'Sinh sự kiện hoàn thành/đúng hạn khi di chuyển thẻ Done', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-05T14:10:00Z', status: 'DONE' },
-  ],
-  4: [
-    { sourceType: 'BOARD', sourceId: 401, taskName: 'Xây dựng Radar Chart 4 chiều hiển thị chỉ số D1-D4', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T17:30:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 402, taskName: 'Tích hợp bộ lọc Sprint & Thành viên linh hoạt', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T13:45:00Z', status: 'DONE' },
-    { sourceType: 'BOARD', sourceId: 403, taskName: 'Xây dựng Bảng bằng chứng truy vết (Card 7)', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-05T11:00:00Z', status: 'DONE' },
-  ],
-  5: [
-    { sourceType: 'BOARD', sourceId: 501, taskName: 'Viết Stored Procedure sp_get_evidence_traceability', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T14:00:00Z', status: 'DONE' },
-    { sourceType: 'MANUAL', sourceId: 502, taskName: 'Tối ưu chỉ mục CSDL cho bảng activity_events', storyPoints: 3, earnedScore: 7.5, eventTime: '2026-11-04T16:00:00Z', status: 'APPROVED' },
-  ],
-  6: [
-    { sourceType: 'BOARD', sourceId: 601, taskName: 'Thiết lập Testcontainers kiểm thử DB MariaDB', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-03T10:00:00Z', status: 'DONE' },
-  ],
-};
-
-const DEFAULT_AUDIT_TRAIL: EvidenceItemDto[] = [
-  { sourceType: 'BOARD', sourceId: 101, taskName: 'Khởi tạo Sprint 4 & Thiết lập DoD nhóm', storyPoints: 5, earnedScore: 12.5, eventTime: '2026-11-04T10:00:00Z', status: 'DONE' },
-  { sourceType: 'BOARD', sourceId: 201, taskName: 'Kiểm tra công thức tính điểm v1.0 trên tập dữ liệu thực tế', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T11:00:00Z', status: 'DONE' },
-  { sourceType: 'BOARD', sourceId: 301, taskName: 'Phát triển REST API /api/boards và /api/cards', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T16:00:00Z', status: 'DONE' },
-  { sourceType: 'BOARD', sourceId: 401, taskName: 'Xây dựng Radar Chart 4 chiều hiển thị chỉ số D1-D4', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-03T17:30:00Z', status: 'DONE' },
-  { sourceType: 'BOARD', sourceId: 501, taskName: 'Viết Stored Procedure sp_get_evidence_traceability', storyPoints: 8, earnedScore: 20.0, eventTime: '2026-11-02T14:00:00Z', status: 'DONE' },
-  { sourceType: 'MANUAL', sourceId: 501, taskName: 'Họp điều phối kỹ thuật với Giảng viên hướng dẫn', storyPoints: 2, earnedScore: 5.0, eventTime: '2026-11-05T16:00:00Z', status: 'APPROVED' },
-];
-
 // Member color palette matching sample --m1..m4
 const MEMBER_COLORS = ['var(--m1)', 'var(--ok)', 'var(--m3)', 'var(--m2)', 'var(--m4)', 'var(--ital)'];
 
@@ -345,21 +64,15 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   }, [initialized, fetchTeams]);
 
   const [availableSprints, setAvailableSprints] = useState<SprintOption[]>(AVAILABLE_SPRINTS);
-  const [availableMembers, setAvailableMembers] = useState<MemberOption[]>(DEFAULT_MEMBERS);
-  const [selectedSprintId, setSelectedSprintId] = useState<number>(4);
+  const [availableMembers, setAvailableMembers] = useState<MemberOption[]>([]);
+  const [selectedSprintId, setSelectedSprintId] = useState<number>(2);
   const [selectedUserId, setSelectedUserId] = useState<number | 'ALL'>('ALL');
-  const [activeRadarUserId, setActiveRadarUserId] = useState<number>(1);
+  const [activeRadarUserId, setActiveRadarUserId] = useState<number>(109);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSprintEmpty, setIsSprintEmpty] = useState<boolean>(false);
 
-  // Khi currentTeamId thay đổi: Nếu là Team 1 dùng mock/sprint mẫu, nếu là dự án mới tải sprints & thành viên thật
+  // Khi currentTeamId thay đổi: Tải sprints & thành viên thật từ backend
   useEffect(() => {
-    if (currentTeamId === 1) {
-      setAvailableSprints(AVAILABLE_SPRINTS);
-      setAvailableMembers(DEFAULT_MEMBERS);
-      return;
-    }
-
     let isMounted = true;
     Promise.allSettled([
       peerReviewApi.getSprints(currentTeamId),
@@ -384,15 +97,25 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       }
 
       if (teamRes.status === 'fulfilled' && teamRes.value?.data?.members && teamRes.value.data.members.length > 0) {
-        const dynamicMembers: MemberOption[] = teamRes.value.data.members.map((m) => ({
-          id: m.user.id,
-          name: m.user.fullName,
-          role: m.role === 'LEADER' ? 'Leader' : 'Thành viên',
-        }));
+        const dynamicMembers: MemberOption[] = teamRes.value.data.members.map((m) => {
+          const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+          const uName =
+            m.user?.fullName ??
+            (m as unknown as { fullName?: string }).fullName ??
+            (m as unknown as { email?: string }).email ??
+            `Thành viên #${uId}`;
+          return {
+            id: uId,
+            name: uName,
+            role: m.role === 'LEADER' ? 'Leader' : 'Thành viên',
+          };
+        });
         setAvailableMembers(dynamicMembers);
         if (dynamicMembers[0]) {
           setActiveRadarUserId(dynamicMembers[0].id);
         }
+      } else {
+        setAvailableMembers([]);
       }
     });
 
@@ -402,8 +125,8 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   }, [currentTeamId]);
 
   const [summary, setSummary] = useState<ContributionSummary | null>(null);
-  const [summaryItems, setSummaryItems] = useState<ContributionSummaryItem[]>(SPRINT_4_SUMMARY_ITEMS);
-  const [evidence, setEvidence] = useState<EvidenceItemDto[]>(DEFAULT_AUDIT_TRAIL);
+  const [summaryItems, setSummaryItems] = useState<ContributionSummaryItem[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceItemDto[]>([]);
 
   // State cho Modal truy vết bằng chứng (Card 7)
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState<boolean>(false);
@@ -413,7 +136,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
   // State cho Modal Khai báo & Duyệt đóng góp thủ công (Card 9)
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
-  const [pendingCount, setPendingCount] = useState<number>(3);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   // State cho Modal Nhật ký phản hồi đã xử lý (CR-03 & WBS 5.4.4)
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
@@ -437,7 +160,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
     // 2. Cập nhật tỷ lệ và điểm số của thành viên trên Dashboard
     setSummaryItems((prev) => {
-      const list = Array.isArray(prev) ? prev : SPRINT_4_SUMMARY_ITEMS;
+      const list = Array.isArray(prev) ? prev : [];
       return list.map((m) => {
         if (m.userId === item.userId) {
           const updatedPct = Math.min(100, Number((m.finalPct + spNumber * 0.7).toFixed(1)));
@@ -459,20 +182,6 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   useEffect(() => {
     setIsLoading(true);
 
-    // Trường hợp Sprint 5: Sprint tương lai chưa có dữ liệu (Empty State)
-    if (selectedSprintId === 5) {
-      setTimeout(() => {
-        setSummaryItems([]);
-        setSummary(null);
-        setEvidence([]);
-        setIsSprintEmpty(true);
-        setIsLoading(false);
-      }, 300);
-      return;
-    }
-
-    setIsSprintEmpty(false);
-
     // Gọi API thật từ backend
     Promise.allSettled([
       contributionApi.getContributions(currentTeamId, selectedSprintId),
@@ -493,25 +202,15 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           setSummaryItems(summaryRes.value);
           setIsSprintEmpty(false);
         } else {
-          // Fallback dữ liệu mẫu theo Sprint tương ứng đối với Team 1 demo
-          if (currentTeamId === 1) {
-            if (selectedSprintId === 3) {
-              setSummaryItems(SPRINT_3_SUMMARY_ITEMS);
-            } else {
-              setSummaryItems(SPRINT_4_SUMMARY_ITEMS);
-            }
-            setIsSprintEmpty(false);
-          } else {
-            setSummaryItems([]);
-            setIsSprintEmpty(true);
-          }
+          setSummaryItems([]);
+          setIsSprintEmpty(true);
         }
 
         // Dữ liệu minh chứng truy vết
         if (evidenceRes.status === 'fulfilled' && Array.isArray(evidenceRes.value) && evidenceRes.value.length > 0) {
           setEvidence(evidenceRes.value);
         } else {
-          setEvidence(currentTeamId === 1 ? DEFAULT_AUDIT_TRAIL : []);
+          setEvidence([]);
         }
 
         // Số lượng đóng góp thủ công chờ duyệt
@@ -535,13 +234,10 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       if (data && Array.isArray(data) && data.length > 0) {
         setModalEvidenceData(data);
       } else {
-        const fallback = SAMPLE_EVIDENCE_BY_USER[member.userId] || [];
-        setModalEvidenceData(fallback);
+        setModalEvidenceData([]);
       }
-    } catch (err) {
-      console.warn('Lỗi khi gọi API truy vết bằng chứng, dùng dữ liệu mẫu nội bộ', err);
-      const fallback = SAMPLE_EVIDENCE_BY_USER[member.userId] || [];
-      setModalEvidenceData(fallback);
+    } catch {
+      setModalEvidenceData([]);
     } finally {
       setEvidenceModalLoading(false);
     }
@@ -557,23 +253,14 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
   // Đảm bảo summaryItems luôn an toàn là một mảng và được chuẩn hóa đầy đủ 4 chiều + 95% CI
   const safeSummaryItems = useMemo(() => {
-    if (isSprintEmpty) return [];
-    if (currentTeamId !== 1 && (!summaryItems || summaryItems.length === 0)) return [];
-    const fallbackList = selectedSprintId === 3 ? SPRINT_3_SUMMARY_ITEMS : SPRINT_4_SUMMARY_ITEMS;
-    const rawList = Array.isArray(summaryItems) && summaryItems.length > 0 ? summaryItems : (currentTeamId === 1 ? fallbackList : []);
-    if (rawList.length === 0) return [];
+    if (isSprintEmpty || !summaryItems || summaryItems.length === 0) return [];
 
-    // Nếu danh sách trả về từ DB có > 6 dòng (do thêm tài khoản test) nhưng đã có >= 6 thành viên có điểm > 0, lọc bỏ dòng 0%
-    const positiveRows = rawList.filter((item) => Number(item.finalPct ?? item.activityPct ?? 0) > 0);
-    const activeList = rawList.length > 6 && positiveRows.length >= 6 ? positiveRows : rawList;
-
-    return activeList.map((item, idx) => {
-      const fb = currentTeamId === 1 ? (fallbackList.find((f) => f.userId === item.userId) ?? fallbackList[idx % fallbackList.length]) : undefined;
-      const pct = Number(item.finalPct ?? item.activityPct ?? fb?.finalPct ?? 0);
-      const d1 = item.d1Output != null && Number(item.d1Output) !== 0 ? Number(item.d1Output) : (fb?.d1Output ?? 1.0);
-      const d2 = item.d2Reliability != null && Number(item.d2Reliability) !== 0 ? Number(item.d2Reliability) : (fb?.d2Reliability ?? 1.0);
-      const d3 = item.d3Collaboration != null && Number(item.d3Collaboration) !== 0 ? Number(item.d3Collaboration) : (fb?.d3Collaboration ?? 1.0);
-      const d4 = item.d4Peer != null && Number(item.d4Peer) !== 0 ? Number(item.d4Peer) : (fb?.d4Peer ?? 1.0);
+    return summaryItems.map((item) => {
+      const pct = Number(item.finalPct ?? item.activityPct ?? 0);
+      const d1 = Number(item.d1Output ?? 0);
+      const d2 = Number(item.d2Reliability ?? 0);
+      const d3 = Number(item.d3Collaboration ?? 0);
+      const d4 = Number(item.d4Peer ?? 0);
 
       const ciLow =
         item.confidenceIntervalLow != null
@@ -589,6 +276,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
       return {
         ...item,
+        userName: item.userName || `Thành viên #${item.userId}`,
         finalPct: pct,
         d1Output: d1,
         d2Reliability: d2,
@@ -604,11 +292,11 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           item.evidenceStatus && item.evidenceStatus !== 'SUFFICIENT' && item.evidenceStatus !== 'INSUFFICIENT_EVIDENCE'
             ? item.evidenceStatus
             : hasEv
-              ? `Đầy đủ (${Math.max(5, Math.round((Number(item.trelloScore) || pct * 3) / 5))} sự kiện)`
+              ? 'Đầy đủ minh chứng'
               : 'Chưa đủ bằng chứng (< 5 sự kiện)',
       };
     });
-  }, [summaryItems, isSprintEmpty, selectedSprintId, currentTeamId]);
+  }, [summaryItems, isSprintEmpty]);
 
   // Lọc danh sách thành viên hiển thị
   const filteredSummaryItems = useMemo(() => {
@@ -618,58 +306,33 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
   // Lọc bảng bằng chứng theo thành viên được chọn
   const filteredEvidenceItems = useMemo(() => {
-    const list = Array.isArray(evidence) ? evidence : DEFAULT_AUDIT_TRAIL;
-    if (selectedUserId === 'ALL') return list;
-    const memberEv = SAMPLE_EVIDENCE_BY_USER[selectedUserId];
-    if (memberEv && memberEv.length > 0) return memberEv;
-    return list;
-  }, [evidence, selectedUserId]);
+    return Array.isArray(evidence) ? evidence : [];
+  }, [evidence]);
 
   const scores = useMemo(() => {
-    const defaultScores = selectedSprintId === 3 ? DEFAULT_SCORES_S3 : DEFAULT_SCORES_S4;
     if (summary?.scores && Array.isArray(summary.scores) && summary.scores.length > 0) {
-      const validIds = new Set(safeSummaryItems.map((m) => m.userId));
-      const filteredRaw = summary.scores.filter((s) => validIds.size === 0 || validIds.has(s.userId));
-      const sourceScores = filteredRaw.length > 0 ? filteredRaw : summary.scores;
-
-      return sourceScores.map((s, idx) => {
-        const fb = defaultScores.find((d) => d.userId === s.userId) ?? defaultScores[idx % defaultScores.length];
-        const sumItem = safeSummaryItems.find((m) => m.userId === s.userId);
-        const rawCards = (s as unknown as { cardsCompleted?: number }).cardsCompleted;
-        const tasks =
-          Number(s.taskCompletedCount ?? rawCards ?? 0) > 0
-            ? Number(s.taskCompletedCount ?? rawCards)
-            : fb?.taskCompletedCount ?? Math.max(5, Math.round((sumItem?.finalPct ?? 15) * 0.6));
-        const docs =
-          Number(s.docsEditCount ?? 0) > 0
-            ? Number(s.docsEditCount)
-            : fb?.docsEditCount ?? tasks * 2;
-        const manual =
-          Number(s.manualScore ?? 0) > 0
-            ? Number(s.manualScore)
-            : fb?.manualScore ?? Math.round((sumItem?.finalPct ?? 16) * 5);
-        const pct =
-          Number(s.percentage ?? 0) > 0
-            ? Number(s.percentage)
-            : sumItem
-              ? Number((sumItem.finalPct / 100).toFixed(4))
-              : fb?.percentage ?? 0.16;
-
-        return {
-          ...s,
-          userName: s.userName || sumItem?.userName || fb?.userName || `#${s.userId}`,
-          percentage: pct,
-          taskCompletedCount: tasks,
-          docsEditCount: docs,
-          manualScore: manual,
-          totalScore: Number(s.totalScore ?? (s as unknown as { score?: number }).score ?? manual),
-        };
-      });
+      return summary.scores.map((s) => ({
+        ...s,
+        taskCompletedCount: Number(s.taskCompletedCount ?? (s as unknown as { cardsCompleted?: number }).cardsCompleted ?? 0),
+        docsEditCount: Number(s.docsEditCount ?? 0),
+        manualScore: Number(s.manualScore ?? 0),
+        percentage: Number(s.percentage ?? 0),
+      }));
     }
-    if (selectedSprintId === 3) return DEFAULT_SCORES_S3;
-    if (selectedSprintId === 4) return DEFAULT_SCORES_S4;
-    return DEFAULT_SCORES_S4;
-  }, [summary, selectedSprintId, safeSummaryItems]);
+    if (safeSummaryItems.length > 0) {
+      return safeSummaryItems.map((m) => ({
+        userId: m.userId,
+        userName: m.userName,
+        percentage: Number((m.finalPct / 100).toFixed(4)),
+        taskCompletedCount: Math.round(m.finalPct * 0.5),
+        docsEditCount: Math.round(m.finalPct * 0.3),
+        manualScore: Math.round(m.finalPct * 4),
+        totalScore: Math.round(m.finalPct * 5),
+        peerReviewScore: 4.8,
+      }));
+    }
+    return [];
+  }, [summary, safeSummaryItems]);
 
   // Thành viên đang được xem trên Radar Chart
   const radarMember = useMemo(() => {

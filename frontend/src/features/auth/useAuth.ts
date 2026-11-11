@@ -116,14 +116,28 @@ export function useAuth() {
     }
   };
 
-  const handleDemoLogin = () => {
-    const demoUser: User = {
-      id: 1,
-      email: 'demo@st.ueh.edu.vn',
-      fullName: 'Thành viên Demo',
-    };
-    login('demo-jwt-token-guest', demoUser);
-    return demoUser;
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await authApi.login({
+        email: 'demo@fairshare.io',
+        password: 'Demo@12345',
+      });
+      login(res.data.accessToken, res.data.user);
+      return res.data.user;
+    } catch {
+      // Offline fallback
+      const demoUser: User = {
+        id: 1,
+        email: 'demo@fairshare.io',
+        fullName: 'Nguyễn Hoàng Nam (Trưởng nhóm Demo)',
+      };
+      login('demo-jwt-token-guest', demoUser);
+      return demoUser;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return {
