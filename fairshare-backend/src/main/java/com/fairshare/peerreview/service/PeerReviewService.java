@@ -1,6 +1,7 @@
 package com.fairshare.peerreview.service;
 
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.peerreview.dto.ReviewSubmissionDto;
 import com.fairshare.peerreview.entity.ReviewCriterion;
@@ -100,12 +101,20 @@ public class PeerReviewService {
 
     @Transactional
     public List<ReviewSubmission> submitReview(Long roundId, Long reviewerId, ReviewSubmissionDto dto) {
+        List<ReviewSubmissionDto.CriterionScore> effectiveScores = dto != null ? dto.getEffectiveScores() : null;
         if (reviewerId == null || dto == null || dto.getRevieweeId() == null
-                || dto.getScores() == null || dto.getScores().isEmpty()) {
+                || effectiveScores == null || effectiveScores.isEmpty()) {
             throw new BusinessException("Reviewer, reviewee, and criterion scores are required");
         }
 
         ReviewRound round = getRound(roundId);
+        if (round.getStatus() == ReviewRoundStatus.DRAFT
+                && round.getStartDate() != null
+                && round.getEndDate() != null
+                && !LocalDateTime.now().isBefore(round.getStartDate())
+                && !LocalDateTime.now().isAfter(round.getEndDate())) {
+            round.setStatus(ReviewRoundStatus.OPEN);
+        }
         if (round.getStatus() != ReviewRoundStatus.OPEN) {
             throw new BusinessException("Reviews can only be submitted to an open review round");
         }
@@ -121,12 +130,12 @@ public class PeerReviewService {
         Long teamId = round.getTeam().getId();
         if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, reviewerId)
                 || !teamMemberRepository.existsByTeamIdAndUserId(teamId, reviewee.getId())) {
-            throw new BusinessException("Reviewer and reviewee must belong to the review round team");
+            throw new ForbiddenException("Reviewer and reviewee must belong to the review round team");
         }
 
         Set<ReviewCriterion> criteria = new HashSet<>();
         List<ReviewSubmission> submissions = new ArrayList<>();
-        for (ReviewSubmissionDto.CriterionScore score : dto.getScores()) {
+        for (ReviewSubmissionDto.CriterionScore score : effectiveScores) {
             if (score == null || score.getCriterion() == null || score.getScore() == null
                     || score.getScore() < 1 || score.getScore() > 5) {
                 throw new BusinessException("Each criterion must have a score from 1 to 5");
@@ -158,6 +167,19 @@ public class PeerReviewService {
         ReviewRound round = reviewRoundRepository.findById(roundId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review round not found: " + roundId));
 
+        List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
+        return anonymityAggregator.aggregateForReviewee(revieweeId, submissions, round.getMinSubmissionsRequired());
+    }
+
+    @Transactional(readOnly = true)
+    public AnonymityAggregator.AggregatedResult getAggregatedResults(Long roundId, Long revieweeId, Long requesterId) {
+        ReviewRound round = reviewRoundRepository.findById(roundId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review round not found: " + roundId));
+        if (requesterId != null && round.getTeam() != null && round.getTeam().getId() != null) {
+            if (!teamMemberRepository.existsByTeamIdAndUserId(round.getTeam().getId(), requesterId)) {
+                throw new ForbiddenException("Bạn không thuộc nhóm của đợt chấm chéo này");
+            }
+        }
         List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
         return anonymityAggregator.aggregateForReviewee(revieweeId, submissions, round.getMinSubmissionsRequired());
     }

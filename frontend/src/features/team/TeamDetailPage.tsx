@@ -19,6 +19,7 @@ import {
 import { MemberTable } from './MemberTable';
 import { ConsentDialog } from './ConsentDialog';
 import { teamApi } from '../../api/team.api';
+import { peerReviewApi } from '../../api/peerReview.api';
 import { useAuthStore } from '../../store/authStore';
 import type { Team, Role } from '../../types/team';
 
@@ -154,23 +155,28 @@ const SPRINTS_TIMELINE = [
 
 export const TeamDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [team, setTeam] = useState<Team | null>(DEFAULT_TEAM_DATA);
+  const isTeamOne = !id || id === '1';
+  const [team, setTeam] = useState<Team | null>(isTeamOne ? DEFAULT_TEAM_DATA : null);
   const [activeTab, setActiveTab] = useState<'members' | 'sprints' | 'consent'>('members');
   const [isConsentOpen, setIsConsentOpen] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [teamSprints, setTeamSprints] = useState(isTeamOne ? SPRINTS_TIMELINE : []);
 
   useEffect(() => {
     let isMounted = true;
     const fetchTeam = async () => {
       try {
-        const res = await teamApi.getTeamById(Number(id) || 1);
-        if (isMounted && res && res.data && res.data.members && res.data.members.length > 0) {
+        const teamIdNum = Number(id) || 1;
+        const res = await teamApi.getTeamById(teamIdNum);
+        if (isMounted && res?.data) {
           setTeam(res.data);
         }
       } catch {
-        // Fallback to DEFAULT_TEAM_DATA already set
+        if (isTeamOne) {
+          setTeam(DEFAULT_TEAM_DATA);
+        }
       }
     };
 
@@ -178,6 +184,41 @@ export const TeamDetailPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
+  }, [id, isTeamOne]);
+
+  useEffect(() => {
+    const teamIdNum = Number(id) || 1;
+    if (teamIdNum === 1) {
+      setTeamSprints(SPRINTS_TIMELINE);
+      return;
+    }
+    peerReviewApi.getSprints(teamIdNum).then((res) => {
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setTeamSprints(res.data.map((sp, idx) => ({
+          num: idx + 1,
+          title: sp.name || `Sprint ${idx + 1}`,
+          period: sp.startDate && sp.endDate ? `${sp.startDate} - ${sp.endDate}` : '14 ngày',
+          status: sp.status === 'ACTIVE' ? 'ACTIVE' : sp.status === 'CLOSED' ? 'DONE' : 'UPCOMING',
+          focusTask: 'Thực hiện và phân chia các công việc trên Kanban Board',
+        })));
+      } else {
+        setTeamSprints([{
+          num: 1,
+          title: 'Sprint 1',
+          period: '14 ngày',
+          status: 'ACTIVE',
+          focusTask: 'Khởi tạo đồ án và phân chia công việc nhóm',
+        }]);
+      }
+    }).catch(() => {
+      setTeamSprints([{
+        num: 1,
+        title: 'Sprint 1',
+        period: '14 ngày',
+        status: 'ACTIVE',
+        focusTask: 'Khởi tạo đồ án và phân chia công việc nhóm',
+      }]);
+    });
   }, [id]);
 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -500,7 +541,7 @@ export const TeamDetailPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {SPRINTS_TIMELINE.map((sp) => {
+            {teamSprints.map((sp) => {
               const isDone = sp.status === 'DONE';
               const isActive = sp.status === 'ACTIVE';
 

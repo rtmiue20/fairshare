@@ -16,11 +16,12 @@ export interface ContributionTimelineProps {
 }
 
 export const ContributionTimeline: React.FC<ContributionTimelineProps> = ({ data }) => {
-  const chartData = data.map((d) => ({
-    name: d.userName,
-    'Task Trello': d.taskCompletedCount,
-    'Chỉnh sửa Docs': d.docsEditCount,
-    'Điểm thủ công': d.manualScore,
+  const safeData = Array.isArray(data) ? data : [];
+  const chartData = safeData.map((d) => ({
+    name: (d.userName || `#${d.userId}`).replace(/\s*\(.*?\)\s*/g, ''),
+    'Task Board': Number(d.taskCompletedCount ?? 0),
+    'Chỉnh sửa Docs': Number(d.docsEditCount ?? 0),
+    'Điểm thủ công': Number(d.manualScore ?? 0),
   }));
 
   return (
@@ -48,7 +49,7 @@ export const ContributionTimeline: React.FC<ContributionTimelineProps> = ({ data
             }}
           />
           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: 'var(--fg2)' }} />
-          <Bar dataKey="Task Trello" fill="var(--m1)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="Task Board" fill="var(--m1)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
           <Bar dataKey="Chỉnh sửa Docs" fill="var(--ok)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
           <Bar dataKey="Điểm thủ công" fill="var(--m3)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>

@@ -6,7 +6,7 @@ spring:
     # (Docker/server) có thể cấp mật khẩu qua biến môi trường SPRING_DATASOURCE_PASSWORD.
     import: optional:classpath:application-secret.yaml
   datasource:
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:fairshare}
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:fairshare}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8mb4
     username: ${DB_USER:root}
     # password: lấy từ application-secret.yaml
     driver-class-name: org.mariadb.jdbc.Driver

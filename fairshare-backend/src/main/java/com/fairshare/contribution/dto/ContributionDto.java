@@ -21,6 +21,10 @@ public class ContributionDto {
     private BigDecimal score;
     private BigDecimal percentage;
     private Integer cardsCompleted;
+    private Integer taskCompletedCount;
+    private Integer docsEditCount;
+    private BigDecimal manualScore;
+    private BigDecimal totalScore;
     private Double totalStoryPoints;
     private Double onTimeRate;
 

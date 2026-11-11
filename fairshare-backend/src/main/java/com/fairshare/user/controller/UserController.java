@@ -24,6 +24,18 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Thông tin người dùng hiện tại", userDto));
     }
 
+    @PutMapping("/me")
+    public ResponseEntity<ApiResponse<UserDto>> updateCurrentUser(
+            @RequestBody UserDto request,
+            Authentication authentication
+    ) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("USER_UNAUTHENTICATED", "Chưa đăng nhập"));
+        }
+        UserDto updated = userService.updateProfile(authentication.getName(), request.getFullName());
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật hồ sơ thành công", updated));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable Long id) {
         UserDto userDto = userService.getById(id);

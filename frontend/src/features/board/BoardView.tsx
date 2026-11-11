@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   Kanban,
   Plus,
@@ -30,6 +30,8 @@ import {
 import { boardApi } from '../../api/board.api';
 import { teamApi } from '../../api/team.api';
 import { useAuthStore } from '../../store/authStore';
+import { useProjectStore } from '../../store/projectStore';
+import { NoProjectState } from '../team/NoProjectState';
 import type { Board, BoardColumn, Card } from '../../types/board';
 import type { Team } from '../../types/team';
 
@@ -169,7 +171,17 @@ const DEFAULT_BOARD: Board = {
 
 export const BoardView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const teamId = Number(id) || 1;
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const pathMatch = location.pathname.match(/\/teams\/(\d+)/);
+  const routeTeamId = Number(id) || (pathMatch ? Number(pathMatch[1]) : 0);
+  const queryTeamId = Number(searchParams.get('teamId'));
+  const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
+  const teamId = routeTeamId > 0 ? routeTeamId : (queryTeamId > 0 ? queryTeamId : (activeTeamId || (teams[0]?.id ?? 1)));
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
 
   const [board, setBoard] = useState<Board>(DEFAULT_BOARD);
   const [team, setTeam] = useState<Team | null>(null);
@@ -659,6 +671,10 @@ export const BoardView: React.FC = () => {
       ...col,
       cards: [...col.cards].sort((a, b) => a.position - b.position),
     }));
+
+  if (initialized && teams.length === 0 && routeTeamId === 0 && queryTeamId === 0) {
+    return <NoProjectState />;
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">

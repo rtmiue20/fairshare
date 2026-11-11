@@ -36,6 +36,20 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + normalizedEmail)));
     }
 
+    @Transactional
+    public UserDto updateProfile(String email, String fullName) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Email is required");
+        }
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + normalizedEmail));
+        if (fullName != null && !fullName.trim().isEmpty()) {
+            user.setFullName(fullName.trim());
+        }
+        return toDto(userRepository.save(user));
+    }
+
     private UserDto toDto(User user) {
         return UserDto.builder()
                 .id(user.getId())

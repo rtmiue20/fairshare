@@ -93,8 +93,8 @@ class AuthApiTest {
     }
 
     @Nested
-    @Disabled("Chờ module auth (AuthController/AuthService/JwtService/SecurityConfig) được hiện thực – xem DEF-01")
     @DisplayName("Hợp đồng API /api/auth (acceptance test cho module auth)")
+    @EnabledIf("com.fairshare.auth.AuthApiTest#isDockerAvailable")
     class AuthContract {
 
         @Test

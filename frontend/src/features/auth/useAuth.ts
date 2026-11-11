@@ -7,9 +7,24 @@ import { User } from '../../types/team';
 function extractErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
     const serverMsg = (err.response?.data as { message?: string } | undefined)?.message;
-    if (serverMsg) return serverMsg;
+    if (serverMsg) {
+      if (serverMsg === 'Invalid email or password') {
+        return 'Email hoặc mật khẩu không chính xác.';
+      }
+      if (serverMsg.startsWith('Email already registered')) {
+        return 'Email này đã được đăng ký trong hệ thống.';
+      }
+      if (serverMsg === 'Validation failed') {
+        const fieldErrors = (err.response?.data as { data?: Record<string, string> } | undefined)?.data;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          return Object.values(fieldErrors).join('. ');
+        }
+      }
+      return serverMsg;
+    }
     if (err.response?.status === 401) return 'Email hoặc mật khẩu không chính xác.';
     if (err.response?.status === 409) return 'Email này đã được đăng ký trong hệ thống.';
+    if (err.response?.status === 400) return 'Dữ liệu nhập vào không hợp lệ. Vui lòng kiểm tra lại.';
   }
   if (err instanceof Error && err.message) {
     return err.message;
@@ -19,12 +34,18 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 
 function isBackendUnreachable(err: unknown): boolean {
   if (!axios.isAxiosError(err)) return false;
+  const isProxyConnectionError =
+    err.response?.status === 500 &&
+    (!err.response.data ||
+      typeof err.response.data !== 'object' ||
+      !('message' in (err.response.data as Record<string, unknown>)));
   return (
     !err.response ||
     err.code === 'ERR_NETWORK' ||
     err.response.status === 502 ||
     err.response.status === 503 ||
-    err.response.status === 504
+    err.response.status === 504 ||
+    isProxyConnectionError
   );
 }
 
