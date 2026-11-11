@@ -26,7 +26,7 @@ public class BoardController {
     public ResponseEntity<ApiResponse<BoardDto>> createBoard(
             @Valid @RequestBody CreateBoardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         BoardDto created = boardService.createBoard(request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Board created successfully", created));
@@ -49,7 +49,7 @@ public class BoardController {
             @PathVariable Long id,
             @RequestBody CreateBoardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         BoardDto updated = boardService.updateBoard(id, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Board updated successfully", updated));
     }
@@ -58,7 +58,7 @@ public class BoardController {
     public ResponseEntity<ApiResponse<Void>> deleteBoard(
             @PathVariable Long id,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.deleteBoard(id, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Board deleted successfully", null));
     }
@@ -68,7 +68,7 @@ public class BoardController {
             @PathVariable Long boardId,
             @Valid @RequestBody CreateColumnRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         BoardColumnDto created = boardService.createColumn(boardId, request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Column created successfully", created));
@@ -79,7 +79,7 @@ public class BoardController {
             @PathVariable Long columnId,
             @RequestBody CreateColumnRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         BoardColumnDto updated = boardService.updateColumn(columnId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Column updated successfully", updated));
     }
@@ -88,7 +88,7 @@ public class BoardController {
     public ResponseEntity<ApiResponse<Void>> deleteColumn(
             @PathVariable Long columnId,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.deleteColumn(columnId, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Column deleted successfully", null));
     }
@@ -98,7 +98,7 @@ public class BoardController {
             @PathVariable Long columnId,
             @Valid @RequestBody CreateCardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto created = boardService.createCard(columnId, request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Card created successfully", created));
@@ -115,7 +115,7 @@ public class BoardController {
             @PathVariable Long cardId,
             @RequestBody UpdateCardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card updated successfully", updated));
     }
@@ -125,7 +125,7 @@ public class BoardController {
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateAssigneeRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateAssignee(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card assignee updated successfully", updated));
     }
@@ -135,7 +135,7 @@ public class BoardController {
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateStoryPointsRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateStoryPoints(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card story points updated successfully", updated));
     }
@@ -145,7 +145,7 @@ public class BoardController {
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateDueDateRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateDueDate(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card due date updated successfully", updated));
     }
@@ -154,7 +154,7 @@ public class BoardController {
     public ResponseEntity<ApiResponse<Void>> deleteCard(
             @PathVariable Long cardId,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.deleteCard(cardId, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card deleted successfully", null));
     }
@@ -164,7 +164,7 @@ public class BoardController {
             @PathVariable Long cardId,
             @Valid @RequestBody MoveCardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto moved = boardService.moveCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card moved successfully", moved));
     }
@@ -174,7 +174,7 @@ public class BoardController {
             @PathVariable Long cardId,
             @Valid @RequestBody AddCardCommentRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.addCardComment(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Bình luận thành công", null));
     }
@@ -184,9 +184,17 @@ public class BoardController {
             @PathVariable Long cardId,
             @Valid @RequestBody CompleteChecklistItemRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.completeChecklistItem(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Đã đánh dấu hoàn thành việc cần làm", null));
+    }
+
+    private Long getRequiredUserId(Authentication authentication) {
+        Long userId = getUserId(authentication);
+        if (userId == null) {
+            throw new com.fairshare.common.exception.ForbiddenException("Bạn không có quyền thực hiện thao tác này");
+        }
+        return userId;
     }
 
     private Long getUserId(Authentication authentication) {

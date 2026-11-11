@@ -30,7 +30,7 @@ public class CardController {
             @PathVariable Long cardId,
             @RequestBody UpdateCardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card updated successfully", updated));
     }
@@ -39,7 +39,7 @@ public class CardController {
     public ResponseEntity<ApiResponse<Void>> deleteCard(
             @PathVariable Long cardId,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.deleteCard(cardId, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card deleted successfully", null));
     }
@@ -49,7 +49,7 @@ public class CardController {
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateAssigneeRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateAssignee(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card assignee updated successfully", updated));
     }
@@ -59,7 +59,7 @@ public class CardController {
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateStoryPointsRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateStoryPoints(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card story points updated successfully", updated));
     }
@@ -69,7 +69,7 @@ public class CardController {
             @PathVariable Long cardId,
             @Valid @RequestBody UpdateDueDateRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto updated = boardService.updateDueDate(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card due date updated successfully", updated));
     }
@@ -79,7 +79,7 @@ public class CardController {
             @PathVariable Long cardId,
             @Valid @RequestBody MoveCardRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         CardDto moved = boardService.moveCard(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Card moved successfully", moved));
     }
@@ -89,7 +89,7 @@ public class CardController {
             @PathVariable Long cardId,
             @Valid @RequestBody AddCardCommentRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.addCardComment(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Bình luận thành công", null));
     }
@@ -99,9 +99,17 @@ public class CardController {
             @PathVariable Long cardId,
             @Valid @RequestBody CompleteChecklistItemRequest request,
             Authentication authentication) {
-        Long actorId = getUserId(authentication);
+        Long actorId = getRequiredUserId(authentication);
         boardService.completeChecklistItem(cardId, request, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Đã đánh dấu hoàn thành việc cần làm", null));
+    }
+
+    private Long getRequiredUserId(Authentication authentication) {
+        Long userId = getUserId(authentication);
+        if (userId == null) {
+            throw new com.fairshare.common.exception.ForbiddenException("Bạn không có quyền thực hiện thao tác này");
+        }
+        return userId;
     }
 
     private Long getUserId(Authentication authentication) {
