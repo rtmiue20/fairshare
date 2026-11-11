@@ -19,6 +19,8 @@ import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -71,6 +73,8 @@ public class PdfReportServiceTest {
 
     @BeforeEach
     void setUp() {
+        pdfReportService.initFonts();
+
         mockTeam = new Team();
         mockTeam.setId(1L);
         mockTeam.setName("Nhom 07 - FairShare");
@@ -221,5 +225,73 @@ public class PdfReportServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> pdfReportService.generateSprintReportPdf(1L, 10L, 999L));
         assertTrue(ex.getMessage().contains("Bạn không phải là thành viên của nhóm này"));
+    }
+
+    @Test
+    @DisplayName("DEF-21 (PDF-05): Tên tiếng Việt có đầy đủ dấu hiển thị và trích xuất đúng trong PDF")
+    void testGenerateSprintReportPdf_VietnameseDiacritics_Success() throws Exception {
+        // Arrange
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
+        when(sprintRepository.findById(10L)).thenReturn(Optional.of(mockSprint));
+
+        List<String> vnNames = List.of(
+                "Nguyễn Văn Ánh (Leader)",
+                "Trần Thị Bích",
+                "Lê Hoàng Cường",
+                "Phạm Đức Dũng",
+                "Võ Thị Én",
+                "Đặng Quốc Phú"
+        );
+
+        List<TeamMember> members = new java.util.ArrayList<>();
+        for (int i = 0; i < vnNames.size(); i++) {
+            User u = new User();
+            u.setId((long) (100 + i));
+            u.setFullName(vnNames.get(i));
+            u.setEmail("member" + i + "@fairshare.local");
+
+            TeamMember tm = new TeamMember();
+            tm.setUser(u);
+            tm.setTeam(mockTeam);
+            tm.setRole(i == 0 ? MemberRole.LEADER : MemberRole.MEMBER);
+            members.add(tm);
+        }
+
+        when(teamMemberRepository.findByTeamId(1L)).thenReturn(members);
+        when(contributionService.getContributionSummary(1L, 10L)).thenReturn(Collections.emptyList());
+        when(reviewRoundRepository.findBySprintId(10L)).thenReturn(Collections.emptyList());
+        when(activityEventRepository.findBySprintId(10L)).thenReturn(Collections.emptyList());
+
+        // Act
+        byte[] pdfBytes = pdfReportService.generateSprintReportPdf(1L, 10L);
+
+        // Assert text contains all 6 Vietnamese names with diacritics
+        assertNotNull(pdfBytes);
+        PdfReader reader = new PdfReader(pdfBytes);
+        PdfTextExtractor extractor = new PdfTextExtractor(reader);
+        String fullText = extractor.getTextFromPage(1);
+
+        for (String vnName : vnNames) {
+            assertTrue(fullText.contains(vnName), "Chưa hiển thị đúng tên tiếng Việt: " + vnName);
+        }
+    }
+
+    @Test
+    @DisplayName("DEF-26 (PDF-08): Ghép team 1 với sprint của nhóm khác -> Ném ResourceNotFoundException (404)")
+    void testGenerateSprintReportPdf_SprintBelongsToOtherTeam_ThrowsNotFound() {
+        Team otherTeam = new Team();
+        otherTeam.setId(2L);
+        otherTeam.setName("Team 2");
+
+        Sprint otherSprint = new Sprint();
+        otherSprint.setId(99L);
+        otherSprint.setName("Sprint Team 2");
+        otherSprint.setTeam(otherTeam);
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
+        when(sprintRepository.findById(99L)).thenReturn(Optional.of(otherSprint));
+
+        assertThrows(com.fairshare.common.exception.ResourceNotFoundException.class,
+                () -> pdfReportService.generateSprintReportPdf(1L, 99L));
     }
 }
