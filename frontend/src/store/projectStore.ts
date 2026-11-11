@@ -54,7 +54,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         initialized: true,
       });
       return list;
-    } catch (err) {
+    } catch {
       set({ loading: false, initialized: true });
       return [];
     }
