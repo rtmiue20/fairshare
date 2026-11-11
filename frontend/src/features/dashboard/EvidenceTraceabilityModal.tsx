@@ -46,8 +46,8 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
   if (!isOpen) return null;
 
   // Tính toán nhanh tổng Story Points và tổng điểm thực nhận
-  const totalSP = evidenceData.reduce((acc, item) => acc + (item.storyPoints || 0), 0);
-  const totalEarnedScore = evidenceData.reduce((acc, item) => acc + (item.earnedScore || 0), 0);
+  const totalSP = evidenceData.reduce((acc, item) => acc + Number(item.storyPoints || 0), 0);
+  const totalEarnedScore = evidenceData.reduce((acc, item) => acc + Number(item.earnedScore || 0), 0);
 
   return (
     <div
@@ -93,10 +93,10 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
           </div>
 
           <div className="flex items-center gap-3">
-            {typeof finalPct === 'number' && (
+            {finalPct != null && (
               <div className="hidden sm:flex flex-col items-end">
                 <span className="text-[10px] uppercase font-semibold text-slate-400">Tỷ lệ đóng góp</span>
-                <span className="text-sm font-extrabold text-sky-400">{finalPct.toFixed(1)}%</span>
+                <span className="text-sm font-extrabold text-sky-400">{Number(finalPct).toFixed(1)}%</span>
               </div>
             )}
             <button

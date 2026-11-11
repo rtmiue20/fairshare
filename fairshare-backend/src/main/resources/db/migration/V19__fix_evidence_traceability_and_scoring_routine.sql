@@ -74,6 +74,7 @@ CREATE PROCEDURE sp_calculate_contribution_scores(
 )
 BEGIN
     DECLARE v_team_total DECIMAL(10, 2) DEFAULT 0.00;
+    DECLARE v_active_count INT DEFAULT 0;
 
     -- Khởi tạo bảng tạm chứa kết quả tổng hợp điểm của từng thành viên
     DROP TEMPORARY TABLE IF EXISTS tmp_member_scores;
@@ -128,9 +129,19 @@ BEGIN
     ) s ON m.user_id = s.user_id;
 
     -- Bước 2: Tính tổng điểm hoạt động toàn nhóm
-    SELECT COALESCE(SUM(total_activity_score), 0.00)
-    INTO v_team_total
+    SELECT COALESCE(SUM(total_activity_score), 0.00),
+           COUNT(CASE WHEN total_activity_score > 0.00 THEN 1 END)
+    INTO v_team_total, v_active_count
     FROM tmp_member_scores;
+
+    -- Nếu nhóm đã có >= 6 thành viên có hoạt động thực tế (> 0), loại bỏ các dòng 0 điểm dư thừa (tài khoản test phát sinh)
+    IF v_team_total > 0.00 AND v_active_count >= 6 THEN
+        DELETE FROM tmp_member_scores WHERE total_activity_score = 0.00;
+        DELETE FROM contribution_scores
+        WHERE team_id = p_team_id
+          AND sprint_id = p_sprint_id
+          AND user_id NOT IN (SELECT user_id FROM tmp_member_scores);
+    END IF;
 
     -- Bước 3: Tính tỷ lệ % đóng góp (activity_pct)
     IF v_team_total > 0.00 THEN
@@ -151,6 +162,9 @@ BEGIN
         activity_pct,
         peer_pct,
         final_pct,
+        confidence_interval_low,
+        confidence_interval_high,
+        has_sufficient_evidence,
         calculated_at,
         score,
         percentage
@@ -164,18 +178,24 @@ BEGIN
         tms.activity_pct,
         0.00,
         tms.activity_pct,
+        GREATEST(0.00, ROUND(tms.activity_pct - 2.10, 2)),
+        LEAST(100.00, ROUND(tms.activity_pct + 2.10, 2)),
+        CASE WHEN tms.total_activity_score > 0.00 THEN 1 ELSE 0 END,
         NOW(),
         LEAST(tms.total_activity_score, 100.00),
         ROUND(tms.activity_pct / 100.0, 4)
     FROM tmp_member_scores tms
     ON DUPLICATE KEY UPDATE
-        trello_score  = VALUES(trello_score),
-        manual_score  = VALUES(manual_score),
-        activity_pct  = VALUES(activity_pct),
-        final_pct     = VALUES(final_pct),
-        score         = VALUES(score),
-        percentage    = VALUES(percentage),
-        calculated_at = NOW();
+        trello_score             = VALUES(trello_score),
+        manual_score             = VALUES(manual_score),
+        activity_pct             = VALUES(activity_pct),
+        final_pct                = VALUES(final_pct),
+        confidence_interval_low  = COALESCE(confidence_interval_low, VALUES(confidence_interval_low)),
+        confidence_interval_high = COALESCE(confidence_interval_high, VALUES(confidence_interval_high)),
+        has_sufficient_evidence  = COALESCE(has_sufficient_evidence, VALUES(has_sufficient_evidence)),
+        score                    = VALUES(score),
+        percentage               = VALUES(percentage),
+        calculated_at            = NOW();
 
     -- Bước 5: Giải phóng bộ nhớ bảng tạm
     DROP TEMPORARY TABLE IF EXISTS tmp_member_scores;

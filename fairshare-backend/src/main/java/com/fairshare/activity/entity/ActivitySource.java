@@ -4,5 +4,8 @@ public enum ActivitySource {
     TRELLO,
     GOOGLE_DOCS,
     MANUAL,
-    BOARD
+    BOARD,
+    GIT,
+    GITHUB,
+    PEER_REVIEW
 }

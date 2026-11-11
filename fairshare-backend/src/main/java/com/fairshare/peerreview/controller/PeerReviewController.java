@@ -86,9 +86,13 @@ public class PeerReviewController {
     @GetMapping("/{roundId}/results/{revieweeId}")
     public ResponseEntity<ApiResponse<AnonymityAggregator.AggregatedResult>> getResults(
             @PathVariable Long roundId,
-            @PathVariable Long revieweeId
+            @PathVariable Long revieweeId,
+            Authentication authentication
     ) {
-        AnonymityAggregator.AggregatedResult result = peerReviewService.getAggregatedResults(roundId, revieweeId);
+        Long requesterId = authentication != null && authentication.getName() != null
+                ? getUserId(authentication)
+                : null;
+        AnonymityAggregator.AggregatedResult result = peerReviewService.getAggregatedResults(roundId, revieweeId, requesterId);
         return ResponseEntity.ok(ApiResponse.ok("Kết quả đánh giá tổng hợp ẩn danh", result));
     }
 

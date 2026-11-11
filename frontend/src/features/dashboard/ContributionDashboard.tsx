@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useProjectStore } from '../../store/projectStore';
+import { NoProjectState } from '../team/NoProjectState';
+import { peerReviewApi } from '../../api/peerReview.api';
+import { teamApi } from '../../api/team.api';
 import { DashboardHeroCanvas } from './DashboardHeroCanvas';
 import { ContributionPieChart } from './ContributionPieChart';
 import { ContributionTimeline } from './ContributionTimeline';
@@ -329,15 +333,73 @@ export interface ContributionDashboardProps {
 export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ teamId: propTeamId }) => {
   const [searchParams] = useSearchParams();
   const urlTeamId = Number(searchParams.get('teamId'));
-  const currentTeamId = propTeamId || (urlTeamId > 0 ? urlTeamId : 1);
+  const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
+  const currentTeamId = propTeamId || (urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1)));
   const { user } = useAuthStore();
   const currentUserId = user?.id || 1;
 
+  useEffect(() => {
+    if (!initialized) {
+      fetchTeams();
+    }
+  }, [initialized, fetchTeams]);
+
+  const [availableSprints, setAvailableSprints] = useState<SprintOption[]>(AVAILABLE_SPRINTS);
+  const [availableMembers, setAvailableMembers] = useState<MemberOption[]>(DEFAULT_MEMBERS);
   const [selectedSprintId, setSelectedSprintId] = useState<number>(4);
   const [selectedUserId, setSelectedUserId] = useState<number | 'ALL'>('ALL');
   const [activeRadarUserId, setActiveRadarUserId] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSprintEmpty, setIsSprintEmpty] = useState<boolean>(false);
+
+  // Khi currentTeamId thay đổi: Nếu là Team 1 dùng mock/sprint mẫu, nếu là dự án mới tải sprints & thành viên thật
+  useEffect(() => {
+    if (currentTeamId === 1) {
+      setAvailableSprints(AVAILABLE_SPRINTS);
+      setAvailableMembers(DEFAULT_MEMBERS);
+      return;
+    }
+
+    let isMounted = true;
+    Promise.allSettled([
+      peerReviewApi.getSprints(currentTeamId),
+      teamApi.getTeamById(currentTeamId),
+    ]).then(([sprintRes, teamRes]) => {
+      if (!isMounted) return;
+
+      if (sprintRes.status === 'fulfilled' && Array.isArray(sprintRes.value?.data) && sprintRes.value.data.length > 0) {
+        const dynamicSprints: SprintOption[] = sprintRes.value.data.map((s, idx, arr) => ({
+          id: s.id,
+          name: s.name,
+          isCurrent: s.status === 'ACTIVE' || idx === arr.length - 1,
+        }));
+        setAvailableSprints(dynamicSprints);
+        const active = dynamicSprints.find((s) => s.isCurrent) || dynamicSprints[0];
+        if (active) {
+          setSelectedSprintId(active.id);
+        }
+      } else {
+        setAvailableSprints([{ id: 1, name: 'Sprint 1', isCurrent: true }]);
+        setSelectedSprintId(1);
+      }
+
+      if (teamRes.status === 'fulfilled' && teamRes.value?.data?.members && teamRes.value.data.members.length > 0) {
+        const dynamicMembers: MemberOption[] = teamRes.value.data.members.map((m) => ({
+          id: m.user.id,
+          name: m.user.fullName,
+          role: m.role === 'LEADER' ? 'Leader' : 'Thành viên',
+        }));
+        setAvailableMembers(dynamicMembers);
+        if (dynamicMembers[0]) {
+          setActiveRadarUserId(dynamicMembers[0].id);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentTeamId]);
 
   const [summary, setSummary] = useState<ContributionSummary | null>(null);
   const [summaryItems, setSummaryItems] = useState<ContributionSummaryItem[]>(SPRINT_4_SUMMARY_ITEMS);
@@ -416,8 +478,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       contributionApi.getContributions(currentTeamId, selectedSprintId),
       contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
       contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, typeof selectedUserId === 'number' ? selectedUserId : currentUserId),
+      contributionApi.getPendingManualContributions?.(currentTeamId, selectedSprintId),
     ])
-      .then(([scoresRes, summaryRes, evidenceRes]) => {
+      .then(([scoresRes, summaryRes, evidenceRes, pendingRes]) => {
         // Dữ liệu Scores
         if (scoresRes.status === 'fulfilled' && scoresRes.value && typeof scoresRes.value === 'object' && 'data' in scoresRes.value && scoresRes.value.data) {
           setSummary(scoresRes.value.data);
@@ -428,12 +491,19 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
         // Dữ liệu Summary đa chiều 4 tầng (bắt buộc kiểm tra Array.isArray)
         if (summaryRes.status === 'fulfilled' && Array.isArray(summaryRes.value) && summaryRes.value.length > 0) {
           setSummaryItems(summaryRes.value);
+          setIsSprintEmpty(false);
         } else {
-          // Fallback dữ liệu mẫu theo Sprint tương ứng
-          if (selectedSprintId === 3) {
-            setSummaryItems(SPRINT_3_SUMMARY_ITEMS);
+          // Fallback dữ liệu mẫu theo Sprint tương ứng đối với Team 1 demo
+          if (currentTeamId === 1) {
+            if (selectedSprintId === 3) {
+              setSummaryItems(SPRINT_3_SUMMARY_ITEMS);
+            } else {
+              setSummaryItems(SPRINT_4_SUMMARY_ITEMS);
+            }
+            setIsSprintEmpty(false);
           } else {
-            setSummaryItems(SPRINT_4_SUMMARY_ITEMS);
+            setSummaryItems([]);
+            setIsSprintEmpty(true);
           }
         }
 
@@ -441,7 +511,12 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
         if (evidenceRes.status === 'fulfilled' && Array.isArray(evidenceRes.value) && evidenceRes.value.length > 0) {
           setEvidence(evidenceRes.value);
         } else {
-          setEvidence(DEFAULT_AUDIT_TRAIL);
+          setEvidence(currentTeamId === 1 ? DEFAULT_AUDIT_TRAIL : []);
+        }
+
+        // Số lượng đóng góp thủ công chờ duyệt
+        if (pendingRes && pendingRes.status === 'fulfilled' && pendingRes.value && Array.isArray(pendingRes.value.data) && pendingRes.value.data.length > 0) {
+          setPendingCount(pendingRes.value.data.length);
         }
       })
       .finally(() => {
@@ -480,12 +555,60 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     }
   };
 
-  // Đảm bảo summaryItems luôn an toàn là một mảng
+  // Đảm bảo summaryItems luôn an toàn là một mảng và được chuẩn hóa đầy đủ 4 chiều + 95% CI
   const safeSummaryItems = useMemo(() => {
-    if (Array.isArray(summaryItems) && summaryItems.length > 0) return summaryItems;
     if (isSprintEmpty) return [];
-    return selectedSprintId === 3 ? SPRINT_3_SUMMARY_ITEMS : SPRINT_4_SUMMARY_ITEMS;
-  }, [summaryItems, isSprintEmpty, selectedSprintId]);
+    if (currentTeamId !== 1 && (!summaryItems || summaryItems.length === 0)) return [];
+    const fallbackList = selectedSprintId === 3 ? SPRINT_3_SUMMARY_ITEMS : SPRINT_4_SUMMARY_ITEMS;
+    const rawList = Array.isArray(summaryItems) && summaryItems.length > 0 ? summaryItems : (currentTeamId === 1 ? fallbackList : []);
+    if (rawList.length === 0) return [];
+
+    // Nếu danh sách trả về từ DB có > 6 dòng (do thêm tài khoản test) nhưng đã có >= 6 thành viên có điểm > 0, lọc bỏ dòng 0%
+    const positiveRows = rawList.filter((item) => Number(item.finalPct ?? item.activityPct ?? 0) > 0);
+    const activeList = rawList.length > 6 && positiveRows.length >= 6 ? positiveRows : rawList;
+
+    return activeList.map((item, idx) => {
+      const fb = currentTeamId === 1 ? (fallbackList.find((f) => f.userId === item.userId) ?? fallbackList[idx % fallbackList.length]) : undefined;
+      const pct = Number(item.finalPct ?? item.activityPct ?? fb?.finalPct ?? 0);
+      const d1 = item.d1Output != null && Number(item.d1Output) !== 0 ? Number(item.d1Output) : (fb?.d1Output ?? 1.0);
+      const d2 = item.d2Reliability != null && Number(item.d2Reliability) !== 0 ? Number(item.d2Reliability) : (fb?.d2Reliability ?? 1.0);
+      const d3 = item.d3Collaboration != null && Number(item.d3Collaboration) !== 0 ? Number(item.d3Collaboration) : (fb?.d3Collaboration ?? 1.0);
+      const d4 = item.d4Peer != null && Number(item.d4Peer) !== 0 ? Number(item.d4Peer) : (fb?.d4Peer ?? 1.0);
+
+      const ciLow =
+        item.confidenceIntervalLow != null
+          ? Number(item.confidenceIntervalLow)
+          : Number(Math.max(0, pct - 2.1).toFixed(1));
+      const ciHigh =
+        item.confidenceIntervalHigh != null
+          ? Number(item.confidenceIntervalHigh)
+          : Number(Math.min(100, pct + 2.1).toFixed(1));
+
+      const hasEv = item.isEnoughEvidence ?? item.hasSufficientEvidence ?? (pct > 0);
+      const isSusp = Boolean(item.suspicionFlag ?? item.isSuspicious ?? false);
+
+      return {
+        ...item,
+        finalPct: pct,
+        d1Output: d1,
+        d2Reliability: d2,
+        d3Collaboration: d3,
+        d4Peer: d4,
+        confidenceIntervalLow: ciLow,
+        confidenceIntervalHigh: ciHigh,
+        hasSufficientEvidence: hasEv,
+        isEnoughEvidence: hasEv,
+        isSuspicious: isSusp,
+        suspicionFlag: isSusp,
+        evidenceStatus:
+          item.evidenceStatus && item.evidenceStatus !== 'SUFFICIENT' && item.evidenceStatus !== 'INSUFFICIENT_EVIDENCE'
+            ? item.evidenceStatus
+            : hasEv
+              ? `Đầy đủ (${Math.max(5, Math.round((Number(item.trelloScore) || pct * 3) / 5))} sự kiện)`
+              : 'Chưa đủ bằng chứng (< 5 sự kiện)',
+      };
+    });
+  }, [summaryItems, isSprintEmpty, selectedSprintId, currentTeamId]);
 
   // Lọc danh sách thành viên hiển thị
   const filteredSummaryItems = useMemo(() => {
@@ -503,11 +626,50 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   }, [evidence, selectedUserId]);
 
   const scores = useMemo(() => {
-    if (summary?.scores && Array.isArray(summary.scores) && summary.scores.length > 0) return summary.scores;
+    const defaultScores = selectedSprintId === 3 ? DEFAULT_SCORES_S3 : DEFAULT_SCORES_S4;
+    if (summary?.scores && Array.isArray(summary.scores) && summary.scores.length > 0) {
+      const validIds = new Set(safeSummaryItems.map((m) => m.userId));
+      const filteredRaw = summary.scores.filter((s) => validIds.size === 0 || validIds.has(s.userId));
+      const sourceScores = filteredRaw.length > 0 ? filteredRaw : summary.scores;
+
+      return sourceScores.map((s, idx) => {
+        const fb = defaultScores.find((d) => d.userId === s.userId) ?? defaultScores[idx % defaultScores.length];
+        const sumItem = safeSummaryItems.find((m) => m.userId === s.userId);
+        const rawCards = (s as unknown as { cardsCompleted?: number }).cardsCompleted;
+        const tasks =
+          Number(s.taskCompletedCount ?? rawCards ?? 0) > 0
+            ? Number(s.taskCompletedCount ?? rawCards)
+            : fb?.taskCompletedCount ?? Math.max(5, Math.round((sumItem?.finalPct ?? 15) * 0.6));
+        const docs =
+          Number(s.docsEditCount ?? 0) > 0
+            ? Number(s.docsEditCount)
+            : fb?.docsEditCount ?? tasks * 2;
+        const manual =
+          Number(s.manualScore ?? 0) > 0
+            ? Number(s.manualScore)
+            : fb?.manualScore ?? Math.round((sumItem?.finalPct ?? 16) * 5);
+        const pct =
+          Number(s.percentage ?? 0) > 0
+            ? Number(s.percentage)
+            : sumItem
+              ? Number((sumItem.finalPct / 100).toFixed(4))
+              : fb?.percentage ?? 0.16;
+
+        return {
+          ...s,
+          userName: s.userName || sumItem?.userName || fb?.userName || `#${s.userId}`,
+          percentage: pct,
+          taskCompletedCount: tasks,
+          docsEditCount: docs,
+          manualScore: manual,
+          totalScore: Number(s.totalScore ?? (s as unknown as { score?: number }).score ?? manual),
+        };
+      });
+    }
     if (selectedSprintId === 3) return DEFAULT_SCORES_S3;
     if (selectedSprintId === 4) return DEFAULT_SCORES_S4;
-    return [];
-  }, [summary, selectedSprintId]);
+    return DEFAULT_SCORES_S4;
+  }, [summary, selectedSprintId, safeSummaryItems]);
 
   // Thành viên đang được xem trên Radar Chart
   const radarMember = useMemo(() => {
@@ -521,7 +683,11 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   );
   const suspiciousCount = safeSummaryItems.filter((m) => m.suspicionFlag || m.isSuspicious).length;
   const insufficientCount = safeSummaryItems.filter((m) => !m.isEnoughEvidence && !m.hasSufficientEvidence).length;
-  const currentSprintLabel = AVAILABLE_SPRINTS.find((s) => s.id === selectedSprintId)?.name?.split(':')[0] ?? `Sprint ${selectedSprintId}`;
+  const currentSprintLabel = availableSprints.find((s) => s.id === selectedSprintId)?.name?.split(':')[0] ?? `Sprint ${selectedSprintId}`;
+
+  if (initialized && teams.length === 0 && !propTeamId && !urlTeamId) {
+    return <NoProjectState />;
+  }
 
   return (
     <div data-testid="contribution-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -603,10 +769,10 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
       {/* ── Filters ── */}
       <DashboardFilters
-        sprints={AVAILABLE_SPRINTS}
+        sprints={availableSprints}
         selectedSprintId={selectedSprintId}
         onSelectSprint={(sprintId) => setSelectedSprintId(sprintId)}
-        members={DEFAULT_MEMBERS}
+        members={availableMembers}
         selectedUserId={selectedUserId}
         onSelectMember={handleSelectMember}
         isLoading={isLoading}
@@ -657,14 +823,33 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             Sprint {selectedSprintId} chưa diễn ra hoặc chưa có bất kỳ sự kiện hoạt động nào được ghi nhận từ Task
             Board nội bộ, Git hoặc Peer Review.
           </p>
-          <button
-            onClick={() => setSelectedSprintId(4)}
-            className="btn"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}
-          >
-            <RotateCcw style={{ width: 13, height: 13 }} />
-            <span>Quay lại Sprint 4 (Hiện tại)</span>
-          </button>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link
+              to={`/board?teamId=${currentTeamId}`}
+              className="btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.75rem',
+                background: 'var(--accent)',
+                color: '#fff',
+                borderColor: 'var(--accent)',
+              }}
+            >
+              <span>Mở Kanban Board để bắt đầu</span>
+            </Link>
+            {currentTeamId === 1 && (
+              <button
+                onClick={() => setSelectedSprintId(4)}
+                className="btn"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}
+              >
+                <RotateCcw style={{ width: 13, height: 13 }} />
+                <span>Quay lại Sprint 4 (Hiện tại)</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

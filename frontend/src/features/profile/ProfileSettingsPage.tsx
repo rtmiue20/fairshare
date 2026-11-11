@@ -1,55 +1,143 @@
 import React, { useState, useEffect } from 'react';
 import {
-  User,
   ShieldCheck,
   CheckCircle2,
   Copy,
   Github,
   Kanban,
   Link2,
-  ChevronRight,
-  Info,
   Save,
   Lock,
+  Settings,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import apiClient from '../../api/client';
+import { teamApi } from '../../api/team.api';
+
+const extractStudentIdFromEmail = (email?: string): string => {
+  if (!email) return '31241020074';
+  const match = email.match(/(\d{8,12})/);
+  return match ? match[1] : '31241020074';
+};
+
+const getInitials = (fullName: string): string => {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'FS';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
 
 export const ProfileSettingsPage: React.FC = () => {
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'privacy'>('profile');
+  const { user, updateUser } = useAuthStore();
+  const [activeTab, setActiveTab] = useState<'project' | 'profile' | 'integrations' | 'privacy'>('project');
   const [copiedId, setCopiedId] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
-  // Form State initialized with student information
-  const [formData, setFormData] = useState({
-    fullName: user?.fullName || 'Hà Ngọc Thiện',
-    studentId: (user as { studentId?: string })?.studentId || '31241021658',
-    email: user?.email || 'thien.31241021658@st.ueh.edu.vn',
-    phone: '0901 234 567',
-    major: 'Hệ thống Thông tin Doanh nghiệp (MIS) • Khóa 50',
-    teamRole: 'Phân tích nghiệp vụ (BA) & Phát triển Frontend',
-    bio: 'Phụ trách mô đun Quản lý Nhóm, Thiết lập Sprint, Chính sách Đồng thuận NĐ 13/2023 và Giao diện người dùng FairShare.',
-    githubUsername: 'HNTRHunter',
+  // Project settings state (#setForm from sample_ui/FairShare.html #v-cai-dat)
+  const [projectSettings, setProjectSettings] = useState({
+    projectName: 'FairShare — Nền tảng đo lường đóng góp đồ án nhóm',
+    lecturer: 'ThS. Nguyễn Văn A — Khoa CNTT Kinh doanh (UEH)',
+    sprintCount: 6,
+    courseCode: '24D1INF50900503',
+    teamName: 'Nhóm 07 — FairShare',
   });
 
-  // GitHub Connection status
+  // Form State initialized dynamically from current authenticated user
+  const [formData, setFormData] = useState({
+    fullName: user?.fullName || 'Thành viên FairShare',
+    studentId: (user as { studentId?: string })?.studentId || extractStudentIdFromEmail(user?.email),
+    email: user?.email || 'student@st.ueh.edu.vn',
+    phone: '0901 234 567',
+    major: 'Công nghệ Thông tin & Hệ thống Thông tin • Khóa 50 UEH',
+    teamRole: 'Thành viên Phát triển Đồ án FairShare',
+    bio: 'Tham gia xây dựng và đối soát minh chứng đóng góp đa chiều (Task Board nội bộ CR-02, Git & Peer Review) tuân thủ Nghị định 13/2023/NĐ-CP.',
+    githubUsername: (user as { githubUsername?: string })?.githubUsername || 'fairshare-member',
+  });
+
   const [connections, setConnections] = useState({
     github: true,
   });
-
   const [githubTesting, setGithubTesting] = useState(false);
 
+  // Sync user profile & team info from Backend API + localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('fairshare_user_profile');
-    if (saved) {
+    let mounted = true;
+
+    const savedProfile = localStorage.getItem('fairshare_user_profile');
+    if (savedProfile) {
       try {
-        const parsed = JSON.parse(saved);
-        setFormData((prev) => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error(e);
+        const parsed = JSON.parse(savedProfile);
+        setFormData((prev) => ({
+          ...prev,
+          ...parsed,
+          fullName: user?.fullName || parsed.fullName || prev.fullName,
+          email: user?.email || parsed.email || prev.email,
+          studentId: extractStudentIdFromEmail(user?.email || parsed.email) || parsed.studentId || prev.studentId,
+        }));
+      } catch {
+        // Ignore parse error
+      }
+    } else if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        fullName: user.fullName || prev.fullName,
+        email: user.email || prev.email,
+        studentId: (user as { studentId?: string })?.studentId || extractStudentIdFromEmail(user.email),
+        githubUsername: (user as { githubUsername?: string })?.githubUsername || prev.githubUsername,
+      }));
+    }
+
+    const savedProject = localStorage.getItem('fairshare_project_settings');
+    if (savedProject) {
+      try {
+        setProjectSettings((prev) => ({ ...prev, ...JSON.parse(savedProject) }));
+      } catch {
+        // Ignore
       }
     }
-  }, []);
+
+    // Fetch current user from Backend /api/users/me
+    apiClient
+      .get('/users/me')
+      .then((res) => {
+        if (!mounted) return;
+        const data = res.data?.data || res.data;
+        if (data && data.email) {
+          setFormData((prev) => ({
+            ...prev,
+            fullName: data.fullName || prev.fullName,
+            email: data.email || prev.email,
+            studentId: data.studentId || extractStudentIdFromEmail(data.email) || prev.studentId,
+            githubUsername: data.githubUsername || prev.githubUsername,
+          }));
+        }
+      })
+      .catch(() => {
+        // Offline / fallback
+      });
+
+    // Fetch active team info from Backend /api/teams
+    teamApi
+      .getTeams()
+      .then((res) => {
+        if (!mounted) return;
+        if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+          const team = res.data[0];
+          setProjectSettings((prev) => ({
+            ...prev,
+            teamName: team.name || prev.teamName,
+            courseCode: team.courseName || prev.courseCode,
+          }));
+        }
+      })
+      .catch(() => {
+        // Offline / fallback
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   const handleCopyStudentId = () => {
     navigator.clipboard.writeText(formData.studentId);
@@ -57,11 +145,31 @@ export const ProfileSettingsPage: React.FC = () => {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSaveProjectSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('fairshare_project_settings', JSON.stringify(projectSettings));
+    setSaveSuccess(`Đã lưu thiết lập dự án: "${projectSettings.projectName}" (${projectSettings.sprintCount} Sprint)`);
+    setTimeout(() => setSaveSuccess(null), 3500);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('fairshare_user_profile', JSON.stringify(formData));
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    updateUser({
+      fullName: formData.fullName,
+    });
+
+    try {
+      await apiClient.put('/users/me', {
+        fullName: formData.fullName,
+        githubUsername: formData.githubUsername,
+      });
+    } catch {
+      // Saved locally if backend offline
+    }
+
+    setSaveSuccess('Đã cập nhật thông tin hồ sơ sinh viên vào hệ thống thành công.');
+    setTimeout(() => setSaveSuccess(null), 3500);
   };
 
   const testGithubConnection = () => {
@@ -69,409 +177,355 @@ export const ProfileSettingsPage: React.FC = () => {
     setTimeout(() => {
       setGithubTesting(false);
       setConnections((prev) => ({ ...prev, github: true }));
-    }, 1200);
+    }, 800);
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Breadcrumb & Navigation */}
-      <div className="flex items-center gap-2 text-xs text-zinc-500 font-mono">
-        <span>FairShare</span>
-        <ChevronRight size={12} />
-        <span>Cài đặt hệ thống</span>
-        <ChevronRight size={12} />
-        <span className="text-zinc-200">Hồ sơ sinh viên</span>
+    <div className="page pad" data-testid="profile-settings-page">
+      {/* Page Head matching sample_ui/FairShare.html #v-cai-dat */}
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">Cài đặt · Hệ thống &amp; Hồ sơ</div>
+          <h1>Thiết lập dự án &amp; Định danh UEH</h1>
+          <p className="lede">
+            Quản lý thông số đồ án môn học, thông tin định danh sinh viên và chính sách đồng thuận dữ liệu Nghị định 13/2023/NĐ-CP.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span className="chip" style={{ color: 'var(--ok)', borderColor: 'color-mix(in srgb, var(--ok) 40%, var(--line))' }}>
+            ● NĐ 13/2023 Hợp lệ
+          </span>
+          <span className="chip">MSSV: {formData.studentId}</span>
+        </div>
       </div>
 
-      {/* Header Banner - Linear Clean Style */}
-      <div className="border border-zinc-800 bg-[#121318] rounded-xl p-6 sm:p-7 relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative z-10">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-16 h-16 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-100 font-mono font-bold text-xl shadow-xs shrink-0">
-              HT
+      {saveSuccess && (
+        <div
+          role="status"
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            background: 'color-mix(in srgb, var(--ok) 14%, var(--surface))',
+            border: '1px solid color-mix(in srgb, var(--ok) 40%, var(--line))',
+            color: 'var(--ok)',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <CheckCircle2 size={16} />
+          <span>{saveSuccess}</span>
+        </div>
+      )}
+
+      <div className="grid2">
+        {/* Left Column: Project Settings (#setForm from sample_ui/FairShare.html) + Identity Summary */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form className="panel" id="setForm" onSubmit={handleSaveProjectSettings}>
+            <div className="panel-h">
+              <span>Thiết lập dự án</span>
+              <span className="chip">{projectSettings.courseCode}</span>
             </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-zinc-100">
-                  {formData.fullName}
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-950/60 text-sky-400 border border-sky-800/60">
-                  {formData.teamRole}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  NĐ 13 Hợp lệ
-                </span>
+
+            <label className="field">
+              <span>Tên đề tài</span>
+              <input
+                id="s1"
+                type="text"
+                value={projectSettings.projectName}
+                onChange={(e) => setProjectSettings({ ...projectSettings, projectName: e.target.value })}
+              />
+            </label>
+
+            <label className="field">
+              <span>Giảng viên hướng dẫn</span>
+              <input
+                id="s2"
+                type="text"
+                value={projectSettings.lecturer}
+                onChange={(e) => setProjectSettings({ ...projectSettings, lecturer: e.target.value })}
+              />
+            </label>
+
+            <label className="field">
+              <span>Số sprint</span>
+              <input
+                id="s3"
+                type="number"
+                min={1}
+                max={12}
+                value={projectSettings.sprintCount}
+                onChange={(e) => setProjectSettings({ ...projectSettings, sprintCount: Number(e.target.value) })}
+              />
+            </label>
+
+            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn sq" type="submit">
+                Lưu thay đổi
+              </button>
+            </div>
+          </form>
+
+          {/* Identity Overview Panel */}
+          <div className="panel">
+            <div className="panel-h">
+              <span>Thông tin định danh sinh viên</span>
+              <span className="chip" style={{ color: 'var(--accent)' }}>UEH SSO</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'color-mix(in srgb, var(--accent) 18%, var(--surface2))',
+                  border: '1px solid color-mix(in srgb, var(--accent) 45%, var(--line))',
+                  color: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--mono)',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  flexShrink: 0,
+                }}
+              >
+                {getInitials(formData.fullName)}
               </div>
-              <p className="text-xs text-zinc-400 font-mono flex flex-wrap items-center gap-3">
-                <span>MSSV: {formData.studentId}</span>
-                <span>•</span>
-                <span>{formData.email}</span>
-                <span>•</span>
-                <span>Đồ án FairShare</span>
-              </p>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--fg)' }}>{formData.fullName}</div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--fg2)', fontFamily: 'var(--mono)' }}>{formData.email}</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--fg3)', marginTop: '0.15rem' }}>{projectSettings.teamName}</div>
+              </div>
+            </div>
+
+            <div className="rows">
+              <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
+                <div>
+                  <div className="t">Mã số sinh viên (UEH ID)</div>
+                  <div className="s" style={{ fontFamily: 'var(--mono)' }}>{formData.studentId}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyStudentId}
+                  className="btn ghost"
+                  style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem' }}
+                >
+                  <Copy size={12} style={{ marginRight: '0.25rem' }} />
+                  {copiedId ? 'Đã sao chép' : 'Sao chép'}
+                </button>
+              </div>
+              <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
+                <div>
+                  <div className="t">Đồng thuận Nghị định 13/2023/NĐ-CP</div>
+                  <div className="s">Bảo vệ dữ liệu cá nhân &amp; minh chứng học thuật</div>
+                </div>
+                <span className="chip" style={{ color: 'var(--ok)' }}>4/4 Quyền</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {saveSuccess && (
-          <div className="mt-4 p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/80 text-emerald-300 text-xs flex items-center gap-2">
-            <CheckCircle2 size={15} />
-            <span>Đã cập nhật thông tin hồ sơ sinh viên vào hệ thống thành công.</span>
-          </div>
-        )}
-      </div>
-
-      {/* Main Grid: Sidebar Profile Summary (4 cols) & Tab Panels (8 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Quick Profile Card */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="border border-zinc-800 bg-[#121318] rounded-xl p-5 space-y-4">
-            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-mono">
-              Thông tin định danh
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-1">
-                <span className="text-[11px] text-zinc-500 block">Mã số sinh viên (UEH ID)</span>
-                <div className="flex items-center justify-between font-mono font-medium text-zinc-200">
-                  <span>{formData.studentId}</span>
-                  <button
-                    onClick={handleCopyStudentId}
-                    className="text-[11px] text-zinc-400 hover:text-zinc-200 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy size={12} />
-                    <span>{copiedId ? 'Đã sao chép' : 'Sao chép'}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-1">
-                <span className="text-[11px] text-zinc-500 block">Email sinh viên chính thức</span>
-                <span className="font-mono text-zinc-300 break-all">{formData.email}</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-1">
-                <span className="text-[11px] text-zinc-500 block">Nhóm đồ án & Lớp học phần</span>
-                <span className="text-zinc-200 font-medium">Nhóm 07 • 24D1INF50900503</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-1">
-                <span className="text-[11px] text-zinc-500 block">Đề tài đồ án</span>
-                <span className="text-zinc-200 font-medium">FairShare - Nền tảng đo lường đóng góp đồ án</span>
-              </div>
-            </div>
-
-            {/* Decree 13 Consent Box */}
-            <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-emerald-900/40 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
-                  <ShieldCheck size={14} />
-                  <span>Đồng thuận NĐ 13/2023</span>
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60">
-                  4/4 Quyền
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 leading-relaxed">
-                Tài khoản đã kích hoạt đầy đủ chính sách đồng thuận bảo mật dữ liệu minh chứng theo Nghị định 13/2023/NĐ-CP.
-              </p>
+        {/* Right Column: Profile, Integrations & Privacy Tabs */}
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="panel-h" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+            <span>Cấu hình cá nhân &amp; Liên kết</span>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('project')}
+                className={`btn ${activeTab === 'project' ? 'sq' : 'ghost'}`}
+                style={{ padding: '0.3rem 0.65rem', fontSize: '0.72rem' }}
+              >
+                <Settings size={12} style={{ marginRight: '0.25rem' }} />
+                Hồ sơ
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('integrations')}
+                className={`btn ${activeTab === 'integrations' ? 'sq' : 'ghost'}`}
+                style={{ padding: '0.3rem 0.65rem', fontSize: '0.72rem' }}
+              >
+                <Link2 size={12} style={{ marginRight: '0.25rem' }} />
+                Liên kết
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('privacy')}
+                className={`btn ${activeTab === 'privacy' ? 'sq' : 'ghost'}`}
+                style={{ padding: '0.3rem 0.65rem', fontSize: '0.72rem' }}
+              >
+                <ShieldCheck size={12} style={{ marginRight: '0.25rem' }} />
+                Nghị định 13
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Right Column: Tab Panels (8 cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Segmented Tab Pill Bar */}
-          <div className="bg-zinc-900/90 p-1 rounded-lg border border-zinc-800 flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
-                activeTab === 'profile'
-                  ? 'bg-zinc-800 text-zinc-100 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <User size={14} />
-              <span>Hồ sơ sinh viên</span>
-            </button>
+          {(activeTab === 'project' || activeTab === 'profile') && (
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div
+                style={{
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'var(--surface2)',
+                  border: '1px solid var(--line)',
+                  fontSize: '0.75rem',
+                  color: 'var(--fg2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Lock size={13} />
+                  Định danh UEH đồng bộ:
+                </span>
+                <span style={{ fontFamily: 'var(--mono)', color: 'var(--fg)' }}>
+                  {formData.studentId} · {formData.email}
+                </span>
+              </div>
 
-            <button
-              onClick={() => setActiveTab('integrations')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
-                activeTab === 'integrations'
-                  ? 'bg-zinc-800 text-zinc-100 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Link2 size={14} />
-              <span>Tài khoản liên kết</span>
-            </button>
+              <label className="field">
+                <span>Họ và tên hiển thị</span>
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                />
+              </label>
 
-            <button
-              onClick={() => setActiveTab('privacy')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
-                activeTab === 'privacy'
-                  ? 'bg-zinc-800 text-zinc-100 shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <ShieldCheck size={14} />
-              <span>Quyền riêng tư (NĐ 13)</span>
-            </button>
-          </div>
+              <label className="field">
+                <span>Số điện thoại liên hệ</span>
+                <input
+                  type="text"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </label>
 
-          {/* Tab Content Box */}
-          <div className="border border-zinc-800 bg-[#121318] rounded-xl p-6">
-            {/* Tab 1: Profile Form */}
-            {activeTab === 'profile' && (
-              <form onSubmit={handleSave} className="space-y-4">
-                {/* Verified UEH Academic Identity (Read-only / Synchronized) */}
-                <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Lock size={13} className="text-zinc-500 shrink-0" />
-                    <span>Định danh UEH chính thức (Đồng bộ Cổng đào tạo • Cố định):</span>
+              <label className="field">
+                <span>Chuyên ngành &amp; Khóa</span>
+                <input
+                  type="text"
+                  value={formData.major}
+                  onChange={(e) => setFormData({ ...formData, major: e.target.value })}
+                />
+              </label>
+
+              <label className="field">
+                <span>Vai trò trong nhóm đồ án (PCCV)</span>
+                <input
+                  type="text"
+                  value={formData.teamRole}
+                  onChange={(e) => setFormData({ ...formData, teamRole: e.target.value })}
+                />
+              </label>
+
+              <label className="field">
+                <span>Trách nhiệm chính trong đồ án</span>
+                <textarea
+                  rows={3}
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                />
+              </label>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button type="submit" className="btn sq" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Save size={14} />
+                  <span>Lưu cập nhật hồ sơ</span>
+                </button>
+              </div>
+            </form>
+          )}
+
+          {activeTab === 'integrations' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div className="rows">
+                <div className="row" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
+                  <Kanban size={18} style={{ color: 'var(--accent)' }} />
+                  <div>
+                    <div className="t">Task Board Nội Bộ (CR-02)</div>
+                    <div className="s">Tự động ghi nhận sự kiện tạo/kéo thẻ Kanban nội bộ phục vụ chấm điểm D1–D3</div>
                   </div>
-                  <div className="font-mono text-zinc-300 flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-zinc-800/80 text-zinc-200 font-semibold">{formData.studentId}</span>
-                    <span className="text-zinc-600">•</span>
-                    <span className="text-zinc-400">{formData.email}</span>
+                  <span className="chip" style={{ color: 'var(--ok)' }}>Đang kích hoạt</span>
+                </div>
+
+                <div className="row" style={{ gridTemplateColumns: 'auto 1fr auto' }}>
+                  <Github size={18} style={{ color: 'var(--fg)' }} />
+                  <div>
+                    <div className="t">GitHub Repository</div>
+                    <div className="s">Đồng bộ commits, pull requests và code review qua GitHub Webhook</div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-medium text-zinc-400">
-                      Họ và tên hiển thị
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs text-zinc-200 bg-zinc-900/80 focus:outline-none focus:border-zinc-600 transition-colors"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-medium text-zinc-400">
-                      Số điện thoại liên hệ cá nhân
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="09xx xxx xxx"
-                      className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs font-mono text-zinc-200 bg-zinc-900/80 focus:outline-none focus:border-zinc-600 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-zinc-400">
-                    Chuyên ngành & Lớp sinh hoạt
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.major}
-                    onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs text-zinc-200 bg-zinc-900/80 focus:outline-none focus:border-zinc-600 transition-colors"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-zinc-400">
-                    Vai trò trong nhóm đồ án (PCCV)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.teamRole}
-                    onChange={(e) => setFormData({ ...formData, teamRole: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs text-zinc-200 bg-zinc-900/80 focus:outline-none focus:border-zinc-600 transition-colors"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-zinc-400">
-                    Giới thiệu / Trách nhiệm chính trong đồ án
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs text-zinc-200 bg-zinc-900/80 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed"
-                  />
-                </div>
-
-                {/* Notification & Alert Preferences */}
-                <div className="pt-2 border-t border-zinc-800/80 space-y-2.5">
-                  <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider font-mono block">
-                    Tùy chọn cảnh báo & Minh chứng
+                  <span className="chip" style={{ color: connections.github ? 'var(--ok)' : 'var(--fg3)' }}>
+                    {connections.github ? 'Đã kết nối' : 'Chưa liên kết'}
                   </span>
-                  <label className="flex items-start gap-2.5 text-xs text-zinc-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="mt-0.5 rounded border-zinc-700 bg-zinc-900 text-indigo-500"
-                    />
-                    <span>Nhận cảnh báo tự động khi tỷ lệ đóng góp giảm dưới ngưỡng an toàn (&lt; 15%).</span>
-                  </label>
-                  <label className="flex items-start gap-2.5 text-xs text-zinc-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="mt-0.5 rounded border-zinc-700 bg-zinc-900 text-indigo-500"
-                    />
-                    <span>Gửi thông báo xác nhận mỗi khi hệ thống đồng bộ commit Git hoặc thẻ Trello mới.</span>
-                  </label>
                 </div>
+              </div>
 
-                <div className="pt-3 flex items-center justify-end gap-3 border-t border-zinc-800">
+              <label className="field">
+                <span>Tài khoản GitHub (Username)</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={formData.githubUsername}
+                    onChange={(e) => setFormData({ ...formData, githubUsername: e.target.value })}
+                    placeholder="Nhập GitHub username..."
+                    style={{ flex: 1 }}
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      const saved = localStorage.getItem('fairshare_user_profile');
-                      if (saved) setFormData(JSON.parse(saved));
-                    }}
-                    className="px-3.5 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
+                    onClick={testGithubConnection}
+                    disabled={githubTesting}
+                    className="btn ghost"
                   >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-xs"
-                  >
-                    <Save size={14} />
-                    <span>Lưu cập nhật</span>
+                    {githubTesting ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
                   </button>
                 </div>
-              </form>
-            )}
+              </label>
+            </div>
+          )}
 
-            {/* Tab 2: Integrations Form */}
-            {activeTab === 'integrations' && (
-              <div className="space-y-5">
-                <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-400 flex items-start gap-2.5">
-                  <Info size={16} className="text-zinc-400 shrink-0 mt-0.5" />
-                  <span>
-                    Hệ thống tự động thu thập minh chứng hoạt động từ Task Board nội bộ và tài khoản GitHub phục vụ tính điểm đóng góp công bằng.
-                  </span>
+          {activeTab === 'privacy' && (
+            <div className="rows">
+              <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
+                <div>
+                  <div className="t">Chia sẻ lịch sử Git commits &amp; PRs</div>
+                  <div className="s">Cho phép hệ thống đọc hash commit và thống kê đóng góp mã nguồn</div>
                 </div>
-
-                {/* Task Board Integration (CR-02) */}
-                <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-sky-950/60 border border-sky-800/60 flex items-center justify-center text-sky-400">
-                        <Kanban size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-semibold text-zinc-200">Task Board Nội Bộ (CR-02)</h4>
-                        <p className="text-[11px] text-zinc-400">Tự động đồng bộ thẻ công việc từ Kanban Board nội bộ</p>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                      <CheckCircle2 size={12} />
-                      Đang kích hoạt
-                    </span>
-                  </div>
-                </div>
-
-                {/* GitHub Integration */}
-                <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200">
-                        <Github size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-semibold text-zinc-200">GitHub Repository</h4>
-                        <p className="text-[11px] text-zinc-400">Theo dõi commits, pull requests và code review</p>
-                      </div>
-                    </div>
-                    {connections.github ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                        <CheckCircle2 size={12} />
-                        Đã kết nối
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-zinc-800 text-zinc-400 border border-zinc-700">
-                        Chưa liên kết
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                    <div className="sm:col-span-2">
-                      <input
-                        type="text"
-                        placeholder="GitHub handle (vd: HNTRHunter)"
-                        value={formData.githubUsername}
-                        onChange={(e) => setFormData({ ...formData, githubUsername: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-800 text-xs text-zinc-200 bg-zinc-900 focus:outline-none focus:border-zinc-600 transition-colors"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={testGithubConnection}
-                      disabled={githubTesting}
-                      className="px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors disabled:opacity-50"
-                    >
-                      {githubTesting ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
-                    </button>
-                  </div>
-                </div>
+                <span className="chip" style={{ color: 'var(--ok)' }}>ĐÃ ĐỒNG THUẬN</span>
               </div>
-            )}
 
-            {/* Tab 3: Privacy & Decree 13 */}
-            {activeTab === 'privacy' && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-                  <div className="flex items-center gap-2 text-zinc-200 text-xs font-semibold">
-                    <ShieldCheck size={16} className="text-emerald-400" />
-                    <span>Tuân thủ Nghị định 13/2023/NĐ-CP về Bảo vệ dữ liệu cá nhân</span>
-                  </div>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Hệ thống FairShare thu thập dữ liệu minh chứng với mục đích học thuật duy nhất: tính toán chỉ số đóng góp đồ án môn học. Toàn bộ dữ liệu được lưu trữ có kiểm soát và bạn có quyền thu hồi bất kỳ lúc nào.
-                  </p>
+              <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
+                <div>
+                  <div className="t">Đồng bộ trạng thái thẻ Task Board nội bộ (CR-02)</div>
+                  <div className="s">Ghi nhận tiến độ hoàn thành task theo từng sprint qua sự kiện bất biến</div>
                 </div>
-
-                <div className="space-y-2.5 pt-1">
-                  <div className="p-3.5 rounded-lg border border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-medium text-zinc-200">Chia sẻ lịch sử Git commits & PRs</h4>
-                      <p className="text-[11px] text-zinc-500">Cho phép hệ thống đọc hash commit và thống kê dòng code</p>
-                    </div>
-                    <span className="text-[11px] font-mono text-emerald-400 font-medium">ĐÃ ĐỒNG THUẬN</span>
-                  </div>
-
-                  <div className="p-3.5 rounded-lg border border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-medium text-zinc-200">Đồng bộ trạng thái thẻ bài tập Trello</h4>
-                      <p className="text-[11px] text-zinc-500">Ghi nhận tiến độ hoàn thành task theo từng sprint</p>
-                    </div>
-                    <span className="text-[11px] font-mono text-emerald-400 font-medium">ĐÃ ĐỒNG THUẬN</span>
-                  </div>
-
-                  <div className="p-3.5 rounded-lg border border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-medium text-zinc-200">Hiển thị tỷ lệ đóng góp trong nhóm</h4>
-                      <p className="text-[11px] text-zinc-500">Công khai chỉ số CI trên dashboard đối soát nội bộ</p>
-                    </div>
-                    <span className="text-[11px] font-mono text-emerald-400 font-medium">ĐÃ ĐỒNG THUẬN</span>
-                  </div>
-
-                  <div className="p-3.5 rounded-lg border border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-medium text-zinc-200">Tham gia chấm chéo ẩn danh (Peer Review)</h4>
-                      <p className="text-[11px] text-zinc-500">Đánh giá chéo thành viên khách quan qua mã số mã hóa</p>
-                    </div>
-                    <span className="text-[11px] font-mono text-emerald-400 font-medium">ĐÃ ĐỒNG THUẬN</span>
-                  </div>
-                </div>
+                <span className="chip" style={{ color: 'var(--ok)' }}>ĐÃ ĐỒNG THUẬN</span>
               </div>
-            )}
-          </div>
+
+              <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
+                <div>
+                  <div className="t">Hiển thị tỷ lệ đóng góp trong nhóm</div>
+                  <div className="s">Công khai chỉ số đóng góp đa chiều trên Dashboard đối soát nội bộ</div>
+                </div>
+                <span className="chip" style={{ color: 'var(--ok)' }}>ĐÃ ĐỒNG THUẬN</span>
+              </div>
+
+              <div className="row" style={{ gridTemplateColumns: '1fr auto' }}>
+                <div>
+                  <div className="t">Tham gia chấm chéo ẩn danh (Peer Review)</div>
+                  <div className="s">Đánh giá chéo thành viên khách quan, ẩn danh tính người chấm</div>
+                </div>
+                <span className="chip" style={{ color: 'var(--ok)' }}>ĐÃ ĐỒNG THUẬN</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

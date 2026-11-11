@@ -18,6 +18,11 @@ export const teamApi = {
     return response.data;
   },
 
+  joinTeam: async (payload: { inviteCode: string }): Promise<ApiResponse<Team>> => {
+    const response = await apiClient.post<ApiResponse<Team>>('/teams/join', payload);
+    return response.data;
+  },
+
   getMembers: async (teamId: number): Promise<ApiResponse<TeamMember[]>> => {
     const response = await apiClient.get<ApiResponse<TeamMember[]>>(`/teams/${teamId}/members`);
     return response.data;
