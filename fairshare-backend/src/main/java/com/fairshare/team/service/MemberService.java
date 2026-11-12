@@ -61,7 +61,11 @@ public class MemberService {
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found: " + teamId);
         }
-        return teamMemberRepository.findByTeamId(teamId);
+        List<TeamMember> members = teamMemberRepository.findByTeamIdWithUser(teamId);
+        if (members == null || members.isEmpty()) {
+            members = teamMemberRepository.findByTeamId(teamId);
+        }
+        return members;
     }
 
     @Transactional

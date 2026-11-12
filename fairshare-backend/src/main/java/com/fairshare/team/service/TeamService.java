@@ -1,8 +1,14 @@
 package com.fairshare.team.service;
 
+import com.fairshare.board.entity.Board;
+import com.fairshare.board.entity.BoardColumn;
+import com.fairshare.board.repository.BoardColumnRepository;
+import com.fairshare.board.repository.BoardRepository;
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.DuplicateResourceException;
 import com.fairshare.common.exception.ResourceNotFoundException;
+import com.fairshare.sprint.entity.Sprint;
+import com.fairshare.sprint.repository.SprintRepository;
 import com.fairshare.team.dto.*;
 import com.fairshare.team.entity.Consent;
 import com.fairshare.team.entity.MemberRole;
@@ -14,9 +20,11 @@ import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +39,13 @@ public class TeamService {
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
     private final ConsentRepository consentRepository;
+
+    @Autowired(required = false)
+    private SprintRepository sprintRepository;
+    @Autowired(required = false)
+    private BoardRepository boardRepository;
+    @Autowired(required = false)
+    private BoardColumnRepository boardColumnRepository;
 
     @Transactional
     public TeamDto createTeam(CreateTeamRequest request, Long ownerId) {
@@ -65,6 +80,35 @@ public class TeamService {
         consent.setAgreed(true);
         consent.setAgreedAt(LocalDateTime.now());
         consentRepository.save(consent);
+
+        // Auto-initialize Sprint 1 for the new project
+        if (sprintRepository != null) {
+            Sprint sprint = new Sprint();
+            sprint.setTeam(savedTeam);
+            sprint.setName("Sprint 1");
+            sprint.setStartDate(LocalDate.now());
+            sprint.setEndDate(LocalDate.now().plusDays(14));
+            sprint.setStatus("ACTIVE");
+            sprintRepository.save(sprint);
+        }
+
+        // Auto-initialize Kanban Board with standard 4 columns
+        if (boardRepository != null && boardColumnRepository != null) {
+            Board board = new Board();
+            board.setTeam(savedTeam);
+            board.setName("Kanban Board - " + savedTeam.getName());
+            board.setDescription("Bảng theo dõi tiến độ công việc và hoạt động của " + savedTeam.getName());
+            Board savedBoard = boardRepository.save(board);
+
+            String[] defaultColumns = { "To Do", "In Progress", "Review", "Done" };
+            for (int i = 0; i < defaultColumns.length; i++) {
+                BoardColumn col = new BoardColumn();
+                col.setBoard(savedBoard);
+                col.setName(defaultColumns[i]);
+                col.setPosition(i);
+                boardColumnRepository.save(col);
+            }
+        }
 
         return mapToDto(savedTeam, MemberRole.LEADER.name());
     }
@@ -149,6 +193,13 @@ public class TeamService {
         member.setRole(MemberRole.MEMBER);
         teamMemberRepository.save(member);
 
+        Consent consent = new Consent();
+        consent.setTeam(team);
+        consent.setUser(user);
+        consent.setAgreed(true);
+        consent.setAgreedAt(LocalDateTime.now());
+        consentRepository.save(consent);
+
         return mapToDto(team, MemberRole.MEMBER.name());
     }
 
@@ -181,6 +232,25 @@ public class TeamService {
     @Transactional
     public void revokeConsent(Long teamId, Long userId) {
         recordConsent(teamId, userId, false);
+    }
+
+    @Transactional
+    public TeamDto updateTeam(Long teamId, CreateTeamRequest request, Long userId) {
+        if (teamId == null) {
+            throw new BusinessException("Team id is required");
+        }
+        Team team = getById(teamId);
+        if (request.getName() != null && !request.getName().isBlank()) {
+            team.setName(request.getName().trim());
+        }
+        if (request.getCourseName() != null) {
+            team.setCourseName(request.getCourseName().trim());
+        }
+        if (request.getDescription() != null) {
+            team.setDescription(request.getDescription().trim());
+        }
+        Team saved = teamRepository.save(team);
+        return getTeamDetail(saved.getId(), userId);
     }
 
     private String generateUniqueInviteCode() {

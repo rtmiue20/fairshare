@@ -4,8 +4,10 @@ import com.fairshare.activity.dto.ActivityEventDto;
 import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.service.ActivityService;
 import com.fairshare.common.dto.ApiResponse;
-import lombok.RequiredArgsConstructor;
+import com.fairshare.common.security.TeamSecurityService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,17 +18,37 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/activities")
-@RequiredArgsConstructor
 public class ActivityController {
 
     private final ActivityService activityService;
+    private final TeamSecurityService teamSecurityService;
+
+    public ActivityController(ActivityService activityService) {
+        this.activityService = activityService;
+        this.teamSecurityService = null;
+    }
+
+    @Autowired
+    public ActivityController(ActivityService activityService, @Autowired(required = false) TeamSecurityService teamSecurityService) {
+        this.activityService = activityService;
+        this.teamSecurityService = teamSecurityService;
+    }
 
     @GetMapping("/team/{teamId}")
-    public ResponseEntity<ApiResponse<List<ActivityEventDto>>> getByTeam(@PathVariable Long teamId) {
+    public ResponseEntity<ApiResponse<List<ActivityEventDto>>> getByTeam(
+            @PathVariable Long teamId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
         List<ActivityEventDto> dtos = activityService.getEventsByTeam(teamId).stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok("Team activities retrieved", dtos));
+    }
+
+    public ResponseEntity<ApiResponse<List<ActivityEventDto>>> getByTeam(Long teamId) {
+        return getByTeam(teamId, null);
     }
 
     @GetMapping("/sprint/{sprintId}")

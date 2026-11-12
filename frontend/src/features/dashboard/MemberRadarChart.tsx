@@ -74,9 +74,9 @@ export const MemberRadarChart: React.FC<MemberRadarChartProps> = ({ member }) =>
   }
 
   // Chuẩn hóa Z-Score (-3..+3) về thang điểm hiển thị 0-100 trên Radar
-  const mapZScoreToChart = (zScore: number | undefined): number => {
-    if (zScore === undefined || isNaN(zScore)) return 50;
-    const scaled = Math.round(50 + zScore * 16.67);
+  const mapZScoreToChart = (zScore: number | null | undefined): number => {
+    if (zScore == null || isNaN(Number(zScore))) return 50;
+    const scaled = Math.round(50 + Number(zScore) * 16.67);
     return Math.max(5, Math.min(100, scaled));
   };
 
@@ -85,25 +85,25 @@ export const MemberRadarChart: React.FC<MemberRadarChartProps> = ({ member }) =>
       dimension: 'D1: Sản lượng',
       fullDimension: 'D1 - Sản lượng (Story Points & Tasks)',
       score: mapZScoreToChart(member.d1Output),
-      zValue: member.d1Output ?? 0,
+      zValue: Number(member.d1Output ?? 0),
     },
     {
       dimension: 'D2: Tin cậy',
       fullDimension: 'D2 - Tin cậy (Hoàn thành đúng hạn)',
       score: mapZScoreToChart(member.d2Reliability),
-      zValue: member.d2Reliability ?? 0,
+      zValue: Number(member.d2Reliability ?? 0),
     },
     {
       dimension: 'D3: Phối hợp',
       fullDimension: 'D3 - Phối hợp (Tương tác nhóm & Docs)',
       score: mapZScoreToChart(member.d3Collaboration),
-      zValue: member.d3Collaboration ?? 0,
+      zValue: Number(member.d3Collaboration ?? 0),
     },
     {
       dimension: 'D4: Chấm chéo',
       fullDimension: 'D4 - Đánh giá đồng đội (Peer Review)',
       score: mapZScoreToChart(member.d4Peer),
-      zValue: member.d4Peer ?? 0,
+      zValue: Number(member.d4Peer ?? 0),
     },
   ];
 
@@ -115,10 +115,10 @@ export const MemberRadarChart: React.FC<MemberRadarChartProps> = ({ member }) =>
           <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--fg)' }}>{member.userName}</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--fg3)', marginTop: 2 }}>
             Tỷ lệ đóng góp:{' '}
-            <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{member.finalPct?.toFixed(1) ?? '0.0'}%</span>
-            {member.confidenceIntervalLow !== undefined && member.confidenceIntervalHigh !== undefined && (
+            <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{Number(member.finalPct ?? 0).toFixed(1)}%</span>
+            {member.confidenceIntervalLow != null && member.confidenceIntervalHigh != null && (
               <span style={{ marginLeft: 8, fontFamily: 'var(--f-mono)' }}>
-                95% CI: [{member.confidenceIntervalLow.toFixed(1)}% - {member.confidenceIntervalHigh.toFixed(1)}%]
+                95% CI: [{Number(member.confidenceIntervalLow).toFixed(1)}% - {Number(member.confidenceIntervalHigh).toFixed(1)}%]
               </span>
             )}
           </div>
@@ -188,7 +188,7 @@ export const MemberRadarChart: React.FC<MemberRadarChartProps> = ({ member }) =>
                         Điểm hiển thị: <span className="font-bold">{data.score}/100</span>
                       </p>
                       <p className="text-[11px]" style={{ color: 'var(--fg3)', fontFamily: 'var(--f-mono)' }}>
-                        Z-score: <span>{Number(data.zValue).toFixed(2)}</span>
+                        Z-score: <span>{Number(data?.zValue ?? 0).toFixed(2)}</span>
                       </p>
                     </div>
                   );

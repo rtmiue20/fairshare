@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   AlertCircle,
@@ -13,6 +13,7 @@ import {
 import { useAuth } from './useAuth';
 import { Button } from '../../components/ui/Button';
 import { LandingRibbon } from '../landing/LandingRibbon';
+import { FairShareLogo } from '../../components/ui/FairShareLogo';
 
 function getPasswordStrength(password: string): { label: string; color: string; percent: number } {
   if (!password) return { label: 'Chưa nhập', color: 'var(--fg3)', percent: 0 };
@@ -38,6 +39,10 @@ export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
 
   const strength = getPasswordStrength(password);
+
+  useEffect(() => {
+    document.title = 'Đăng Ký Tài Khoản · FairShare';
+  }, []);
 
   const validateForm = (): boolean => {
     if (fullName.trim().length < 2) {
@@ -120,11 +125,8 @@ export const RegisterPage: React.FC = () => {
           WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        <Link to="/" className="brand flex items-center gap-2 text-inherit no-underline" aria-label="FairShare, về trang chủ">
-          <i aria-hidden="true" style={{ width: '14px', height: '14px', border: '1.5px solid currentColor', borderRadius: '3px', display: 'inline-block' }} />
-          <span style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em' }}>
-            FAIRSHARE
-          </span>
+        <Link to="/" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
+          <FairShareLogo size={24} />
         </Link>
 
         <div className="flex items-center gap-3">
@@ -252,7 +254,7 @@ export const RegisterPage: React.FC = () => {
                       setEmail(e.target.value);
                       if (validationError) setValidationError(null);
                     }}
-                    placeholder="vana.31241025001@st.ueh.edu.vn"
+                    placeholder="email@example.com"
                     required
                     className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-3 outline-none transition"
                     style={{
@@ -408,7 +410,7 @@ export const RegisterPage: React.FC = () => {
           fontFamily: 'var(--f-mono)',
         }}
       >
-        <span>FairShare · Đồ án môn Quản lý dự án CNTT UEH</span>
+        <span>FairShare · Nền tảng đo lường đóng góp đồ án nhóm</span>
       </footer>
     </div>
   );

@@ -15,161 +15,57 @@ import {
   X,
   Mail,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { MemberTable } from './MemberTable';
 import { ConsentDialog } from './ConsentDialog';
 import { teamApi } from '../../api/team.api';
+import { peerReviewApi } from '../../api/peerReview.api';
+import { boardApi } from '../../api/board.api';
+import { useAuthStore } from '../../store/authStore';
 import type { Team, Role } from '../../types/team';
-
-// Danh sách 6 thành viên chuẩn xác 100% Nhóm 07 - Đồ án QLDA UEH
-const DEFAULT_TEAM_DATA: Team = {
-  id: 1,
-  name: 'Dự án FairShare',
-  description:
-    'Nền tảng đo lường và đối soát mức độ đóng góp công bằng cho đồ án môn Quản lý Dự án CNTT - Đại học Kinh tế TP.HCM (UEH). Tích hợp dữ liệu tự động từ Git, Trello và khảo sát chấm chéo ẩn danh tuân thủ Nghị định 13/2023/NĐ-CP.',
-  createdAt: '2026-10-15T08:00:00Z',
-  inviteCode: 'FS-UEH-2026',
-  members: [
-    {
-      id: 101,
-      role: 'LEADER',
-      hasConsented: true,
-      joinedAt: '2026-10-15T08:00:00Z',
-      user: {
-        id: 1,
-        email: 'trieu.31241027455@st.ueh.edu.vn',
-        fullName: 'Nguyễn Văn Minh Triều',
-      },
-    },
-    {
-      id: 102,
-      role: 'MEMBER',
-      hasConsented: true,
-      joinedAt: '2026-10-15T08:30:00Z',
-      user: {
-        id: 2,
-        email: 'thien.31241021658@st.ueh.edu.vn',
-        fullName: 'Hà Ngọc Thiện',
-      },
-    },
-    {
-      id: 103,
-      role: 'MEMBER',
-      hasConsented: true,
-      joinedAt: '2026-10-15T09:00:00Z',
-      user: {
-        id: 3,
-        email: 'vuong.31241025017@st.ueh.edu.vn',
-        fullName: 'Nguyễn Phúc Vương',
-      },
-    },
-    {
-      id: 104,
-      role: 'MEMBER',
-      hasConsented: true,
-      joinedAt: '2026-10-15T09:15:00Z',
-      user: {
-        id: 4,
-        email: 'phuc.31241020074@st.ueh.edu.vn',
-        fullName: 'Ngô Trọng Phúc',
-      },
-    },
-    {
-      id: 105,
-      role: 'MEMBER',
-      hasConsented: true,
-      joinedAt: '2026-10-15T09:30:00Z',
-      user: {
-        id: 5,
-        email: 'khang.31241022785@st.ueh.edu.vn',
-        fullName: 'Triệu Nguyễn Huỳnh Khang',
-      },
-    },
-    {
-      id: 106,
-      role: 'MEMBER',
-      hasConsented: true,
-      joinedAt: '2026-10-15T10:00:00Z',
-      user: {
-        id: 6,
-        email: 'namanh.31241022203@st.ueh.edu.vn',
-        fullName: 'Khiếu Hoàng Nam Anh',
-      },
-    },
-  ],
-};
-
-const SPRINTS_TIMELINE = [
-  {
-    num: 1,
-    title: 'Khởi tạo & Khảo sát Pain Points',
-    period: 'Tuần 1 (14/10 - 20/10)',
-    status: 'DONE',
-    focusTask: 'Khảo sát thực trạng Free-rider đồ án nhóm UEH, thu thập khảo sát 42 sinh viên CNTT.',
-  },
-  {
-    num: 2,
-    title: 'Đặc tả Nghiệp vụ & Chính sách Đồng thuận',
-    period: 'Tuần 2 (21/10 - 27/10)',
-    status: 'DONE',
-    focusTask: 'Soạn thảo Báo cáo Tuần 2, đặc tả User Stories, ma trận RACI và tiêu chuẩn đồng thuận Nghị định 13.',
-  },
-  {
-    num: 3,
-    title: 'Giao diện Hồ sơ & Tích hợp Đối soát',
-    period: 'Tuần 3 (28/10 - 03/11)',
-    status: 'ACTIVE',
-    focusTask: 'Thiết kế giao diện Auth/Profile/TeamDetail theo chuẩn Linear, tích hợp cơ chế đối soát Git & Trello.',
-  },
-  {
-    num: 4,
-    title: 'Trọng số Đóng góp & Thuật toán CI',
-    period: 'Tuần 4 (04/11 - 10/11)',
-    status: 'UPCOMING',
-    focusTask: 'Xây dựng công thức tính chỉ số đóng góp CI = Git (40%) + Trello (40%) + Chấm chéo (20%).',
-  },
-  {
-    num: 5,
-    title: 'Khảo sát Chấm chéo Ẩn danh (Peer Review)',
-    period: 'Tuần 5 (11/11 - 17/11)',
-    status: 'UPCOMING',
-    focusTask: 'Triển khai biểu mẫu đánh giá chéo ẩn danh 360 độ và thuật toán loại trừ thiên vị (Anti-bias).',
-  },
-  {
-    num: 6,
-    title: 'Xuất Báo cáo Giảng viên & Đối soát',
-    period: 'Tuần 6 (18/11 - 24/11)',
-    status: 'UPCOMING',
-    focusTask: 'Phát triển module xuất báo cáo PDF/Excel minh chứng minh bạch phục vụ chấm điểm đồ án.',
-  },
-  {
-    num: 7,
-    title: 'Nghiệm thu & Báo cáo Đồ án Cuối kỳ',
-    period: 'Tuần 7 (25/11 - 01/12)',
-    status: 'UPCOMING',
-    focusTask: 'Đóng gói toàn diện đồ án, hoàn thiện tài liệu kỹ thuật SRS và bảo vệ trước Hội đồng UEH.',
-  },
-];
 
 export const TeamDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [team, setTeam] = useState<Team | null>(DEFAULT_TEAM_DATA);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'members' | 'sprints' | 'consent'>('members');
   const [isConsentOpen, setIsConsentOpen] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [teamSprints, setTeamSprints] = useState<Array<{ num: number; title: string; period: string; status: string; focusTask: string }>>([]);
+  const [totalCards, setTotalCards] = useState<number>(0);
+
+  const getMemberInitials = (name?: string, email?: string) => {
+    if (name) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return name.substring(0, 2).toUpperCase();
+    }
+    return (email?.substring(0, 2) || 'TV').toUpperCase();
+  };
 
   useEffect(() => {
     let isMounted = true;
+    setLoading(true);
     const fetchTeam = async () => {
       try {
-        const res = await teamApi.getTeamById(Number(id) || 1);
-        if (isMounted && res && res.data && res.data.members && res.data.members.length > 0) {
+        const teamIdNum = Number(id) || 1;
+        const res = await teamApi.getTeamById(teamIdNum);
+        if (isMounted && res?.data) {
           setTeam(res.data);
         }
       } catch {
-        // Fallback to DEFAULT_TEAM_DATA already set
+        if (isMounted) {
+          setTeam(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -177,6 +73,48 @@ export const TeamDetailPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
+  }, [id]);
+
+  useEffect(() => {
+    const teamIdNum = Number(id) || 1;
+    peerReviewApi
+      .getSprints(teamIdNum)
+      .then((res) => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setTeamSprints(
+            res.data.map((sp, idx) => ({
+              num: idx + 1,
+              title: sp.name || `Sprint ${idx + 1}`,
+              period: sp.startDate && sp.endDate ? `${sp.startDate} - ${sp.endDate}` : '14 ngày',
+              status: sp.status === 'ACTIVE' ? 'ACTIVE' : sp.status === 'CLOSED' ? 'DONE' : 'UPCOMING',
+              focusTask: 'Thực hiện và phân chia các công việc trên Kanban Board',
+            }))
+          );
+        } else {
+          setTeamSprints([]);
+        }
+      })
+      .catch(() => {
+        setTeamSprints([]);
+      });
+
+    boardApi
+      .getBoardsByTeam(teamIdNum)
+      .then((res) => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const total =
+            res.data[0].columns?.reduce(
+              (sum, col) => sum + (col.cards?.length || 0),
+              0
+            ) || 0;
+          setTotalCards(total);
+        } else {
+          setTotalCards(0);
+        }
+      })
+      .catch(() => {
+        setTotalCards(0);
+      });
   }, [id]);
 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -199,10 +137,10 @@ export const TeamDetailPage: React.FC = () => {
         await teamApi.updateMemberRole(team.id, userId, role);
       }
       setTeam((prev) => {
-        const base = prev || DEFAULT_TEAM_DATA;
+        if (!prev) return null;
         return {
-          ...base,
-          members: base.members?.map((m) =>
+          ...prev,
+          members: prev.members?.map((m) =>
             m.user?.id === userId || m.id === userId ? { ...m, role } : m
           ),
         };
@@ -224,10 +162,10 @@ export const TeamDetailPage: React.FC = () => {
         await teamApi.deleteMember(team.id, userId);
       }
       setTeam((prev) => {
-        const base = prev || DEFAULT_TEAM_DATA;
+        if (!prev) return null;
         return {
-          ...base,
-          members: base.members?.filter(
+          ...prev,
+          members: prev.members?.filter(
             (m) => m.user?.id !== userId && m.id !== userId
           ),
         };
@@ -240,11 +178,65 @@ export const TeamDetailPage: React.FC = () => {
     }
   };
 
-  const currentTeam = team || DEFAULT_TEAM_DATA;
-  const membersCount = currentTeam.members?.length || 6;
+  const { user: currentUser } = useAuthStore();
+  const currentTeam = team;
+  const isLeader =
+    currentTeam?.currentRole === 'LEADER' ||
+    Boolean(
+      currentTeam?.members?.find(
+        (m) =>
+          ((m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id) === currentUser?.id ||
+            (m.user?.email ?? (m as unknown as { email?: string }).email) === currentUser?.email) &&
+          m.role === 'LEADER'
+      )
+    );
+  const membersCount = currentTeam?.members?.length || 0;
+
+  if (loading) {
+    return (
+      <div
+        className="page pad flex flex-col items-center justify-center py-24 space-y-3 text-zinc-400"
+        style={{ maxWidth: '1240px', margin: '0 auto' }}
+      >
+        <Loader2 size={24} className="animate-spin text-indigo-400" />
+        <span className="text-xs">Đang tải dữ liệu dự án...</span>
+      </div>
+    );
+  }
+
+  if (!currentTeam) {
+    return (
+      <div
+        className="page pad flex flex-col items-center justify-center py-24 space-y-3 text-zinc-400"
+        style={{ maxWidth: '1240px', margin: '0 auto' }}
+      >
+        <p className="text-sm font-medium">Không tìm thấy thông tin dự án</p>
+        <Link to="/teams" className="text-xs text-indigo-400 hover:underline">
+          Quay lại danh sách dự án
+        </Link>
+      </div>
+    );
+  }
+
+  // Calculate dynamic metrics for the 4 cards
+  const leaderCount = currentTeam.members?.filter((m) => m.role === 'LEADER').length || 0;
+  const memberCountOnly = Math.max(0, membersCount - leaderCount);
+
+  const consentedCount = currentTeam.members?.filter((m) => m.hasConsented).length || 0;
+  const isAllConsented = membersCount > 0 && consentedCount === membersCount;
+  const consentRate = membersCount > 0 ? Math.round((consentedCount / membersCount) * 100) : 0;
+
+  const totalSprints = teamSprints.length;
+  const activeSprint = teamSprints.find((s) => s.status === 'ACTIVE') || teamSprints[0];
+  const activeSprintNum = activeSprint?.num || 1;
+  const activeSprintPeriod = activeSprint?.period || '14 ngày';
+  const isCurrentSprintActive = activeSprint?.status === 'ACTIVE';
 
   return (
-    <div className="space-y-6 pt-2">
+    <div
+      className="page pad space-y-6"
+      style={{ maxWidth: '1240px', margin: '0 auto', overflowY: 'visible' }}
+    >
       {/* 1. Linear Minimalist Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-zinc-800/80">
         <div className="space-y-1.5">
@@ -260,12 +252,12 @@ export const TeamDetailPage: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
             <span>{currentTeam.name}</span>
             <span className="text-xs font-mono font-medium px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-              Học kỳ 1 • 2026-2027
+              {currentTeam.courseName || 'Học kỳ 1 • 2026-2027'}
             </span>
           </h1>
 
           <p className="text-xs sm:text-sm text-zinc-400 max-w-3xl leading-relaxed">
-            {currentTeam.description}
+            {currentTeam.description || 'Hệ thống hỗ trợ học tập nhóm, quản lý tiến độ Kanban, đo lường đóng góp đa chiều và đánh giá chéo minh bạch.'}
           </p>
         </div>
 
@@ -273,7 +265,7 @@ export const TeamDetailPage: React.FC = () => {
         <div className="flex items-center gap-2 flex-shrink-0">
           <Link
             to={`/teams/${currentTeam.id}/board`}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 hover:text-white hover:bg-indigo-800/50 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 hover:text-white hover:bg-indigo-800/50 transition-colors shadow-xs"
           >
             <Kanban size={13} className="text-indigo-400" />
             <span>Task Board</span>
@@ -286,20 +278,22 @@ export const TeamDetailPage: React.FC = () => {
             <span>Cài đặt Consent</span>
           </button>
 
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-sm"
-          >
-            <UserPlus size={13} />
-            <span>+ Mời thành viên</span>
-          </button>
+          {isLeader && (
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-sm"
+            >
+              <UserPlus size={13} />
+              <span>+ Mời thành viên</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 2. Linear Metric Cards (Flat, border-zinc-800, Monospace Typography) */}
+      {/* 2. Linear Metric Cards (Dynamic data, border-zinc-800, Monospace Typography) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Team Members */}
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
               Thành viên nhóm
@@ -313,42 +307,77 @@ export const TeamDetailPage: React.FC = () => {
             <span className="text-xs text-zinc-400 font-mono">sinh viên</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
-            <div className="flex items-center gap-1.5">
-              {['MT', 'HT', 'PV', 'TP', 'TK', 'NA'].map((initials, i) => (
-                <div
-                  key={i}
-                  className="h-5 w-5 rounded-md border border-zinc-700/80 bg-zinc-800/80 text-zinc-300 text-[9px] font-bold flex items-center justify-center shrink-0"
-                >
-                  {initials}
-                </div>
-              ))}
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              {currentTeam.members && currentTeam.members.length > 0 ? (
+                <>
+                  {currentTeam.members.slice(0, 5).map((m, i) => {
+                    const name = m.fullName || m.user?.fullName;
+                    const email = m.email || m.user?.email;
+                    const initials = getMemberInitials(name, email);
+                    const isLeaderRole = m.role === 'LEADER';
+                    return (
+                      <div
+                        key={m.id || i}
+                        title={`${name || email || 'Thành viên'} (${isLeaderRole ? 'Trưởng nhóm' : 'Thành viên'})`}
+                        className={`h-5 w-5 rounded-md border text-[9px] font-bold flex items-center justify-center shrink-0 ${
+                          isLeaderRole
+                            ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                            : 'border-zinc-700/80 bg-zinc-800/80 text-zinc-300'
+                        }`}
+                      >
+                        {initials}
+                      </div>
+                    );
+                  })}
+                  {currentTeam.members.length > 5 && (
+                    <div className="h-5 w-5 rounded-md border border-zinc-700/80 bg-zinc-850 text-zinc-400 text-[8px] font-bold flex items-center justify-center shrink-0">
+                      +{currentTeam.members.length - 5}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span className="text-[10px] text-zinc-500">Chưa có thành viên</span>
+              )}
             </div>
-            <span className="text-zinc-400 hidden sm:inline">6/6 vai trò</span>
+            <span className="text-zinc-400 hidden sm:inline truncate pl-1">
+              {leaderCount > 0
+                ? `${leaderCount} Leader · ${memberCountOnly} Member`
+                : `${membersCount} vai trò`}
+            </span>
           </div>
         </div>
 
         {/* Card 2: Consent Status */}
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
               Đồng thuận dữ liệu
             </span>
-            <ShieldCheck size={14} className="text-emerald-500/80" />
+            <ShieldCheck size={14} className={isAllConsented ? 'text-emerald-400' : 'text-amber-400'} />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-mono text-2xl sm:text-3xl font-semibold text-emerald-400 tracking-tight">
-              6 / 6
+            <span className={`font-mono text-2xl sm:text-3xl font-semibold tracking-tight ${isAllConsented ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {consentedCount} / {membersCount}
             </span>
             <span className="text-xs text-zinc-400 font-mono">ký số</span>
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono">
-            <CheckCircle2 size={12} />
-            <span>Chuẩn Nghị định 13/2023</span>
+          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-mono">
+            {isAllConsented ? (
+              <span className="text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 size={12} />
+                <span>100% Đã đồng thuận NĐ 13</span>
+              </span>
+            ) : (
+              <span className="text-amber-400 flex items-center gap-1">
+                <Clock size={12} />
+                <span>{consentRate}% Đang thu thập Consent</span>
+              </span>
+            )}
           </div>
         </div>
 
         {/* Card 3: Active Sprint */}
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
               Sprint hiện tại
@@ -357,21 +386,25 @@ export const TeamDetailPage: React.FC = () => {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="font-mono text-2xl sm:text-3xl font-semibold text-zinc-100 tracking-tight">
-              Sprint 3
+              {activeSprint ? `Sprint ${activeSprintNum}` : 'Sprint 1'}
             </span>
-            <span className="text-xs text-zinc-500 font-mono">/ 7 Sprints</span>
+            <span className="text-xs text-zinc-500 font-mono">
+              / {totalSprints > 0 ? totalSprints : 1} Sprints
+            </span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
-            <span className="flex items-center gap-1">
-              <Clock size={11} className="text-amber-400" />
-              <span>Hạn: 02/11/2026</span>
+            <span className="flex items-center gap-1 truncate max-w-[170px]" title={activeSprintPeriod}>
+              <Clock size={11} className={isCurrentSprintActive ? 'text-amber-400' : 'text-zinc-500'} />
+              <span className="truncate">{activeSprintPeriod}</span>
             </span>
-            <span className="text-amber-400 font-medium">Hôm nay</span>
+            <span className={`font-medium ${isCurrentSprintActive ? 'text-emerald-400' : 'text-zinc-500'}`}>
+              {isCurrentSprintActive ? 'Đang diễn ra' : activeSprint?.status === 'DONE' ? 'Hoàn thành' : 'Kế hoạch'}
+            </span>
           </div>
         </div>
 
         {/* Card 4: Metric Integrations */}
-        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors">
+        <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
               Kênh đo lường
@@ -379,23 +412,35 @@ export const TeamDetailPage: React.FC = () => {
             <Layers size={14} className="text-zinc-500" />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg flex items-center gap-2">
-              <Kanban size={13} className="text-sky-400" />
-              <div>
-                <div className="text-[10px] text-zinc-500 font-mono">Trello</div>
-                <div className="text-xs font-semibold text-zinc-200 font-mono">51 thẻ</div>
+            <Link
+              to={`/teams/${currentTeam.id}/board`}
+              className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg flex items-center gap-2 hover:border-zinc-700 hover:bg-zinc-800/80 transition-colors group"
+            >
+              <Kanban size={13} className="text-sky-400 shrink-0 group-hover:scale-110 transition-transform" />
+              <div className="min-w-0">
+                <div className="text-[10px] text-zinc-500 font-mono truncate">Task Board</div>
+                <div className="text-xs font-semibold text-zinc-200 font-mono truncate">{totalCards} thẻ</div>
               </div>
-            </div>
+            </Link>
             <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-lg flex items-center gap-2">
-              <GitBranch size={13} className="text-indigo-400" />
-              <div>
-                <div className="text-[10px] text-zinc-500 font-mono">GitHub</div>
-                <div className="text-xs font-semibold text-zinc-200 font-mono">nhánh dev</div>
+              <GitBranch size={13} className="text-indigo-400 shrink-0" />
+              <div className="min-w-0">
+                <div className="text-[10px] text-zinc-500 font-mono truncate">Git Version</div>
+                <div className="text-xs font-semibold text-zinc-200 font-mono truncate">main branch</div>
               </div>
             </div>
           </div>
-          <div className="mt-2.5 text-[11px] text-zinc-500 font-mono text-right">
-            Đồng bộ định kỳ 15 phút
+          <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Tự động đồng bộ</span>
+            </span>
+            <Link
+              to={`/teams/${currentTeam.id}/board`}
+              className="text-sky-400 hover:underline hover:text-sky-300"
+            >
+              Bảng việc &rarr;
+            </Link>
           </div>
         </div>
       </div>
@@ -424,7 +469,7 @@ export const TeamDetailPage: React.FC = () => {
             }`}
           >
             <Calendar size={13} />
-            <span>Kế hoạch Sprint (7 Sprints)</span>
+            <span>Kế hoạch Sprint ({teamSprints.length} Sprints)</span>
           </button>
 
           <button
@@ -450,7 +495,7 @@ export const TeamDetailPage: React.FC = () => {
                 Thành viên tham gia đồ án
               </h2>
               <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                Quản lý định danh 6 sinh viên UEH và trạng thái kích hoạt Consent chia sẻ minh chứng.
+                Quản lý định danh các thành viên và trạng thái kích hoạt Consent chia sẻ minh chứng.
               </p>
             </div>
             <div className="text-xs text-zinc-400 font-mono">
@@ -473,7 +518,7 @@ export const TeamDetailPage: React.FC = () => {
 
           <MemberTable
             members={currentTeam.members || []}
-            isLeader={true}
+            isLeader={isLeader}
             onUpdateRole={handleUpdateRole}
             onRemoveMember={handleRemoveMember}
           />
@@ -485,61 +530,67 @@ export const TeamDetailPage: React.FC = () => {
         <div className="space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-zinc-100">
-              Lộ trình 7 Sprints theo Đồ án Môn học UEH
+              Lộ trình Sprints theo Đồ án Môn học
             </h2>
             <p className="text-xs text-zinc-500 font-mono mt-0.5">
               Theo dõi tiến độ bàn giao từng tuần và đối soát trách nhiệm chuyên môn.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {SPRINTS_TIMELINE.map((sp) => {
-              const isDone = sp.status === 'DONE';
-              const isActive = sp.status === 'ACTIVE';
+          {teamSprints.length === 0 ? (
+            <div className="p-8 rounded-xl bg-[#121318] border border-zinc-800/80 text-center text-zinc-500 text-xs font-mono">
+              Chưa có kế hoạch Sprint nào được khởi tạo cho dự án này.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {teamSprints.map((sp) => {
+                const isDone = sp.status === 'DONE';
+                const isActive = sp.status === 'ACTIVE';
 
-              return (
-                <div
-                  key={sp.num}
-                  className={`p-4 rounded-xl border transition-colors ${
-                    isActive
-                      ? 'bg-[#121318] border-zinc-600/80 shadow-sm'
-                      : isDone
-                      ? 'bg-[#121318] border-zinc-800/80 opacity-90'
-                      : 'bg-[#0f1015] border-zinc-850 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono font-semibold text-xs text-zinc-200">
-                      Sprint {sp.num}: {sp.title}
-                    </span>
-                    {isDone ? (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                        <CheckCircle2 size={11} /> Hoàn thành
+                return (
+                  <div
+                    key={sp.num}
+                    className={`p-4 rounded-xl border transition-colors ${
+                      isActive
+                        ? 'bg-[#121318] border-zinc-600/80 shadow-sm'
+                        : isDone
+                        ? 'bg-[#121318] border-zinc-800/80 opacity-90'
+                        : 'bg-[#0f1015] border-zinc-850 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono font-semibold text-xs text-zinc-200">
+                        Sprint {sp.num}: {sp.title}
                       </span>
-                    ) : isActive ? (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center gap-1">
-                        Đang diễn ra
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-500">
-                        Sắp tới
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-[11px] text-zinc-500 font-mono mb-3">{sp.period}</div>
-
-                  <div className="pt-2.5 border-t border-zinc-800/60 text-xs">
-                    <div className="font-medium text-zinc-300 mb-1 flex items-center gap-1">
-                      <FileText size={12} className="text-zinc-400" />
-                      <span>Nhiệm vụ trọng tâm:</span>
+                      {isDone ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                          <CheckCircle2 size={11} /> Hoàn thành
+                        </span>
+                      ) : isActive ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center gap-1">
+                          Đang diễn ra
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-500">
+                          Sắp tới
+                        </span>
+                      )}
                     </div>
-                    <p className="text-zinc-400 leading-relaxed text-[11px]">{sp.focusTask}</p>
+
+                    <div className="text-[11px] text-zinc-500 font-mono mb-3">{sp.period}</div>
+
+                    <div className="pt-2.5 border-t border-zinc-800/60 text-xs">
+                      <div className="font-medium text-zinc-300 mb-1 flex items-center gap-1">
+                        <FileText size={12} className="text-zinc-400" />
+                        <span>Nhiệm vụ trọng tâm:</span>
+                      </div>
+                      <p className="text-zinc-400 leading-relaxed text-[11px]">{sp.focusTask}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -572,7 +623,7 @@ export const TeamDetailPage: React.FC = () => {
               </div>
               <h3 className="font-semibold text-zinc-100 text-sm">Mục đích giới hạn</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Dữ liệu chỉ được sử dụng nội bộ trong phạm vi học phần Quản lý Dự án CNTT tại UEH, không chia sẻ cho bên thứ ba.
+                Dữ liệu chỉ được sử dụng nội bộ trong phạm vi học phần Quản lý Dự án CNTT, không chia sẻ cho bên thứ ba.
               </p>
             </div>
 
@@ -626,7 +677,7 @@ export const TeamDetailPage: React.FC = () => {
               <form onSubmit={handleInvite} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-zinc-300">
-                    Email sinh viên UEH (@st.ueh.edu.vn)
+                    Email thành viên
                   </label>
                   <div className="relative">
                     <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -634,7 +685,7 @@ export const TeamDetailPage: React.FC = () => {
                       type="email"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="mssv@st.ueh.edu.vn"
+                      placeholder="email@example.com"
                       required
                       className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
                     />
@@ -644,7 +695,7 @@ export const TeamDetailPage: React.FC = () => {
                 <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/60 flex items-start gap-2.5">
                   <AlertCircle size={14} className="text-zinc-400 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-zinc-400 leading-relaxed">
-                    Thành viên mới sẽ cần đăng nhập qua cổng định danh UEH và đồng thuận NĐ 13 trước khi dữ liệu được tổng hợp.
+                    Thành viên mới sẽ cần đăng nhập vào hệ thống và đồng thuận NĐ 13 trước khi dữ liệu được tổng hợp.
                   </p>
                 </div>
 

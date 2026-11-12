@@ -10,10 +10,18 @@ export interface ContributionPieChartProps {
 const COLORS = ['#5b8def', '#4cc38a', '#e8a33d', '#c06be0', '#3fbfa8', '#a99bff'];
 
 export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data }) => {
-  const chartData = data.map((d) => ({
-    name: d.userName,
-    value: d.percentage * 100,
-  }));
+  const safeData = Array.isArray(data) ? data : [];
+  const mapped = safeData.map((d) => {
+    const rawPct = Number(d.percentage ?? d.finalPct ?? 0);
+    const val = rawPct <= 1 && rawPct > 0 ? rawPct * 100 : rawPct;
+    return {
+      name: d.userName || `#${d.userId}`,
+      value: Number(val.toFixed(1)),
+    };
+  });
+
+  const nonZero = mapped.filter((item) => item.value > 0);
+  const chartData = nonZero.length > 0 ? nonZero : mapped;
 
   return (
     <div style={{ width: '100%', height: '300px' }}>
@@ -28,7 +36,7 @@ export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data
             paddingAngle={5}
             dataKey="value"
             isAnimationActive={false}
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+            label={({ name, percent }) => `${name}: ${(Number(percent ?? 0) * 100).toFixed(1)}%`}
             labelLine={{ stroke: 'var(--fg3)' }}
           >
             {chartData.map((_, index) => (
@@ -43,7 +51,7 @@ export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data
               color: 'var(--fg)',
               fontSize: '12px',
             }}
-            formatter={(value: number) => [`${value.toFixed(1)}%`, 'Tỷ lệ']}
+            formatter={(value: number) => [`${Number(value ?? 0).toFixed(1)}%`, 'Tỷ lệ']}
           />
           <Legend
             wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: 'var(--fg2)' }}

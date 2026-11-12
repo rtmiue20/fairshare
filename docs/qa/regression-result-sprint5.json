@@ -1,0 +1,318 @@
+{
+  "run": "1794316291",
+  "base_url": "http://localhost:8081",
+  "executed_at": "2026-11-10T20:11:35",
+  "ids": {
+    "team": 3,
+    "sprint": 7,
+    "board": 2
+  },
+  "passed": 13,
+  "total": 30,
+  "groups": {
+    "SCR": [
+      8,
+      8
+    ],
+    "DASH": [
+      2,
+      5
+    ],
+    "PERM": [
+      2,
+      6
+    ],
+    "TRL": [
+      0,
+      3
+    ],
+    "PDF": [
+      1,
+      8
+    ]
+  },
+  "pdf_performance": [
+    {
+      "sprint": 1,
+      "events": 100,
+      "cold_s": 0.021,
+      "p50_s": 0.022,
+      "p95_s": 0.033,
+      "max_s": 0.033,
+      "size_kb": 0.2,
+      "status": 500
+    },
+    {
+      "sprint": 2,
+      "events": 100,
+      "cold_s": 0.026,
+      "p50_s": 0.023,
+      "p95_s": 0.034,
+      "max_s": 0.034,
+      "size_kb": 0.2,
+      "status": 500
+    },
+    {
+      "sprint": 3,
+      "events": 100,
+      "cold_s": 0.024,
+      "p50_s": 0.022,
+      "p95_s": 0.028,
+      "max_s": 0.028,
+      "size_kb": 0.2,
+      "status": 500
+    },
+    {
+      "sprint": 4,
+      "events": 100,
+      "cold_s": 0.019,
+      "p50_s": 0.023,
+      "p95_s": 0.035,
+      "max_s": 0.035,
+      "size_kb": 0.2,
+      "status": 500
+    }
+  ],
+  "cases": [
+    {
+      "id": "SCR-01",
+      "group": "SCR",
+      "name": "POST /calculate chạy ScoringEngine cho cả 6 thành viên",
+      "expected": "HTTP 200, 6 dòng",
+      "actual": "HTTP 200, 6 dòng",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-02",
+      "group": "SCR",
+      "name": "Tổng tỷ lệ đóng góp của nhóm = 100% (API trả dạng tỷ lệ 0–1 hoặc 0–100)",
+      "expected": "tổng ≈ 1.0 hoặc ≈ 100",
+      "actual": "tổng = 0.9999",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-03",
+      "group": "SCR",
+      "name": "Cùng 3 SP: hoàn thành đúng hạn (B) được điểm cao hơn trễ hạn (C)",
+      "expected": "score(B) > score(C)",
+      "actual": "B=31.42, C=13.69",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-04",
+      "group": "SCR",
+      "name": "Thành viên không có hoạt động (F) không cao hơn người có card Done",
+      "expected": "score(F) ≤ min(B, C, E)",
+      "actual": "F=4.08, B=31.42, C=13.69, E=31.42",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-05",
+      "group": "SCR",
+      "name": "Chỉ tạo card 8 SP (D) không cao hơn người hoàn thành 3 SP đúng hạn (E) – liên quan DEF-17",
+      "expected": "score(D) ≤ score(E)",
+      "actual": "D=15.30, E=31.42",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-06",
+      "group": "SCR",
+      "name": "Điểm ScoringEngine được lưu và đọc lại đúng (GET /contributions/sprints/{id})",
+      "expected": "HTTP 200, điểm trùng với kết quả /calculate",
+      "actual": "HTTP 200, 6 dòng, khớp=True",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-07",
+      "group": "SCR",
+      "name": "Regression luồng đầy đủ: F hoàn thành card mới -> tính lại -> điểm F tăng",
+      "expected": "score(F) sau > trước",
+      "actual": "trước=4.08, sau=36.65",
+      "result": "PASS"
+    },
+    {
+      "id": "SCR-08",
+      "group": "SCR",
+      "name": "Hai nguồn điểm thống nhất: ScoringEngine (/calculate) và routine (/summary) xếp cùng người đứng đầu",
+      "expected": "Người có điểm cao nhất giống nhau",
+      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=0.0, Bích=16.67, Cường=16.67, Dũng=22.22, Én=16.67, Phú=27.78)",
+      "result": "PASS"
+    },
+    {
+      "id": "DASH-01",
+      "group": "DASH",
+      "name": "Dashboard lấy teamId theo nhóm đang chọn, không gán cứng",
+      "expected": "Không có lời gọi contributionApi.*(1, ...)",
+      "actual": "4 lời gọi gán cứng teamId=1 (ContributionDashboard.tsx)",
+      "result": "FAIL"
+    },
+    {
+      "id": "DASH-02",
+      "group": "DASH",
+      "name": "API điểm dashboard gọi: GET /api/teams/{teamId}/contributions (contribution.api.ts)",
+      "expected": "HTTP 200",
+      "actual": "HTTP 500",
+      "result": "FAIL"
+    },
+    {
+      "id": "DASH-03",
+      "group": "DASH",
+      "name": "API biểu đồ dashboard: GET /api/contributions/summary",
+      "expected": "HTTP 200, 6 thành viên",
+      "actual": "HTTP 200, 6 dòng",
+      "result": "PASS"
+    },
+    {
+      "id": "DASH-04",
+      "group": "DASH",
+      "name": "API truy vết dashboard: GET /api/contributions/evidence",
+      "expected": "HTTP 200, có card của B",
+      "actual": "HTTP 200, 2 mục",
+      "result": "PASS"
+    },
+    {
+      "id": "DASH-05",
+      "group": "DASH",
+      "name": "API bằng chứng thành viên: GET /api/teams/{teamId}/contributions/{userId}/evidence (contribution.api.ts)",
+      "expected": "HTTP 200",
+      "actual": "HTTP 500",
+      "result": "FAIL"
+    },
+    {
+      "id": "PERM-01",
+      "group": "PERM",
+      "name": "Thành viên thường tạo cột -> bị chặn",
+      "expected": "HTTP 403",
+      "actual": "HTTP 201",
+      "result": "FAIL"
+    },
+    {
+      "id": "PERM-02",
+      "group": "PERM",
+      "name": "Thành viên thường đổi tên board -> bị chặn",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200",
+      "result": "FAIL"
+    },
+    {
+      "id": "PERM-03",
+      "group": "PERM",
+      "name": "Thành viên kéo card được giao cho người khác -> bị chặn",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200",
+      "result": "FAIL"
+    },
+    {
+      "id": "PERM-04",
+      "group": "PERM",
+      "name": "Thành viên kéo card của chính mình -> được phép",
+      "expected": "HTTP 200",
+      "actual": "HTTP 200",
+      "result": "PASS"
+    },
+    {
+      "id": "PERM-05",
+      "group": "PERM",
+      "name": "Leader tạo cột -> được phép",
+      "expected": "HTTP 200/201",
+      "actual": "HTTP 201",
+      "result": "PASS"
+    },
+    {
+      "id": "PERM-06",
+      "group": "PERM",
+      "name": "Người ngoài nhóm kéo card của nhóm -> bị chặn",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200",
+      "result": "FAIL"
+    },
+    {
+      "id": "TRL-01",
+      "group": "TRL",
+      "name": "Đã xóa module/test/trang Trello legacy theo DoD",
+      "expected": "0 đường dẫn còn tồn tại",
+      "actual": "còn 4/4: trello, TrelloClientTest.java, ConnectTrelloPage.tsx, integration.api.ts",
+      "result": "FAIL"
+    },
+    {
+      "id": "TRL-02",
+      "group": "TRL",
+      "name": "Router frontend không còn route integration / ConnectTrelloPage",
+      "expected": "0 file tham chiếu",
+      "actual": "4 file: frontend/src/components/layout/AnimatedTopDock.tsx, frontend/src/components/layout/Sidebar.tsx, frontend/src/app/router.tsx, frontend/src/features/integration/ConnectTrelloPage.tsx",
+      "result": "FAIL"
+    },
+    {
+      "id": "TRL-03",
+      "group": "TRL",
+      "name": "Dữ liệu cũ nguồn TRELLO không làm lỗi summary / calculate / activities / PDF",
+      "expected": "HTTP 200 cả 4",
+      "actual": "HTTP [200, 200, 200, 500]",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-01",
+      "group": "PDF",
+      "name": "G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (500 sự kiện), 11 lần/sprint",
+      "expected": "Mọi lần HTTP 200, file %PDF hợp lệ, chậm nhất < 10 s",
+      "actual": "chậm nhất 0.035s; p50 theo sprint = [0.022, 0.023, 0.022, 0.023]s",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-02",
+      "group": "PDF",
+      "name": "PDF có phần đóng góp của đủ 6 thành viên",
+      "expected": "Đủ 6 tên trong PDF",
+      "actual": "thiếu 6: ['Nguyen Van Minh Trieu (Leader)', 'Le Phuc Vuong (M1 - Platform)', 'Ha Ngoc Thien (M2 - BA)', 'Ngo Trong Phuc (M3 - Data/DB)', 'Trieu Nguyen Huynh Khang (M4 - PeerReview)', 'Nguyen Nam Anh (M5 - QA/Deploy)']",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-03",
+      "group": "PDF",
+      "name": "PDF có điểm chấm chéo khi đủ 3 người chấm (sprint 4 có 3 lượt cho thành viên 1)",
+      "expected": "Có điểm dạng x.x/5",
+      "actual": "không thấy điểm x.x/5",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-04",
+      "group": "PDF",
+      "name": "PDF có bằng chứng chính (sự kiện gốc)",
+      "expected": "Có tên task trong seed (vd. '#4xx')",
+      "actual": "không thấy",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-05",
+      "group": "PDF",
+      "name": "Tiếng Việt có dấu hiển thị đúng trong PDF (tên thành viên)",
+      "expected": "Đủ 6 tên có dấu, vd. 'Trần Thị Bích'",
+      "actual": "HTTP 500; đúng 0/6; ví dụ dòng trong PDF: ''",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-06",
+      "group": "PDF",
+      "name": "Người ngoài nhóm tải PDF của nhóm khác",
+      "expected": "HTTP 403",
+      "actual": "HTTP 500",
+      "result": "FAIL"
+    },
+    {
+      "id": "PDF-07",
+      "group": "PDF",
+      "name": "Sprint không tồn tại",
+      "expected": "HTTP 404",
+      "actual": "HTTP 404",
+      "result": "PASS"
+    },
+    {
+      "id": "PDF-08",
+      "group": "PDF",
+      "name": "Ghép team 1 với sprint của nhóm khác",
+      "expected": "HTTP 400/404 (sprint không thuộc team)",
+      "actual": "HTTP 500",
+      "result": "FAIL"
+    }
+  ]
+}

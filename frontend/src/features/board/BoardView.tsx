@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   Kanban,
   Plus,
@@ -18,7 +18,8 @@ import {
   GripVertical,
   MessageSquare,
   CheckSquare,
-  Award
+  Award,
+  Lock
 } from 'lucide-react';
 import {
   DragDropContext,
@@ -28,6 +29,9 @@ import {
 } from '@hello-pangea/dnd';
 import { boardApi } from '../../api/board.api';
 import { teamApi } from '../../api/team.api';
+import { useAuthStore } from '../../store/authStore';
+import { useProjectStore } from '../../store/projectStore';
+import { NoProjectState } from '../team/NoProjectState';
 import type { Board, BoardColumn, Card } from '../../types/board';
 import type { Team } from '../../types/team';
 
@@ -69,7 +73,7 @@ const DEFAULT_BOARD: Board = {
           boardId: 1,
           columnId: 1,
           title: 'Khảo sát thêm 20 sinh viên về Free-rider',
-          description: 'Mở rộng mẫu khảo sát đồ án UEH',
+          description: 'Mở rộng mẫu khảo sát đồ án',
           storyPoints: 2,
           position: 0,
           assigneeName: 'Hà Ngọc Thiện',
@@ -81,7 +85,7 @@ const DEFAULT_BOARD: Board = {
           boardId: 1,
           columnId: 1,
           title: 'Thiết kế giao diện xuất báo cáo PDF',
-          description: 'Tuân thủ mẫu báo cáo đồ án QLDA UEH',
+          description: 'Tuân thủ mẫu báo cáo đồ án',
           storyPoints: 3,
           position: 1,
           assigneeName: 'Nguyễn Văn Minh Triều',
@@ -167,12 +171,43 @@ const DEFAULT_BOARD: Board = {
 
 export const BoardView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const teamId = Number(id) || 1;
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const pathMatch = location.pathname.match(/\/teams\/(\d+)/);
+  const routeTeamId = Number(id) || (pathMatch ? Number(pathMatch[1]) : 0);
+  const queryTeamId = Number(searchParams.get('teamId'));
+  const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
+  const teamId = routeTeamId > 0 ? routeTeamId : (queryTeamId > 0 ? queryTeamId : (activeTeamId || (teams[0]?.id ?? 1)));
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
 
   const [board, setBoard] = useState<Board>(DEFAULT_BOARD);
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Phân quyền vai trò: Leader vs Thành viên
+  const { user: currentUser } = useAuthStore();
+  const [demoRoleOverride, setDemoRoleOverride] = useState<'AUTO' | 'LEADER' | 'MEMBER'>('AUTO');
+
+  const detectedIsLeader =
+    !currentUser ||
+    currentUser?.id === 1 ||
+    currentUser?.email?.startsWith('trieu') ||
+    team?.currentRole === 'LEADER' ||
+    Boolean(
+      team?.members?.find((m) => {
+        const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+        return (uId === currentUser?.id || m.id === currentUser?.id) && m.role === 'LEADER';
+      })
+    );
+
+  const isLeader =
+    demoRoleOverride === 'AUTO'
+      ? detectedIsLeader
+      : demoRoleOverride === 'LEADER';
 
   // New Card Modal State
   const [showAddCard, setShowAddCard] = useState(false);
@@ -218,12 +253,53 @@ export const BoardView: React.FC = () => {
     try {
       const teamRes = await teamApi.getTeamById(teamId);
       if (teamRes?.data) {
-        setTeam(teamRes.data);
+        const rawTeam = teamRes.data;
+        const normalizedMembers = (rawTeam.members || []).map((m: unknown) => {
+          const mem = m as {
+            id: number;
+            userId?: number;
+            fullName?: string;
+            email?: string;
+            role?: 'LEADER' | 'MEMBER';
+            hasConsented?: boolean;
+            joinedAt?: string;
+            user?: { id: number; fullName: string; email: string };
+          };
+          const uId = mem.user?.id ?? mem.userId ?? mem.id;
+          const uName = mem.user?.fullName ?? mem.fullName ?? mem.email ?? `Thành viên #${uId}`;
+          const uEmail = mem.user?.email ?? mem.email ?? '';
+          return {
+            ...mem,
+            id: mem.id,
+            userId: uId,
+            fullName: uName,
+            email: uEmail,
+            role: mem.role || 'MEMBER',
+            hasConsented: Boolean(mem.hasConsented),
+            joinedAt: mem.joinedAt || '',
+            user: mem.user || {
+              id: uId,
+              fullName: uName,
+              email: uEmail,
+            },
+          };
+        });
+        setTeam({
+          ...rawTeam,
+          members: normalizedMembers,
+        });
       }
 
       const boardRes = await boardApi.getBoardsByTeam(teamId);
       if (boardRes?.data && boardRes.data.length > 0) {
-        setBoard(boardRes.data[0]);
+        const currentB = boardRes.data[0];
+        setBoard(currentB);
+        if (currentB.columns && currentB.columns.length > 0) {
+          setSelectedColumnId((prevId) => {
+            const exists = currentB.columns.some((c) => c.id === prevId);
+            return exists ? prevId : currentB.columns[0].id;
+          });
+        }
       } else {
         try {
           const createRes = await boardApi.createBoard({
@@ -354,7 +430,14 @@ export const BoardView: React.FC = () => {
       }
 
       // Cập nhật ngay lập tức dữ liệu trên bảng Kanban (Optimistic state update)
-      const selectedMember = team?.members?.find((m) => m.user.id === editAssigneeId);
+      const selectedMember = team?.members?.find((m) => {
+        const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+        return uId === editAssigneeId;
+      });
+      const updatedAssigneeName = selectedMember
+        ? (selectedMember.user?.fullName || (selectedMember as unknown as { fullName?: string }).fullName || 'Thành viên')
+        : undefined;
+
       setBoard((prev) => ({
         ...prev,
         columns: prev.columns.map((col) => ({
@@ -364,7 +447,7 @@ export const BoardView: React.FC = () => {
               ? {
                   ...c,
                   assigneeId: editAssigneeId,
-                  assigneeName: selectedMember ? selectedMember.user.fullName : c.assigneeName,
+                  assigneeName: updatedAssigneeName !== undefined ? updatedAssigneeName : c.assigneeName,
                   storyPoints: spNumber,
                   difficultyLevel: editDifficultyLevel,
                   dueDate: formattedDate || c.dueDate,
@@ -392,8 +475,13 @@ export const BoardView: React.FC = () => {
     e.preventDefault();
     if (!newCardTitle.trim()) return;
 
+    const targetColId =
+      sortedColumns.find((c) => c.id === selectedColumnId)?.id ??
+      sortedColumns[0]?.id ??
+      selectedColumnId;
+
     try {
-      await boardApi.createCard(selectedColumnId, {
+      await boardApi.createCard(targetColId, {
         title: newCardTitle.trim(),
         description: newCardDesc.trim() || undefined,
         storyPoints: newCardStoryPoints,
@@ -410,23 +498,31 @@ export const BoardView: React.FC = () => {
       loadBoardData();
     } catch {
       // Fallback local update
+      const assigned = team?.members?.find((m) => {
+        const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+        return uId === newCardAssigneeId;
+      });
+      const assignedName = assigned
+        ? (assigned.user?.fullName || (assigned as unknown as { fullName?: string }).fullName || 'Thành viên')
+        : 'Thành viên';
+
       const newCard: Card = {
         id: Date.now(),
         boardId: board.id,
-        columnId: selectedColumnId,
+        columnId: targetColId,
         title: newCardTitle,
         description: newCardDesc,
         storyPoints: newCardStoryPoints,
         dueDate: newCardDueDate || undefined,
         position: 99,
-        assigneeName: team?.members?.find((m) => m.user.id === newCardAssigneeId)?.user.fullName || 'Thành viên',
+        assigneeName: assignedName,
         assigneeId: newCardAssigneeId,
       };
 
       setBoard((prev) => ({
         ...prev,
         columns: prev.columns.map((col) =>
-          col.id === selectedColumnId ? { ...col, cards: [...col.cards, newCard] } : col
+          col.id === targetColId ? { ...col, cards: [...(col.cards || []), newCard] } : col
         ),
       }));
 
@@ -471,6 +567,20 @@ export const BoardView: React.FC = () => {
     const destCol = newColumns.find((c) => c.id === destColId);
 
     if (!sourceCol || !destCol) return;
+
+    // Kiểm tra phân quyền: Thành viên chỉ được kéo thả thẻ được giao cho mình hoặc thẻ chưa gán
+    const targetCard = sourceCol.cards[source.index];
+    if (!targetCard) return;
+
+    const canMoveThis =
+      isLeader ||
+      !targetCard.assigneeId ||
+      Boolean(currentUser?.id && targetCard.assigneeId === currentUser.id);
+
+    if (!canMoveThis) {
+      showToast('Từ chối quyền: Thành viên chỉ được phép di chuyển thẻ được phân công cho mình!');
+      return;
+    }
 
     // Lấy card ra khỏi cột nguồn
     const [movedCard] = sourceCol.cards.splice(source.index, 1);
@@ -527,6 +637,17 @@ export const BoardView: React.FC = () => {
 
   const handleMoveCard = async (card: Card, targetColumnId: number) => {
     if (card.columnId === targetColumnId) return;
+
+    // Kiểm tra phân quyền di chuyển thẻ
+    const canMoveThis =
+      isLeader ||
+      !card.assigneeId ||
+      Boolean(currentUser?.id && card.assigneeId === currentUser.id);
+
+    if (!canMoveThis) {
+      showToast('Từ chối quyền: Thành viên chỉ được phép di chuyển thẻ được phân công cho mình!');
+      return;
+    }
 
     const previousBoard = board;
     const fromCol = board.columns.find((c) => c.id === card.columnId);
@@ -615,11 +736,18 @@ export const BoardView: React.FC = () => {
     .sort((a, b) => a.position - b.position)
     .map((col) => ({
       ...col,
-      cards: [...col.cards].sort((a, b) => a.position - b.position),
+      cards: [...(col.cards || [])].sort((a, b) => a.position - b.position),
     }));
 
+  if (initialized && teams.length === 0 && routeTeamId === 0 && queryTeamId === 0) {
+    return <NoProjectState />;
+  }
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div
+      className="space-y-6 max-w-7xl mx-auto pb-12 px-4 sm:px-6 lg:px-8"
+      style={{ paddingTop: 'calc(var(--top) + 24px)' }}
+    >
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-100 shadow-2xl text-xs font-medium animate-in fade-in slide-in-from-bottom-5 duration-200">
@@ -655,7 +783,30 @@ export const BoardView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 z-10">
+        <div className="flex flex-wrap items-center gap-2.5 z-10">
+          {/* Badge phân quyền vai trò */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
+            <span className="text-zinc-500 font-mono text-[11px]">Quyền:</span>
+            <span
+              className={`px-2 py-0.5 rounded font-mono text-[11px] font-semibold flex items-center gap-1 ${
+                isLeader
+                  ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30'
+                  : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+              }`}
+            >
+              {isLeader ? <Award size={11} className="text-indigo-400" /> : <Lock size={11} className="text-zinc-400" />}
+              {isLeader ? 'Leader' : 'Thành viên'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDemoRoleOverride(isLeader ? 'MEMBER' : 'LEADER')}
+              className="ml-1 text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
+              title="Nhấn để đổi vai trò kiểm thử ẩn/hiện nút và khóa thao tác"
+            >
+              (Đổi sang {isLeader ? 'Member' : 'Leader'})
+            </button>
+          </div>
+
           <button
             onClick={() => loadBoardData()}
             disabled={loading}
@@ -666,13 +817,16 @@ export const BoardView: React.FC = () => {
             <span>Làm mới</span>
           </button>
 
-          <button
-            onClick={() => setShowAddColumn(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-colors"
-          >
-            <Plus size={13} />
-            <span>Thêm cột</span>
-          </button>
+          {/* Ẩn nút Thêm cột đối với Thành viên thường - Chỉ Leader mới có quyền tạo/quản trị cột */}
+          {isLeader && (
+            <button
+              onClick={() => setShowAddColumn(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-colors"
+            >
+              <Plus size={13} />
+              <span>Thêm cột</span>
+            </button>
+          )}
 
           <button
             onClick={() => {
@@ -728,12 +882,18 @@ export const BoardView: React.FC = () => {
           <p className="text-xs text-zinc-500 max-w-sm">
             Hãy bấm &quot;Thêm cột&quot; để thiết lập các giai đoạn công việc (ví dụ: To Do, In Progress, Done).
           </p>
-          <button
-            onClick={() => setShowAddColumn(true)}
-            className="px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs hover:bg-white"
-          >
-            + Thêm cột đầu tiên
-          </button>
+          {isLeader ? (
+            <button
+              onClick={() => setShowAddColumn(true)}
+              className="px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs hover:bg-white"
+            >
+              + Thêm cột đầu tiên
+            </button>
+          ) : (
+            <span className="text-xs text-zinc-500 font-mono">
+              (Chỉ Leader mới có quyền khởi tạo các cột trên bảng)
+            </span>
+          )}
         </div>
       )}
 
@@ -772,26 +932,50 @@ export const BoardView: React.FC = () => {
                     ) : (
                       column.cards.map((card, index) => {
                         const dueInfo = formatDueDate(card.dueDate);
+                        const isAssignedToCurrent = Boolean(
+                          currentUser?.id && card.assigneeId === currentUser.id
+                        );
+                        const isUnassigned = !card.assigneeId;
+                        const canMoveCard = isLeader || isAssignedToCurrent || isUnassigned;
 
                         return (
-                          <Draggable key={card.id} draggableId={String(card.id)} index={index}>
+                          <Draggable
+                            key={card.id}
+                            draggableId={String(card.id)}
+                            index={index}
+                            isDragDisabled={!canMoveCard}
+                          >
                             {(dragProvided, dragSnapshot) => (
                               <div
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
                                 {...dragProvided.dragHandleProps}
-                                className={`p-3.5 rounded-lg bg-[#181920] border transition-all space-y-2.5 shadow-sm group cursor-grab active:cursor-grabbing select-none ${dragSnapshot.isDragging
+                                className={`p-3.5 rounded-lg bg-[#181920] border transition-all space-y-2.5 shadow-sm group select-none ${
+                                  !canMoveCard
+                                    ? 'cursor-pointer hover:border-zinc-700'
+                                    : 'cursor-grab active:cursor-grabbing'
+                                } ${
+                                  dragSnapshot.isDragging
                                     ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/40 bg-[#1c1e28] rotate-1 scale-[1.02]'
                                     : 'border-zinc-800/80 hover:border-zinc-700'
-                                  }`}
+                                }`}
                                 onClick={() => handleOpenEditCard(card)}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-start gap-1.5 flex-1 min-w-0">
-                                    <GripVertical
-                                      size={14}
-                                      className="text-zinc-600 group-hover:text-zinc-400 mt-0.5 flex-shrink-0 transition-colors"
-                                    />
+                                    {canMoveCard ? (
+                                      <GripVertical
+                                        size={14}
+                                        className="text-zinc-600 group-hover:text-zinc-400 mt-0.5 flex-shrink-0 transition-colors"
+                                      />
+                                    ) : (
+                                      <span
+                                        title="Chỉ người được giao việc hoặc Leader mới có thể di chuyển thẻ này"
+                                        className="inline-flex mt-0.5 flex-shrink-0"
+                                      >
+                                        <Lock size={13} className="text-zinc-500" />
+                                      </span>
+                                    )}
                                     <h4 className="text-xs font-medium text-zinc-100 group-hover:text-indigo-300 transition-colors line-clamp-2">
                                       {card.title}
                                     </h4>
@@ -816,10 +1000,11 @@ export const BoardView: React.FC = () => {
                                 {card.dueDate && (
                                   <div className="pl-5">
                                     <div
-                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${dueInfo.isOverdue
+                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${
+                                        dueInfo.isOverdue
                                           ? 'bg-red-950/40 text-red-400 border border-red-800/30'
                                           : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/30'
-                                        }`}
+                                      }`}
                                     >
                                       <Clock size={11} className={dueInfo.isOverdue ? 'text-red-400' : 'text-zinc-400'} />
                                       <span>{dueInfo.text}</span>
@@ -844,29 +1029,40 @@ export const BoardView: React.FC = () => {
                                   <div className="flex items-center gap-1">
                                     <button
                                       onClick={() => handleOpenEditCard(card)}
-                                      title="Chỉnh sửa chi tiết card"
+                                      title="Chi tiết thẻ"
                                       className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
                                     >
                                       <Edit3 size={12} />
                                     </button>
 
-                                    {colIdx > 0 && (
-                                      <button
-                                        onClick={() => handleMoveCard(card, sortedColumns[colIdx - 1].id)}
-                                        title={`Chuyển sang ${sortedColumns[colIdx - 1].name}`}
-                                        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                    {canMoveCard ? (
+                                      <>
+                                        {colIdx > 0 && (
+                                          <button
+                                            onClick={() => handleMoveCard(card, sortedColumns[colIdx - 1].id)}
+                                            title={`Chuyển sang ${sortedColumns[colIdx - 1].name}`}
+                                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                          >
+                                            <ArrowLeft size={12} />
+                                          </button>
+                                        )}
+                                        {colIdx < sortedColumns.length - 1 && (
+                                          <button
+                                            onClick={() => handleMoveCard(card, sortedColumns[colIdx + 1].id)}
+                                            title={`Chuyển sang ${sortedColumns[colIdx + 1].name}`}
+                                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                          >
+                                            <ArrowRight size={12} />
+                                          </button>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span
+                                        className="text-[10px] text-zinc-500 font-mono flex items-center gap-0.5 px-1 py-0.5"
+                                        title="Bạn chỉ có quyền xem thẻ này"
                                       >
-                                        <ArrowLeft size={12} />
-                                      </button>
-                                    )}
-                                    {colIdx < sortedColumns.length - 1 && (
-                                      <button
-                                        onClick={() => handleMoveCard(card, sortedColumns[colIdx + 1].id)}
-                                        title={`Chuyển sang ${sortedColumns[colIdx + 1].name}`}
-                                        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
-                                      >
-                                        <ArrowRight size={12} />
-                                      </button>
+                                        <Lock size={10} /> Chỉ xem
+                                      </span>
                                     )}
                                   </div>
                                 </div>
@@ -921,6 +1117,16 @@ export const BoardView: React.FC = () => {
               </div>
             )}
 
+            {/* Thông báo quyền hạn nếu Thành viên xem thẻ của người khác */}
+            {!isLeader && editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id && (
+              <div className="p-3 rounded-lg bg-blue-950/40 border border-blue-800/40 text-xs text-blue-200 flex items-center gap-2">
+                <Lock size={14} className="text-blue-400 shrink-0" />
+                <span>
+                  Chế độ Thành viên: Bạn chỉ có thể xem thẻ, gửi bình luận và thực hiện việc cần làm. Chỉ Leader hoặc người phụ trách ({editingCard.assigneeName || 'chính chủ'}) mới có quyền chỉnh sửa chi tiết thẻ.
+                </span>
+              </div>
+            )}
+
             <form onSubmit={handleSaveCardDetails} className="space-y-3.5 text-xs">
               <div className="space-y-1">
                 <label className="text-zinc-400 font-medium">Tiêu đề công việc</label>
@@ -947,15 +1153,24 @@ export const BoardView: React.FC = () => {
                   </label>
                   <select
                     value={editAssigneeId || ''}
+                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
                     onChange={(e) => setEditAssigneeId(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="">-- Chưa chỉ định --</option>
-                    {team?.members?.map((m) => (
-                      <option key={m.user.id} value={m.user.id}>
-                        {m.user.fullName} ({m.role})
-                      </option>
-                    ))}
+                    {team?.members?.map((m) => {
+                      const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+                      const uName =
+                        m.user?.fullName ??
+                        (m as unknown as { fullName?: string }).fullName ??
+                        (m as unknown as { email?: string }).email ??
+                        `Thành viên #${uId}`;
+                      return (
+                        <option key={uId} value={uId}>
+                          {uName} ({m.role})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -970,8 +1185,9 @@ export const BoardView: React.FC = () => {
                     min="1"
                     step="1"
                     value={editStoryPoints}
+                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
                     onChange={(e) => setEditStoryPoints(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -986,8 +1202,9 @@ export const BoardView: React.FC = () => {
                   <input
                     type="datetime-local"
                     value={editDueDate}
+                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
                     onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -999,8 +1216,9 @@ export const BoardView: React.FC = () => {
                   </label>
                   <select
                     value={editDifficultyLevel}
+                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
                     onChange={(e) => setEditDifficultyLevel(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value={1}>1 - Dễ (Easy)</option>
                     <option value={2}>2 - Trung bình (Medium)</option>
@@ -1079,14 +1297,16 @@ export const BoardView: React.FC = () => {
                 >
                   Đóng
                 </button>
-                <button
-                  type="submit"
-                  disabled={isUpdatingCard}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors"
-                >
-                  {isUpdatingCard ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                  <span>Lưu thay đổi</span>
-                </button>
+                {(isLeader || !editingCard.assigneeId || editingCard.assigneeId === currentUser?.id) && (
+                  <button
+                    type="submit"
+                    disabled={isUpdatingCard}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors"
+                  >
+                    {isUpdatingCard ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                    <span>Lưu thay đổi</span>
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -1171,11 +1391,19 @@ export const BoardView: React.FC = () => {
                   className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500"
                 >
                   <option value="">-- Chưa chỉ định --</option>
-                  {team?.members?.map((m) => (
-                    <option key={m.user.id} value={m.user.id}>
-                      {m.user.fullName} ({m.role})
-                    </option>
-                  ))}
+                  {team?.members?.map((m) => {
+                    const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+                    const uName =
+                      m.user?.fullName ??
+                      (m as unknown as { fullName?: string }).fullName ??
+                      (m as unknown as { email?: string }).email ??
+                      `Thành viên #${uId}`;
+                    return (
+                      <option key={uId} value={uId}>
+                        {uName} ({m.role})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

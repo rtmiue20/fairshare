@@ -9,7 +9,10 @@ export interface User {
 
 export interface TeamMember {
   id: number;
-  user: User;
+  userId?: number;
+  email?: string;
+  fullName?: string;
+  user?: User;
   role: Role;
   hasConsented: boolean;
   joinedAt: string;
@@ -18,6 +21,7 @@ export interface TeamMember {
 export interface Team {
   id: number;
   name: string;
+  currentRole?: Role;
   courseName?: string;
   description?: string;
   inviteCode?: string;

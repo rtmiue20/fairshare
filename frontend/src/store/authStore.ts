@@ -39,13 +39,7 @@ function getStoredUser(): User | null {
   try {
     const raw = safeGetItem(USER_STORAGE_KEY) || safeGetItem('user');
     if (raw) return JSON.parse(raw) as User;
-    const defaultUser: User = {
-      id: 2,
-      email: 'thien.31241021658@st.ueh.edu.vn',
-      fullName: 'Hà Ngọc Thiện',
-    };
-    safeSetItem(USER_STORAGE_KEY, JSON.stringify(defaultUser));
-    return defaultUser;
+    return null;
   } catch {
     return null;
   }
@@ -53,10 +47,7 @@ function getStoredUser(): User | null {
 
 function getStoredToken(): string | null {
   const token = safeGetItem(TOKEN_STORAGE_KEY) || safeGetItem('token');
-  if (token) return token;
-  const demoToken = 'fs-demo-token-sprint3';
-  safeSetItem(TOKEN_STORAGE_KEY, demoToken);
-  return demoToken;
+  return token || null;
 }
 
 interface AuthState {

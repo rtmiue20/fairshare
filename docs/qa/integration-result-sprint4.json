@@ -1,0 +1,193 @@
+{
+  "run": "1794315798",
+  "base_url": "http://localhost:8081",
+  "executed_at": "2026-11-10T20:03:19",
+  "ids": {
+    "team": 2,
+    "sprint": 2,
+    "round": 2,
+    "users": {
+      "A": 7,
+      "B": 8,
+      "C": 9,
+      "D": 10,
+      "E": 11
+    }
+  },
+  "passed": 18,
+  "total": 23,
+  "cases": [
+    {
+      "id": "IT-BRD-01",
+      "name": "Tạo card sinh CARD_CREATED nguồn BOARD, gắn đúng sprint",
+      "expected": "3 sự kiện CARD_CREATED, source=BOARD, sprintId=2",
+      "actual": "3 sự kiện, source=['BOARD']",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-02",
+      "name": "Kéo card giữa cột thường sinh CARD_MOVED",
+      "expected": ">= 1 CARD_MOVED của B",
+      "actual": "1 sự kiện",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-03",
+      "name": "Card vào Done trước hạn -> CARD_COMPLETED, is_on_time=true, delay_days=0",
+      "expected": "isOnTime=true, delayDays=0, storyPoints=3",
+      "actual": [
+        [
+          true,
+          0.0,
+          3.0
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-04",
+      "name": "Card vào Done sau hạn 1 ngày -> is_on_time=false, delay_days≈1",
+      "expected": "isOnTime=false, 0.9 <= delayDays <= 1.1",
+      "actual": [
+        [
+          false,
+          1.0
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-05",
+      "name": "API tổng hợp đóng góp (sp_calculate_contribution_scores) trả điểm cho thành viên có card Done",
+      "expected": "HTTP 200; B và C có finalPct > 0",
+      "actual": "HTTP 200; user 7: finalPct=0.0, user 8: finalPct=50.0, user 9: finalPct=22.22, user 10: finalPct=27.78",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-06",
+      "name": "Truy vết bằng chứng của B chứa sự kiện hoàn thành card",
+      "expected": "HTTP 200; có mục chứa 'IT card đúng hạn'",
+      "actual": "HTTP 200; 3 mục; sourceType=['TRELLO']",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-07",
+      "name": "Nguồn bằng chứng ghi đúng là BOARD (theo CR-02, không còn Trello)",
+      "expected": "sourceType = BOARD",
+      "actual": "sourceType = ['TRELLO']",
+      "result": "FAIL"
+    },
+    {
+      "id": "IT-BRD-08",
+      "name": "Xóa card không làm mất sự kiện đã ghi",
+      "expected": "HTTP 200; số CARD_COMPLETED giữ nguyên",
+      "actual": "HTTP 200; trước=2, sau=2",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-BRD-09",
+      "name": "Chống gian lận: kéo card vào 'In Progress' nhưng gửi toColumnName='Done'",
+      "expected": "Không sinh CARD_COMPLETED (server phải dùng tên cột thật)",
+      "actual": "HTTP 200; 1 CARD_COMPLETED giả cho D",
+      "result": "FAIL"
+    },
+    {
+      "id": "IT-BRD-10",
+      "name": "Người ngoài nhóm xem bảng đóng góp của nhóm",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200",
+      "result": "FAIL"
+    },
+    {
+      "id": "IT-BRD-11",
+      "name": "Người ngoài nhóm xem log hoạt động của nhóm",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200; 7 sự kiện lộ ra",
+      "result": "FAIL"
+    },
+    {
+      "id": "IT-PR-00",
+      "name": "Trưởng nhóm tạo + mở đợt chấm qua API; thành viên thường không được tạo",
+      "expected": "Tạo 201, mở 200 (OPEN); thành viên B tạo -> 4xx",
+      "actual": "tạo HTTP 201, mở HTTP 200 (OPEN); B tạo -> HTTP 400",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-01",
+      "name": "API liệt kê đợt chấm theo sprint",
+      "expected": "HTTP 200, có round 2",
+      "actual": "HTTP 200; [2]",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-02",
+      "name": "Gửi đánh giá: API trả thành công và lưu vào bảng review_submissions",
+      "expected": "HTTP 200; 1 dòng (7, 9, QUALITY, 4)",
+      "actual": "HTTP 200; DB: '7\\t9\\tQUALITY\\t4'",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-03",
+      "name": "Response gửi đánh giá không trả lại thông tin người chấm",
+      "expected": "HTTP 200, không có trường reviewer/email trong response",
+      "actual": "HTTP 200; không có",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-04",
+      "name": "Dưới 3 lượt (1 lượt): không lộ điểm/nhận xét",
+      "expected": "isAnonymousSafe=false, averageScore ẩn (null/0), feedback rỗng",
+      "actual": "HTTP 200; safe=False, avg=0.0, count=1, fb=[]",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-05",
+      "name": "Tự chấm chính mình bị từ chối",
+      "expected": "HTTP 400",
+      "actual": "HTTP 400",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-06",
+      "name": "Điểm ngoài thang 1–5 bị từ chối với lỗi validation",
+      "expected": "HTTP 400",
+      "actual": "HTTP 400",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-07",
+      "name": "Người ngoài nhóm không được chấm thành viên nhóm",
+      "expected": "HTTP 403/400 và KHÔNG có dòng nào trong DB",
+      "actual": "HTTP 400; 0 dòng đã lưu vào DB",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-08",
+      "name": "Một người chấm 3 lần cho cùng người: không được coi là đủ 3 lượt ẩn danh",
+      "expected": "Lần 2, 3 bị từ chối (4xx) và isAnonymousSafe=false",
+      "actual": "HTTP các lần gửi=[200, 400, 400]; safe=False, count=1, fb=[]",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-09",
+      "name": "Đủ 3 người chấm khác nhau: hiện điểm trung bình và nhận xét, không kèm danh tính",
+      "expected": "isAnonymousSafe=true, avg=4.0, 3 nhận xét, không có reviewerId",
+      "actual": "safe=True, avg=4.0, fb=3, reviewerId trong response=False",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-10",
+      "name": "Trigger DB tạo alert PEER_REVIEW_SUFFICIENT khi đủ 3 người chấm",
+      "expected": "1 alert",
+      "actual": "1 alert",
+      "result": "PASS"
+    },
+    {
+      "id": "IT-PR-11",
+      "name": "Người ngoài nhóm xem kết quả chấm chéo của thành viên",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200; avg=4.0",
+      "result": "FAIL"
+    }
+  ]
+}

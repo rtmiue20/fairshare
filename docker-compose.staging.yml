@@ -1,0 +1,49 @@
+# FairShare – môi trường STAGING (WP5 – QA & Deployment, M5)
+#
+# File này GHI ĐÈ lên docker-compose.yml, không thay thế nó:
+#   cp .env.staging.example .env.staging      # rồi điền mật khẩu + JWT_SECRET
+#   docker compose -p fairshare-staging --env-file .env.staging \
+#     -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+# Hoặc dùng script: ./scripts/staging-up.sh
+#
+# Khác với bản dev:
+#   - Bắt buộc JWT_SECRET riêng (bản dev dùng secret mặc định trong application.yaml).
+#   - MariaDB KHÔNG mở cổng ra ngoài; chỉ backend nói chuyện với DB qua fairshare-network.
+#   - Backend có healthcheck (/actuator/health); frontend chỉ khởi động khi backend healthy.
+#   - Giới hạn dung lượng log để máy staging không đầy ổ.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    ports: !reset []          # không lộ cổng 3306 ra máy host/mạng ngoài
+    logging: *default-logging
+
+  backend:
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Thiếu JWT_SECRET trong .env.staging}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"
+    healthcheck:
+      # Image eclipse-temurin:21-jre-alpine có sẵn wget (busybox)
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    logging: *default-logging
+
+  frontend:
+    depends_on: !override
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ | grep -q 'id=\"root\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging: *default-logging

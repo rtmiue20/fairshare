@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   AlertCircle,
@@ -14,6 +14,7 @@ import {
 import { useAuth } from './useAuth';
 import { Button } from '../../components/ui/Button';
 import { LandingRibbon } from '../landing/LandingRibbon';
+import { FairShareLogo } from '../../components/ui/FairShareLogo';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -29,6 +30,10 @@ export const LoginPage: React.FC = () => {
   // Mặc định sau khi login chuyển sang '/' (Welcome / Landing stage theo mẫu UI) chứ chưa vào dashboard
   const redirectPath =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
+
+  useEffect(() => {
+    document.title = 'Đăng Nhập · FairShare';
+  }, []);
 
   const validateForm = (): boolean => {
     const trimmedEmail = email.trim();
@@ -65,11 +70,15 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickDemo = () => {
+  const handleQuickDemo = async () => {
     clearError();
     setValidationError(null);
-    loginDemo();
-    navigate('/', { replace: true });
+    try {
+      await loginDemo();
+      navigate('/', { replace: true });
+    } catch {
+      navigate('/', { replace: true });
+    }
   };
 
   const toggleTheme = () => {
@@ -109,11 +118,8 @@ export const LoginPage: React.FC = () => {
           WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        <Link to="/" className="brand flex items-center gap-2 text-inherit no-underline" aria-label="FairShare, về trang chủ">
-          <i aria-hidden="true" style={{ width: '14px', height: '14px', border: '1.5px solid currentColor', borderRadius: '3px', display: 'inline-block' }} />
-          <span style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em' }}>
-            FAIRSHARE
-          </span>
+        <Link to="/" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
+          <FairShareLogo size={24} />
         </Link>
 
         <div className="flex items-center gap-3">
@@ -260,7 +266,7 @@ export const LoginPage: React.FC = () => {
                         setEmail(e.target.value);
                         if (validationError) setValidationError(null);
                       }}
-                      placeholder="phucvuong.31241025017@st.ueh.edu.vn"
+                      placeholder="email@example.com"
                       required
                       className="w-full text-xs sm:text-sm rounded-xl py-2.5 pl-9 pr-3 outline-none transition"
                       style={{
@@ -331,7 +337,7 @@ export const LoginPage: React.FC = () => {
                     <span>Ghi nhớ đăng nhập</span>
                   </label>
                   <span style={{ color: 'var(--accent)', fontSize: '11px', fontWeight: 500 }}>
-                    Hỗ trợ ST.UEH
+                    Hỗ trợ tài khoản sinh viên
                   </span>
                 </div>
 
@@ -366,7 +372,7 @@ export const LoginPage: React.FC = () => {
                   }}
                 >
                   <Sparkles size={14} style={{ color: 'var(--accent)' }} />
-                  <span>Vào nhanh bằng Tài khoản Demo (M1 – Phúc Vương)</span>
+                  <span>Khám phá ngay bằng Tài khoản Demo</span>
                 </button>
 
                 <div className="text-center text-xs mt-2" style={{ color: 'var(--fg2)' }}>
@@ -395,7 +401,7 @@ export const LoginPage: React.FC = () => {
           fontFamily: 'var(--f-mono)',
         }}
       >
-        <span>FairShare · Đồ án môn Quản lý dự án CNTT UEH · Tuân thủ NĐ 13/2023/NĐ-CP</span>
+        <span>FairShare · Nền tảng đo lường đóng góp đồ án nhóm · Tuân thủ NĐ 13/2023/NĐ-CP</span>
       </footer>
     </div>
   );

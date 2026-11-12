@@ -1,22 +1,35 @@
 package com.fairshare.contribution.controller;
 
 import com.fairshare.common.dto.ApiResponse;
+import com.fairshare.common.security.TeamSecurityService;
 import com.fairshare.contribution.dto.ContributionDto;
 import com.fairshare.contribution.dto.ContributionSummaryResponse;
 import com.fairshare.contribution.dto.EvidenceItemDto;
 import com.fairshare.contribution.service.ContributionService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/contributions")
-@RequiredArgsConstructor
 public class ContributionController {
 
     private final ContributionService contributionService;
+    private final TeamSecurityService teamSecurityService;
+
+    public ContributionController(ContributionService contributionService) {
+        this.contributionService = contributionService;
+        this.teamSecurityService = null;
+    }
+
+    @Autowired
+    public ContributionController(ContributionService contributionService, @Autowired(required = false) TeamSecurityService teamSecurityService) {
+        this.contributionService = contributionService;
+        this.teamSecurityService = teamSecurityService;
+    }
 
     /**
      * API tổng hợp điểm đóng góp thành viên theo team và sprint.
@@ -29,9 +42,17 @@ public class ContributionController {
     @GetMapping("/summary")
     public ResponseEntity<List<ContributionSummaryResponse>> getContributionSummary(
             @RequestParam("teamId") Long teamId,
-            @RequestParam("sprintId") Long sprintId) {
+            @RequestParam("sprintId") Long sprintId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
         List<ContributionSummaryResponse> summary = contributionService.getContributionSummary(teamId, sprintId);
         return ResponseEntity.ok(summary);
+    }
+
+    public ResponseEntity<List<ContributionSummaryResponse>> getContributionSummary(Long teamId, Long sprintId) {
+        return getContributionSummary(teamId, sprintId, null);
     }
 
     /**
@@ -48,9 +69,17 @@ public class ContributionController {
     public ResponseEntity<List<EvidenceItemDto>> getEvidenceTraceability(
             @RequestParam("teamId") Long teamId,
             @RequestParam("sprintId") Long sprintId,
-            @RequestParam("userId") Long userId) {
+            @RequestParam("userId") Long userId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
         List<EvidenceItemDto> evidence = contributionService.getEvidenceTraceability(teamId, sprintId, userId);
         return ResponseEntity.ok(evidence);
+    }
+
+    public ResponseEntity<List<EvidenceItemDto>> getEvidenceTraceability(Long teamId, Long sprintId, Long userId) {
+        return getEvidenceTraceability(teamId, sprintId, userId, null);
     }
 
     @PostMapping("/sprints/{sprintId}/calculate")

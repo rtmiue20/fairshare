@@ -7,7 +7,6 @@ import { ContributionDashboard } from '../features/dashboard/ContributionDashboa
 import { TeamListPage } from '../features/team/TeamListPage';
 import { TeamDetailPage } from '../features/team/TeamDetailPage';
 import { BoardView } from '../features/board/BoardView';
-import { ConnectTrelloPage } from '../features/integration/ConnectTrelloPage';
 import { ReviewRoundPage } from '../features/peerreview/ReviewRoundPage';
 import { AlertList } from '../features/alerts/AlertList';
 import { ProfileSettingsPage } from '../features/profile/ProfileSettingsPage';
@@ -45,6 +44,14 @@ export const router = createBrowserRouter([
             element: <ContributionDashboard />,
           },
           {
+            path: 'contributions',
+            element: <ContributionDashboard />,
+          },
+          {
+            path: 'dong-gop',
+            element: <ContributionDashboard />,
+          },
+          {
             path: 'teams',
             element: <TeamListPage />,
           },
@@ -59,10 +66,6 @@ export const router = createBrowserRouter([
           {
             path: 'board',
             element: <BoardView />,
-          },
-          {
-            path: 'integration',
-            element: <ConnectTrelloPage />,
           },
           {
             path: 'peer-review',

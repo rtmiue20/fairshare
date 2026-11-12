@@ -138,7 +138,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           <div className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--ok)' }} />
             <span style={{ color: 'var(--fg2)', fontFamily: 'var(--f-mono)', fontSize: '11.5px' }}>
-              Dữ liệu đồng bộ Trello & Docs
+              Dữ liệu đồng bộ Task Board (CR-02) &amp; Git
             </span>
           </div>
         )}

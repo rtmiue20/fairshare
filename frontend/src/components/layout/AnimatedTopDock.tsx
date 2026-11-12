@@ -23,7 +23,7 @@ export const AnimatedTopDock: React.FC<AnimatedTopDockProps> = () => {
   const navItems = [
     { label: 'Bảng đóng góp', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Nhóm đồ án', path: '/teams', icon: Users },
-    { label: 'Trello Sync', path: '/integration', icon: Kanban },
+    { label: 'Kanban Board', path: '/board', icon: Kanban },
     { label: 'Chấm chéo', path: '/peer-review', icon: CheckSquare },
     { label: 'Cảnh báo', path: '/alerts', icon: AlertTriangle },
     { label: 'Hồ sơ & Consent', path: '/profile', icon: UserCheck },
@@ -46,7 +46,7 @@ export const AnimatedTopDock: React.FC<AnimatedTopDockProps> = () => {
               FairShare
             </span>
             <span className="text-[10px] text-zinc-500 font-mono hidden md:inline-block">
-              Đồ án UEH
+              Đồ án nhóm
             </span>
           </div>
         </Link>
