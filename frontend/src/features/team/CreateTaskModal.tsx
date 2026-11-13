@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Calendar,
@@ -8,17 +8,53 @@ import {
   Plus,
   Flame,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { TaskItem, TaskStatus } from './AllTasksSection';
 import { showToast } from '../../components/ui/Toast';
+import { teamApi } from '../../api/team.api';
+import { TeamMember } from '../../types/team';
+import { useAuthStore } from '../../store/authStore';
+
+export interface CreateTaskSavePayload extends Partial<TaskItem> {
+  assigneeId?: number;
+  dueDateIso?: string;
+  description?: string;
+  difficultyLevel?: number;
+  storyPoints?: number;
+  initialComment?: string;
+}
 
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Partial<TaskItem>) => void;
+  onSave: (task: CreateTaskSavePayload) => void;
   defaultStatus?: TaskStatus;
   columns?: { id: string; title: string }[];
+  teamId?: number;
 }
+
+const AVATAR_COLORS = [
+  { bg: '#e0f2fe', color: '#0369a1' },
+  { bg: '#dcfce7', color: '#15803d' },
+  { bg: '#ffedd5', color: '#c2410c' },
+  { bg: '#f3e8ff', color: '#7e22ce' },
+  { bg: '#fef9c3', color: '#a16207' },
+  { bg: '#fce7f3', color: '#be185d' },
+];
+
+function getAvatarColor(idx: number) {
+  return AVATAR_COLORS[idx % AVATAR_COLORS.length];
+}
+
+const PRIORITY_LEVELS: Array<'Urgent' | 'High' | 'Medium' | 'Low'> = ['Urgent', 'High', 'Medium', 'Low'];
+
+const PRIORITY_DIFFICULTY_MAP: Record<'Urgent' | 'High' | 'Medium' | 'Low', { difficulty: number; points: number }> = {
+  Urgent: { difficulty: 4, points: 5.0 },
+  High: { difficulty: 3, points: 3.0 },
+  Medium: { difficulty: 2, points: 2.0 },
+  Low: { difficulty: 1, points: 1.0 },
+};
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
@@ -26,67 +62,154 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   onSave,
   defaultStatus = 'in_progress',
   columns,
+  teamId,
 }) => {
+  const { user } = useAuthStore();
   const [status, setStatus] = useState<TaskStatus>(defaultStatus);
-
-  useEffect(() => {
-    setStatus(defaultStatus);
-  }, [defaultStatus, isOpen]);
-  const [dueDate, setDueDate] = useState('Feb 02, 2027');
-  const [tag, setTag] = useState('Dashboard');
-  const [priority, setPriority] = useState<'Urgent' | 'High' | 'Medium' | 'Low'>('Urgent');
-  const [description, setDescription] = useState('Create wireframe for Dashboard page');
+  const [title, setTitle] = useState('');
+  const [dueDateInput, setDueDateInput] = useState('');
+  const [tag, setTag] = useState('');
+  const [priority, setPriority] = useState<'Urgent' | 'High' | 'Medium' | 'Low'>('Medium');
+  const [description, setDescription] = useState('');
   const [comment, setComment] = useState('');
 
-  const [assignees, setAssignees] = useState<
-    { name: string; avatarText: string; bg: string; color: string }[]
-  >([
-    { name: 'Kiara Laras', avatarText: 'KL', bg: '#e0f2fe', color: '#0369a1' },
-    { name: 'Joe Tesla', avatarText: 'JT', bg: '#dcfce7', color: '#15803d' },
-    { name: 'Tania', avatarText: 'TA', bg: '#ffedd5', color: '#c2410c' },
-  ]);
+  // Members from API
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Reset fields when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStatus(defaultStatus);
+      setTitle('');
+      setDueDateInput('');
+      setTag('');
+      setPriority('Medium');
+      setDescription('');
+      setComment('');
+      setSelectedMemberIds([]);
+      setMemberPickerOpen(false);
+    }
+  }, [isOpen, defaultStatus]);
+
+  // Fetch team members from DB
+  useEffect(() => {
+    if (!isOpen || !teamId) return;
+    setLoadingMembers(true);
+    teamApi.getMembers(teamId)
+      .then((res) => {
+        if (res.data) setMembers(res.data);
+      })
+      .catch(() => setMembers([]))
+      .finally(() => setLoadingMembers(false));
+  }, [isOpen, teamId]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!memberPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setMemberPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [memberPickerOpen]);
 
   if (!isOpen) return null;
 
-  const handleRemoveAssignee = (name: string) => {
-    setAssignees((prev) => prev.filter((a) => a.name !== name));
+  const toggleMember = (id: number) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
-  const handleAddAssignee = () => {
-    const names = ['Tyler', 'Alex', 'Sarah', 'Minh Triều'];
-    const pick = names[Math.floor(Math.random() * names.length)];
-    if (!assignees.some((a) => a.name === pick)) {
-      setAssignees((prev) => [
-        ...prev,
-        {
-          name: pick,
-          avatarText: pick.substring(0, 2).toUpperCase(),
-          bg: '#f3e8ff',
-          color: '#7e22ce',
-        },
-      ]);
+  const removeMember = (id: number) => {
+    setSelectedMemberIds((prev) => prev.filter((x) => x !== id));
+  };
+
+  const selectedMembers = members.filter((m) => {
+    const id = m.userId ?? m.id;
+    return selectedMemberIds.includes(id);
+  });
+
+  // Convert "Feb 02, 2027" or "YYYY-MM-DD" → ISO string for backend
+  const parseDateToIso = (raw: string): string | undefined => {
+    if (!raw.trim()) return undefined;
+    const direct = new Date(raw);
+    if (!isNaN(direct.getTime())) return direct.toISOString();
+    const monthMap: Record<string, number> = {
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+    };
+    const m = raw.match(/^(\w{3})\s+(\d{1,2}),?\s+(\d{4})$/);
+    if (m && monthMap[m[1]] !== undefined) {
+      const d = new Date(Number(m[3]), monthMap[m[1]], Number(m[2]));
+      if (!isNaN(d.getTime())) return d.toISOString();
     }
+    return undefined;
+  };
+
+  const formatDisplayDate = (raw: string): string => {
+    if (!raw.trim()) return '';
+    const iso = parseDateToIso(raw);
+    if (!iso) return raw;
+    const d = new Date(iso);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2,'0')}, ${d.getFullYear()}`;
   };
 
   const handleSave = () => {
-    onSave({
-      projectTag: tag || 'ABC Dashboard',
-      title: description || 'New Task',
-      dueDate: dueDate || 'Feb 14, 2027',
-      status,
-      progress: status === 'completed' ? 100 : status === 'in_review' ? 60 : status === 'in_progress' ? 25 : 0,
-      commentsCount: comment ? 1 : 0,
-      linksCount: 1,
-      assignees: assignees.map((a) => ({
-        name: a.name,
-        avatarText: a.avatarText,
-        bg: a.bg,
-      })),
+    if (!title.trim()) {
+      showToast.error('Tên task không được để trống', 'Lỗi');
+      return;
+    }
+
+    const dueDateIso = parseDateToIso(dueDateInput);
+    const displayDate = dueDateInput.trim()
+      ? formatDisplayDate(dueDateInput) || dueDateInput
+      : '';
+
+    // Build assignee display list from selected members
+    const assigneeChips = selectedMembers.map((m, i) => {
+      const name = m.fullName || m.email || 'Unknown';
+      const colorSet = getAvatarColor(i);
+      return {
+        name,
+        avatarText: name.slice(0, 2).toUpperCase(),
+        bg: colorSet.bg,
+      };
     });
 
-    showToast.success('Đã tạo task mới thành công!', 'Success!');
+    const assigneeId =
+      selectedMembers.length > 0 ? (selectedMembers[0].userId ?? selectedMembers[0].id) : undefined;
+
+    const diffInfo = PRIORITY_DIFFICULTY_MAP[priority];
+
+    onSave({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      projectTag: tag.trim() || undefined,
+      dueDate: displayDate,
+      dueDateIso,
+      status,
+      difficultyLevel: diffInfo.difficulty,
+      storyPoints: diffInfo.points,
+      progress: priority === 'Urgent' ? 10 : priority === 'High' ? 25 : 10,
+      commentsCount: comment.trim() ? 1 : 0,
+      linksCount: 0,
+      assignees: assigneeChips.length > 0 ? assigneeChips : undefined,
+      assigneeId,
+      initialComment: comment.trim() || undefined,
+    });
+
     onClose();
   };
+
+  const userInitials = (user?.fullName || user?.email || 'U').slice(0, 2).toUpperCase();
 
   return (
     <div className="task-modal-backdrop" onClick={onClose}>
@@ -101,6 +224,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
         {/* Modal Form Rows */}
         <div className="create-task-form">
+          {/* Row 0: Title (required) */}
+          <div className="task-form-row">
+            <div className="task-form-label">
+              <FileText size={16} />
+              <span>Title <span style={{ color: '#ef4444' }}>*</span></span>
+            </div>
+            <div className="task-form-field">
+              <input
+                type="text"
+                className="task-input-pill"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Tên công việc..."
+                autoFocus
+              />
+            </div>
+          </div>
+
           {/* Row 1: Status */}
           <div className="task-form-row">
             <div className="task-form-label">
@@ -139,48 +280,94 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
             <div className="task-form-field">
               <input
-                type="text"
+                type="date"
                 className="task-input-pill"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                placeholder="VD: Feb 02, 2027"
+                value={dueDateInput}
+                onChange={(e) => setDueDateInput(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Row 3: Assignee */}
-          <div className="task-form-row">
-            <div className="task-form-label">
+          {/* Row 3: Assignee — real team members from DB */}
+          <div className="task-form-row" style={{ alignItems: 'flex-start' }}>
+            <div className="task-form-label" style={{ paddingTop: '6px' }}>
               <User size={16} />
               <span>Assignee</span>
             </div>
-            <div className="task-form-field task-assignee-chips">
-              {assignees.map((a) => (
-                <span
-                  key={a.name}
-                  className="assignee-tag-chip"
-                  style={{ backgroundColor: a.bg, color: a.color }}
+            <div className="task-form-field task-assignee-chips" style={{ position: 'relative', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+              {/* Selected chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {selectedMembers.map((m, i) => {
+                  const id = m.userId ?? m.id;
+                  const name = m.fullName || m.email || 'Unknown';
+                  const colorSet = getAvatarColor(i);
+                  return (
+                    <span
+                      key={id}
+                      className="assignee-tag-chip"
+                      style={{ backgroundColor: colorSet.bg, color: colorSet.color }}
+                    >
+                      <span>{name}</span>
+                      <button
+                        type="button"
+                        className="assignee-tag-remove"
+                        onClick={() => removeMember(id)}
+                        aria-label={`Xóa ${name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+                {/* Add button */}
+                <button
+                  type="button"
+                  className="assignee-add-btn"
+                  onClick={() => setMemberPickerOpen((p) => !p)}
+                  title="Thêm người thực hiện"
+                  disabled={loadingMembers}
                 >
-                  <span>{a.name}</span>
-                  <button
-                    type="button"
-                    className="assignee-tag-remove"
-                    onClick={() => handleRemoveAssignee(a.name)}
-                    aria-label={`Xóa ${a.name}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+                  {loadingMembers ? <Loader2 size={14} className="spin-slow" /> : <Plus size={14} />}
+                </button>
+              </div>
 
-              <button
-                type="button"
-                className="assignee-add-btn"
-                onClick={handleAddAssignee}
-                title="Thêm người thực hiện"
-              >
-                <Plus size={14} />
-              </button>
+              {/* Dropdown picker */}
+              {memberPickerOpen && (
+                <div ref={pickerRef} className="member-picker-dropdown">
+                  {members.length === 0 ? (
+                    <div className="member-picker-empty">
+                      {!teamId ? 'Không có team ID' : 'Chưa có thành viên'}
+                    </div>
+                  ) : (
+                    members.map((m, i) => {
+                      const id = m.userId ?? m.id;
+                      const name = m.fullName || m.email || 'Unknown';
+                      const isSelected = selectedMemberIds.includes(id);
+                      const colorSet = getAvatarColor(i);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className={`member-picker-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => toggleMember(id)}
+                        >
+                          <span
+                            className="member-picker-avatar"
+                            style={{ background: colorSet.bg, color: colorSet.color }}
+                          >
+                            {name.slice(0, 2).toUpperCase()}
+                          </span>
+                          <span className="member-picker-name">{name}</span>
+                          <span className="member-picker-role" style={{ color: '#a1a1aa', fontSize: '11px' }}>
+                            {m.role === 'LEADER' ? 'Leader' : 'Member'}
+                          </span>
+                          {isSelected && <span className="member-picker-check">✓</span>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -191,16 +378,24 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <span>Tags</span>
             </div>
             <div className="task-form-field">
-              <select
-                className="task-select-pill"
-                value={tag}
-                onChange={(e) => setTag(e.target.value)}
-              >
-                <option value="Dashboard">Dashboard</option>
-                <option value="Website">Website</option>
-                <option value="Mobile App">Mobile App</option>
-                <option value="Backend API">Backend API</option>
-              </select>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type="text"
+                  className="task-input-pill"
+                  value={tag}
+                  onChange={(e) => setTag(e.target.value)}
+                  placeholder="VD: Dashboard, Backend API..."
+                  list="tag-suggestions"
+                />
+                <datalist id="tag-suggestions">
+                  <option value="Dashboard" />
+                  <option value="Website" />
+                  <option value="Mobile App" />
+                  <option value="Backend API" />
+                  <option value="UI/UX" />
+                  <option value="Testing" />
+                </datalist>
+              </div>
             </div>
           </div>
 
@@ -210,18 +405,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               <Flame size={16} />
               <span>Priority</span>
             </div>
-            <div className="task-form-field">
-              <span
-                className="priority-pill-badge"
-                onClick={() => {
-                  const opts: ('Urgent' | 'High' | 'Medium' | 'Low')[] = ['Urgent', 'High', 'Medium', 'Low'];
-                  const nextIdx = (opts.indexOf(priority) + 1) % opts.length;
-                  setPriority(opts[nextIdx]);
-                }}
-                title="Bấm để đổi độ ưu tiên"
-              >
-                {priority}
-              </span>
+            <div className="task-form-field" style={{ gap: '6px' }}>
+              {PRIORITY_LEVELS.map((p) => (
+                <span
+                  key={p}
+                  className={`priority-pill-badge ${priority === p ? 'priority-pill--active' : 'priority-pill--inactive'}`}
+                  onClick={() => setPriority(p)}
+                  title={p}
+                  style={{ cursor: 'pointer', opacity: priority === p ? 1 : 0.4 }}
+                >
+                  {p}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -242,35 +437,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </div>
           </div>
 
-          {/* + Add Section Button */}
-          <div className="add-section-row">
-            <button
-              type="button"
-              className="add-section-btn"
-              onClick={() => showToast.info('Đã thêm một mục mới', 'Add Section')}
-            >
-              <Plus size={14} />
-              <span>Add Section</span>
-            </button>
-          </div>
-
           {/* Comment Box */}
           <div className="task-comment-box">
             <div className="task-comment-avatar">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80"
-                alt="Me"
-                onError={(e) => {
-                  // Fallback nếu ảnh không load được
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-              <div className="task-avatar-fallback">MT</div>
+              <div className="task-avatar-fallback">{userInitials}</div>
             </div>
             <textarea
               className="task-comment-input"
               rows={2}
-              placeholder="Add a comment"
+              placeholder="Thêm ghi chú/bình luận ban đầu (lưu trực tiếp vào DB)..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
             />
@@ -282,20 +457,25 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           <div className="collaborators-area">
             <span className="collaborators-label">Collaborators</span>
             <div className="collaborators-avatars">
-              {assignees.map((a, i) => (
-                <div
-                  key={a.name}
-                  className="collab-avatar"
-                  style={{ background: a.bg, color: a.color, zIndex: 10 - i }}
-                  title={a.name}
-                >
-                  {a.avatarText}
-                </div>
-              ))}
+              {selectedMembers.map((m, i) => {
+                const id = m.userId ?? m.id;
+                const name = m.fullName || m.email || 'Unknown';
+                const colorSet = getAvatarColor(i);
+                return (
+                  <div
+                    key={id}
+                    className="collab-avatar"
+                    style={{ background: colorSet.bg, color: colorSet.color, zIndex: 10 - i }}
+                    title={name}
+                  >
+                    {name.slice(0, 2).toUpperCase()}
+                  </div>
+                );
+              })}
               <button
                 type="button"
                 className="collab-add-btn"
-                onClick={handleAddAssignee}
+                onClick={() => setMemberPickerOpen((p) => !p)}
                 title="Thêm cộng tác viên"
               >
                 <Plus size={13} />

@@ -2,6 +2,29 @@ import apiClient from './client';
 import { ApiResponse } from '../types/api';
 import { Board, BoardColumn, Card, CreateBoardPayload, CreateColumnPayload, CreateCardPayload, MoveCardPayload } from '../types/board';
 
+export interface CardComment {
+  id: number;
+  content: string;
+  isHelpful: boolean;
+  authorId: number;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface ChecklistItem {
+  id: number;
+  itemTitle: string;
+  completed: boolean;
+  completedAt?: string;
+  completedByName?: string;
+}
+
+export interface CardDetail extends Card {
+  comments: CardComment[];
+  checklistItems: ChecklistItem[];
+  progress?: number;
+}
+
 export const boardApi = {
   getBoardsByTeam: async (teamId: number): Promise<ApiResponse<Board[]>> => {
     const response = await apiClient.get<ApiResponse<Board[]>>(`/boards/team/${teamId}`);
@@ -38,6 +61,11 @@ export const boardApi = {
     return response.data;
   },
 
+  getCardById: async (cardId: number): Promise<ApiResponse<Card>> => {
+    const response = await apiClient.get<ApiResponse<Card>>(`/boards/cards/${cardId}`);
+    return response.data;
+  },
+
   moveCard: async (cardId: number, payload: MoveCardPayload): Promise<ApiResponse<Card>> => {
     const response = await apiClient.put<ApiResponse<Card>>(`/boards/cards/${cardId}/move`, payload);
     return response.data;
@@ -69,10 +97,17 @@ export const boardApi = {
   },
 
   addComment: async (cardId: number, content: string, isHelpful?: boolean): Promise<ApiResponse<void>> => {
-    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/comments`, { content, isHelpful });
+    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/comments`, { content, isHelpful: isHelpful ?? false });
     return response.data;
   },
 
+  /** Thêm checklist item MỚI vào DB */
+  addChecklistItem: async (cardId: number, itemTitle: string): Promise<ApiResponse<void>> => {
+    const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/checklist-items`, { itemTitle });
+    return response.data;
+  },
+
+  /** Đánh dấu hoàn thành checklist item đã tồn tại */
   completeChecklistItem: async (cardId: number, itemTitle: string): Promise<ApiResponse<void>> => {
     const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/checklist-items`, { itemTitle });
     return response.data;
