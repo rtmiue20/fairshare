@@ -355,7 +355,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   return (
     <div data-testid="contribution-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* 3D Interactive Hero Canvas from FairShare UI sample */}
-      <DashboardHeroCanvas />
+      <DashboardHeroCanvas teamId={currentTeamId} />
 
       <div className="pad" style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* ── Page header ── */}

@@ -254,7 +254,14 @@ public class TeamService {
     }
 
     private String generateUniqueInviteCode() {
-        return "FS" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+        String code;
+        int attempts = 0;
+        do {
+            // "FS" prefix + 10 alphanumeric chars = 12 total
+            code = "FS" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+            attempts++;
+        } while (teamRepository.findByInviteCode(code).isPresent() && attempts < 10);
+        return code;
     }
 
     private TeamDto mapToDto(Team team, String role) {

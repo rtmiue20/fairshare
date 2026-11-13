@@ -37,17 +37,58 @@ export const AppLayout: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col antialiased selection:bg-zinc-800 selection:text-zinc-100" style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--f-body)' }}>
+    <div
+      className="min-h-screen flex flex-col antialiased selection:bg-zinc-800 selection:text-zinc-100 relative overflow-x-hidden"
+      style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
+    >
+      {/* Blurred Intro Background for all workspace tabs */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none"
+        aria-hidden="true"
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: '-40px',
+            backgroundImage: `url('/intro-bg.jpg')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            filter: 'var(--tab-bg-intro-filter, blur(28px) saturate(1.3))',
+            transform: 'scale(1.08)',
+            opacity: 'var(--tab-bg-intro-opacity, 0.52)',
+            transition: 'opacity 0.3s ease, filter 0.3s ease',
+          }}
+        />
+        {/* Soft radial overlay to blend with current theme background */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'radial-gradient(ellipse at 75% 45%, transparent 25%, var(--bg) 92%), radial-gradient(ellipse at 20% 85%, color-mix(in srgb, var(--rb1) 10%, transparent), transparent 65%)',
+            opacity: 0.82,
+          }}
+        />
+      </div>
+
       {/* Top Bar Navigation from FairShare UI sample */}
       <TopNav />
 
       {/* Main Content Workspace */}
-      <main id="main" className="flex-1 w-full" style={{ minHeight: 'calc(100vh - var(--top))' }}>
+      <main id="main" className="flex-1 w-full relative z-10" style={{ minHeight: 'calc(100vh - var(--top))' }}>
         <Outlet />
       </main>
 
       {/* Modern footer */}
-      <footer className="w-full border-t border-[var(--line)] py-5 px-4 text-center text-xs text-[var(--fg3)]" style={{ background: 'var(--surface)' }}>
+      <footer
+        className="w-full border-t border-[var(--line)] py-5 px-4 text-center text-xs text-[var(--fg3)] relative z-10"
+        style={{
+          background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <FairShareLogo size={18} showText={false} />
