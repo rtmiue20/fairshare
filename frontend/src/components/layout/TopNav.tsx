@@ -1,20 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { FairShareIcon } from '../ui/Icons';
 import { FairShareLogo } from '../ui/FairShareLogo';
 import { showToast } from '../ui/Toast';
 import { FolderPlus } from 'lucide-react';
 import { CreateProjectModal } from '../../features/team/CreateProjectModal';
+import { NotificationPopover } from '../notifications/NotificationPopover';
 
 export const TopNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { teams, activeTeamId, fetchTeams, setActiveTeamId } = useProjectStore();
+  const unreadNotifCount = useNotificationStore((s) => s.notifications.filter((n) => !n.read).length);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -142,6 +157,27 @@ export const TopNav: React.FC = () => {
 
         {/* Action buttons */}
         <div className="acts">
+          {/* Nút Chuông thông báo (bên cạnh theme toggle) */}
+          <div className="notif-anchor" ref={notifRef} style={{ position: 'relative' }}>
+            <button
+              className={`icon-btn notif-btn-trigger ${isNotifOpen ? 'active' : ''}`}
+              id="notifBtn"
+              type="button"
+              onClick={() => setIsNotifOpen((prev) => !prev)}
+              aria-label="Thông báo"
+              title="Thông báo"
+            >
+              <FairShareIcon name="bell" />
+              {unreadNotifCount > 0 && (
+                <span className="notif-badge-dot" title={`${unreadNotifCount} thông báo mới`} />
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <NotificationPopover onClose={() => setIsNotifOpen(false)} />
+            )}
+          </div>
+
           <button
             className="icon-btn"
             id="themeBtn"

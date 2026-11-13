@@ -1,11 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-
-const MEMBERS = [
-  { id: 'm1', name: 'Minh Triều', ini: 'MT', role: 'Leader', pct: 34, tasks: 31, edits: 412, peer: 4.3 },
-  { id: 'm2', name: 'Lan Anh', ini: 'LA', role: 'Backend', pct: 27, tasks: 26, edits: 338, peer: 4.1 },
-  { id: 'm3', name: 'Quốc Bảo', ini: 'QB', role: 'Frontend', pct: 24, tasks: 22, edits: 301, peer: 3.9 },
-  { id: 'm4', name: 'Thu Hà', ini: 'TH', role: 'Tài liệu', pct: 15, tasks: 9, edits: 197, peer: 3.2 },
-];
+import { useProjectStore } from '../../store/projectStore';
 
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const sm = (a: number, b: number, x: number) => {
@@ -30,13 +24,65 @@ interface Particle {
   w: number;
 }
 
-export const DashboardHeroCanvas: React.FC = () => {
+/** Chạy queue marquee từ phải qua trái nếu text quá dài */
+const MarqueeText: React.FC<{ text: string; maxLen?: number }> = ({
+  text,
+  maxLen = 40,
+}) => {
+  if (!text) return null;
+  if (text.length <= maxLen) {
+    return <>{text}</>;
+  }
+  const doubled = text + '    •    ' + text;
+  return (
+    <span
+      className="marquee-wrap"
+      aria-label={text}
+      style={{
+        display: 'inline-block',
+        maxWidth: '100%',
+        overflow: 'hidden',
+        verticalAlign: 'bottom',
+      }}
+    >
+      <span className="marquee-inner">{doubled}</span>
+    </span>
+  );
+};
+
+export interface DashboardHeroCanvasProps {
+  teamId?: number;
+}
+
+export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId: propTeamId }) => {
   const heroRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
   const [scrollS, setScrollS] = useState(0);
+
+  // ── Dynamic team data ──────────────────────────────────────────
+  const teams = useProjectStore((s) => s.teams);
+  const activeTeamId = useProjectStore((s) => s.activeTeamId);
+  const targetId = propTeamId || activeTeamId;
+  const currentTeam = teams.find((t) => t.id === targetId) ?? teams[0] ?? null;
+
+  // Tên hiển thị trên Canvas: chữ to chính giữa
+  const projectLabel = (currentTeam?.name ?? 'FAIRSHARE').toUpperCase();
+  // Invite code
+  const inviteCode = currentTeam?.inviteCode ?? null;
+  // Môn học & Mô tả
+  const courseName = currentTeam?.courseName ?? null;
+  const description = currentTeam?.description ?? null;
+
+  // MEMBERS hiện tại từ team (nếu có), nếu chưa có dùng mẫu
+  const MEMBERS = [
+    { id: 'm1', name: 'Minh Triều', ini: 'MT', role: 'Leader', pct: 34, tasks: 31, edits: 412, peer: 4.3 },
+    { id: 'm2', name: 'Lan Anh', ini: 'LA', role: 'Backend', pct: 27, tasks: 26, edits: 338, peer: 4.1 },
+    { id: 'm3', name: 'Quốc Bảo', ini: 'QB', role: 'Frontend', pct: 24, tasks: 22, edits: 301, peer: 3.9 },
+    { id: 'm4', name: 'Thu Hà', ini: 'TH', role: 'Tài liệu', pct: 15, tasks: 9, edits: 197, peer: 3.2 },
+  ];
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -46,6 +92,9 @@ export const DashboardHeroCanvas: React.FC = () => {
 
     const ctx = cv.getContext('2d');
     if (!ctx) return;
+
+    // Lấy tên dự án tại thời điểm mount (effect chạy lại khi projectLabel thay đổi)
+    const LABEL = projectLabel;
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let W = 0;
@@ -137,12 +186,12 @@ export const DashboardHeroCanvas: React.FC = () => {
 
       const fam = '"Krona One","Arial Black",sans-serif';
       o.font = `400 100px ${fam}`;
-      fs = (100 * tw) / (o.measureText('FAIRSHARE').width || 100);
+      fs = (100 * tw) / (o.measureText(LABEL).width || 100);
       o.font = `400 ${fs}px ${fam}`;
       o.textAlign = 'center';
       o.textBaseline = 'alphabetic';
-      asc = o.measureText('FAIRSHARE').actualBoundingBoxAscent || fs * 0.72;
-      o.fillText('FAIRSHARE', cx, cy + asc / 2);
+      asc = o.measureText(LABEL).actualBoundingBoxAscent || fs * 0.72;
+      o.fillText(LABEL, cx, cy + asc / 2);
 
       const st = Math.max(2, Math.round(fs / 15));
       const y0 = Math.max(0, Math.floor(cy - asc / 2 - 3));
@@ -266,7 +315,7 @@ export const DashboardHeroCanvas: React.FC = () => {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = rgba(fg, wText);
-        ctx.fillText('FAIRSHARE', cx, cy + asc / 2);
+        ctx.fillText(LABEL, cx, cy + asc / 2);
       }
 
       if (wB > 0.01) {
@@ -394,7 +443,7 @@ export const DashboardHeroCanvas: React.FC = () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [projectLabel]);
 
   const scrollToPhase = (targetS: number) => {
     if (!heroRef.current) return;
@@ -420,13 +469,7 @@ export const DashboardHeroCanvas: React.FC = () => {
           role="img"
         />
 
-        <div className="hero-top pad">
-          <div className="crumb">
-            <span className="eyebrow">Dashboard</span>
-            <span className="chip">Sprint 3 / 5</span>
-            <span className="chip acc">Dữ liệu mẫu</span>
-          </div>
-        </div>
+        {/* ── BREADCRUMB ĐÃ XÓA theo yêu cầu ── */}
 
         <div className="caps">
           <div
@@ -438,9 +481,52 @@ export const DashboardHeroCanvas: React.FC = () => {
               pointerEvents: a > 0.5 ? 'auto' : 'none',
             }}
           >
-            <span className="eyebrow">Đo lường đóng góp</span>
-            <h2>Ai làm gì, bao nhiêu, khi nào.</h2>
-            <p>Mỗi điểm là một việc có bằng chứng từ Trello hoặc Google Docs.</p>
+            {/* Hàng 1: Eyebrow DỰ ÁN ĐỒ ÁN • TÊN DỰ ÁN */}
+            <span className="eyebrow">
+              DỰ ÁN ĐỒ ÁN • {currentTeam?.name ? currentTeam.name.toUpperCase() : 'FAIRSHARE'}
+            </span>
+
+            {/* Hàng 2: Tên đề tài / dự án */}
+            <h2 className="hero-project-name" style={{ fontSize: 'clamp(28px, 3.8vw, 48px)', margin: '4px 0 2px', fontWeight: 600 }}>
+              <MarqueeText text={currentTeam?.name || 'FairShare'} maxLen={35} />
+            </h2>
+
+            {/* Hàng 3: Mô tả tóm tắt hoặc Môn học (hàng đợi marquee nếu dài) */}
+            <p className="hero-project-sub" style={{ margin: '0 0 6px', color: 'var(--fg2)', fontSize: '15px', maxWidth: '640px' }}>
+              <MarqueeText
+                text={
+                  description
+                    ? (courseName ? `${description} (${courseName})` : description)
+                    : (courseName || 'Dự án phân công công việc và đo lường đóng góp đồ án nhóm.')
+                }
+                maxLen={50}
+              />
+            </p>
+
+            {/* Hàng cuối cùng: Mã mời tự sinh 12 ký tự */}
+            <p className="hero-invite-code" style={{ margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span className="hero-invite-label" style={{ color: 'var(--accent)', fontWeight: 500 }}>
+                🔑 Mã mời:
+              </span>
+              <code
+                style={{
+                  fontFamily: 'var(--f-mono)',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  letterSpacing: '0.18em',
+                  color: 'var(--accent)',
+                  background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid color-mix(in srgb, var(--accent) 28%, transparent)',
+                }}
+              >
+                {inviteCode || (currentTeam ? `FS${(currentTeam.name + '12345678').slice(0, 10).toUpperCase()}` : 'FS3CB46178AB')}
+              </code>
+              <span className="hero-invite-hint" style={{ color: 'var(--fg3)', fontSize: '12px' }}>
+                (Chia sẻ mã này cho bạn bè để tham gia nhóm)
+              </span>
+            </p>
           </div>
 
           <div
