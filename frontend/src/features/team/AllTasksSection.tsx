@@ -16,8 +16,8 @@ import {
   Database,
 } from 'lucide-react';
 import { showToast } from '../../components/ui/Toast';
-import { CreateTaskModal } from './CreateTaskModal';
-import { TaskDetailModal } from './TaskDetailModal';
+import { CreateTaskModal, CreateTaskSavePayload } from './CreateTaskModal';
+import { TaskDetailModal, parseChecklistFromDescription } from './TaskDetailModal';
 import { CustomToolsPopup, ColumnItem } from './CustomToolsPopup';
 import { boardApi } from '../../api/board.api';
 
@@ -27,9 +27,13 @@ export interface TaskItem {
   id: string;
   projectTag: string; // e.g. "ABC Dashboard", "Sinen Dashboard", "Twingle Website", "Sosro Mobile App"
   title: string;
+  description?: string;
   dueDate: string; // e.g. "Feb 14, 2027"
   status: TaskStatus;
   progress: number; // 0, 25, 55, 100
+  difficultyLevel?: number;
+  storyPoints?: number;
+  assigneeId?: number;
   commentsCount: number;
   linksCount: number;
   assignees: {
@@ -312,13 +316,14 @@ const getColIconType = (name: string): 'todo' | 'inprogress' | 'inreview' | 'com
 };
 
 const formatDbDate = (dateStr?: string): string => {
-  if (!dateStr) return 'Feb 14, 2027';
+  if (!dateStr) return '';
   try {
     const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${months[d.getMonth()]} ${d.getDate() < 10 ? '0' + d.getDate() : d.getDate()}, ${d.getFullYear()}`;
   } catch {
-    return 'Feb 14, 2027';
+    return '';
   }
 };
 
@@ -327,7 +332,7 @@ export const AllTasksSection: React.FC<{
   teamId?: number;
 }> = ({ projectName = 'KINGSHA', teamId }) => {
   const [boardId, setBoardId] = useState<number | null>(null);
-  const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<TaskItem[]>(teamId ? [] : INITIAL_TASKS);
   const [columns, setColumns] = useState<ColumnItem[]>(INITIAL_COLUMNS);
   const [viewMode, setViewMode] = useState<'spreadsheet' | 'timeline' | 'kanban'>('kanban');
   const [isDbSynced, setIsDbSynced] = useState<boolean>(false);
@@ -345,6 +350,10 @@ export const AllTasksSection: React.FC<{
   // Column Drag-and-drop Reordering
   const [draggingColId, setDraggingColId] = useState<string | null>(null);
   const [dragOverColId, setDragOverColId] = useState<string | null>(null);
+
+  // Task Card Drag-and-drop between columns
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragOverTaskColId, setDragOverTaskColId] = useState<string | null>(null);
 
   // Kanban Horizontal Drag-to-Scroll (Kéo qua trái / qua phải khi dài)
   const kanbanGridRef = useRef<HTMLDivElement>(null);
@@ -400,15 +409,24 @@ export const AllTasksSection: React.FC<{
             board.columns.forEach((c) => {
               if (c.cards && c.cards.length > 0) {
                 c.cards.forEach((card) => {
+                  const { items: subItems } = parseChecklistFromDescription(card.description);
+                  const progressVal = subItems.length > 0
+                    ? Math.round((subItems.filter((x) => x.completed).length / subItems.length) * 100)
+                    : (card.storyPoints ? Math.min(100, Math.round(card.storyPoints * 20)) : 25);
+
                   loadedTasks.push({
                     id: String(card.id),
                     projectTag: `${projectName} Dashboard`,
                     title: card.title,
+                    description: card.description,
                     dueDate: formatDbDate(card.dueDate),
                     status: String(c.id),
-                    progress: card.storyPoints ? Math.min(100, Math.round(card.storyPoints * 20)) : 25,
-                    commentsCount: 2,
-                    linksCount: 1,
+                    difficultyLevel: card.difficultyLevel,
+                    storyPoints: card.storyPoints,
+                    assigneeId: card.assigneeId,
+                    progress: progressVal,
+                    commentsCount: 0,
+                    linksCount: 0,
                     assignees: card.assigneeName
                       ? [
                           {
@@ -417,21 +435,13 @@ export const AllTasksSection: React.FC<{
                             bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
                           },
                         ]
-                      : [
-                          {
-                            name: 'Minh Triều',
-                            avatarText: 'MT',
-                            bg: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                          },
-                        ],
+                      : [],
                   });
                 });
               }
             });
 
-            if (loadedTasks.length > 0) {
-              setTasks(loadedTasks);
-            }
+            setTasks(loadedTasks);
             setIsDbSynced(true);
           }
         }
@@ -553,6 +563,64 @@ export const AllTasksSection: React.FC<{
     setDragOverColId(null);
   };
 
+  // Moving task cards between columns
+  const handleCardDrop = async (targetColId: string) => {
+    if (!draggingTaskId || draggingTaskId === '') {
+      setDraggingTaskId(null);
+      setDragOverTaskColId(null);
+      return;
+    }
+
+    const task = tasks.find((t) => t.id === draggingTaskId);
+    if (!task || task.status === targetColId) {
+      setDraggingTaskId(null);
+      setDragOverTaskColId(null);
+      return;
+    }
+
+    const toColName   = columns.find((c) => c.id === targetColId)?.title  || targetColId;
+
+    // Optimistic update — move card locally first
+    setTasks((prev) =>
+      prev.map((t) => t.id === draggingTaskId ? { ...t, status: targetColId } : t)
+    );
+
+    // Call API if both IDs are real DB numbers
+    const cardIdNum  = Number(draggingTaskId);
+    const targetColNum = Number(targetColId);
+    if (!isNaN(cardIdNum) && cardIdNum > 0 && !isNaN(targetColNum) && targetColNum > 0) {
+      try {
+        await boardApi.moveCard(cardIdNum, { targetColumnId: targetColNum });
+        showToast.success(
+          `Đã di chuyển "${task.title}" sang "${toColName}" và lưu vào DB!`,
+          'DB Synced'
+        );
+      } catch (e) {
+        console.warn('moveCard error:', e);
+        // Revert on failure
+        setTasks((prev) =>
+          prev.map((t) => t.id === draggingTaskId ? { ...t, status: task.status } : t)
+        );
+        showToast.error('Không thể di chuyển task, kiểm tra kết nối.', 'Lỗi');
+      }
+    } else {
+      showToast.success(`Đã di chuyển "${task.title}" sang "${toColName}"`, 'All Task');
+    }
+
+    setDraggingTaskId(null);
+    setDragOverTaskColId(null);
+  };
+
+  // Unified drop handler for a column area
+  const handleColAreaDrop = (e: React.DragEvent, colId: string) => {
+    e.preventDefault();
+    if (draggingTaskId) {
+      handleCardDrop(colId);
+    } else {
+      handleColumnDrop(colId);
+    }
+  };
+
   // Custom Popup Actions
   const handleAddColumn = async (title: string) => {
     if (boardId) {
@@ -667,7 +735,7 @@ export const AllTasksSection: React.FC<{
   }, [tasks, hiddenColIds, activeFilter, activeSort]);
 
   // Tạo công việc mới và lưu vào DB
-  const handleCreateTaskFromModal = async (taskData: Partial<TaskItem>) => {
+  const handleCreateTaskFromModal = async (taskData: CreateTaskSavePayload) => {
     const targetStatus = taskData.status || columns[0]?.id || 'in_progress';
     const targetColNum = Number(targetStatus);
 
@@ -676,45 +744,60 @@ export const AllTasksSection: React.FC<{
       try {
         const res = await boardApi.createCard(targetColNum, {
           title: taskData.title || 'New Task',
-          description: taskData.title || '',
-          storyPoints: ((taskData.progress ?? 25) / 20) || 1.0,
+          description: taskData.description || taskData.title || '',
+          assigneeId: taskData.assigneeId,
+          dueDate: taskData.dueDateIso,
+          storyPoints: taskData.storyPoints || 1.0,
+          difficultyLevel: taskData.difficultyLevel || 2,
         });
         const createdCard = res.data;
+
+        // Lưu comment ban đầu vào DB nếu người dùng có nhập
+        if (taskData.initialComment && taskData.initialComment.trim()) {
+          boardApi.addComment(createdCard.id, taskData.initialComment.trim(), taskData.initialComment.length > 15)
+            .catch((err) => console.warn('Failed to save initial comment:', err));
+        }
+
         const newTask: TaskItem = {
           id: String(createdCard.id),
           projectTag: taskData.projectTag || `${projectName} Dashboard`,
           title: createdCard.title,
-          dueDate: taskData.dueDate || 'Feb 14, 2027',
+          description: createdCard.description || taskData.description,
+          dueDate: taskData.dueDate || formatDbDate(createdCard.dueDate),
           status: String(targetColNum),
-          progress: taskData.progress ?? 25,
-          commentsCount: 1,
-          linksCount: 1,
-          assignees: taskData.assignees || [
-            { name: 'Minh Triều', avatarText: 'MT', bg: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-          ],
+          progress: taskData.progress || 10,
+          difficultyLevel: createdCard.difficultyLevel,
+          storyPoints: createdCard.storyPoints,
+          assigneeId: createdCard.assigneeId,
+          commentsCount: taskData.initialComment ? 1 : 0,
+          linksCount: 0,
+          assignees: taskData.assignees?.length
+            ? taskData.assignees
+            : createdCard.assigneeName
+            ? [{ name: createdCard.assigneeName, avatarText: createdCard.assigneeName.slice(0, 2).toUpperCase(), bg: '#e0f2fe' }]
+            : [],
         };
         setTasks((prev) => [newTask, ...prev]);
         showToast.success(`Đã tạo và lưu công việc "${newTask.title}" vào DB!`, 'Database Saved');
         return;
       } catch (e) {
         console.warn('API createCard error:', e);
+        showToast.error('Không thể lưu vào DB, đang lưu cục bộ.', 'Warning');
       }
     }
 
-    // Local fallback
+    // Local fallback (khi board chưa sync với DB)
     const newTask: TaskItem = {
       id: `task-${Date.now()}`,
       projectTag: taskData.projectTag || `${projectName} Dashboard`,
       title: taskData.title || 'New Task',
-      dueDate: taskData.dueDate || 'Feb 14, 2027',
+      description: taskData.description,
+      dueDate: taskData.dueDate || '',
       status: targetStatus,
-      progress: taskData.progress ?? 25,
-      commentsCount: taskData.commentsCount ?? 1,
-      linksCount: taskData.linksCount ?? 1,
-      assignees: taskData.assignees || [
-        { name: 'Kiara Laras', avatarText: 'KL', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
-        { name: 'Joe Tesla', avatarText: 'JT', bg: 'linear-gradient(135deg, #10b981, #059669)' },
-      ],
+      progress: 10,
+      commentsCount: taskData.commentsCount ?? 0,
+      linksCount: taskData.linksCount ?? 0,
+      assignees: taskData.assignees || [],
     };
     setTasks((prev) => [newTask, ...prev]);
     showToast.success('Đã tạo nhiệm vụ mới thành công!', 'All Task');
@@ -851,23 +934,31 @@ export const AllTasksSection: React.FC<{
           {visibleColumns.map((col) => {
             const colTasks = displayedTasks.filter((t) => t.status === col.id);
             const isEditing = editingColId === col.id;
-            const isDragOver = dragOverColId === col.id;
+            const isDragOver = dragOverColId === col.id || dragOverTaskColId === col.id;
 
             return (
               <div
                 key={col.id}
-                className={`kanban-col ${isDragOver ? 'is-drag-target' : ''}`}
+                className={`kanban-col ${isDragOver ? 'is-drag-target' : ''} ${draggingTaskId && dragOverTaskColId === col.id ? 'is-card-drop-target' : ''}`}
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
-                  setDragOverColId(col.id);
+                  if (draggingTaskId) {
+                    setDragOverTaskColId(col.id);
+                  } else {
+                    setDragOverColId(col.id);
+                  }
                 }}
-                onDragLeave={() => {
-                  if (dragOverColId === col.id) setDragOverColId(null);
+                onDragLeave={(e) => {
+                  // Only clear if leaving the column entirely (not entering a child)
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    if (dragOverTaskColId === col.id) setDragOverTaskColId(null);
+                    if (dragOverColId === col.id) setDragOverColId(null);
+                  }
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  handleColumnDrop(col.id);
+                  handleColAreaDrop(e, col.id);
                 }}
               >
                 {/* Column Header */}
@@ -950,7 +1041,19 @@ export const AllTasksSection: React.FC<{
                   {colTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="task-card"
+                      className={`task-card ${draggingTaskId === task.id ? 'is-dragging' : ''}`}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.stopPropagation();           // prevent grid scroll drag
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', task.id);
+                        setDraggingTaskId(task.id);
+                        setDraggingColId(null);        // ensure col drag is cleared
+                      }}
+                      onDragEnd={() => {
+                        setDraggingTaskId(null);
+                        setDragOverTaskColId(null);
+                      }}
                       onClick={() => handleOpenTaskDetail(task)}
                     >
                       {/* Top row: Project Tag & Options */}
@@ -1164,13 +1267,19 @@ export const AllTasksSection: React.FC<{
         onSave={handleCreateTaskFromModal}
         defaultStatus={createModalDefaultStatus}
         columns={columns}
+        teamId={teamId}
       />
 
       {/* ── TASK DETAIL MODAL (Ảnh mẫu 2) ── */}
       <TaskDetailModal
         isOpen={detailModalOpen}
         task={selectedTask}
+        teamId={teamId}
         onClose={() => setDetailModalOpen(false)}
+        onTaskUpdated={(updated) => {
+          setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+          setSelectedTask(updated);
+        }}
       />
     </div>
   );
