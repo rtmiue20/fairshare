@@ -23,6 +23,16 @@ export const boardApi = {
     return response.data;
   },
 
+  updateColumn: async (columnId: number, payload: { name: string; position?: number }): Promise<ApiResponse<BoardColumn>> => {
+    const response = await apiClient.put<ApiResponse<BoardColumn>>(`/boards/columns/${columnId}`, payload);
+    return response.data;
+  },
+
+  deleteColumn: async (columnId: number): Promise<ApiResponse<void>> => {
+    const response = await apiClient.delete<ApiResponse<void>>(`/boards/columns/${columnId}`);
+    return response.data;
+  },
+
   createCard: async (columnId: number, payload: CreateCardPayload): Promise<ApiResponse<Card>> => {
     const response = await apiClient.post<ApiResponse<Card>>(`/boards/columns/${columnId}/cards`, payload);
     return response.data;
