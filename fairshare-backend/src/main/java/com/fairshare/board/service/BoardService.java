@@ -6,8 +6,10 @@ import com.fairshare.board.dto.*;
 import com.fairshare.board.entity.Board;
 import com.fairshare.board.entity.BoardColumn;
 import com.fairshare.board.entity.Card;
+import com.fairshare.board.entity.CardAttachment;
 import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.BoardRepository;
+import com.fairshare.board.repository.CardAttachmentRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.ForbiddenException;
@@ -39,6 +41,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final BoardColumnRepository columnRepository;
     private final CardRepository cardRepository;
+    private final CardAttachmentRepository cardAttachmentRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
@@ -930,6 +933,13 @@ public class BoardService {
                             displayMessage = "đã hoàn thành một mục việc cần làm";
                         } else if ("REVIEW_CARD".equalsIgnoreCase(eventType)) {
                             displayMessage = "đã chuyển thẻ sang danh sách Review để kiểm tra";
+                        } else if ("CARD_ATTACHMENT_ADDED".equalsIgnoreCase(eventType)) {
+                            java.util.regex.Matcher m = java.util.regex.Pattern.compile("Attached file '(.*?)'").matcher(details);
+                            if (m.find()) {
+                                displayMessage = String.format("đã đính kèm tập tin %s vào thẻ này", m.group(1));
+                            } else {
+                                displayMessage = "đã đính kèm một tập tin vào thẻ này";
+                            }
                         }
 
                         String uName = e.getUser() != null
@@ -971,5 +981,94 @@ public class BoardService {
         }
 
         return dtos;
+    }
+
+    @Transactional(readOnly = true)
+    public List<CardAttachmentDto> getCardAttachments(Long cardId) {
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        return cardAttachmentRepository.findByCardIdOrderByCreatedAtDesc(card.getId()).stream()
+                .map(this::mapAttachmentToDto)
+                .toList();
+    }
+
+    @Transactional
+    public CardAttachmentDto addCardAttachment(Long cardId, AddAttachmentRequest request, Long userId) {
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        User user = userId != null
+                ? userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId))
+                : card.getAssignee();
+
+        if (user == null) {
+            throw new BusinessException("Cần đăng nhập để đính kèm tệp");
+        }
+
+        checkTeamMembership(card.getBoard().getTeam().getId(), user.getId());
+
+        CardAttachment attachment = CardAttachment.builder()
+                .card(card)
+                .user(user)
+                .fileName(request.getFileName().trim())
+                .fileUrl(request.getFileUrl().trim())
+                .fileSize(request.getFileSize())
+                .contentType(request.getContentType())
+                .build();
+
+        CardAttachment saved = cardAttachmentRepository.save(attachment);
+
+        Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
+        activityService.logActivity(
+                card.getBoard().getTeam(),
+                user,
+                ActivitySource.BOARD,
+                "CARD_ATTACHMENT_ADDED",
+                String.format("Attached file '%s' to card '%s'", saved.getFileName(), card.getTitle()),
+                LocalDateTime.now(),
+                activeSprint,
+                0.2,
+                card.getDifficultyLevel(),
+                true,
+                0.0,
+                false,
+                false,
+                false
+        );
+
+        return mapAttachmentToDto(saved);
+    }
+
+    @Transactional
+    public void deleteCardAttachment(Long cardId, Long attachmentId, Long userId) {
+        CardAttachment attachment = cardAttachmentRepository.findByIdAndCardId(attachmentId, cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found: " + attachmentId));
+
+        if (userId != null) {
+            TeamMember member = checkTeamMembership(attachment.getCard().getBoard().getTeam().getId(), userId);
+            boolean isLeader = MemberRole.LEADER.equals(member.getRole());
+            boolean isOwner = attachment.getUser().getId().equals(userId);
+            if (!isLeader && !isOwner) {
+                throw new ForbiddenException("Chỉ người tải lên hoặc Leader mới có quyền xoá tệp đính kèm này");
+            }
+        }
+
+        cardAttachmentRepository.delete(attachment);
+    }
+
+    private CardAttachmentDto mapAttachmentToDto(CardAttachment attachment) {
+        return CardAttachmentDto.builder()
+                .id(attachment.getId())
+                .cardId(attachment.getCard().getId())
+                .userId(attachment.getUser() != null ? attachment.getUser().getId() : null)
+                .userName(attachment.getUser() != null
+                        ? (attachment.getUser().getFullName() != null && !attachment.getUser().getFullName().isBlank()
+                                ? attachment.getUser().getFullName() : attachment.getUser().getEmail())
+                        : "Thành viên")
+                .fileName(attachment.getFileName())
+                .fileUrl(attachment.getFileUrl())
+                .fileSize(attachment.getFileSize())
+                .contentType(attachment.getContentType())
+                .createdAt(attachment.getCreatedAt())
+                .build();
     }
 }

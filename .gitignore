@@ -17,3 +17,5 @@ frontend/*.tsbuildinfo
 frontend/test-results/
 .vscode/
 .env.staging
+fairshare-backend/uploads/*
+!fairshare-backend/uploads/.gitkeep

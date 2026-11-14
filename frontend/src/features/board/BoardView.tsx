@@ -21,7 +21,11 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Send
+  Send,
+  Paperclip,
+  Trash2,
+  ExternalLink,
+  UploadCloud
 } from 'lucide-react';
 import {
   DragDropContext,
@@ -34,7 +38,7 @@ import { teamApi } from '../../api/team.api';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
-import type { Board, BoardColumn, Card, CardActivity } from '../../types/board';
+import type { Board, BoardColumn, Card, CardActivity, CardAttachment } from '../../types/board';
 import type { Team } from '../../types/team';
 
 // Helper format date time for card preview
@@ -299,6 +303,11 @@ export const BoardView: React.FC = () => {
   const [activities, setActivities] = useState<CardActivity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState<boolean>(false);
   const [showOnlyComments, setShowOnlyComments] = useState<boolean>(false);
+  const [attachments, setAttachments] = useState<CardAttachment[]>([]);
+  const [uploadingFile, setUploadingFile] = useState<boolean>(false);
+  const [showAddUrlInput, setShowAddUrlInput] = useState<boolean>(false);
+  const [attachmentUrlInput, setAttachmentUrlInput] = useState('');
+  const [attachmentNameInput, setAttachmentNameInput] = useState('');
 
   // New Column Modal State
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -406,6 +415,16 @@ export const BoardView: React.FC = () => {
     setEditError(null);
     setCommentText('');
     setShowOnlyComments(false);
+    setShowAddUrlInput(false);
+    setAttachmentUrlInput('');
+    setAttachmentNameInput('');
+
+    // Load attachments from server
+    boardApi.getCardAttachments(card.id)
+      .then((res) => {
+        if (res.data) setAttachments(res.data);
+      })
+      .catch(() => setAttachments([]));
 
     // Load activities from server for Trello-style history
     setLoadingActivities(true);
@@ -506,6 +525,78 @@ export const BoardView: React.FC = () => {
       }
     } catch {
       showToast('Đã gửi bình luận (Chế độ xem)');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingCard) return;
+
+    setUploadingFile(true);
+    try {
+      const uploadRes = await boardApi.uploadFile(file);
+      if (uploadRes.data?.url) {
+        const attachRes = await boardApi.addCardAttachment(editingCard.id, {
+          fileName: uploadRes.data.fileName || file.name,
+          fileUrl: uploadRes.data.url,
+          fileSize: uploadRes.data.fileSize || file.size,
+          contentType: uploadRes.data.contentType || file.type,
+        });
+
+        if (attachRes.data) {
+          setAttachments((prev) => [attachRes.data, ...prev]);
+          showToast('Đã tải ảnh & đính kèm vào thẻ thành công!');
+          boardApi.getCardActivities(editingCard.id).then((r) => {
+            if (r.data) setActivities(r.data);
+          });
+        }
+      }
+    } catch (err: unknown) {
+      const errMsg = (err as Error)?.message || 'Không thể tải tệp lên máy chủ';
+      showToast(`Lỗi: ${errMsg}`);
+    } finally {
+      setUploadingFile(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleAddLinkAttachment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!attachmentUrlInput.trim() || !editingCard) return;
+
+    try {
+      const name = attachmentNameInput.trim() || attachmentUrlInput.trim();
+      const attachRes = await boardApi.addCardAttachment(editingCard.id, {
+        fileName: name,
+        fileUrl: attachmentUrlInput.trim(),
+      });
+
+      if (attachRes.data) {
+        setAttachments((prev) => [attachRes.data, ...prev]);
+        showToast('Đã thêm link đính kèm vào thẻ!');
+        setAttachmentUrlInput('');
+        setAttachmentNameInput('');
+        setShowAddUrlInput(false);
+        boardApi.getCardActivities(editingCard.id).then((r) => {
+          if (r.data) setActivities(r.data);
+        });
+      }
+    } catch {
+      showToast('Không thể thêm link đính kèm');
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    if (!editingCard) return;
+    try {
+      await boardApi.deleteCardAttachment(editingCard.id, attachmentId);
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+      showToast('Đã xoá tệp đính kèm');
+      boardApi.getCardActivities(editingCard.id).then((r) => {
+        if (r.data) setActivities(r.data);
+      });
+    } catch {
+      showToast('Không thể xoá tệp đính kèm');
     }
   };
 
@@ -1403,6 +1494,169 @@ export const BoardView: React.FC = () => {
                         </label>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Attachments Section (Tệp đính kèm & Minh chứng - Giống Trello) */}
+                  <div className="space-y-2.5 pt-2 border-t border-zinc-800/80">
+                    <div className="flex items-center justify-between">
+                      <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                        <Paperclip size={13} className="text-amber-400" />
+                        <span>Tệp đính kèm & Minh chứng</span>
+                        {attachments.length > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700 font-mono">
+                            {attachments.length}
+                          </span>
+                        )}
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <label className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 cursor-pointer transition-colors flex items-center gap-1">
+                          <UploadCloud size={12} />
+                          <span>{uploadingFile ? 'Đang tải...' : 'Tải ảnh từ máy'}</span>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf,.doc,.docx,.zip"
+                            disabled={uploadingFile}
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddUrlInput((prev) => !prev)}
+                          className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-700 transition-colors flex items-center gap-1"
+                        >
+                          <Plus size={12} />
+                          <span>Thêm link</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Pop-up / form to add direct link */}
+                    {showAddUrlInput && (
+                      <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 space-y-2 animate-in fade-in duration-150">
+                        <div className="text-[11px] font-medium text-zinc-300">Đính kèm link (Google Drive, Figma, Docs)</div>
+                        <input
+                          type="url"
+                          value={attachmentUrlInput}
+                          onChange={(e) => setAttachmentUrlInput(e.target.value)}
+                          placeholder="https://drive.google.com/... hoặc https://figma.com/..."
+                          className="w-full px-2.5 py-1.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs focus:outline-none focus:border-indigo-500"
+                        />
+                        <input
+                          type="text"
+                          value={attachmentNameInput}
+                          onChange={(e) => setAttachmentNameInput(e.target.value)}
+                          placeholder="Tên hiển thị (ví dụ: Tài liệu đặc tả SRS)"
+                          className="w-full px-2.5 py-1.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs focus:outline-none focus:border-indigo-500"
+                        />
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddUrlInput(false)}
+                            className="px-2.5 py-1 text-[11px] rounded text-zinc-400 hover:text-white"
+                          >
+                            Huỷ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAddLinkAttachment}
+                            disabled={!attachmentUrlInput.trim()}
+                            className="px-3 py-1 text-[11px] rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium"
+                          >
+                            Thêm
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Attachment List */}
+                    {attachments.length === 0 ? (
+                      <div className="text-center py-3.5 rounded-lg bg-zinc-900/40 border border-dashed border-zinc-800/80 text-[11px] text-zinc-500">
+                        Chưa có tệp đính kèm nào. Hãy tải ảnh chụp màn hình hoặc link minh chứng lên thẻ.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {attachments.map((att) => {
+                          const isImg =
+                            att.contentType?.startsWith('image/') ||
+                            /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileUrl) ||
+                            /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileName);
+                          const fullUrl = att.fileUrl.startsWith('http')
+                            ? att.fileUrl
+                            : `http://localhost:8080${att.fileUrl}`;
+
+                          return (
+                            <div
+                              key={att.id}
+                              className="flex items-center gap-3 p-2 rounded-lg bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700 transition-colors group"
+                            >
+                              {/* Thumbnail preview */}
+                              {isImg ? (
+                                <a
+                                  href={fullUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="w-16 h-12 rounded overflow-hidden shrink-0 bg-black/60 border border-zinc-700/60 flex items-center justify-center hover:opacity-90"
+                                >
+                                  <img
+                                    src={fullUrl}
+                                    alt={att.fileName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </a>
+                              ) : (
+                                <div className="w-16 h-12 rounded shrink-0 bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-indigo-400">
+                                  <Paperclip size={18} />
+                                </div>
+                              )}
+
+                              {/* Details */}
+                              <div className="flex-1 min-w-0 space-y-0.5">
+                                <a
+                                  href={fullUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-medium text-zinc-200 hover:text-indigo-400 hover:underline truncate block"
+                                  title={att.fileName}
+                                >
+                                  {att.fileName}
+                                </a>
+                                <div className="text-[10px] text-zinc-500 flex items-center gap-2">
+                                  <span>{formatActivityTime(att.createdAt).relative}</span>
+                                  {att.fileSize && (
+                                    <span>· {(att.fileSize / 1024).toFixed(1)} KB</span>
+                                  )}
+                                  {att.userName && <span>· bởi {att.userName}</span>}
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-2 pr-1">
+                                <a
+                                  href={fullUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1 rounded text-zinc-400 hover:text-white transition-colors"
+                                  title="Mở trong tab mới"
+                                >
+                                  <ExternalLink size={13} />
+                                </a>
+                                {(isLeader || att.userId === currentUser?.id) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAttachment(att.id)}
+                                    className="p-1 rounded text-zinc-500 hover:text-rose-400 transition-colors"
+                                    title="Xoá tệp đính kèm"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Left Column Form Buttons */}

@@ -75,3 +75,15 @@ export interface CardActivity {
   commentText?: string;
   occurredAt: string;
 }
+
+export interface CardAttachment {
+  id: number;
+  cardId: number;
+  userId: number;
+  userName?: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize?: number;
+  contentType?: string;
+  createdAt: string;
+}
