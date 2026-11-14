@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '../types/api';
-import { Board, BoardColumn, Card, CreateBoardPayload, CreateColumnPayload, CreateCardPayload, MoveCardPayload } from '../types/board';
+import { Board, BoardColumn, Card, CardActivity, CardAttachment, CreateBoardPayload, CreateColumnPayload, CreateCardPayload, MoveCardPayload } from '../types/board';
 
 export interface CardComment {
   id: number;
@@ -110,6 +110,41 @@ export const boardApi = {
   /** Đánh dấu hoàn thành checklist item đã tồn tại */
   completeChecklistItem: async (cardId: number, itemTitle: string): Promise<ApiResponse<void>> => {
     const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/checklist-items`, { itemTitle });
+    return response.data;
+  },
+
+  getCardActivities: async (cardId: number): Promise<ApiResponse<CardActivity[]>> => {
+    const response = await apiClient.get<ApiResponse<CardActivity[]>>(`/boards/cards/${cardId}/activities`);
+    return response.data;
+  },
+
+  uploadFile: async (file: File): Promise<ApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<ApiResponse<{ url: string; fileName: string; fileSize: number; contentType: string }>>(
+      '/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+
+  getCardAttachments: async (cardId: number): Promise<ApiResponse<CardAttachment[]>> => {
+    const response = await apiClient.get<ApiResponse<CardAttachment[]>>(`/boards/cards/${cardId}/attachments`);
+    return response.data;
+  },
+
+  addCardAttachment: async (cardId: number, payload: { fileName: string; fileUrl: string; fileSize?: number; contentType?: string }): Promise<ApiResponse<CardAttachment>> => {
+    const response = await apiClient.post<ApiResponse<CardAttachment>>(`/boards/cards/${cardId}/attachments`, payload);
+    return response.data;
+  },
+
+  deleteCardAttachment: async (cardId: number, attachmentId: number): Promise<ApiResponse<void>> => {
+    const response = await apiClient.delete<ApiResponse<void>>(`/boards/cards/${cardId}/attachments/${attachmentId}`);
     return response.data;
   },
 };

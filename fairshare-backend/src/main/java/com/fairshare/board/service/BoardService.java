@@ -6,8 +6,10 @@ import com.fairshare.board.dto.*;
 import com.fairshare.board.entity.Board;
 import com.fairshare.board.entity.BoardColumn;
 import com.fairshare.board.entity.Card;
+import com.fairshare.board.entity.CardAttachment;
 import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.BoardRepository;
+import com.fairshare.board.repository.CardAttachmentRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.ForbiddenException;
@@ -26,8 +28,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import com.fairshare.activity.entity.ActivityEvent;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +41,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final BoardColumnRepository columnRepository;
     private final CardRepository cardRepository;
+    private final CardAttachmentRepository cardAttachmentRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
@@ -863,5 +869,206 @@ public class BoardService {
         }
         return teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
                 .orElseThrow(() -> new ForbiddenException("Bạn không phải là thành viên của nhóm này"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CardActivityDto> getCardActivities(Long cardId) {
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+
+        Long teamId = card.getBoard().getTeam().getId();
+        List<ActivityEvent> teamEvents = activityService.getEventsByTeam(teamId);
+
+        String cardTitle = card.getTitle();
+        String patternQuoted = "'" + cardTitle + "'";
+
+        List<CardActivityDto> dtos = new ArrayList<>();
+
+        if (teamEvents != null) {
+            teamEvents.stream()
+                    .filter(e -> e.getDetails() != null && (e.getDetails().contains(patternQuoted) || e.getDetails().contains(cardTitle)))
+                    .sorted(Comparator.comparing(ActivityEvent::getOccurredAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .forEach(e -> {
+                        String eventType = e.getEventType();
+                        String details = e.getDetails();
+                        String displayMessage = details;
+                        String fromCol = null;
+                        String toCol = null;
+                        String commentText = null;
+
+                        if ("CARD_MOVED".equalsIgnoreCase(eventType)) {
+                            java.util.regex.Matcher m = java.util.regex.Pattern.compile("from '(.*?)' to '(.*?)'").matcher(details);
+                            if (m.find()) {
+                                fromCol = m.group(1);
+                                toCol = m.group(2);
+                                displayMessage = String.format("đã di chuyển thẻ này từ danh sách %s tới danh sách %s", fromCol, toCol);
+                            } else {
+                                displayMessage = "đã di chuyển thẻ này";
+                            }
+                        } else if ("CARD_COMPLETED".equalsIgnoreCase(eventType)) {
+                            boolean onTime = Boolean.TRUE.equals(e.getIsOnTime());
+                            displayMessage = onTime ? "đã hoàn thành thẻ này đúng hạn" : "đã hoàn thành thẻ này (trễ hạn)";
+                        } else if ("CARD_REOPENED".equalsIgnoreCase(eventType)) {
+                            displayMessage = "đã mở lại thẻ này từ danh sách Done";
+                        } else if ("CARD_CREATED".equalsIgnoreCase(eventType)) {
+                            java.util.regex.Matcher m = java.util.regex.Pattern.compile("in column '(.*?)'").matcher(details);
+                            if (m.find()) {
+                                toCol = m.group(1);
+                                displayMessage = String.format("đã tạo thẻ này trong danh sách %s", toCol);
+                            } else {
+                                displayMessage = "đã tạo thẻ này";
+                            }
+                        } else if ("COMMENT_ADDED".equalsIgnoreCase(eventType)) {
+                            int idx = details.indexOf("': ");
+                            if (idx > 0) {
+                                commentText = details.substring(idx + 3);
+                                displayMessage = "đã bình luận:";
+                            } else {
+                                commentText = details;
+                                displayMessage = "đã bình luận";
+                            }
+                        } else if ("CARD_DUE_DATE_UPDATED".equalsIgnoreCase(eventType)) {
+                            displayMessage = "đã cập nhật hạn hoàn thành của thẻ này";
+                        } else if ("CHECKLIST_ITEM_DONE".equalsIgnoreCase(eventType)) {
+                            displayMessage = "đã hoàn thành một mục việc cần làm";
+                        } else if ("REVIEW_CARD".equalsIgnoreCase(eventType)) {
+                            displayMessage = "đã chuyển thẻ sang danh sách Review để kiểm tra";
+                        } else if ("CARD_ATTACHMENT_ADDED".equalsIgnoreCase(eventType)) {
+                            java.util.regex.Matcher m = java.util.regex.Pattern.compile("Attached file '(.*?)'").matcher(details);
+                            if (m.find()) {
+                                displayMessage = String.format("đã đính kèm tập tin %s vào thẻ này", m.group(1));
+                            } else {
+                                displayMessage = "đã đính kèm một tập tin vào thẻ này";
+                            }
+                        }
+
+                        String uName = e.getUser() != null
+                                ? (e.getUser().getFullName() != null && !e.getUser().getFullName().isBlank()
+                                        ? e.getUser().getFullName() : e.getUser().getEmail())
+                                : "Thành viên";
+
+                        dtos.add(CardActivityDto.builder()
+                                .id(e.getId())
+                                .cardId(card.getId())
+                                .userId(e.getUser() != null ? e.getUser().getId() : null)
+                                .userName(uName)
+                                .userEmail(e.getUser() != null ? e.getUser().getEmail() : "")
+                                .eventType(eventType)
+                                .fromColumn(fromCol)
+                                .toColumn(toCol)
+                                .displayMessage(displayMessage)
+                                .commentText(commentText)
+                                .occurredAt(e.getOccurredAt())
+                                .build());
+                    });
+        }
+
+        boolean hasCreation = dtos.stream().anyMatch(d -> "CARD_CREATED".equalsIgnoreCase(d.getEventType()));
+        if (!hasCreation) {
+            String creatorName = card.getAssignee() != null
+                    ? (card.getAssignee().getFullName() != null ? card.getAssignee().getFullName() : card.getAssignee().getEmail())
+                    : "Thành viên";
+            dtos.add(CardActivityDto.builder()
+                    .id(-1L)
+                    .cardId(card.getId())
+                    .userId(card.getAssignee() != null ? card.getAssignee().getId() : null)
+                    .userName(creatorName)
+                    .userEmail(card.getAssignee() != null ? card.getAssignee().getEmail() : "")
+                    .eventType("CARD_CREATED")
+                    .displayMessage(String.format("đã tạo thẻ này trong danh sách %s", card.getColumn() != null ? card.getColumn().getName() : "To Do"))
+                    .occurredAt(card.getCreatedAt() != null ? card.getCreatedAt() : LocalDateTime.now())
+                    .build());
+        }
+
+        return dtos;
+    }
+
+    @Transactional(readOnly = true)
+    public List<CardAttachmentDto> getCardAttachments(Long cardId) {
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        return cardAttachmentRepository.findByCardIdOrderByCreatedAtDesc(card.getId()).stream()
+                .map(this::mapAttachmentToDto)
+                .toList();
+    }
+
+    @Transactional
+    public CardAttachmentDto addCardAttachment(Long cardId, AddAttachmentRequest request, Long userId) {
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
+        User user = userId != null
+                ? userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId))
+                : card.getAssignee();
+
+        if (user == null) {
+            throw new BusinessException("Cần đăng nhập để đính kèm tệp");
+        }
+
+        checkTeamMembership(card.getBoard().getTeam().getId(), user.getId());
+
+        CardAttachment attachment = CardAttachment.builder()
+                .card(card)
+                .user(user)
+                .fileName(request.getFileName().trim())
+                .fileUrl(request.getFileUrl().trim())
+                .fileSize(request.getFileSize())
+                .contentType(request.getContentType())
+                .build();
+
+        CardAttachment saved = cardAttachmentRepository.save(attachment);
+
+        Sprint activeSprint = getActiveSprintForTeam(card.getBoard().getTeam().getId());
+        activityService.logActivity(
+                card.getBoard().getTeam(),
+                user,
+                ActivitySource.BOARD,
+                "CARD_ATTACHMENT_ADDED",
+                String.format("Attached file '%s' to card '%s'", saved.getFileName(), card.getTitle()),
+                LocalDateTime.now(),
+                activeSprint,
+                0.2,
+                card.getDifficultyLevel(),
+                true,
+                0.0,
+                false,
+                false,
+                false
+        );
+
+        return mapAttachmentToDto(saved);
+    }
+
+    @Transactional
+    public void deleteCardAttachment(Long cardId, Long attachmentId, Long userId) {
+        CardAttachment attachment = cardAttachmentRepository.findByIdAndCardId(attachmentId, cardId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found: " + attachmentId));
+
+        if (userId != null) {
+            TeamMember member = checkTeamMembership(attachment.getCard().getBoard().getTeam().getId(), userId);
+            boolean isLeader = MemberRole.LEADER.equals(member.getRole());
+            boolean isOwner = attachment.getUser().getId().equals(userId);
+            if (!isLeader && !isOwner) {
+                throw new ForbiddenException("Chỉ người tải lên hoặc Leader mới có quyền xoá tệp đính kèm này");
+            }
+        }
+
+        cardAttachmentRepository.delete(attachment);
+    }
+
+    private CardAttachmentDto mapAttachmentToDto(CardAttachment attachment) {
+        return CardAttachmentDto.builder()
+                .id(attachment.getId())
+                .cardId(attachment.getCard().getId())
+                .userId(attachment.getUser() != null ? attachment.getUser().getId() : null)
+                .userName(attachment.getUser() != null
+                        ? (attachment.getUser().getFullName() != null && !attachment.getUser().getFullName().isBlank()
+                                ? attachment.getUser().getFullName() : attachment.getUser().getEmail())
+                        : "Thành viên")
+                .fileName(attachment.getFileName())
+                .fileUrl(attachment.getFileUrl())
+                .fileSize(attachment.getFileSize())
+                .contentType(attachment.getContentType())
+                .createdAt(attachment.getCreatedAt())
+                .build();
     }
 }

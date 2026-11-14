@@ -104,6 +104,38 @@ public class CardController {
         return ResponseEntity.ok(ApiResponse.ok("Đã đánh dấu hoàn thành việc cần làm", null));
     }
 
+    @GetMapping("/{cardId}/activities")
+    public ResponseEntity<ApiResponse<java.util.List<CardActivityDto>>> getCardActivities(@PathVariable Long cardId) {
+        java.util.List<CardActivityDto> activities = boardService.getCardActivities(cardId);
+        return ResponseEntity.ok(ApiResponse.ok("Lịch sử hoạt động thẻ", activities));
+    }
+
+    @GetMapping("/{cardId}/attachments")
+    public ResponseEntity<ApiResponse<java.util.List<CardAttachmentDto>>> getCardAttachments(@PathVariable Long cardId) {
+        java.util.List<CardAttachmentDto> attachments = boardService.getCardAttachments(cardId);
+        return ResponseEntity.ok(ApiResponse.ok("Danh sách tệp đính kèm thẻ", attachments));
+    }
+
+    @PostMapping("/{cardId}/attachments")
+    public ResponseEntity<ApiResponse<CardAttachmentDto>> addCardAttachment(
+            @PathVariable Long cardId,
+            @Valid @RequestBody AddAttachmentRequest request,
+            Authentication authentication) {
+        Long actorId = getRequiredUserId(authentication);
+        CardAttachmentDto attachment = boardService.addCardAttachment(cardId, request, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Đính kèm tệp thành công", attachment));
+    }
+
+    @DeleteMapping("/{cardId}/attachments/{attachmentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteCardAttachment(
+            @PathVariable Long cardId,
+            @PathVariable Long attachmentId,
+            Authentication authentication) {
+        Long actorId = getRequiredUserId(authentication);
+        boardService.deleteCardAttachment(cardId, attachmentId, actorId);
+        return ResponseEntity.ok(ApiResponse.ok("Đã xoá tệp đính kèm", null));
+    }
+
     private Long getRequiredUserId(Authentication authentication) {
         Long userId = getUserId(authentication);
         if (userId == null) {

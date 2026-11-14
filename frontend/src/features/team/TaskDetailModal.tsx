@@ -17,6 +17,12 @@ import {
   Loader2,
   Edit2,
   Save,
+  Paperclip,
+  Trash2,
+  ExternalLink,
+  UploadCloud,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { TaskItem } from './AllTasksSection';
 import { showToast } from '../../components/ui/Toast';
@@ -25,6 +31,7 @@ import { teamApi } from '../../api/team.api';
 import { activityApi, ActivityEventDto } from '../../api/activity.api';
 import { useAuthStore } from '../../store/authStore';
 import { TeamMember } from '../../types/team';
+import type { CardActivity, CardAttachment } from '../../types/board';
 
 interface TaskDetailModalProps {
   task: TaskItem | null;
@@ -32,6 +39,40 @@ interface TaskDetailModalProps {
   onClose: () => void;
   teamId?: number;
   onTaskUpdated?: (updated: TaskItem) => void;
+}
+
+// Helper format activity time with relative and full time tracking
+function formatActivityTime(isoString?: string): { relative: string; full: string } {
+  if (!isoString) return { relative: 'Gần đây', full: '' };
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return { relative: isoString, full: isoString };
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const full = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+    let relative = '';
+    if (diffSec < 60) {
+      relative = 'vừa xong';
+    } else if (diffMin < 60) {
+      relative = `${diffMin} phút trước`;
+    } else if (diffHour < 24) {
+      relative = `${diffHour} giờ trước`;
+    } else if (diffDay < 7) {
+      relative = `${diffDay} ngày trước`;
+    } else {
+      relative = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+    }
+    return { relative, full };
+  } catch {
+    return { relative: isoString, full: isoString };
+  }
 }
 
 const PRIORITY_MAP: Record<number, { label: string; color: string; bg: string }> = {
@@ -112,7 +153,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onTaskUpdated,
 }) => {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'subtasks' | 'comments' | 'activities'>('subtasks');
+  const [activeTab, setActiveTab] = useState<'subtasks' | 'attachments' | 'comments' | 'activities'>('subtasks');
   const [subtasks, setSubtasks] = useState<SubtaskLocal[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [comments, setComments] = useState<{ author: string; text: string; time: string }[]>([]);
@@ -120,6 +161,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [sendingComment, setSendingComment] = useState(false);
   const [checkingItem, setCheckingItem] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityEventDto[]>([]);
+
+  // Tệp đính kèm & minh chứng
+  const [attachments, setAttachments] = useState<CardAttachment[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showAddUrlInput, setShowAddUrlInput] = useState(false);
+  const [attachmentUrlInput, setAttachmentUrlInput] = useState('');
+  const [attachmentNameInput, setAttachmentNameInput] = useState('');
+
+  // Lịch sử hoạt động chuẩn Trello & Kéo thả thẻ
+  const [cardActivities, setCardActivities] = useState<CardActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [showOnlyComments, setShowOnlyComments] = useState(false);
 
   // Editable fields
   const [isEditingDesc, setIsEditingDesc] = useState(false);
@@ -150,6 +203,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     setIsEditingDueDate(false);
     setDueDateValue('');
     setAssigneePickerOpen(false);
+    setShowAddUrlInput(false);
+    setAttachmentUrlInput('');
+    setAttachmentNameInput('');
 
     // Tách ban đầu từ task prop
     const parsedInitial = parseChecklistFromDescription(task.description || '');
@@ -171,6 +227,27 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           }
         })
         .catch(() => {});
+
+      // Tải tệp đính kèm từ bảng card_attachments trong DB
+      boardApi.getCardAttachments(cardIdNum)
+        .then((res) => {
+          if (res.data) {
+            setAttachments(res.data);
+            if (onTaskUpdated && task) {
+              onTaskUpdated({ ...task, linksCount: res.data.length });
+            }
+          }
+        })
+        .catch(() => setAttachments([]));
+
+      // Tải lịch sử hoạt động & kéo thả thẻ chuẩn Trello từ DB
+      setLoadingActivities(true);
+      boardApi.getCardActivities(cardIdNum)
+        .then((res) => {
+          if (res.data) setCardActivities(res.data);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingActivities(false));
     }
 
     // 2. Tải danh sách thành viên nhóm để phân công
@@ -330,6 +407,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
+  // Helper tải lại lịch sử và tệp đính kèm mới nhất từ DB
+  const refreshCardData = () => {
+    if (!hasRealCardId) return;
+    boardApi.getCardAttachments(cardIdNum)
+      .then((res) => {
+        if (res.data) {
+          setAttachments(res.data);
+          if (onTaskUpdated && task) {
+            onTaskUpdated({ ...task, linksCount: res.data.length });
+          }
+        }
+      })
+      .catch(() => {});
+
+    setLoadingActivities(true);
+    boardApi.getCardActivities(cardIdNum)
+      .then((res) => {
+        if (res.data) setCardActivities(res.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingActivities(false));
+  };
+
   // 4. Gửi bình luận và lưu vào DB
   const handleSendComment = async () => {
     if (!commentText.trim()) return;
@@ -347,6 +447,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       try {
         await boardApi.addComment(cardIdNum, savedText, savedText.length > 15);
         showToast.success('Đã lưu bình luận vào Database!', 'DB Synced');
+        refreshCardData();
       } catch (e) {
         console.warn('addComment error:', e);
         showToast.error('Không gửi được bình luận vào DB.', 'Lỗi');
@@ -360,6 +461,87 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const handleKeydownComment = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleSendComment();
+    }
+  };
+
+  // 4.1 Tải tệp ảnh/tài liệu từ máy tính lên Server & Lưu vào card_attachments trong DB
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !hasRealCardId) return;
+
+    setUploadingFile(true);
+    try {
+      const uploadRes = await boardApi.uploadFile(file);
+      if (uploadRes.data?.url) {
+        const attachRes = await boardApi.addCardAttachment(cardIdNum, {
+          fileName: uploadRes.data.fileName || file.name,
+          fileUrl: uploadRes.data.url,
+          fileSize: uploadRes.data.fileSize || file.size,
+          contentType: uploadRes.data.contentType || file.type,
+        });
+
+        if (attachRes.data) {
+          const updated = [attachRes.data, ...attachments];
+          setAttachments(updated);
+          showToast.success('Đã tải ảnh minh chứng & lưu vào Database!', 'Đính kèm thành công');
+          if (onTaskUpdated && task) {
+            onTaskUpdated({ ...task, linksCount: updated.length });
+          }
+          refreshCardData();
+        }
+      }
+    } catch (err: unknown) {
+      const errMsg = (err as Error)?.message || 'Không thể tải tệp lên máy chủ';
+      showToast.error(`Lỗi tải tệp: ${errMsg}`, 'Lỗi');
+    } finally {
+      setUploadingFile(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // 4.2 Thêm đường dẫn liên kết ngoài (Drive, Figma, GitHub, Docs...) & Lưu vào DB
+  const handleAddLinkAttachment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!attachmentUrlInput.trim() || !hasRealCardId) return;
+
+    try {
+      const name = attachmentNameInput.trim() || attachmentUrlInput.trim();
+      const attachRes = await boardApi.addCardAttachment(cardIdNum, {
+        fileName: name,
+        fileUrl: attachmentUrlInput.trim(),
+      });
+
+      if (attachRes.data) {
+        const updated = [attachRes.data, ...attachments];
+        setAttachments(updated);
+        showToast.success('Đã lưu liên kết minh chứng vào Database!', 'Đính kèm thành công');
+        setAttachmentUrlInput('');
+        setAttachmentNameInput('');
+        setShowAddUrlInput(false);
+        if (onTaskUpdated && task) {
+          onTaskUpdated({ ...task, linksCount: updated.length });
+        }
+        refreshCardData();
+      }
+    } catch {
+      showToast.error('Không thể lưu link đính kèm vào DB', 'Lỗi');
+    }
+  };
+
+  // 4.3 Xóa tệp đính kèm khỏi DB
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    if (!hasRealCardId) return;
+    try {
+      await boardApi.deleteCardAttachment(cardIdNum, attachmentId);
+      const updated = attachments.filter((a) => a.id !== attachmentId);
+      setAttachments(updated);
+      showToast.info('Đã xóa tệp đính kèm khỏi Database', 'DB Synced');
+      if (onTaskUpdated && task) {
+        onTaskUpdated({ ...task, linksCount: updated.length });
+      }
+      refreshCardData();
+    } catch {
+      showToast.error('Không thể xóa tệp đính kèm', 'Lỗi');
     }
   };
 
@@ -530,6 +712,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                   ))}
                 </div>
+
+                <button
+                  type="button"
+                  className="new-member-btn"
+                  onClick={() => setActiveTab('attachments')}
+                  title="Xem tệp đính kèm và ảnh minh chứng"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Paperclip size={12} />
+                  <span>Đính kèm {attachments.length > 0 ? `(${attachments.length})` : ''}</span>
+                </button>
 
                 <button
                   type="button"
@@ -706,6 +899,33 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </div>
             </div>
 
+            {/* Attachments (Tệp đính kèm & Minh chứng) */}
+            <div className="prop-row">
+              <div className="prop-label">
+                <Paperclip size={16} />
+                <span>Attachments</span>
+              </div>
+              <div className="prop-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="prop-text">
+                  {attachments.length > 0 ? (
+                    <span style={{ color: '#818cf8', fontWeight: 600 }}>{attachments.length} tệp minh chứng</span>
+                  ) : (
+                    <em style={{ opacity: 0.5 }}>Chưa có tệp đính kèm</em>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="col-icon-btn"
+                  onClick={() => setActiveTab('attachments')}
+                  title="Xem và tải ảnh minh chứng lên DB"
+                  style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={12} />
+                  <span>Đính kèm</span>
+                </button>
+              </div>
+            </div>
+
             {/* Description (editable & saves to DB) */}
             <div className="prop-row prop-row--top">
               <div className="prop-label">
@@ -772,6 +992,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </button>
             <button
               type="button"
+              className={`sub-tab-btn ${activeTab === 'attachments' ? 'active' : ''}`}
+              onClick={() => setActiveTab('attachments')}
+            >
+              Attachments
+              {attachments.length > 0 && (
+                <span className="tab-count-bubble">{attachments.length}</span>
+              )}
+            </button>
+            <button
+              type="button"
               className={`sub-tab-btn ${activeTab === 'comments' ? 'active' : ''}`}
               onClick={() => setActiveTab('comments')}
             >
@@ -786,8 +1016,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               onClick={() => setActiveTab('activities')}
             >
               Activities
-              {activities.length > 0 && (
-                <span className="tab-count-bubble">{activities.length}</span>
+              {(cardActivities.length > 0 ? cardActivities.length : activities.length) > 0 && (
+                <span className="tab-count-bubble">
+                  {cardActivities.length > 0 ? cardActivities.length : activities.length}
+                </span>
               )}
             </button>
           </div>
@@ -868,6 +1100,286 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
 
+          {/* Attachments Tab (Minh chứng & Tệp đính kèm chuẩn Trello) */}
+          {activeTab === 'attachments' && (
+            <div className="attachments-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Header Action Bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Paperclip size={16} style={{ color: '#6366f1' }} />
+                  <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: 'var(--fg)' }}>
+                    Tệp đính kèm & Minh chứng ({attachments.length})
+                  </h3>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label
+                    className="btn sm"
+                    style={{
+                      cursor: uploadingFile ? 'wait' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--accent, #6366f1)',
+                      color: '#fff',
+                      border: 'none',
+                    }}
+                  >
+                    {uploadingFile ? (
+                      <Loader2 size={13} className="spin-slow" />
+                    ) : (
+                      <UploadCloud size={13} />
+                    )}
+                    <span>{uploadingFile ? 'Đang tải lên...' : 'Tải ảnh từ máy'}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      disabled={uploadingFile}
+                      onChange={handleFileUpload}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddUrlInput((p) => !p)}
+                    className="btn ghost sm"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line, rgba(255,255,255,0.1))',
+                    }}
+                  >
+                    <Plus size={13} />
+                    <span>{showAddUrlInput ? 'Đóng form link' : 'Thêm link'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Form thêm link liên kết ngoài */}
+              {showAddUrlInput && (
+                <form
+                  onSubmit={handleAddLinkAttachment}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '1px solid var(--line, rgba(255,255,255,0.1))',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg)' }}>
+                    Đính kèm liên kết ngoài (Google Docs, Drive, Figma, GitHub...)
+                  </span>
+                  <input
+                    type="url"
+                    required
+                    placeholder="Dán đường dẫn (URL) https://..."
+                    value={attachmentUrlInput}
+                    onChange={(e) => setAttachmentUrlInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--line, rgba(255,255,255,0.15))',
+                      background: 'var(--surface, #1e1f26)',
+                      color: 'var(--fg)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Tên hiển thị (Tùy chọn, vd: Kịch bản kiểm thử Sprint 2)"
+                    value={attachmentNameInput}
+                    onChange={(e) => setAttachmentNameInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--line, rgba(255,255,255,0.15))',
+                      background: 'var(--surface, #1e1f26)',
+                      color: 'var(--fg)',
+                    }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddUrlInput(false)}
+                      className="btn ghost sm"
+                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!attachmentUrlInput.trim()}
+                      className="btn sm"
+                      style={{
+                        fontSize: '11px',
+                        padding: '4px 14px',
+                        background: '#6366f1',
+                        color: '#fff',
+                        border: 'none',
+                      }}
+                    >
+                      Lưu vào DB
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Danh sách tệp đính kèm */}
+              {attachments.length === 0 ? (
+                <div
+                  style={{
+                    padding: '24px',
+                    textAlign: 'center',
+                    borderRadius: '10px',
+                    border: '1px dashed var(--line, rgba(255,255,255,0.15))',
+                    color: 'var(--fg3, #a1a1aa)',
+                    fontSize: '13px',
+                  }}
+                >
+                  Chưa có tệp đính kèm nào. Hãy bấm <strong>"Tải ảnh từ máy"</strong> hoặc <strong>"Thêm link"</strong> để lưu minh chứng vào DB!
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {attachments.map((att) => {
+                    const isImg =
+                      att.contentType?.startsWith('image/') ||
+                      /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileUrl) ||
+                      /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileName);
+                    const fullUrl = att.fileUrl.startsWith('http')
+                      ? att.fileUrl
+                      : `http://localhost:8080${att.fileUrl}`;
+                    const timeInfo = formatActivityTime(att.createdAt);
+
+                    return (
+                      <div
+                        key={att.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid var(--line, rgba(255, 255, 255, 0.08))',
+                        }}
+                      >
+                        {/* Thumbnail preview */}
+                        {isImg ? (
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Click để xem ảnh kích thước gốc"
+                            style={{
+                              width: '64px',
+                              height: '48px',
+                              borderRadius: '6px',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              background: '#000',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <img
+                              src={fullUrl}
+                              alt={att.fileName}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          </a>
+                        ) : (
+                          <div
+                            style={{
+                              width: '64px',
+                              height: '48px',
+                              borderRadius: '6px',
+                              flexShrink: 0,
+                              background: 'rgba(99, 102, 241, 0.12)',
+                              border: '1px solid rgba(99, 102, 241, 0.25)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#818cf8',
+                            }}
+                          >
+                            <Paperclip size={20} />
+                          </div>
+                        )}
+
+                        {/* Thông tin chi tiết */}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              color: 'var(--fg)',
+                              textDecoration: 'none',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={att.fileName}
+                          >
+                            {att.fileName}
+                          </a>
+                          <div style={{ fontSize: '11px', color: 'var(--fg3, #a1a1aa)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span title={timeInfo.full}>{timeInfo.relative}</span>
+                            {att.fileSize && (
+                              <span>· {(att.fileSize / 1024).toFixed(1)} KB</span>
+                            )}
+                            {att.userName && <span>· bởi {att.userName}</span>}
+                          </div>
+                        </div>
+
+                        {/* Nút thao tác */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="task-detail-icon-btn"
+                            title="Mở trong tab mới"
+                            style={{ padding: '6px', borderRadius: '6px' }}
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAttachment(att.id)}
+                            className="task-detail-icon-btn"
+                            title="Xoá tệp đính kèm khỏi DB"
+                            style={{ padding: '6px', borderRadius: '6px', color: '#f87171' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Comments Tab */}
           {activeTab === 'comments' && (
             <div className="comments-tab-content">
@@ -926,34 +1438,150 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
 
-          {/* Activities Tab */}
+          {/* Activities Tab (Lịch sử kéo thả thẻ & Hoạt động chuẩn Trello) */}
           {activeTab === 'activities' && (
-            <div className="comments-tab-content">
-              {activities.length === 0 ? (
-                <div style={{ color: '#a1a1aa', fontSize: '13px', padding: '12px 0' }}>
-                  Lịch sử hoạt động của task được ghi nhận tự động vào cơ sở dữ liệu.
-                  {hasRealCardId && (
-                    <span style={{ display: 'block', marginTop: '8px', fontFamily: 'monospace', fontSize: '11px' }}>
-                      Card ID: #{task.id}
-                    </span>
-                  )}
+            <div className="activities-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Filter / Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: 'var(--fg)' }}>
+                  <Clock size={15} style={{ color: '#10b981' }} />
+                  <span>Nhận xét và hoạt động (Lịch sử kéo thẻ Trello)</span>
                 </div>
-              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowOnlyComments((p) => !p)}
+                  className="btn ghost sm"
+                  style={{ fontSize: '11px', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  {showOnlyComments ? (
+                    <>
+                      <Eye size={12} />
+                      <span>Hiện tất cả hoạt động</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={12} />
+                      <span>Chỉ xem bình luận</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Feed Content */}
+              {loadingActivities ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', color: '#a1a1aa', gap: '8px', fontSize: '12px' }}>
+                  <Loader2 size={14} className="spin-slow" />
+                  <span>Đang tải lịch sử hoạt động từ DB...</span>
+                </div>
+              ) : cardActivities.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {cardActivities
+                    .filter((act) => !showOnlyComments || act.eventType === 'COMMENT_ADDED')
+                    .map((act) => {
+                      const timeInfo = formatActivityTime(act.occurredAt);
+                      const author = act.userName || 'Thành viên';
+                      const initials = author.slice(0, 2).toUpperCase();
+
+                      let eventColor = '#3b82f6';
+                      if (act.eventType === 'CARD_MOVED') eventColor = '#10b981';
+                      else if (act.eventType === 'CARD_COMPLETED') eventColor = '#059669';
+                      else if (act.eventType === 'CARD_ATTACHMENT_ADDED') eventColor = '#6366f1';
+                      else if (act.eventType === 'COMMENT_ADDED') eventColor = '#f59e0b';
+
+                      return (
+                        <div
+                          key={act.id}
+                          style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid var(--line, rgba(255, 255, 255, 0.08))',
+                            borderLeft: `3px solid ${eventColor}`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              background: eventColor,
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: '11px',
+                              flexShrink: 0,
+                              marginTop: '2px',
+                            }}
+                          >
+                            {initials}
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg)' }}>
+                                {author}
+                              </span>
+                              <span
+                                title={timeInfo.full}
+                                style={{ fontSize: '11px', color: 'var(--fg3, #a1a1aa)', flexShrink: 0 }}
+                              >
+                                {timeInfo.relative}
+                              </span>
+                            </div>
+
+                            <div style={{ fontSize: '12px', color: 'var(--fg2, #cbd5e1)', lineHeight: 1.4 }}>
+                              {act.displayMessage || act.eventType}
+                            </div>
+
+                            {act.commentText && (
+                              <div
+                                style={{
+                                  marginTop: '4px',
+                                  padding: '6px 10px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(0, 0, 0, 0.2)',
+                                  fontSize: '12px',
+                                  color: 'var(--fg)',
+                                }}
+                              >
+                                {act.commentText}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : activities.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {activities
                     .slice()
                     .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
                     .map((act) => (
-                    <div key={act.id} className="comment-bubble" style={{ borderLeft: '3px solid #10b981' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '12px', color: '#10b981' }}>{act.eventType}</span>
-                        <span style={{ fontSize: '11px', color: '#a1a1aa' }}>
-                          {new Date(act.occurredAt).toLocaleString()}
-                        </span>
+                      <div key={act.id} className="comment-bubble" style={{ borderLeft: '3px solid #10b981' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '12px', color: '#10b981' }}>{act.eventType}</span>
+                          <span style={{ fontSize: '11px', color: '#a1a1aa' }}>
+                            {new Date(act.occurredAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--fg)' }}>{act.details}</div>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--fg)' }}>{act.details}</div>
-                    </div>
-                  ))}
+                    ))}
+                </div>
+              ) : (
+                <div style={{ color: '#a1a1aa', fontSize: '13px', padding: '16px 0', textAlign: 'center' }}>
+                  Chưa có hoạt động nào được ghi nhận cho thẻ này.
+                  {hasRealCardId && (
+                    <span style={{ display: 'block', marginTop: '8px', fontFamily: 'monospace', fontSize: '11px' }}>
+                      Card ID: #{task.id}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
