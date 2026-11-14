@@ -87,11 +87,13 @@ export interface ManualContributionItem {
   sprintId?: number;
   userId: number;
   userName?: string;
+  userEmail?: string;
   taskName: string;
   evidenceLink: string;
   storyPoints: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
   reviewerId?: number;
+  reviewerName?: string;
   createdAt: string;
   updatedAt?: string;
 }

@@ -55,6 +55,20 @@ public class ManualContributionController {
     }
 
     /**
+     * GET /api/contributions/manual?teamId={teamId}&sprintId={sprintId}&status={status}
+     * Lấy toàn bộ danh sách đóng góp của nhóm (hỗ trợ lọc theo sprint và trạng thái).
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<ManualContributionResponse>>> getAllContributions(
+            @RequestParam("teamId") Long teamId,
+            @RequestParam(value = "sprintId", required = false) Long sprintId,
+            @RequestParam(value = "status", required = false) String status) {
+
+        List<ManualContributionResponse> list = manualContributionService.getAllContributions(teamId, sprintId, status);
+        return ResponseEntity.ok(ApiResponse.ok("Danh sách toàn bộ đóng góp", list));
+    }
+
+    /**
      * GET /api/contributions/manual/pending?teamId={teamId}&sprintId={sprintId}
      * Lấy danh sách đóng góp thủ công đang chờ duyệt (PENDING) của nhóm.
      */
@@ -75,6 +89,19 @@ public class ManualContributionController {
     public ResponseEntity<ApiResponse<ManualContributionResponse>> getContributionById(@PathVariable("id") Long id) {
         ManualContributionResponse response = manualContributionService.getContributionById(id);
         return ResponseEntity.ok(ApiResponse.ok("Chi tiết đóng góp thủ công", response));
+    }
+
+    /**
+     * DELETE /api/contributions/manual/{id}?userId={userId}
+     * Xóa một đóng góp thủ công.
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteContribution(
+            @PathVariable("id") Long id,
+            @RequestParam("userId") Long userId) {
+
+        manualContributionService.deleteContribution(id, userId);
+        return ResponseEntity.ok(ApiResponse.ok("Xóa đóng góp thành công", null));
     }
 }
 

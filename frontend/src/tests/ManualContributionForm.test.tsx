@@ -9,19 +9,54 @@ vi.mock('../api/contribution.api', () => ({
   },
 }));
 
-describe('ManualContributionForm Component - Card 9 (M3 - Sprint 4)', () => {
+vi.mock('../api/board.api', () => ({
+  boardApi: {
+    getBoardsByTeam: vi.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: 1,
+          teamId: 1,
+          name: 'Sprint Board',
+          columns: [
+            {
+              id: 10,
+              boardId: 1,
+              name: 'In Progress',
+              position: 1,
+              cards: [
+                {
+                  id: 1,
+                  boardId: 1,
+                  columnId: 10,
+                  title: 'Update UI',
+                  storyPoints: 3,
+                  position: 1,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+    uploadFile: vi.fn(),
+  },
+}));
+
+describe('ManualContributionForm Component - Step Wizard (Card 9 - M3)', () => {
   const defaultProps = {
     teamId: 1,
     sprintId: 4,
     userId: 4,
     onSuccess: vi.fn(),
+    onCancel: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders all required form inputs and elements', () => {
+  it('renders all required form inputs and step elements', () => {
     render(<ManualContributionForm {...defaultProps} />);
 
     expect(screen.getByTestId('manual-contribution-form-container')).toBeInTheDocument();
@@ -30,28 +65,40 @@ describe('ManualContributionForm Component - Card 9 (M3 - Sprint 4)', () => {
     expect(screen.getByTestId('input-story-points')).toBeInTheDocument();
     expect(screen.getByTestId('btn-submit-manual-contribution')).toBeInTheDocument();
     expect(screen.getByText(/Sprint 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bước 1\/3/i)).toBeInTheDocument();
   });
 
-  it('validates empty inputs and displays error message', async () => {
+  it('validates empty card code on step 1 when attempting to proceed', async () => {
     render(<ManualContributionForm {...defaultProps} />);
+
+    // Clear task name
+    const taskInput = screen.getByTestId('input-task-name');
+    fireEvent.change(taskInput, { target: { value: '' } });
 
     const submitBtn = screen.getByTestId('btn-submit-manual-contribution');
     fireEvent.click(submitBtn);
 
     expect(
-      await screen.findByText('Vui lòng nhập tên công việc đóng góp.')
+      await screen.findByText('Vui lòng chọn hoặc nhập mã thẻ đóng góp.')
     ).toBeInTheDocument();
     expect(contributionApi.submitManualContribution).not.toHaveBeenCalled();
   });
 
-  it('validates missing evidence link', async () => {
+  it('validates missing evidence link on step 2', async () => {
     render(<ManualContributionForm {...defaultProps} />);
 
     const taskInput = screen.getByTestId('input-task-name');
-    fireEvent.change(taskInput, { target: { value: 'Nghiên cứu tài liệu SRS' } });
+    fireEvent.change(taskInput, { target: { value: 'Card #1: Update UI' } });
 
-    const submitBtn = screen.getByTestId('btn-submit-manual-contribution');
-    fireEvent.click(submitBtn);
+    // Click Tiếp tục -> Go to Step 2
+    const nextBtn = screen.getByTestId('btn-submit-manual-contribution');
+    fireEvent.click(nextBtn);
+
+    expect(await screen.findByText(/Bước 2\/3/i)).toBeInTheDocument();
+
+    // On Step 2 with empty evidence link, click Tiếp tục -> validation error
+    const nextBtnStep2 = screen.getByTestId('btn-submit-manual-contribution');
+    fireEvent.click(nextBtnStep2);
 
     expect(
       await screen.findByText('Vui lòng cung cấp link minh chứng (Docs, Figma, v.v.).')
@@ -59,13 +106,13 @@ describe('ManualContributionForm Component - Card 9 (M3 - Sprint 4)', () => {
     expect(contributionApi.submitManualContribution).not.toHaveBeenCalled();
   });
 
-  it('successfully submits valid manual contribution form', async () => {
+  it('successfully transitions through all 3 steps and submits manual contribution', async () => {
     const mockCreated = {
       id: 99,
       teamId: 1,
       sprintId: 4,
       userId: 4,
-      taskName: 'Thiết kế giao diện Dark Mode Figma',
+      taskName: 'Card #1: Update UI',
       evidenceLink: 'https://figma.com/design-dark-mode',
       storyPoints: 5.0,
       status: 'PENDING' as const,
@@ -80,16 +127,30 @@ describe('ManualContributionForm Component - Card 9 (M3 - Sprint 4)', () => {
 
     render(<ManualContributionForm {...defaultProps} />);
 
-    fireEvent.change(screen.getByTestId('input-task-name'), {
-      target: { value: 'Thiết kế giao diện Dark Mode Figma' },
+    // ── STEP 1: Mã thẻ ──
+    const taskInput = screen.getByTestId('input-task-name');
+    fireEvent.change(taskInput, {
+      target: { value: 'Card #1: Update UI' },
     });
-    fireEvent.change(screen.getByTestId('input-evidence-link'), {
+    fireEvent.click(screen.getByTestId('btn-submit-manual-contribution'));
+
+    // ── STEP 2: Minh chứng ──
+    expect(await screen.findByText(/Bước 2\/3/i)).toBeInTheDocument();
+    const linkInput = screen.getByTestId('input-evidence-link');
+    fireEvent.change(linkInput, {
       target: { value: 'https://figma.com/design-dark-mode' },
     });
-    fireEvent.change(screen.getByTestId('input-story-points'), {
+    fireEvent.click(screen.getByTestId('btn-submit-manual-contribution'));
+
+    // ── STEP 3: Điểm tự chấm ──
+    expect(await screen.findByText(/Bước 3\/3/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Điểm tự chấm/i).length).toBeGreaterThan(0);
+    const spInput = screen.getByTestId('input-story-points');
+    fireEvent.change(spInput, {
       target: { value: '5.0' },
     });
 
+    // Submit form on Step 3
     fireEvent.click(screen.getByTestId('btn-submit-manual-contribution'));
 
     await waitFor(() => {
@@ -98,7 +159,7 @@ describe('ManualContributionForm Component - Card 9 (M3 - Sprint 4)', () => {
         4,
         4,
         {
-          taskName: 'Thiết kế giao diện Dark Mode Figma',
+          taskName: 'Card #1: Update UI',
           evidenceLink: 'https://figma.com/design-dark-mode',
           storyPoints: 5.0,
         }

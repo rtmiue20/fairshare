@@ -15,6 +15,12 @@ public interface ManualContributionRepository extends JpaRepository<ManualContri
 
     List<ManualContribution> findByTeamIdAndStatusOrderByCreatedAtDesc(Long teamId, String status);
 
+    List<ManualContribution> findByTeamIdOrderByCreatedAtDesc(Long teamId);
+
+    List<ManualContribution> findByTeamIdAndSprintIdOrderByCreatedAtDesc(Long teamId, Long sprintId);
+
+    List<ManualContribution> findByTeamIdAndStatus(Long teamId, String status);
+
     List<ManualContribution> findByTeamIdAndSprintId(Long teamId, Long sprintId);
 
     List<ManualContribution> findByTeamIdAndUserId(Long teamId, Long userId);

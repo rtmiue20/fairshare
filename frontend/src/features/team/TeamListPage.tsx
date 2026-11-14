@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from './NoProjectState';
 import { CreateProjectModal } from './CreateProjectModal';
+import { TeamMembersModal } from './TeamMembersModal';
 import { TaskCalendar } from './TaskCalendar';
 import { AllTasksSection } from './AllTasksSection';
 import { FolderPlus, Users, BarChart3, Award } from 'lucide-react';
@@ -11,6 +12,7 @@ export const TeamListPage: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, setActiveTeamId, initialized } = useProjectStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'join'>('create');
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
 
   useEffect(() => {
     fetchTeams();
@@ -110,14 +112,16 @@ export const TeamListPage: React.FC = () => {
 
           {currentTeam && (
             <>
-              <Link
-                to={`/teams/${currentTeam.id}`}
+              <button
+                type="button"
+                onClick={() => setMembersModalOpen(true)}
                 className="btn ghost sm"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '12px' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: '12px', cursor: 'pointer' }}
+                title="Quản lý thành viên & Mã mời"
               >
                 <Users size={14} />
                 <span>Thành viên</span>
-              </Link>
+              </button>
               <Link
                 to="/peer-review"
                 className="btn ghost sm"
@@ -151,6 +155,18 @@ export const TeamListPage: React.FC = () => {
         onClose={() => setModalOpen(false)}
         initialMode={modalMode}
       />
+
+      {/* Modal Thành viên theo mẫu thiết kế */}
+      {currentTeam && (
+        <TeamMembersModal
+          isOpen={membersModalOpen}
+          onClose={() => setMembersModalOpen(false)}
+          teamId={currentTeam.id}
+          projectName={currentTeam.name}
+          inviteCode={currentTeam.inviteCode}
+          onMemberUpdated={fetchTeams}
+        />
+      )}
     </div>
   );
 };

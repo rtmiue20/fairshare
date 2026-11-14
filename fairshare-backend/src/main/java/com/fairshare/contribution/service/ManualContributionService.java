@@ -5,6 +5,8 @@ import com.fairshare.contribution.dto.ManualContributionRequest;
 import com.fairshare.contribution.dto.ManualContributionResponse;
 import com.fairshare.contribution.entity.ManualContribution;
 import com.fairshare.contribution.repository.ManualContributionRepository;
+import com.fairshare.user.entity.User;
+import com.fairshare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,24 @@ import java.util.stream.Collectors;
 public class ManualContributionService {
 
     private final ManualContributionRepository manualContributionRepository;
+    private final UserRepository userRepository;
+
+    private ManualContributionResponse toResponse(ManualContribution entity) {
+        if (entity == null) return null;
+        ManualContributionResponse res = ManualContributionResponse.fromEntity(entity);
+        if (entity.getUserId() != null) {
+            userRepository.findById(entity.getUserId()).ifPresent(u -> {
+                res.setUserName(u.getFullName());
+                res.setUserEmail(u.getEmail());
+            });
+        }
+        if (entity.getReviewerId() != null) {
+            userRepository.findById(entity.getReviewerId()).ifPresent(u -> {
+                res.setReviewerName(u.getFullName());
+            });
+        }
+        return res;
+    }
 
     /**
      * Tạo mới đóng góp thủ công với trạng thái PENDING.
@@ -62,7 +82,7 @@ public class ManualContributionService {
         ManualContribution saved = manualContributionRepository.save(contribution);
         log.info("Created manual contribution ID: {} for user: {} in team: {}, sprint: {}",
                 saved.getId(), userId, teamId, sprintId);
-        return ManualContributionResponse.fromEntity(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -107,7 +127,7 @@ public class ManualContributionService {
         ManualContribution updated = manualContributionRepository.save(contribution);
         log.info("Reviewed manual contribution ID: {} by reviewer: {} with new status: {}",
                 contributionId, reviewerId, contribution.getStatus());
-        return ManualContributionResponse.fromEntity(updated);
+        return toResponse(updated);
     }
 
     /**
@@ -133,8 +153,59 @@ public class ManualContributionService {
         }
 
         return pendingList.stream()
-                .map(ManualContributionResponse::fromEntity)
+                .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy tất cả đóng góp thủ công cho team (hỗ trợ lọc theo sprintId và status).
+     *
+     * @param teamId   ID nhóm
+     * @param sprintId ID sprint (tùy chọn)
+     * @param status   Trạng thái: PENDING, APPROVED, REJECTED (tùy chọn)
+     * @return Danh sách đóng góp
+     */
+    @Transactional(readOnly = true)
+    public List<ManualContributionResponse> getAllContributions(Long teamId, Long sprintId, String status) {
+        if (teamId == null) {
+            throw new IllegalArgumentException("Team ID không được để trống");
+        }
+
+        List<ManualContribution> list;
+        if (sprintId != null && status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            list = manualContributionRepository.findByTeamIdAndSprintIdAndStatusOrderByCreatedAtDesc(
+                    teamId, sprintId, status.toUpperCase());
+        } else if (sprintId != null) {
+            list = manualContributionRepository.findByTeamIdAndSprintIdOrderByCreatedAtDesc(teamId, sprintId);
+        } else if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            list = manualContributionRepository.findByTeamIdAndStatusOrderByCreatedAtDesc(teamId, status.toUpperCase());
+        } else {
+            list = manualContributionRepository.findByTeamIdOrderByCreatedAtDesc(teamId);
+        }
+
+        return list.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Xóa một đóng góp thủ công khỏi hệ thống.
+     *
+     * @param id     ID đóng góp
+     * @param userId ID người yêu cầu xóa
+     */
+    @Transactional
+    public void deleteContribution(Long id, Long userId) {
+        ManualContribution contribution = manualContributionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đóng góp với ID: " + id));
+
+        // Người tạo có quyền xóa khi bài đang chờ duyệt
+        if (!contribution.getUserId().equals(userId)) {
+            log.warn("User {} attempted to delete contribution {} created by {}", userId, id, contribution.getUserId());
+        }
+
+        manualContributionRepository.delete(contribution);
+        log.info("Deleted manual contribution ID: {} by user: {}", id, userId);
     }
 
     /**
@@ -144,7 +215,7 @@ public class ManualContributionService {
     public ManualContributionResponse getContributionById(Long id) {
         ManualContribution contribution = manualContributionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đóng góp thủ công với ID: " + id));
-        return ManualContributionResponse.fromEntity(contribution);
+        return toResponse(contribution);
     }
 }
 
