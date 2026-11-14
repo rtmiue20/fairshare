@@ -1,0 +1,41 @@
+# Unit test backend – master @ d2eab98 – 14/11/2026 23:25 (GMT+7)
+# Lệnh: cd fairshare-backend && mvn -B test   (máy không có Docker → Testcontainers tự skip)
+
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s | com.fairshare.FairShareApplicationTests
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.101 s | com.fairshare.activity.ActivityEventImmutabilityTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.040 s | com.fairshare.activity.ActivitySourceBackwardCompatibilityTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 0.001 s | com.fairshare.auth.AuthApiTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.165 s | com.fairshare.auth.AuthControllerTest
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.188 s | com.fairshare.auth.AuthServiceTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s | com.fairshare.auth.AuthTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.163 s | com.fairshare.auth.JwtServiceTest
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.128 s | com.fairshare.board.BoardPermissionTest
+Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.716 s | com.fairshare.board.BoardServiceTest
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.192 s | com.fairshare.board.RolePermissionControllerTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s | com.fairshare.common.security.TeamSecurityServiceTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.146 s | com.fairshare.contribution.ContributionControllerTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.623 s | com.fairshare.contribution.ContributionServiceTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s | com.fairshare.contribution.DashboardQueryBenchmarkTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.048 s | com.fairshare.contribution.EvidenceTraceabilityTest
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.050 s | com.fairshare.contribution.LargeDatasetPerformanceTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.914 s | com.fairshare.contribution.ManualContributionControllerTest
+Tests run: 7, Failures: 0, Errors: 4, Skipped: 0, Time elapsed: 0.218 s <<< FAILURE! | com.fairshare.contribution.ManualContributionServiceTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.661 s | com.fairshare.contribution.ScoringEngineMultiDimensionalTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.241 s | com.fairshare.contribution.ScoringEngineTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 0.001 s | com.fairshare.expense.ExpenseRepositoryTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.179 s | com.fairshare.expense.SplitServiceTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s | com.fairshare.peerreview.AnonymityAggregatorTest
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.052 s | com.fairshare.peerreview.PeerReviewServiceTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.568 s | com.fairshare.report.PdfReportServiceTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s | com.fairshare.sprint.SprintServicePermissionTest
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s | com.fairshare.team.MemberServiceTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.101 s | com.fairshare.team.TeamControllerTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s | com.fairshare.upload.FileUploadServiceTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 5, Time elapsed: 0.001 s | com.fairshare.user.UserRepositoryTest
+
+[ERROR] Tests run: 7, Failures: 0, Errors: 4, Skipped: 0, Time elapsed: 0.218 s <<< FAILURE! -- in Unit Test cho ManualContributionService (Card 8 - M3 Sprint 5)
+[ERROR]   ManualContributionServiceTest.createContribution_shouldSavePendingContributionSuccessfully:67 ? NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR]   ManualContributionServiceTest.getPendingContributions_shouldReturnListMapped:247 ? NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR]   ManualContributionServiceTest.reviewContribution_shouldApproveWhenReviewerIsDifferentFromCreator:111 ? NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR]   ManualContributionServiceTest.reviewContribution_shouldRejectWhenActionIsReject:173 ? NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR] Tests run: 178, Failures: 0, Errors: 4, Skipped: 9
