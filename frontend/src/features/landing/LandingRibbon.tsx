@@ -408,7 +408,11 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
     function loop(now: number) {
       animId = requestAnimationFrame(loop);
       s += (scrollProgress - s) * .14;
-      gl ? draw3D(now) : draw2D(now);
+      if (gl) {
+        draw3D(now);
+      } else {
+        draw2D(now);
+      }
     }
 
     colors();
