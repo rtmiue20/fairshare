@@ -77,6 +77,32 @@ export const contributionApi = {
     return response.data;
   },
 
+  getAllManualContributions: async (
+    teamId: number,
+    sprintId?: number,
+    status?: string,
+  ): Promise<ApiResponse<ManualContributionItem[]>> => {
+    const params: Record<string, unknown> = { teamId };
+    if (sprintId) params.sprintId = sprintId;
+    if (status && status !== 'ALL') params.status = status;
+    const response = await apiClient.get<ApiResponse<ManualContributionItem[]>>(
+      '/contributions/manual',
+      { params },
+    );
+    return response.data;
+  },
+
+  deleteManualContribution: async (
+    id: number,
+    userId: number,
+  ): Promise<ApiResponse<void>> => {
+    const response = await apiClient.delete<ApiResponse<void>>(
+      `/contributions/manual/${id}`,
+      { params: { userId } },
+    );
+    return response.data;
+  },
+
   reviewManualContribution: async (
     id: number,
     reviewerId: number,

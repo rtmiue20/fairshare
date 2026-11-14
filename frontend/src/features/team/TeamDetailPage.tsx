@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Users,
@@ -13,12 +13,11 @@ import {
   GitBranch,
   FileText,
   X,
-  Mail,
-  AlertCircle,
   Loader2,
 } from 'lucide-react';
 import { MemberTable } from './MemberTable';
 import { ConsentDialog } from './ConsentDialog';
+import { TeamMembersModal } from './TeamMembersModal';
 import { teamApi } from '../../api/team.api';
 import { peerReviewApi } from '../../api/peerReview.api';
 import { boardApi } from '../../api/board.api';
@@ -32,8 +31,6 @@ export const TeamDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'members' | 'sprints' | 'consent'>('members');
   const [isConsentOpen, setIsConsentOpen] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteSuccess, setInviteSuccess] = useState(false);
   const [teamSprints, setTeamSprints] = useState<Array<{ num: number; title: string; period: string; status: string; focusTask: string }>>([]);
   const [totalCards, setTotalCards] = useState<number>(0);
 
@@ -48,32 +45,28 @@ export const TeamDetailPage: React.FC = () => {
     return (email?.substring(0, 2) || 'TV').toUpperCase();
   };
 
+  const fetchTeam = useCallback(async () => {
+    try {
+      const teamIdNum = Number(id) || 1;
+      const res = await teamApi.getTeamById(teamIdNum);
+      if (res?.data) {
+        setTeam(res.data);
+      }
+    } catch {
+      setTeam(null);
+    }
+  }, [id]);
+
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    const fetchTeam = async () => {
-      try {
-        const teamIdNum = Number(id) || 1;
-        const res = await teamApi.getTeamById(teamIdNum);
-        if (isMounted && res?.data) {
-          setTeam(res.data);
-        }
-      } catch {
-        if (isMounted) {
-          setTeam(null);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchTeam();
+    fetchTeam().finally(() => {
+      if (isMounted) setLoading(false);
+    });
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [fetchTeam]);
 
   useEffect(() => {
     const teamIdNum = Number(id) || 1;
@@ -118,18 +111,6 @@ export const TeamDetailPage: React.FC = () => {
   }, [id]);
 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) return;
-
-    setInviteSuccess(true);
-    setTimeout(() => {
-      setInviteSuccess(false);
-      setShowInviteModal(false);
-      setInviteEmail('');
-    }, 1500);
-  };
 
   const handleUpdateRole = async (userId: number, role: Role) => {
     try {
@@ -648,76 +629,16 @@ export const TeamDetailPage: React.FC = () => {
         onSuccess={() => setIsConsentOpen(false)}
       />
 
-      {/* Invite Member Modal - Linear Style */}
-      {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
-          <div className="bg-[#121318] border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <UserPlus size={16} className="text-zinc-300" />
-                <h3 className="font-semibold text-sm text-zinc-100">Mời thành viên vào đồ án</h3>
-              </div>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {inviteSuccess ? (
-              <div className="py-6 text-center space-y-2">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
-                  <CheckCircle2 size={20} />
-                </div>
-                <h4 className="font-medium text-xs text-zinc-100">Đã gửi lời mời thành công!</h4>
-                <p className="text-xs text-zinc-400 font-mono">Lời mời đã được chuyển tới {inviteEmail}</p>
-              </div>
-            ) : (
-              <form onSubmit={handleInvite} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-300">
-                    Email thành viên
-                  </label>
-                  <div className="relative">
-                    <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="email@example.com"
-                      required
-                      className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/60 flex items-start gap-2.5">
-                  <AlertCircle size={14} className="text-zinc-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-zinc-400 leading-relaxed">
-                    Thành viên mới sẽ cần đăng nhập vào hệ thống và đồng thuận NĐ 13 trước khi dữ liệu được tổng hợp.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowInviteModal(false)}
-                    className="px-3.5 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 rounded-lg transition-colors shadow-sm"
-                  >
-                    Gửi lời mời
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+      {/* Team Members Modal - Add Members with DB connection & Copy Mã mời */}
+      {team && (
+        <TeamMembersModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          teamId={team.id}
+          projectName={team.name}
+          inviteCode={team.inviteCode}
+          onMemberUpdated={fetchTeam}
+        />
       )}
     </div>
   );

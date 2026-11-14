@@ -22,11 +22,14 @@ public class ManualContributionResponse {
     private Long teamId;
     private Long sprintId;
     private Long userId;
+    private String userName;
+    private String userEmail;
     private String taskName;
     private String evidenceLink;
     private BigDecimal storyPoints;
     private String status;
     private Long reviewerId;
+    private String reviewerName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
