@@ -189,6 +189,12 @@ public class BoardController {
         return ResponseEntity.ok(ApiResponse.ok("Đã đánh dấu hoàn thành việc cần làm", null));
     }
 
+    @GetMapping("/cards/{cardId}/activities")
+    public ResponseEntity<ApiResponse<java.util.List<CardActivityDto>>> getCardActivities(@PathVariable Long cardId) {
+        java.util.List<CardActivityDto> activities = boardService.getCardActivities(cardId);
+        return ResponseEntity.ok(ApiResponse.ok("Lịch sử hoạt động thẻ", activities));
+    }
+
     private Long getRequiredUserId(Authentication authentication) {
         Long userId = getUserId(authentication);
         if (userId == null) {

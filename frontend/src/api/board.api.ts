@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { ApiResponse } from '../types/api';
-import { Board, BoardColumn, Card, CreateBoardPayload, CreateColumnPayload, CreateCardPayload, MoveCardPayload } from '../types/board';
+import { Board, BoardColumn, Card, CardActivity, CreateBoardPayload, CreateColumnPayload, CreateCardPayload, MoveCardPayload } from '../types/board';
 
 export const boardApi = {
   getBoardsByTeam: async (teamId: number): Promise<ApiResponse<Board[]>> => {
@@ -65,6 +65,11 @@ export const boardApi = {
 
   completeChecklistItem: async (cardId: number, itemTitle: string): Promise<ApiResponse<void>> => {
     const response = await apiClient.post<ApiResponse<void>>(`/boards/cards/${cardId}/checklist-items`, { itemTitle });
+    return response.data;
+  },
+
+  getCardActivities: async (cardId: number): Promise<ApiResponse<CardActivity[]>> => {
+    const response = await apiClient.get<ApiResponse<CardActivity[]>>(`/boards/cards/${cardId}/activities`);
     return response.data;
   },
 };

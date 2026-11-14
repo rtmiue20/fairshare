@@ -16,10 +16,12 @@ import {
   CheckCircle2,
   Edit3,
   GripVertical,
-  MessageSquare,
   CheckSquare,
   Award,
-  Lock
+  Lock,
+  Eye,
+  EyeOff,
+  Send
 } from 'lucide-react';
 import {
   DragDropContext,
@@ -32,10 +34,10 @@ import { teamApi } from '../../api/team.api';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
-import type { Board, BoardColumn, Card } from '../../types/board';
+import type { Board, BoardColumn, Card, CardActivity } from '../../types/board';
 import type { Team } from '../../types/team';
 
-// Helper format date time
+// Helper format date time for card preview
 function formatDueDate(isoString?: string): { text: string; isOverdue: boolean } {
   if (!isoString) return { text: 'Chưa đặt hạn', isOverdue: false };
   try {
@@ -53,6 +55,69 @@ function formatDueDate(isoString?: string): { text: string; isOverdue: boolean }
   } catch {
     return { text: isoString, isOverdue: false };
   }
+}
+
+// Helper format activity time with relative and full time tracking
+function formatActivityTime(isoString?: string): { relative: string; full: string } {
+  if (!isoString) return { relative: 'Gần đây', full: '' };
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return { relative: isoString, full: isoString };
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const full = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+    let relative = '';
+    if (diffSec < 60) {
+      relative = 'vừa xong';
+    } else if (diffMin < 60) {
+      relative = `${diffMin} phút trước`;
+    } else if (diffHour < 24) {
+      relative = `${diffHour} giờ trước`;
+    } else if (diffDay === 1) {
+      relative = `Hôm qua lúc ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } else if (diffDay < 7) {
+      relative = `${diffDay} ngày trước`;
+    } else {
+      relative = `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())} thg ${d.getMonth() + 1}, ${d.getFullYear()}`;
+    }
+
+    return { relative, full };
+  } catch {
+    return { relative: isoString, full: isoString };
+  }
+}
+
+function getAvatarBgColor(name?: string): string {
+  if (!name) return 'bg-zinc-700 text-zinc-200';
+  const colors = [
+    'bg-emerald-600 text-white',
+    'bg-indigo-600 text-white',
+    'bg-blue-600 text-white',
+    'bg-purple-600 text-white',
+    'bg-amber-600 text-white',
+    'bg-rose-600 text-white',
+    'bg-teal-600 text-white',
+    'bg-cyan-600 text-white',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function getInitials(name?: string): string {
+  if (!name) return 'FS';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 // Mock default board for demo fallback
@@ -231,9 +296,9 @@ export const BoardView: React.FC = () => {
     { id: 1, title: 'Thiết kế & cài đặt mã nguồn', completed: false },
     { id: 2, title: 'Viết unit test & kiểm thử tích hợp', completed: false },
   ]);
-  const [comments, setComments] = useState<Array<{ id: number; author: string; text: string; time: string }>>([
-    { id: 1, author: 'Minh Triều (Leader)', text: 'Nhớ đối chiếu kỹ dueDate để tránh bị tính trễ nhé @Phúc Vương', time: 'Hôm nay' },
-  ]);
+  const [activities, setActivities] = useState<CardActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState<boolean>(false);
+  const [showOnlyComments, setShowOnlyComments] = useState<boolean>(false);
 
   // New Column Modal State
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -339,6 +404,43 @@ export const BoardView: React.FC = () => {
     setEditDifficultyLevel(card.difficultyLevel || 2);
     setEditDueDate(card.dueDate ? card.dueDate.slice(0, 16) : '');
     setEditError(null);
+    setCommentText('');
+    setShowOnlyComments(false);
+
+    // Load activities from server for Trello-style history
+    setLoadingActivities(true);
+    boardApi.getCardActivities(card.id)
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setActivities(res.data);
+        } else {
+          setActivities([
+            {
+              id: -1,
+              cardId: card.id,
+              userName: card.assigneeName || 'Thành viên',
+              eventType: 'CARD_CREATED',
+              displayMessage: 'đã tạo thẻ này trong danh sách To Do',
+              occurredAt: card.createdAt || new Date().toISOString(),
+            },
+          ]);
+        }
+      })
+      .catch(() => {
+        setActivities([
+          {
+            id: -1,
+            cardId: card.id,
+            userName: card.assigneeName || 'Thành viên',
+            eventType: 'CARD_CREATED',
+            displayMessage: 'đã tạo thẻ này trong danh sách To Do',
+            occurredAt: card.createdAt || new Date().toISOString(),
+          },
+        ]);
+      })
+      .finally(() => {
+        setLoadingActivities(false);
+      });
   };
 
   const handleToggleChecklist = async (item: { id: number; title: string; completed: boolean }) => {
@@ -348,9 +450,24 @@ export const BoardView: React.FC = () => {
     );
 
     if (updated && editingCard) {
+      const optimisticChecklistActivity: CardActivity = {
+        id: Date.now(),
+        cardId: editingCard.id,
+        userId: currentUser?.id,
+        userName: currentUser?.fullName || 'Tôi',
+        eventType: 'CHECKLIST_ITEM_DONE',
+        displayMessage: `đã hoàn thành mục "${item.title}"`,
+        occurredAt: new Date().toISOString(),
+      };
+      setActivities((prev) => [optimisticChecklistActivity, ...prev]);
+
       try {
         await boardApi.completeChecklistItem(editingCard.id, item.title);
         showToast(`Đã hoàn thành: "${item.title}" & ghi nhận điểm Tầng 1!`);
+        const res = await boardApi.getCardActivities(editingCard.id);
+        if (res.data && res.data.length > 0) {
+          setActivities(res.data);
+        }
       } catch {
         showToast(`Đã ghi nhận hoàn thành mục (Chế độ xem)`);
       }
@@ -361,20 +478,32 @@ export const BoardView: React.FC = () => {
     e.preventDefault();
     if (!commentText.trim() || !editingCard) return;
 
-    const newComment = {
+    const textToSend = commentText.trim();
+    const currentUserName = currentUser?.fullName || 'Tôi';
+    const nowIso = new Date().toISOString();
+
+    const optimisticActivity: CardActivity = {
       id: Date.now(),
-      author: 'Tôi',
-      text: commentText.trim(),
-      time: 'Vừa xong',
+      cardId: editingCard.id,
+      userId: currentUser?.id,
+      userName: currentUserName,
+      userEmail: currentUser?.email,
+      eventType: 'COMMENT_ADDED',
+      displayMessage: 'đã bình luận:',
+      commentText: textToSend,
+      occurredAt: nowIso,
     };
 
-    setComments((prev) => [...prev, newComment]);
-    const textToSend = commentText.trim();
+    setActivities((prev) => [optimisticActivity, ...prev]);
     setCommentText('');
 
     try {
       await boardApi.addComment(editingCard.id, textToSend, true);
       showToast('Đã gửi bình luận & ghi nhận ActivityEvent Tầng 1!');
+      const res = await boardApi.getCardActivities(editingCard.id);
+      if (res.data && res.data.length > 0) {
+        setActivities(res.data);
+      }
     } catch {
       showToast('Đã gửi bình luận (Chế độ xem)');
     }
@@ -1093,222 +1222,382 @@ export const BoardView: React.FC = () => {
         </div>
       </DragDropContext>
 
-      {/* Modal: Card Detail & Quick Edit (Assignee, Story Points, Due Date) */}
+      {/* Modal: Card Detail & Quick Edit (2-Column Trello Style with Movement & Activity History) */}
       {editingCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#121318] border border-zinc-800 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <Edit3 size={16} className="text-indigo-400" />
-                <h3 className="text-sm font-semibold text-white">Chi tiết công việc</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-2 sm:p-4 md:p-6 overflow-y-auto">
+          <div className="bg-[#121318] border border-zinc-800 rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto flex flex-col max-h-[90vh]">
+            {/* Top Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-[#16171e]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <Edit3 size={16} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-white">Chi tiết công việc</h3>
+                    {(() => {
+                      const col = board.columns.find((c) => c.cards.some((cd) => cd.id === editingCard.id));
+                      return col ? (
+                        <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-800 text-zinc-300 border border-zinc-700">
+                          {col.name}
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 font-mono">Mã thẻ: #{editingCard.id}</p>
+                </div>
               </div>
               <button
                 onClick={() => setEditingCard(null)}
-                className="text-zinc-500 hover:text-zinc-300 text-xs"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Đóng"
               >
                 ✕
               </button>
             </div>
 
-            {editError && (
-              <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-800/50 text-xs text-red-300 flex items-center gap-2">
-                <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
-                <span>{editError}</span>
-              </div>
-            )}
+            {/* 2-Column Body */}
+            <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-zinc-800">
+              
+              {/* LEFT COLUMN: Card Info & Edit Form (md:col-span-7) */}
+              <div className="md:col-span-7 flex flex-col p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-70px)]">
+                {editError && (
+                  <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-800/50 text-xs text-red-300 flex items-center gap-2">
+                    <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+                    <span>{editError}</span>
+                  </div>
+                )}
 
-            {/* Thông báo quyền hạn nếu Thành viên xem thẻ của người khác */}
-            {!isLeader && editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id && (
-              <div className="p-3 rounded-lg bg-blue-950/40 border border-blue-800/40 text-xs text-blue-200 flex items-center gap-2">
-                <Lock size={14} className="text-blue-400 shrink-0" />
-                <span>
-                  Chế độ Thành viên: Bạn chỉ có thể xem thẻ, gửi bình luận và thực hiện việc cần làm. Chỉ Leader hoặc người phụ trách ({editingCard.assigneeName || 'chính chủ'}) mới có quyền chỉnh sửa chi tiết thẻ.
-                </span>
-              </div>
-            )}
+                {/* Thông báo quyền hạn nếu Thành viên xem thẻ của người khác */}
+                {!isLeader && editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id && (
+                  <div className="p-3 rounded-lg bg-blue-950/40 border border-blue-800/40 text-xs text-blue-200 flex items-center gap-2">
+                    <Lock size={14} className="text-blue-400 shrink-0" />
+                    <span>
+                      Chế độ Thành viên: Bạn chỉ có thể xem thẻ, gửi bình luận và thực hiện việc cần làm. Chỉ Leader hoặc người phụ trách ({editingCard.assigneeName || 'chính chủ'}) mới có quyền chỉnh sửa chi tiết thẻ.
+                    </span>
+                  </div>
+                )}
 
-            <form onSubmit={handleSaveCardDetails} className="space-y-3.5 text-xs">
-              <div className="space-y-1">
-                <label className="text-zinc-400 font-medium">Tiêu đề công việc</label>
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 font-medium">
-                  {editingCard.title}
-                </div>
-              </div>
-
-              {editingCard.description && (
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Mô tả</label>
-                  <p className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-400 leading-relaxed">
-                    {editingCard.description}
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* Assignee select */}
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                    <User size={13} className="text-indigo-400" />
-                    <span>Người phụ trách (Assignee)</span>
-                  </label>
-                  <select
-                    value={editAssigneeId || ''}
-                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
-                    onChange={(e) => setEditAssigneeId(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <option value="">-- Chưa chỉ định --</option>
-                    {team?.members?.map((m) => {
-                      const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
-                      const uName =
-                        m.user?.fullName ??
-                        (m as unknown as { fullName?: string }).fullName ??
-                        (m as unknown as { email?: string }).email ??
-                        `Thành viên #${uId}`;
-                      return (
-                        <option key={uId} value={uId}>
-                          {uName} ({m.role})
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                {/* Story Points input */}
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                    <Sparkles size={13} className="text-indigo-400" />
-                    <span>Story Points (Nguyên dương)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={editStoryPoints}
-                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
-                    onChange={(e) => setEditStoryPoints(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* Due date input */}
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                    <Calendar size={13} className="text-indigo-400" />
-                    <span>Hạn hoàn thành (Due date)</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={editDueDate}
-                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  />
-                </div>
-
-                {/* Difficulty Level select (Tầng 1 feature) */}
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                    <Award size={13} className="text-amber-400" />
-                    <span>Độ khó (Tầng 1)</span>
-                  </label>
-                  <select
-                    value={editDifficultyLevel}
-                    disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
-                    onChange={(e) => setEditDifficultyLevel(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    <option value={1}>1 - Dễ (Easy)</option>
-                    <option value={2}>2 - Trung bình (Medium)</option>
-                    <option value={3}>3 - Khó (Hard)</option>
-                    <option value={4}>4 - Rất khó (Very Hard)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Checklist Section */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
-                  <CheckSquare size={13} className="text-emerald-400" />
-                  <span>Việc cần làm (Checklist - Ghi nhận Tầng 1)</span>
-                </label>
-                <div className="space-y-1.5 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
-                  {checklists.map((item) => (
-                    <label
-                      key={item.id}
-                      className="flex items-center gap-2 cursor-pointer hover:text-zinc-200 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={item.completed}
-                        onChange={() => handleToggleChecklist(item)}
-                        className="rounded border-zinc-700 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className={item.completed ? 'line-through text-zinc-500' : 'text-zinc-300'}>
-                        {item.title}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Comments & @mention Section */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
-                  <MessageSquare size={13} className="text-sky-400" />
-                  <span>Trao đổi & Hỗ trợ (@mention)</span>
-                </label>
-                <div className="space-y-2 max-h-32 overflow-y-auto bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
-                  {comments.map((cm) => (
-                    <div key={cm.id} className="text-[11px] space-y-0.5">
-                      <div className="flex items-center justify-between text-zinc-400 font-medium">
-                        <span className="text-indigo-300">{cm.author}</span>
-                        <span className="text-[10px] text-zinc-600">{cm.time}</span>
-                      </div>
-                      <p className="text-zinc-300">{cm.text}</p>
+                <form onSubmit={handleSaveCardDetails} className="space-y-4 text-xs">
+                  <div className="space-y-1">
+                    <label className="text-zinc-400 font-medium">Tiêu đề công việc</label>
+                    <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 font-medium">
+                      {editingCard.title}
                     </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Gõ bình luận hoặc @tên để yêu cầu hỗ trợ..."
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 text-xs"
-                  />
+                  </div>
+
+                  {editingCard.description && (
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium">Mô tả</label>
+                      <p className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-zinc-400 leading-relaxed whitespace-pre-wrap">
+                        {editingCard.description}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Assignee select */}
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                        <User size={13} className="text-indigo-400" />
+                        <span>Người phụ trách (Assignee)</span>
+                      </label>
+                      <select
+                        value={editAssigneeId || ''}
+                        disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
+                        onChange={(e) => setEditAssigneeId(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <option value="">-- Chưa chỉ định --</option>
+                        {team?.members?.map((m) => {
+                          const uId = m.user?.id ?? (m as unknown as { userId?: number }).userId ?? m.id;
+                          const uName =
+                            m.user?.fullName ??
+                            (m as unknown as { fullName?: string }).fullName ??
+                            (m as unknown as { email?: string }).email ??
+                            `Thành viên #${uId}`;
+                          return (
+                            <option key={uId} value={uId}>
+                              {uName} ({m.role})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* Story Points input */}
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                        <Sparkles size={13} className="text-indigo-400" />
+                        <span>Story Points (Nguyên dương)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={editStoryPoints}
+                        disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
+                        onChange={(e) => setEditStoryPoints(Number(e.target.value))}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Due date input */}
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                        <Calendar size={13} className="text-indigo-400" />
+                        <span>Hạn hoàn thành (Due date)</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={editDueDate}
+                        disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
+                        onChange={(e) => setEditDueDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Difficulty Level select (Tầng 1 feature) */}
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                        <Award size={13} className="text-amber-400" />
+                        <span>Độ khó (Tầng 1)</span>
+                      </label>
+                      <select
+                        value={editDifficultyLevel}
+                        disabled={!isLeader && Boolean(editingCard.assigneeId && editingCard.assigneeId !== currentUser?.id)}
+                        onChange={(e) => setEditDifficultyLevel(Number(e.target.value))}
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <option value={1}>1 - Dễ (Easy)</option>
+                        <option value={2}>2 - Trung bình (Medium)</option>
+                        <option value={3}>3 - Khó (Hard)</option>
+                        <option value={4}>4 - Rất khó (Very Hard)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Checklist Section */}
+                  <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                    <label className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                      <CheckSquare size={13} className="text-emerald-400" />
+                      <span>Việc cần làm (Checklist - Ghi nhận Tầng 1)</span>
+                    </label>
+                    <div className="space-y-1.5 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
+                      {checklists.map((item) => (
+                        <label
+                          key={item.id}
+                          className="flex items-center gap-2 cursor-pointer hover:text-zinc-200 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => handleToggleChecklist(item)}
+                            className="rounded border-zinc-700 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className={item.completed ? 'line-through text-zinc-500' : 'text-zinc-300'}>
+                            {item.title}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Left Column Form Buttons */}
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                    <button
+                      type="button"
+                      onClick={() => setEditingCard(null)}
+                      className="px-3.5 py-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white"
+                    >
+                      Đóng
+                    </button>
+                    {(isLeader || !editingCard.assigneeId || editingCard.assigneeId === currentUser?.id) && (
+                      <button
+                        type="submit"
+                        disabled={isUpdatingCard}
+                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors"
+                      >
+                        {isUpdatingCard ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                        <span>Lưu thay đổi</span>
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* RIGHT COLUMN: Nhận xét và hoạt động (Trello-Style Feed & Time Tracking) */}
+              <div className="md:col-span-5 bg-[#0e0f14] flex flex-col p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-70px)]">
+                {/* Header: Title & Filter toggle */}
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                  <div className="flex items-center gap-2 text-white font-semibold text-sm">
+                    <Clock size={16} className="text-indigo-400" />
+                    <span>Nhận xét và hoạt động</span>
+                  </div>
                   <button
                     type="button"
-                    onClick={handleAddComment}
-                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-xs whitespace-nowrap"
+                    onClick={() => setShowOnlyComments((prev) => !prev)}
+                    className="px-2.5 py-1 text-[11px] rounded-md bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors flex items-center gap-1.5"
                   >
-                    Gửi
+                    {showOnlyComments ? (
+                      <>
+                        <Eye size={12} className="text-zinc-400" />
+                        <span>Hiện chi tiết</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff size={12} className="text-zinc-400" />
+                        <span>Ẩn chi tiết</span>
+                      </>
+                    )}
                   </button>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingCard(null)}
-                  className="px-3.5 py-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white"
-                >
-                  Đóng
-                </button>
-                {(isLeader || !editingCard.assigneeId || editingCard.assigneeId === currentUser?.id) && (
-                  <button
-                    type="submit"
-                    disabled={isUpdatingCard}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors"
-                  >
-                    {isUpdatingCard ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                    <span>Lưu thay đổi</span>
-                  </button>
-                )}
+                {/* Comment Input Box (Trello Style: Viết bình luận...) */}
+                <form onSubmit={handleAddComment} className="space-y-2">
+                  <div className="flex gap-2.5 items-start">
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${getAvatarBgColor(
+                        currentUser?.fullName
+                      )}`}
+                    >
+                      {getInitials(currentUser?.fullName)}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <textarea
+                        rows={2}
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Viết bình luận..."
+                        className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder-zinc-500 text-xs focus:outline-none focus:border-indigo-500 resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={!commentText.trim()}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white font-medium text-xs flex items-center gap-1.5 transition-colors"
+                        >
+                          <Send size={11} />
+                          <span>Gửi</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Activity Feed & Movement History Timeline */}
+                <div className="flex-1 space-y-3.5 pt-1">
+                  {loadingActivities ? (
+                    <div className="flex items-center justify-center py-8 text-zinc-500 gap-2 text-xs">
+                      <Loader2 size={15} className="animate-spin text-indigo-400" />
+                      <span>Đang tải hoạt động...</span>
+                    </div>
+                  ) : (
+                    (() => {
+                      const filtered = showOnlyComments
+                        ? activities.filter((a) => a.eventType === 'COMMENT_ADDED')
+                        : activities;
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-xs text-zinc-500 border border-dashed border-zinc-800/80 rounded-xl p-4">
+                            {showOnlyComments
+                              ? 'Chưa có bình luận nào cho thẻ này.'
+                              : 'Chưa có hoạt động nào được ghi nhận.'}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-3.5">
+                          {filtered.map((act, index) => {
+                            const timeInfo = formatActivityTime(act.occurredAt);
+                            const isComment = act.eventType === 'COMMENT_ADDED';
+                            const isCreation = act.eventType === 'CARD_CREATED';
+                            const isMove = act.eventType === 'CARD_MOVED';
+                            const isCompleted = act.eventType === 'CARD_COMPLETED';
+
+                            return (
+                              <div
+                                key={act.id && act.id > 0 ? act.id : `act-${index}`}
+                                className="flex items-start gap-2.5 text-xs group"
+                              >
+                                {/* User Avatar Circle */}
+                                <div
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 shadow-sm ${getAvatarBgColor(
+                                    act.userName
+                                  )}`}
+                                  title={act.userEmail || act.userName}
+                                >
+                                  {getInitials(act.userName)}
+                                </div>
+
+                                {/* Content Details */}
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <div className="leading-relaxed text-zinc-300">
+                                    <span className="font-semibold text-white mr-1.5">
+                                      {act.userName || 'Thành viên'}
+                                    </span>
+                                    {isMove ? (
+                                      <span>
+                                        đã di chuyển thẻ này từ danh sách{' '}
+                                        <span className="font-medium text-indigo-300">
+                                          {act.fromColumn || 'To Do'}
+                                        </span>{' '}
+                                        tới danh sách{' '}
+                                        <span className="font-medium text-indigo-300">
+                                          {act.toColumn || 'In Progress'}
+                                        </span>
+                                      </span>
+                                    ) : isCompleted ? (
+                                      <span className="text-emerald-300 font-medium">
+                                        {act.displayMessage}
+                                      </span>
+                                    ) : isCreation ? (
+                                      <span className="text-zinc-400">
+                                        {act.displayMessage}
+                                      </span>
+                                    ) : (
+                                      <span className="text-zinc-300">
+                                        {act.displayMessage}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Comment Box */}
+                                  {isComment && act.commentText && (
+                                    <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 mt-1 whitespace-pre-wrap break-words leading-relaxed shadow-sm">
+                                      {act.commentText}
+                                    </div>
+                                  )}
+
+                                  {/* Time Tracking (Relative Time + Exact Datetime Tooltip) */}
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 pt-0.5">
+                                    <Clock size={11} className="text-zinc-500 shrink-0" />
+                                    <span
+                                      className="hover:text-zinc-300 transition-colors cursor-help underline decoration-dotted decoration-zinc-700"
+                                      title={`Thời gian chính xác: ${timeInfo.full}`}
+                                    >
+                                      {timeInfo.relative}
+                                    </span>
+                                    <span className="text-zinc-600">·</span>
+                                    <span className="text-[10px] text-zinc-600 font-mono">
+                                      {timeInfo.full}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

@@ -61,3 +61,17 @@ export interface MoveCardPayload {
   fromColumnName?: string;
   toColumnName?: string;
 }
+
+export interface CardActivity {
+  id: number;
+  cardId: number;
+  userId?: number;
+  userName?: string;
+  userEmail?: string;
+  eventType: string;
+  fromColumn?: string;
+  toColumn?: string;
+  displayMessage: string;
+  commentText?: string;
+  occurredAt: string;
+}
