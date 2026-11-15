@@ -1,5 +1,6 @@
 package com.fairshare.peerreview.entity;
 
+import com.fairshare.board.entity.Card;
 import com.fairshare.common.audit.BaseEntity;
 import com.fairshare.user.entity.User;
 import jakarta.persistence.*;
@@ -37,4 +38,11 @@ public class ReviewSubmission extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String feedback;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_id")
+    private Card card;
+
+    @Column(name = "likes_count", nullable = false)
+    private int likesCount = 0;
 }

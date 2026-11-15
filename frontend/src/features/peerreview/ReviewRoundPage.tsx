@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   peerReviewApi,
   ReviewRound,
-  AggregatedReviewResult,
   ReviewSprint,
-  ReviewCriterion,
-  ReviewerSubmissionItem,
+  PeerReviewDetail,
+  DoneCard,
 } from '../../api/peerReview.api';
 import { teamApi } from '../../api/team.api';
 import { useAuthStore } from '../../store/authStore';
@@ -14,24 +13,29 @@ import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { showToast } from '../../components/ui/Toast';
 import {
-  ShieldCheck,
-  ShieldAlert,
   Star,
-  CheckCircle,
   Users,
   ArrowLeft,
   Send,
-  Sparkles,
-  Lock,
   MessageSquare,
-  Award,
   Plus,
   Play,
   Square,
   RefreshCw,
+  ThumbsUp,
+  Share2,
+  MessageCircle,
+  Eye,
+  EyeOff,
+  X,
+  CheckCircle2,
   ChevronRight,
-  TrendingUp,
-  FileCheck2,
+  ChevronLeft,
+  Calendar,
+  Check,
+  CheckSquare,
+  Sparkles,
+  Award,
 } from 'lucide-react';
 
 interface TeamMemberItem {
@@ -41,6 +45,7 @@ interface TeamMemberItem {
   role: string;
   isLeader: boolean;
   color: string;
+  avatarUrl?: string;
 }
 
 const MEMBER_COLORS = [
@@ -62,58 +67,22 @@ function getInitials(fullName: string): string {
   return fullName.slice(0, 2).toUpperCase();
 }
 
-const CRITERIA_DEFINITIONS: {
-  key: ReviewCriterion;
-  label: string;
-  desc: string;
-  options: { score: number; label: string; detail: string }[];
-}[] = [
-  {
-    key: 'QUALITY',
-    label: 'Chất lượng công việc & Kết quả kỹ thuật',
-    desc: 'Độ hoàn thiện, tính ổn định của code/thiết kế và ít phát sinh lỗi',
-    options: [
-      { score: 1, label: 'Rất kém', detail: 'Nhiều lỗi nghiêm trọng, chưa đạt yêu cầu' },
-      { score: 2, label: 'Cần cải thiện', detail: 'Chưa hoàn thiện, cần nhóm hỗ trợ nhiều' },
-      { score: 3, label: 'Đạt chuẩn', detail: 'Tính năng ổn định, hoàn thành đúng đặc tả' },
-      { score: 4, label: 'Rất tốt', detail: 'Code sạch, kiểm thử kỹ, ít phát sinh lỗi' },
-      { score: 5, label: 'Xuất sắc', detail: 'Vượt kỳ vọng, kiến trúc tối ưu, chất lượng cao' },
-    ],
-  },
-  {
-    key: 'PUNCTUALITY',
-    label: 'Tiến độ & Tinh thần đúng hạn',
-    desc: 'Khả năng bàn giao task đúng hạn theo cam kết trong Sprint',
-    options: [
-      { score: 1, label: 'Trễ hạn', detail: 'Trễ hạn nghiêm trọng, ảnh hưởng tiến độ sprint' },
-      { score: 2, label: 'Thường chậm', detail: 'Cần nhắc nhở và đôn đốc liên tục' },
-      { score: 3, label: 'Đúng hạn', detail: 'Bàn giao công việc đúng kế hoạch đã thỏa thuận' },
-      { score: 4, label: 'Nhanh nhẹn', detail: 'Hoàn thành trước deadline, chủ động báo cáo' },
-      { score: 5, label: 'Vượt tiến độ', detail: 'Bàn giao sớm, chủ động hỗ trợ giải quyết blocker' },
-    ],
-  },
-  {
-    key: 'COOPERATION',
-    label: 'Tinh thần hợp tác & Giao tiếp Agile',
-    desc: 'Tham gia họp Scrum, phối hợp với đồng đội và xử lý phản hồi',
-    options: [
-      { score: 1, label: 'Thiếu hợp tác', detail: 'Khó liên lạc, không phản hồi tin nhắn' },
-      { score: 2, label: 'Hạn chế', detail: 'Làm việc riêng lẻ, ít chia sẻ thông tin' },
-      { score: 3, label: 'Hợp tác tốt', detail: 'Tham gia đầy đủ họp nhóm, giao tiếp văn minh' },
-      { score: 4, label: 'Nhiệt tình', detail: 'Chủ động phối hợp, lắng nghe góp ý xây dựng' },
-      { score: 5, label: 'Cột trụ nhóm', detail: 'Tinh thần đồng đội cao, gắn kết và truyền cảm hứng' },
-    ],
-  },
-];
+const SCORE_LABELS: Record<number, string> = {
+  1: '1 ★ - Cần cải thiện nhiều',
+  2: '2 ★ - Dưới mức mong đợi',
+  3: '3 ★ - Đạt yêu cầu cơ bản',
+  4: '4 ★ - Rất tốt, chủ động',
+  5: '5 ★ - Xuất sắc vượt trội',
+};
 
 export const ReviewRoundPage: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
   const [searchParams] = useSearchParams();
   const urlTeamId = Number(searchParams.get('teamId'));
-  const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
+  const currentTeamId = urlTeamId > 0 ? urlTeamId : activeTeamId || teams[0]?.id || 1;
   const { user: currentUser } = useAuthStore();
 
-  // Theme detector for Light / Dark Mode synchronization (matching Project Tab)
+  // Theme detector for Light / Dark Mode
   const [isLight, setIsLight] = useState<boolean>(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.dataset.theme === 'light';
@@ -134,64 +103,29 @@ export const ReviewRoundPage: React.FC = () => {
   const theme = useMemo(() => {
     return {
       isLight,
-      pageColor: isLight ? 'var(--fg)' : '#f8fafc',
+      pageColor: isLight ? '#f8fafc' : '#0b0c10',
       textColor: isLight ? '#0f172a' : '#f8fafc',
       headingColor: isLight ? '#0f172a' : '#ffffff',
       subTextColor: isLight ? '#64748b' : '#94a3b8',
-      cardBg: isLight ? '#ffffff' : '#121318',
+      cardBg: isLight ? '#ffffff' : '#14151b',
       cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-      cardShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.03)' : '0 4px 24px rgba(0, 0, 0, 0.25)',
+      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 10px 30px rgba(0, 0, 0, 0.35)',
       cardRadius: '22px',
       inputBg: isLight ? '#f8fafc' : '#0c0d12',
       inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
       inputColor: isLight ? '#0f172a' : '#f8fafc',
-      tabBg: isLight ? 'rgba(0, 0, 0, 0.04)' : '#0c0d12',
-      tabBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-      tabInactiveText: isLight ? '#64748b' : '#94a3b8',
-      candidateItemBg: (isSelected: boolean) =>
-        isSelected
-          ? isLight
-            ? 'rgba(99, 102, 241, 0.1)'
-            : 'rgba(99, 102, 241, 0.12)'
-          : isLight
-          ? '#f8fafc'
-          : 'rgba(255, 255, 255, 0.02)',
-      candidateItemBorder: (isSelected: boolean) =>
-        isSelected
-          ? '1px solid #6366f1'
-          : isLight
-          ? '1px solid rgba(0, 0, 0, 0.06)'
-          : '1px solid transparent',
-      candidateNameColor: (isSelected: boolean) =>
-        isSelected ? (isLight ? '#4338ca' : '#fff') : isLight ? '#0f172a' : '#e2e8f0',
-      candidateNoteBg: isLight ? '#f1f5f9' : 'rgba(0, 0, 0, 0.25)',
-      candidateNoteColor: isLight ? '#475569' : '#64748b',
-      boxBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
-      boxBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
-      pillBg: (isChosen: boolean) =>
-        isChosen ? '#6366f1' : isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.04)',
-      pillBorder: (isChosen: boolean) =>
-        isChosen ? '1px solid #6366f1' : isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
-      pillColor: (isChosen: boolean) =>
-        isChosen ? '#fff' : isLight ? '#334155' : '#cbd5e1',
-      bannerBg: isLight ? 'rgba(99, 102, 241, 0.06)' : 'rgba(99, 102, 241, 0.08)',
-      bannerBorder: isLight ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid rgba(99, 102, 241, 0.25)',
-      bannerColor: isLight ? '#334155' : '#cbd5e1',
-      avgScoreCardBg: isLight ? 'rgba(99, 102, 241, 0.06)' : 'rgba(99, 102, 241, 0.08)',
-      avgScoreCardBorder: isLight ? '1px solid rgba(99, 102, 241, 0.18)' : '1px solid rgba(99, 102, 241, 0.2)',
-      avgScoreCardNumber: isLight ? '#1e1b4b' : '#fff',
-      avgScoreCardDivider: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-      commentCardBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
-      commentCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
-      commentCardText: isLight ? '#1e293b' : '#e2e8f0',
-      lockCardBg: isLight ? 'rgba(245, 158, 11, 0.06)' : 'rgba(245, 158, 11, 0.05)',
-      lockCardBorder: isLight ? '1px dashed rgba(245, 158, 11, 0.35)' : '1px dashed rgba(245, 158, 11, 0.3)',
-      lockCardTitle: isLight ? '#92400e' : '#f8fafc',
-      lockCardText: isLight ? '#78350f' : '#94a3b8',
-      lockCardTrack: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
-      modalBg: isLight ? '#ffffff' : '#121318',
+      pillBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+      pillBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      pillText: isLight ? '#334155' : '#cbd5e1',
+      reviewCardBg: isLight ? '#ffffff' : '#14151b',
+      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(255, 255, 255, 0.08)',
+      modalBg: isLight ? '#ffffff' : '#14151b',
       modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
-      modalShadow: isLight ? '0 20px 40px rgba(0, 0, 0, 0.12)' : '0 20px 40px rgba(0, 0, 0, 0.5)',
+      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 25px 50px rgba(0, 0, 0, 0.6)',
+      filterBadgeBg: (active: boolean) =>
+        active ? '#6366f1' : isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+      filterBadgeColor: (active: boolean) =>
+        active ? '#ffffff' : isLight ? '#475569' : '#94a3b8',
     };
   }, [isLight]);
 
@@ -202,31 +136,50 @@ export const ReviewRoundPage: React.FC = () => {
   const [sprints, setSprints] = useState<ReviewSprint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Active Evaluator (allows demo switcher or defaults to currentUser)
-  const [currentEvaluatorId, setCurrentEvaluatorId] = useState<number>(currentUser?.id || 109);
+  // Active Evaluator (current user)
+  const [currentEvaluatorId] = useState<number>(currentUser?.id || 109);
 
-  // View tabs
-  const [activeTab, setActiveTab] = useState<'form' | 'results'>('form');
+  // KEY FEATURE: Nút bật/tắt "Ẩn danh" trên trang
+  const [isAnonymous, setIsAnonymous] = useState<boolean>(true);
 
-  // Review Form States
-  const [selectedRevieweeId, setSelectedRevieweeId] = useState<number>(0);
-  const [qualityScore, setQualityScore] = useState<number>(5);
-  const [punctualityScore, setPunctualityScore] = useState<number>(5);
-  const [cooperationScore, setCooperationScore] = useState<number>(5);
-  const [feedbackText, setFeedbackText] = useState<string>('');
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [completedReviewees, setCompletedReviewees] = useState<Set<number>>(new Set());
-  const [existingSubmissions, setExistingSubmissions] = useState<Record<number, ReviewerSubmissionItem>>({});
+  // Filter by selected reviewee (0 = Tất cả thành viên)
+  const [selectedMemberId, setSelectedMemberId] = useState<number>(0);
 
-  // Results State
-  const [resultsMap, setResultsMap] = useState<Record<number, AggregatedReviewResult>>({});
-  const [loadingResults, setLoadingResults] = useState<boolean>(false);
-  const [selectedResultMemberId, setSelectedResultMemberId] = useState<number>(0);
+  // Filter by Star Rating (0 = All, 5, 4, 3, 2, 1)
+  const [selectedStarFilter, setSelectedStarFilter] = useState<number>(0);
 
-  // Create Round Modal State
+  // Detailed Reviews list (Real Data from Database)
+  const [reviews, setReviews] = useState<PeerReviewDetail[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState<boolean>(false);
+
+  // Done cards for review form modal
+  const [doneCards, setDoneCards] = useState<DoneCard[]>([]);
+
+  // Likes state map (id -> count, id -> userLiked)
+  const [likesMap, setLikesMap] = useState<Record<number, number>>({});
+  const [userLikedMap, setUserLikedMap] = useState<Record<number, boolean>>({});
+
+  // ==================== MULTI-STEP REVIEW MODAL STATES ====================
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
+  const [reviewStep, setReviewStep] = useState<number>(1); // 1: Sprint & Reviewee -> 2: Done Card -> 3: Sliders & Comment -> 4: Confirm
+  const [modalSprintId, setModalSprintId] = useState<number>(0);
+  const [modalRoundId, setModalRoundId] = useState<number>(0);
+  const [modalRevieweeId, setModalRevieweeId] = useState<number>(0);
+  const [modalCardId, setModalCardId] = useState<number>(0);
+  const [modalQuality, setModalQuality] = useState<number>(5);
+  const [modalPunctuality, setModalPunctuality] = useState<number>(5);
+  const [modalCooperation, setModalCooperation] = useState<number>(5);
+  const [modalFeedback, setModalFeedback] = useState<string>('');
+  const [modalIsAnonymous, setModalIsAnonymous] = useState<boolean>(true);
+  const [submittingReview, setSubmittingReview] = useState<boolean>(false);
+
+  // ==================== MULTI-STEP CREATE ROUND MODAL STATES ====================
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [createRoundStep, setCreateRoundStep] = useState<number>(1); // 1: Sprint -> 2: Name & Time -> 3: Confirm
   const [newRoundSprintId, setNewRoundSprintId] = useState<number>(0);
   const [newRoundName, setNewRoundName] = useState<string>('');
+  const [newRoundStartDate, setNewRoundStartDate] = useState<string>('');
+  const [newRoundEndDate, setNewRoundEndDate] = useState<string>('');
   const [creatingRound, setCreatingRound] = useState<boolean>(false);
 
   // Fetch initial teams
@@ -246,19 +199,18 @@ export const ReviewRoundPage: React.FC = () => {
         peerReviewApi.getMembers(currentTeamId),
       ]);
 
-      // 1. Members mapping with robust fallback
+      // 1. Members mapping
       let loadedMembers: TeamMemberItem[] = [];
       if (memberRes.status === 'fulfilled' && Array.isArray(memberRes.value?.data) && memberRes.value.data.length > 0) {
         loadedMembers = memberRes.value.data.map((m, idx) => ({
           id: m.userId,
           name: m.fullName || m.email,
           email: m.email,
-          role: m.role === 'LEADER' ? 'Trưởng nhóm (Team Leader)' : 'Thành viên nhóm (Developer)',
+          role: m.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên',
           isLeader: m.role === 'LEADER',
           color: MEMBER_COLORS[idx % MEMBER_COLORS.length],
         }));
       } else {
-        // Fallback to teamApi.getTeamById
         try {
           const fallbackTeam = await teamApi.getTeamById(currentTeamId);
           if (fallbackTeam?.data?.members && Array.isArray(fallbackTeam.data.members)) {
@@ -269,1593 +221,2568 @@ export const ReviewRoundPage: React.FC = () => {
               return {
                 id: uid,
                 name: uname,
-                email: m.user?.email || `user${uid}@fairshare.io`,
-                role: m.role === 'LEADER' ? 'Trưởng nhóm (Team Leader)' : 'Thành viên nhóm',
+                email: m.user?.email || `user${uid}@example.com`,
+                role: m.role === 'LEADER' ? 'Trưởng nhóm' : 'Thành viên',
                 isLeader: m.role === 'LEADER',
                 color: MEMBER_COLORS[idx % MEMBER_COLORS.length],
               };
             });
           }
         } catch {
-          // ignore fallback error
+          // Keep fallback
         }
       }
-
       setMembers(loadedMembers);
 
-      // Set evaluator
-      if (currentUser?.id && loadedMembers.some((m) => m.id === currentUser.id)) {
-        setCurrentEvaluatorId(currentUser.id);
-      } else if (loadedMembers.length > 0 && !loadedMembers.some((m) => m.id === currentEvaluatorId)) {
-        setCurrentEvaluatorId(loadedMembers[0].id);
-      }
-
-      // 2. Sprints
+      // 2. Sprints mapping
+      let loadedSprints: ReviewSprint[] = [];
       if (sprintRes.status === 'fulfilled' && Array.isArray(sprintRes.value?.data)) {
-        setSprints(sprintRes.value.data);
+        loadedSprints = sprintRes.value.data;
+      }
+      setSprints(loadedSprints);
+      if (loadedSprints.length > 0) {
+        setNewRoundSprintId(loadedSprints[0].id);
+        setModalSprintId(loadedSprints[0].id);
       }
 
-      // 3. Rounds
+      // 3. Rounds mapping
+      let loadedRounds: ReviewRound[] = [];
       if (roundRes.status === 'fulfilled' && Array.isArray(roundRes.value?.data) && roundRes.value.data.length > 0) {
-        setRounds(roundRes.value.data);
-        const openRound = roundRes.value.data.find((r) => r.status === 'OPEN') || roundRes.value.data[0];
-        setActiveRoundId(openRound.id);
-      } else {
-        setRounds([]);
+        loadedRounds = roundRes.value.data;
       }
+      setRounds(loadedRounds);
+      if (loadedRounds.length > 0) {
+        // Ưu tiên chọn đợt đang mở (OPEN), nếu không thì chọn đợt mới nhất
+        const defaultRound = loadedRounds.find((r) => r.status === 'OPEN') || loadedRounds[loadedRounds.length - 1];
+        setActiveRoundId(defaultRound.id);
+        setModalRoundId(defaultRound.id);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu chấm chéo:', err);
     } finally {
       setLoading(false);
     }
-  }, [currentTeamId, currentUser?.id, currentEvaluatorId]);
+  }, [currentTeamId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Current active round object
+  // Load detailed reviews for the active round (Real Data)
+  const loadReviews = useCallback(async () => {
+    if (!activeRoundId) return;
+    setLoadingReviews(true);
+    try {
+      const res = await peerReviewApi.getRoundReviews(activeRoundId, selectedMemberId > 0 ? selectedMemberId : undefined);
+      if (res?.data && Array.isArray(res.data)) {
+        setReviews(res.data);
+      } else {
+        setReviews([]);
+      }
+    } catch {
+      setReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, [activeRoundId, selectedMemberId]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  // Load done cards when team is available
+  useEffect(() => {
+    if (currentTeamId) {
+      peerReviewApi
+        .getDoneCardsForTeam(currentTeamId)
+        .then((res) => {
+          if (res?.data && Array.isArray(res.data)) {
+            setDoneCards(res.data);
+          }
+        })
+        .catch(() => setDoneCards([]));
+    }
+  }, [currentTeamId]);
+
+  // Active round object
   const activeRound = useMemo(() => {
     return rounds.find((r) => r.id === activeRoundId) || rounds[0];
   }, [rounds, activeRoundId]);
 
-  // Evaluator object
-  const currentEvaluator = useMemo(() => {
-    return members.find((m) => m.id === currentEvaluatorId) || members[0];
-  }, [members, currentEvaluatorId]);
+  // Active team object
+  const activeTeam = useMemo(() => {
+    return teams.find((t) => t.id === currentTeamId) || { name: 'Dự án của bạn' };
+  }, [teams, currentTeamId]);
 
-  const isEvaluatorLeader = currentEvaluator?.isLeader ?? false;
+  // Filtered reviews
+  const filteredReviews = useMemo(() => {
+    let list = [...reviews];
+    if (selectedMemberId > 0) {
+      list = list.filter((r) => r.revieweeId === selectedMemberId);
+    }
+    if (selectedStarFilter > 0) {
+      list = list.filter((r) => Math.round(r.averageScore) === selectedStarFilter);
+    }
+    return list;
+  }, [reviews, selectedMemberId, selectedStarFilter]);
 
-  // Teammates to review (Anti-Self-Review: strictly excludes currentEvaluatorId)
-  const teammatesToReview = useMemo(() => {
-    return members.filter((m) => m.id !== currentEvaluatorId);
-  }, [members, currentEvaluatorId]);
-
-  // Automatically select the first candidate when candidates change
-  useEffect(() => {
-    if (teammatesToReview.length > 0) {
-      if (!teammatesToReview.some((m) => m.id === selectedRevieweeId)) {
-        setSelectedRevieweeId(teammatesToReview[0].id);
+  // Stable Anonymous Alias Generator:
+  // Maps reviewerId -> "Anonymous001", "Anonymous002", etc.
+  const reviewerAnonymousMap = useMemo(() => {
+    const map = new Map<number, string>();
+    let counter = 1;
+    reviews.forEach((r) => {
+      if (!map.has(r.reviewerId)) {
+        map.set(r.reviewerId, `Anonymous${String(counter).padStart(3, '0')}`);
+        counter++;
       }
-    } else {
-      setSelectedRevieweeId(0);
-    }
-  }, [teammatesToReview, selectedRevieweeId]);
+    });
+    return map;
+  }, [reviews]);
 
-  // Selected Reviewee object
-  const selectedReviewee = useMemo(() => {
-    return members.find((m) => m.id === selectedRevieweeId) || teammatesToReview[0];
-  }, [members, selectedRevieweeId, teammatesToReview]);
-
-  // Auto-fill new round sprint ID when sprints change
-  useEffect(() => {
-    if (sprints.length > 0) {
-      const activeSprint = sprints.find((s) => s.status === 'ACTIVE') || sprints[0];
-      setNewRoundSprintId(activeSprint.id);
-      setNewRoundName(`Đánh giá chéo ${activeSprint.name}`);
+  // Overall Statistics calculated from real reviews
+  const stats = useMemo(() => {
+    const total = reviews.length;
+    if (total === 0) {
+      return {
+        avgScore: 0,
+        totalReviews: 0,
+        starsBreakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+        percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+        qualityAvg: 0,
+        punctualityAvg: 0,
+        cooperationAvg: 0,
+        qualityVotes: 0,
+        punctualityVotes: 0,
+        cooperationVotes: 0,
+      };
     }
-  }, [sprints]);
 
-  // Load submissions already submitted by the current evaluator for the active round from DB
-  const loadEvaluatorSubmissions = useCallback(async () => {
-    if (!activeRoundId || !currentEvaluatorId) {
-      setExistingSubmissions({});
-      setCompletedReviewees(new Set());
-      return;
-    }
+    const sum = reviews.reduce((acc, r) => acc + (r.averageScore || 0), 0);
+    const avgScore = Number((sum / total).toFixed(2));
+
+    const breakdown: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach((r) => {
+      const rounded = Math.min(5, Math.max(1, Math.round(r.averageScore || 0)));
+      breakdown[rounded] = (breakdown[rounded] || 0) + 1;
+    });
+
+    const percentages: Record<number, number> = {
+      5: Math.round(((breakdown[5] || 0) / total) * 100),
+      4: Math.round(((breakdown[4] || 0) / total) * 100),
+      3: Math.round(((breakdown[3] || 0) / total) * 100),
+      2: Math.round(((breakdown[2] || 0) / total) * 100),
+      1: Math.round(((breakdown[1] || 0) / total) * 100),
+    };
+
+    const qScores = reviews
+      .map((r) => r.qualityScore)
+      .filter((s): s is number => typeof s === 'number' && !isNaN(s));
+    const pScores = reviews
+      .map((r) => r.punctualityScore)
+      .filter((s): s is number => typeof s === 'number' && !isNaN(s));
+    const cScores = reviews
+      .map((r) => r.cooperationScore)
+      .filter((s): s is number => typeof s === 'number' && !isNaN(s));
+
+    const qualityAvg = qScores.length > 0 ? Number((qScores.reduce((a, b) => a + b, 0) / qScores.length).toFixed(1)) : 0;
+    const punctualityAvg = pScores.length > 0 ? Number((pScores.reduce((a, b) => a + b, 0) / pScores.length).toFixed(1)) : 0;
+    const cooperationAvg = cScores.length > 0 ? Number((cScores.reduce((a, b) => a + b, 0) / cScores.length).toFixed(1)) : 0;
+
+    const qualityVotes = qScores.filter((s) => s >= 4).length;
+    const punctualityVotes = pScores.filter((s) => s >= 4).length;
+    const cooperationVotes = cScores.filter((s) => s >= 4).length;
+
+    return {
+      avgScore,
+      totalReviews: total,
+      starsBreakdown: breakdown,
+      percentages,
+      qualityAvg,
+      punctualityAvg,
+      cooperationAvg,
+      qualityVotes,
+      punctualityVotes,
+      cooperationVotes,
+    };
+  }, [reviews]);
+
+  // Handle Like — calls real API with optimistic local update
+  const handleToggleLike = async (reviewId: number, currentLikes: number) => {
+    const wasLiked = Boolean(userLikedMap[reviewId]);
+    const nextLiked = !wasLiked;
+    setUserLikedMap((prev) => ({ ...prev, [reviewId]: nextLiked }));
+    setLikesMap((prev) => ({
+      ...prev,
+      [reviewId]: nextLiked
+        ? (prev[reviewId] ?? currentLikes) + 1
+        : Math.max(0, (prev[reviewId] ?? currentLikes) - 1),
+    }));
+
     try {
-      const res = await peerReviewApi.getSubmissionsByReviewer(activeRoundId, currentEvaluatorId);
-      if (res?.data && Array.isArray(res.data)) {
-        const subMap: Record<number, ReviewerSubmissionItem> = {};
-        const completed = new Set<number>();
-        res.data.forEach((item) => {
-          subMap[item.revieweeId] = item;
-          completed.add(item.revieweeId);
-        });
-        setExistingSubmissions(subMap);
-        setCompletedReviewees(completed);
-      } else {
-        setExistingSubmissions({});
-        setCompletedReviewees(new Set());
+      const res = await peerReviewApi.toggleLike(reviewId);
+      if (res?.data != null) {
+        setLikesMap((prev) => ({ ...prev, [reviewId]: res.data as number }));
       }
     } catch {
-      setExistingSubmissions({});
-      setCompletedReviewees(new Set());
+      setUserLikedMap((prev) => ({ ...prev, [reviewId]: wasLiked }));
+      setLikesMap((prev) => ({ ...prev, [reviewId]: currentLikes }));
     }
-  }, [activeRoundId, currentEvaluatorId]);
+  };
 
-  useEffect(() => {
-    loadEvaluatorSubmissions();
-  }, [loadEvaluatorSubmissions]);
+  // Open Multi-Step Review Modal
+  const openReviewModal = () => {
+    const eligible = members.find((m) => m.id !== currentEvaluatorId);
+    if (eligible) setModalRevieweeId(eligible.id);
+    if (activeRoundId) setModalRoundId(activeRoundId);
+    if (activeRound?.sprintId) setModalSprintId(activeRound.sprintId);
+    setReviewStep(1);
+    setModalCardId(0);
+    setModalQuality(5);
+    setModalPunctuality(5);
+    setModalCooperation(5);
+    setModalFeedback('');
+    setModalIsAnonymous(isAnonymous);
+    setShowReviewModal(true);
+  };
 
-  // Update form when changing reviewee or when submissions are loaded
-  useEffect(() => {
-    const existing = existingSubmissions[selectedRevieweeId];
-    if (existing) {
-      const q = existing.scores?.find((s) => s.criterion === 'QUALITY')?.score ?? 5;
-      const p = existing.scores?.find((s) => s.criterion === 'PUNCTUALITY')?.score ?? 5;
-      const c = existing.scores?.find((s) => s.criterion === 'COOPERATION')?.score ?? 5;
-      setQualityScore(q);
-      setPunctualityScore(p);
-      setCooperationScore(c);
-      setFeedbackText(existing.feedback || '');
-    } else {
-      setQualityScore(5);
-      setPunctualityScore(5);
-      setCooperationScore(5);
-      setFeedbackText('');
+  // Submit Review Modal
+  const handleFinalSubmitReview = async () => {
+    const targetRoundId = modalRoundId || activeRoundId;
+    if (!targetRoundId) {
+      showToast({ message: 'Vui lòng chọn đợt chấm chéo hợp lệ', type: 'error' });
+      return;
     }
-  }, [selectedRevieweeId, existingSubmissions]);
-
-  // Fetch aggregated results for all members when activeRoundId changes or results tab is active
-  const loadAggregatedResults = useCallback(async () => {
-    if (!activeRoundId || members.length === 0) return;
-    setLoadingResults(true);
-    const newMap: Record<number, AggregatedReviewResult> = {};
-
-    await Promise.allSettled(
-      members.map(async (m) => {
-        try {
-          const res = await peerReviewApi.getRoundResults(activeRoundId, m.id);
-          if (res?.data) {
-            newMap[m.id] = res.data;
-          }
-        } catch {
-          // ignore individual fetch errors
-        }
-      })
-    );
-
-    setResultsMap(newMap);
-    setLoadingResults(false);
-
-    if (members.length > 0 && !selectedResultMemberId) {
-      setSelectedResultMemberId(members[0].id);
+    if (!modalRevieweeId || modalRevieweeId === currentEvaluatorId) {
+      showToast({ message: 'Vui lòng chọn đồng đội cần đánh giá (không thể tự chấm bản thân)', type: 'error' });
+      return;
     }
-  }, [activeRoundId, members, selectedResultMemberId]);
-
-  useEffect(() => {
-    if (activeRoundId && members.length > 0) {
-      loadAggregatedResults();
-    }
-  }, [activeRoundId, members.length, loadAggregatedResults]);
-
-  // Handle Review Submission
-  const handleSubmitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeRoundId || !selectedReviewee) return;
-
-    if (activeRound?.status !== 'OPEN') {
-      showToast('Đợt chấm chéo này hiện không mở để gửi đánh giá.');
+    if (!modalFeedback.trim()) {
+      showToast({ message: 'Vui lòng điền nhận xét đóng góp cho đồng đội', type: 'error' });
+      setReviewStep(3);
       return;
     }
 
-    setSubmitting(true);
+    setSubmittingReview(true);
     try {
-      await peerReviewApi.submitReview(activeRoundId, {
+      await peerReviewApi.submitReview(targetRoundId, {
         reviewerId: currentEvaluatorId,
-        revieweeId: selectedReviewee.id,
+        revieweeId: modalRevieweeId,
         scores: [
-          { criterion: 'QUALITY', score: qualityScore },
-          { criterion: 'PUNCTUALITY', score: punctualityScore },
-          { criterion: 'COOPERATION', score: cooperationScore },
+          { criterion: 'QUALITY', score: modalQuality },
+          { criterion: 'PUNCTUALITY', score: modalPunctuality },
+          { criterion: 'COOPERATION', score: modalCooperation },
         ],
-        feedback: feedbackText.trim() || undefined,
+        feedback: modalFeedback.trim(),
+        cardId: modalCardId > 0 ? modalCardId : undefined,
       });
 
-      const avgScore = ((qualityScore + punctualityScore + cooperationScore) / 3).toFixed(1);
-      showToast(`Đã lưu đánh giá cho ${selectedReviewee.name} (Điểm TB: ${avgScore}/5.0) vào CSDL!`);
-
-      // Refresh DB state
-      await loadEvaluatorSubmissions();
-      loadAggregatedResults();
-
-      // Auto advance to next unrated teammate if available
-      const updatedSet = new Set([...completedReviewees, selectedReviewee.id]);
-      const nextUnrated = teammatesToReview.find((m) => m.id !== selectedReviewee.id && !updatedSet.has(m.id));
-      if (nextUnrated) {
-        setSelectedRevieweeId(nextUnrated.id);
-      }
+      showToast({ message: 'Đã gửi phiếu chấm điểm đồng đội thành công!', type: 'success' });
+      setShowReviewModal(false);
+      loadReviews();
     } catch (err: unknown) {
-      const msg =
-        typeof err === 'object' && err !== null && 'response' in err
-          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-          : 'Lỗi khi gửi đánh giá.';
-      showToast(msg || 'Không thể gửi đánh giá. Vui lòng thử lại.');
+      const msg = err instanceof Error ? err.message : 'Có lỗi khi gửi đánh giá';
+      showToast({ message: msg, type: 'error' });
     } finally {
-      setSubmitting(false);
+      setSubmittingReview(false);
     }
   };
 
-  // Leader Actions: Open / Close Round
-  const handleOpenRound = async () => {
-    if (!activeRoundId) return;
-    try {
-      await peerReviewApi.openRound(activeRoundId);
-      showToast(`Đã mở đợt chấm: ${activeRound?.name}`);
-      loadData();
-    } catch {
-      showToast('Không thể mở đợt chấm. Chỉ Trưởng nhóm có quyền thao tác.');
-    }
+  // Open Multi-Step Create Round Modal
+  const openCreateModal = () => {
+    setCreateRoundStep(1);
+    if (sprints.length > 0) setNewRoundSprintId(sprints[0].id);
+    setNewRoundName('');
+    setNewRoundStartDate(new Date().toISOString().split('T')[0]);
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 14);
+    setNewRoundEndDate(endDate.toISOString().split('T')[0]);
+    setShowCreateModal(true);
   };
 
-  const handleCloseRound = async () => {
-    if (!activeRoundId) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn đóng đợt chấm "${activeRound?.name}" và khóa nhận bài?`)) return;
-    try {
-      await peerReviewApi.closeRound(activeRoundId);
-      showToast(`Đã đóng đợt chấm và hoàn tất tổng hợp điểm ẩn danh.`);
-      loadData();
-    } catch {
-      showToast('Không thể đóng đợt chấm. Chỉ Trưởng nhóm có quyền thao tác.');
+  // Create Round
+  const handleFinalCreateRound = async () => {
+    if (!newRoundName.trim()) {
+      showToast({ message: 'Vui lòng nhập tên đợt chấm chéo', type: 'error' });
+      setCreateRoundStep(2);
+      return;
     }
-  };
-
-  // Leader Action: Create Round
-  const handleCreateRound = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRoundSprintId || !newRoundName.trim()) return;
-
     setCreatingRound(true);
     try {
-      await peerReviewApi.createRound(newRoundSprintId, {
+      const res = await peerReviewApi.createRound(newRoundSprintId, {
         name: newRoundName.trim(),
+        startDate: newRoundStartDate ? `${newRoundStartDate}T00:00:00` : undefined,
+        endDate: newRoundEndDate ? `${newRoundEndDate}T23:59:59` : undefined,
       });
-      showToast(`Đã khởi tạo đợt chấm mới: ${newRoundName}`);
-      setShowCreateModal(false);
-      loadData();
-    } catch {
-      showToast('Không thể tạo đợt chấm chéo mới. Vui lòng kiểm tra quyền hạn.');
+      if (res?.data) {
+        setRounds((prev) => [res.data, ...prev]);
+        setActiveRoundId(res.data.id);
+        showToast({ message: 'Tạo đợt chấm chéo mới thành công', type: 'success' });
+        setShowCreateModal(false);
+        setNewRoundName('');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Lỗi khi tạo đợt chấm';
+      showToast({ message: msg, type: 'error' });
     } finally {
       setCreatingRound(false);
     }
   };
 
-  // Calculated average of current form
-  const currentFormAverage = useMemo(() => {
-    return ((qualityScore + punctualityScore + cooperationScore) / 3).toFixed(1);
-  }, [qualityScore, punctualityScore, cooperationScore]);
+  // Open / Close Round
+  const handleToggleRoundStatus = async () => {
+    if (!activeRound) return;
+    try {
+      if (activeRound.status === 'OPEN') {
+        const res = await peerReviewApi.closeRound(activeRound.id);
+        if (res?.data) {
+          setRounds((prev) => prev.map((r) => (r.id === activeRound.id ? res.data : r)));
+          showToast({ message: 'Đã đóng đợt chấm chéo thành công', type: 'success' });
+        }
+      } else {
+        const res = await peerReviewApi.openRound(activeRound.id);
+        if (res?.data) {
+          setRounds((prev) => prev.map((r) => (r.id === activeRound.id ? res.data : r)));
+          showToast({ message: 'Đã mở đợt chấm chéo', type: 'success' });
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Lỗi cập nhật trạng thái';
+      showToast({ message: msg, type: 'error' });
+    }
+  };
 
-  // Selected Result Member Data
-  const activeResult = resultsMap[selectedResultMemberId] || null;
+  // Selected teammate object
+  const selectedTeammate = useMemo(() => {
+    return members.find((m) => m.id === modalRevieweeId);
+  }, [members, modalRevieweeId]);
 
-  if (initialized && teams.length === 0 && !urlTeamId) {
+  // Selected card object
+  const selectedCard = useMemo(() => {
+    return doneCards.find((c) => c.id === modalCardId);
+  }, [doneCards, modalCardId]);
+
+  // Selected sprint object
+  const selectedSprint = useMemo(() => {
+    return sprints.find((s) => s.id === modalSprintId);
+  }, [sprints, modalSprintId]);
+
+  if (!loading && teams.length === 0) {
     return <NoProjectState />;
   }
 
   return (
-    <div className="page pad" style={{ maxWidth: '1240px', margin: '0 auto', color: theme.pageColor }}>
-      {/* 1. Header & Breadcrumb */}
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.subTextColor, marginBottom: '8px' }}>
-          <Link to="/" style={{ color: theme.subTextColor, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <ArrowLeft size={14} /> Dashboard
-          </Link>
-          <ChevronRight size={14} />
-          <span style={{ color: '#818cf8', fontWeight: 500 }}>Chấm chéo ẩn danh (Peer Review 360°)</span>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: theme.headingColor }}>
-                Đánh giá chéo đồng đội Agile
-              </h1>
-              {activeRound && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '3px 10px',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    backgroundColor: activeRound.status === 'OPEN' ? (isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)') : (isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(148, 163, 184, 0.15)'),
-                    color: activeRound.status === 'OPEN' ? (isLight ? '#059669' : '#34d399') : theme.subTextColor,
-                    border: `1px solid ${activeRound.status === 'OPEN' ? (isLight ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.3)') : (isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(148, 163, 184, 0.3)')}`,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      backgroundColor: activeRound.status === 'OPEN' ? '#10b981' : '#94a3b8',
-                    }}
-                  />
-                  {activeRound.status === 'OPEN' ? 'Đang mở đánh giá' : 'Đợt chấm đã đóng'}
-                </span>
-              )}
-            </div>
-            <p style={{ margin: '6px 0 0', fontSize: '14px', color: theme.subTextColor, maxWidth: '780px', lineHeight: 1.5 }}>
-              Thuật toán tổng hợp K-Anonymity (Nghị định 13/2023/NĐ-CP): Điểm trung bình và nhận xét chỉ được giải mã khi đạt tối thiểu ≥ 3 lượt đánh giá để bảo vệ danh tính tuyệt đối.
-            </p>
-          </div>
-
-          {/* Action buttons (Leader controls & Create round) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {isEvaluatorLeader && activeRound?.status === 'OPEN' && (
-              <button
-                onClick={handleCloseRound}
-                className="btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.15)',
-                  color: isLight ? '#dc2626' : '#f87171',
-                  border: isLight ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(239, 68, 68, 0.3)',
-                  padding: '7px 14px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                <Square size={14} /> Đóng đợt chấm
-              </button>
-            )}
-
-            {isEvaluatorLeader && activeRound?.status === 'DRAFT' && (
-              <button
-                onClick={handleOpenRound}
-                className="btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
-                  color: isLight ? '#059669' : '#34d399',
-                  border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
-                  padding: '7px 14px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                <Play size={14} /> Mở đợt chấm
-              </button>
-            )}
-
-            {isEvaluatorLeader && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#6366f1',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '7px 14px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                <Plus size={14} /> Tạo đợt chấm mới
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                loadData();
-                loadEvaluatorSubmissions();
-                loadAggregatedResults();
-              }}
-              title="Làm mới dữ liệu"
-              style={{
-                background: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.05)',
-                border: isLight ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
-                color: theme.subTextColor,
-                padding: '7px 10px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Top Filter & Context Bar (Rounds & Evaluator Selector) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '14px',
-          padding: '16px 20px',
-          backgroundColor: theme.cardBg,
-          border: theme.cardBorder,
-          borderRadius: theme.cardRadius,
-          boxShadow: theme.cardShadow,
-          marginBottom: '20px',
-        }}
-      >
-        {/* Dropdown 1: Round selection */}
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '6px' }}>
-            Đợt chấm chéo (Review Round):
-          </label>
-          <select
-            value={activeRoundId}
-            onChange={(e) => setActiveRoundId(Number(e.target.value))}
-            style={{
-              width: '100%',
-              backgroundColor: theme.inputBg,
-              color: theme.inputColor,
-              border: theme.inputBorder,
-              borderRadius: '10px',
-              padding: '9px 12px',
-              fontSize: '13px',
-              outline: 'none',
-              fontWeight: 500,
-            }}
-          >
-            {rounds.map((r) => (
-              <option key={r.id} value={r.id} style={{ backgroundColor: theme.cardBg, color: theme.textColor }}>
-                {r.name} {r.status === 'OPEN' ? '(Đang mở)' : '(Đã đóng)'}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Dropdown 2: Evaluator identity switcher */}
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '6px' }}>
-            Đang chấm với tư cách (Người đánh giá):
-          </label>
-          <select
-            value={currentEvaluatorId}
-            onChange={(e) => {
-              const newId = Number(e.target.value);
-              setCurrentEvaluatorId(newId);
-              setCompletedReviewees(new Set());
-            }}
-            style={{
-              width: '100%',
-              backgroundColor: theme.inputBg,
-              color: theme.inputColor,
-              border: theme.inputBorder,
-              borderRadius: '10px',
-              padding: '9px 12px',
-              fontSize: '13px',
-              outline: 'none',
-              fontWeight: 500,
-            }}
-          >
-            {members.map((m) => (
-              <option key={m.id} value={m.id} style={{ backgroundColor: theme.cardBg, color: theme.textColor }}>
-                {m.name} · {m.role} {m.id === currentUser?.id ? '(Tài khoản của bạn)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Tab Switcher */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: theme.tabBg,
-              border: theme.tabBorder,
-              borderRadius: '10px',
-              padding: '3px',
-            }}
-          >
-            <button
-              onClick={() => setActiveTab('form')}
-              style={{
-                flex: 1,
-                padding: '7px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: activeTab === 'form' ? '#6366f1' : 'transparent',
-                color: activeTab === 'form' ? '#fff' : theme.tabInactiveText,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <FileCheck2 size={15} /> Phiếu chấm điểm ({completedReviewees.size}/{teammatesToReview.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('results')}
-              style={{
-                flex: 1,
-                padding: '7px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: activeTab === 'results' ? '#6366f1' : 'transparent',
-                color: activeTab === 'results' ? '#fff' : theme.tabInactiveText,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <TrendingUp size={15} /> Báo cáo 360° tổng hợp
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Anti-Self-Review and Anonymity Notice Banner */}
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: theme.pageColor,
+        color: theme.textColor,
+        paddingTop: 'calc(var(--top, 64px) + 24px)',
+        paddingBottom: '60px',
+        paddingLeft: 'clamp(16px, 3vw, 32px)',
+        paddingRight: 'clamp(16px, 3vw, 32px)',
+        transition: 'background-color 0.2s ease, color 0.2s ease',
+      }}
+    >
+      {/* 1. Header Navigation & Quick Actions */}
       <div
         style={{
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: '12px',
-          padding: '12px 16px',
-          backgroundColor: theme.bannerBg,
-          border: theme.bannerBorder,
-          borderRadius: '12px',
-          marginBottom: '22px',
-          fontSize: '13px',
-          color: theme.bannerColor,
+          marginBottom: '24px',
         }}
       >
-        <ShieldCheck size={20} color="#818cf8" style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <strong style={{ color: theme.headingColor }}>Nguyên tắc bảo vệ danh tính &amp; Chống thiên vị:</strong>{' '}
-          Hệ thống chặn tự đánh giá bản thân (Anti-Self-Review) và tách rời danh tính người gửi khỏi phiếu điểm. Nhận xét định tính được làm sạch thông tin nhận dạng trước khi tổng hợp.
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+          <Link
+            to={`/teams/${currentTeamId}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              borderRadius: '10px',
+              backgroundColor: theme.cardBg,
+              border: theme.cardBorder,
+              color: theme.subTextColor,
+              textDecoration: 'none',
+              boxShadow: theme.cardShadow,
+            }}
+          >
+            <ArrowLeft size={16} />
+          </Link>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#6366f1', textTransform: 'uppercase' }}>
+                Đánh giá đồng đội
+              </span>
+              <span style={{ fontSize: '11px', color: theme.subTextColor }}>·</span>
+              <span style={{ fontSize: '11px', color: theme.subTextColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                {activeTeam?.name || 'Nhóm dự án'}
+              </span>
+            </div>
+            <h1 style={{ fontSize: 'clamp(17px, 2.2vw, 22px)', fontWeight: 700, margin: '2px 0 0', color: theme.headingColor }}>
+              Chấm chéo &amp; Đánh giá đồng đội (Peer Review)
+            </h1>
+          </div>
+        </div>
+
+        {/* Right Action buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {activeRound && (
+            <button
+              onClick={handleToggleRoundStatus}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: theme.cardBorder,
+                backgroundColor: theme.cardBg,
+                color: activeRound.status === 'OPEN' ? '#10b981' : '#f59e0b',
+                cursor: 'pointer',
+                boxShadow: theme.cardShadow,
+              }}
+            >
+              {activeRound.status === 'OPEN' ? (
+                <>
+                  <Square size={13} fill="#10b981" /> Đang mở
+                </>
+              ) : (
+                <>
+                  <Play size={13} fill="#f59e0b" /> Đã đóng
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Button "Tạo đợt mới" with Multi-Step wizard */}
+          <button
+            onClick={openCreateModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              backgroundColor: theme.cardBg,
+              color: theme.textColor,
+              border: theme.cardBorder,
+              cursor: 'pointer',
+              boxShadow: theme.cardShadow,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Plus size={15} /> Tạo đợt mới
+          </button>
+
+          {/* Button "Chấm điểm" with Multi-Step wizard */}
+          <button
+            onClick={openReviewModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '8px 18px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              backgroundColor: '#6366f1',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <Send size={14} /> Chấm điểm
+          </button>
         </div>
       </div>
 
-      {/* 4. Tab 1: Phiếu Chấm Điểm (Interactive 2-column Layout) */}
-      {activeTab === 'form' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '22px', alignItems: 'start' }}>
-          {/* Left Column: Teammates List */}
-          <div
-            style={{
-              backgroundColor: theme.cardBg,
-              border: theme.cardBorder,
-              borderRadius: theme.cardRadius,
-              boxShadow: theme.cardShadow,
-              padding: '18px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: theme.headingColor }}>
-                Đồng đội cần đánh giá
-              </h2>
-              <span
-                style={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  backgroundColor: completedReviewees.size >= teammatesToReview.length ? 'rgba(16, 185, 129, 0.2)' : isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)',
-                  color: completedReviewees.size >= teammatesToReview.length ? (isLight ? '#059669' : '#34d399') : theme.subTextColor,
-                }}
-              >
-                {completedReviewees.size} / {teammatesToReview.length} hoàn thành
-              </span>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{ height: '4px', backgroundColor: isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${teammatesToReview.length > 0 ? (completedReviewees.size / teammatesToReview.length) * 100 : 0}%`,
-                  backgroundColor: '#10b981',
-                  transition: 'width 0.3s ease',
-                }}
-              />
-            </div>
-
-            {/* List of candidates */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-              {teammatesToReview.length === 0 ? (
-                <div style={{ padding: '24px 12px', textAlign: 'center', color: theme.subTextColor, fontSize: '13px' }}>
-                  Không có thành viên nào khác để đánh giá.
-                </div>
-              ) : (
-                teammatesToReview.map((m) => {
-                  const isDone = completedReviewees.has(m.id);
-                  const isSelected = m.id === selectedRevieweeId;
-
-                  return (
-                    <div
-                      key={m.id}
-                      onClick={() => setSelectedRevieweeId(m.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '10px 12px',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        border: theme.candidateItemBorder(isSelected),
-                        backgroundColor: theme.candidateItemBg(isSelected),
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {/* Avatar */}
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: '50%',
-                          backgroundColor: m.color,
-                          color: '#fff',
-                          fontWeight: 700,
-                          fontSize: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {getInitials(m.name)}
-                      </div>
-
-                      {/* Info */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            color: theme.candidateNameColor(isSelected),
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {m.name}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '11px',
-                            color: theme.subTextColor,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {m.role}
-                        </div>
-                      </div>
-
-                      {/* Status badge */}
-                      {isDone ? (
-                        <span
-                          title="Đã gửi đánh giá (Đã lưu trong CSDL)"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            color: isLight ? '#059669' : '#34d399',
-                            backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
-                            padding: '3px 7px',
-                            borderRadius: '12px',
-                          }}
-                        >
-                          <CheckCircle size={12} />
-                          {existingSubmissions[m.id]?.averageScore
-                            ? `${existingSubmissions[m.id].averageScore.toFixed(1)} ★`
-                            : 'Đã chấm'}
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            color: theme.subTextColor,
-                            backgroundColor: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.04)',
-                            padding: '3px 7px',
-                            borderRadius: '12px',
-                          }}
-                        >
-                          Chưa chấm
-                        </span>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Note */}
+      {/* 2. Main 2-Column Layout */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'clamp(280px, 28%, 340px) 1fr',
+          gap: '24px',
+          alignItems: 'start',
+        }}
+      >
+        {/* ==================== LEFT COLUMN: CUSTOMER REVIEWS ==================== */}
+        <div
+          style={{
+            backgroundColor: theme.cardBg,
+            border: theme.cardBorder,
+            borderRadius: theme.cardRadius,
+            boxShadow: theme.cardShadow,
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+          }}
+        >
+          {/* Header Icon & Title */}
+          <div style={{ textAlign: 'center', paddingTop: '4px' }}>
             <div
               style={{
-                marginTop: '12px',
-                padding: '10px 12px',
-                backgroundColor: theme.candidateNoteBg,
-                borderRadius: '8px',
-                fontSize: '11px',
-                color: theme.candidateNoteColor,
-                lineHeight: 1.4,
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                backgroundColor: isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.15)',
+                color: '#6366f1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px',
               }}
             >
-              🔒 <strong>Chế độ ẩn danh:</strong> Người được đánh giá sẽ không thấy điểm riêng lẻ của bạn, chỉ thấy điểm trung bình khi đợt chấm đạt đủ ≥ 3 phiếu.
+              <Users size={26} />
+            </div>
+            <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
+              Customer reviews
+            </h2>
+            <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px' }}>
+              Tổng hợp đánh giá đa chiều (360°)
             </div>
           </div>
 
-          {/* Right Column: Active Evaluation Form */}
-          <div
-            style={{
-              backgroundColor: theme.cardBg,
-              border: theme.cardBorder,
-              borderRadius: theme.cardRadius,
-              boxShadow: theme.cardShadow,
-              padding: '24px',
-            }}
-          >
-            {selectedReviewee ? (
-              <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {/* Form Header */}
+          {/* Average Score & Stars */}
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                fontSize: '44px',
+                fontWeight: 800,
+                color: theme.headingColor,
+                lineHeight: 1.1,
+                letterSpacing: '-1px',
+              }}
+            >
+              {stats.totalReviews > 0 ? stats.avgScore.toFixed(2) : '0.00'}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '4px',
+                marginTop: '6px',
+              }}
+            >
+              {[1, 2, 3, 4, 5].map((star) => {
+                const isFilled = stats.totalReviews > 0 && star <= Math.round(stats.avgScore);
+                return (
+                  <Star
+                    key={star}
+                    size={17}
+                    fill={isFilled ? '#f59e0b' : 'transparent'}
+                    color={isFilled ? '#f59e0b' : isLight ? '#cbd5e1' : '#475569'}
+                  />
+                );
+              })}
+            </div>
+            <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '6px' }}>
+              {stats.totalReviews > 0 ? `${stats.totalReviews} Đánh giá (Reviews)` : '0 Đánh giá (Reviews)'}
+            </div>
+          </div>
+
+          {/* Rating Breakdown Bars (5 to 1 Star) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+            {[5, 4, 3, 2, 1].map((star) => {
+              const pct = stats.percentages[star as 1 | 2 | 3 | 4 | 5] || 0;
+              return (
                 <div
+                  key={star}
+                  onClick={() => setSelectedStarFilter(selectedStarFilter === star ? 0 : star)}
                   style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    borderBottom: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-                    paddingBottom: '16px',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: 'pointer',
+                    opacity: selectedStarFilter === 0 || selectedStarFilter === star ? 1 : 0.45,
+                    transition: 'opacity 0.2s ease',
+                  }}
+                  title={`Lọc theo đánh giá ${star} sao`}
+                >
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid #475569',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: theme.textColor,
+                    }}
+                  >
+                    {star}
+                  </div>
+                  <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                  <div
+                    style={{
+                      flex: 1,
+                      height: '8px',
+                      backgroundColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: '100%',
+                        backgroundColor: '#6366f1',
+                        borderRadius: '4px',
+                        transition: 'width 0.4s ease',
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '12px', color: theme.subTextColor, width: '32px', textAlign: 'right' }}>
+                    {pct}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* "What Customers Like" Criteria Badges */}
+          <div>
+            <div
+              style={{
+                fontSize: '14px',
+                fontWeight: 700,
+                color: theme.headingColor,
+                marginBottom: '12px',
+              }}
+            >
+              What Customers Like
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '13px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid #475569',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: theme.subTextColor,
+                    }}
+                  >
+                    1
+                  </span>
+                  <span style={{ fontWeight: 600, color: theme.headingColor }}>Chất lượng (Quality)</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: stats.totalReviews > 0
+                      ? (isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.15)')
+                      : (isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)'),
+                    color: stats.totalReviews > 0 ? '#6366f1' : theme.subTextColor,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: '50%',
-                        backgroundColor: selectedReviewee.color,
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {getInitials(selectedReviewee.name)}
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
-                          Đánh giá cho: {selectedReviewee.name}
-                        </h2>
-                        {completedReviewees.has(selectedReviewee.id) && (
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              color: isLight ? '#059669' : '#34d399',
-                              backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
-                              padding: '2px 8px',
-                              borderRadius: '10px',
-                            }}
-                          >
-                            Đã hoàn thành phiếu
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '13px', color: theme.subTextColor, marginTop: '2px' }}>
-                        {selectedReviewee.role} · {selectedReviewee.email}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Realtime Form Score Average */}
-                  <div
-                    style={{
-                      textAlign: 'right',
-                      backgroundColor: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.12)',
-                      border: isLight ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid rgba(99, 102, 241, 0.25)',
-                      padding: '8px 14px',
-                      borderRadius: '10px',
-                    }}
-                  >
-                    <div style={{ fontSize: '11px', color: isLight ? '#4f46e5' : '#818cf8', fontWeight: 600, textTransform: 'uppercase' }}>
-                      Điểm trung bình phiếu
-                    </div>
-                    <div style={{ fontSize: '20px', fontWeight: 700, color: theme.headingColor, fontFamily: 'monospace' }}>
-                      {currentFormAverage} <span style={{ fontSize: '13px', color: theme.subTextColor }}>/ 5.0 ★</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Round Closed Warning */}
-                {activeRound?.status !== 'OPEN' && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '12px 16px',
-                      backgroundColor: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.1)',
-                      border: isLight ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(239, 68, 68, 0.25)',
-                      borderRadius: '10px',
-                      fontSize: '13px',
-                      color: isLight ? '#b91c1c' : '#fca5a5',
-                    }}
-                  >
-                    <ShieldAlert size={18} color="#f87171" />
-                    <div>
-                      Đợt chấm chéo này hiện đã <strong>kết thúc (CLOSED)</strong>. Bạn chỉ có thể xem báo cáo điểm tổng hợp ở tab Báo cáo 360°.
-                    </div>
-                  </div>
-                )}
-
-                {/* 3 Criteria Interactive Selectors */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {CRITERIA_DEFINITIONS.map((crit) => {
-                    const currentScore =
-                      crit.key === 'QUALITY'
-                        ? qualityScore
-                        : crit.key === 'PUNCTUALITY'
-                        ? punctualityScore
-                        : cooperationScore;
-
-                    const setScore =
-                      crit.key === 'QUALITY'
-                        ? setQualityScore
-                        : crit.key === 'PUNCTUALITY'
-                        ? setPunctualityScore
-                        : setCooperationScore;
-
-                    const selectedOption = crit.options.find((o) => o.score === currentScore);
-
-                    return (
-                      <div
-                        key={crit.key}
-                        style={{
-                          backgroundColor: theme.boxBg,
-                          border: theme.boxBorder,
-                          borderRadius: '14px',
-                          padding: '16px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <div>
-                            <div style={{ fontSize: '14px', fontWeight: 600, color: theme.headingColor }}>
-                              {crit.label}
-                            </div>
-                            <div style={{ fontSize: '12px', color: theme.subTextColor }}>{crit.desc}</div>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '16px',
-                              fontWeight: 700,
-                              color: isLight ? '#4f46e5' : '#818cf8',
-                              fontFamily: 'monospace',
-                              backgroundColor: isLight ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.15)',
-                              padding: '2px 10px',
-                              borderRadius: '6px',
-                            }}
-                          >
-                            {currentScore} / 5
-                          </div>
-                        </div>
-
-                        {/* 5-button score pills */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginTop: '12px' }}>
-                          {crit.options.map((opt) => {
-                            const isChosen = opt.score === currentScore;
-                            return (
-                              <button
-                                type="button"
-                                key={opt.score}
-                                disabled={activeRound?.status !== 'OPEN'}
-                                onClick={() => setScore(opt.score)}
-                                style={{
-                                  padding: '10px 4px',
-                                  borderRadius: '8px',
-                                  border: theme.pillBorder(isChosen),
-                                  backgroundColor: theme.pillBg(isChosen),
-                                  color: theme.pillColor(isChosen),
-                                  cursor: activeRound?.status === 'OPEN' ? 'pointer' : 'not-allowed',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: '2px',
-                                  transition: 'all 0.15s ease',
-                                  boxShadow: isChosen ? '0 2px 8px rgba(99, 102, 241, 0.25)' : 'none',
-                                }}
-                              >
-                                <div style={{ fontSize: '15px', fontWeight: 700 }}>
-                                  {opt.score} ★
-                                </div>
-                                <div style={{ fontSize: '11px', opacity: isChosen ? 0.95 : 0.75 }}>
-                                  {opt.label}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Selected detail description */}
-                        {selectedOption && (
-                          <div style={{ marginTop: '8px', fontSize: '12px', color: isLight ? '#4f46e5' : '#818cf8', fontStyle: 'italic' }}>
-                            ↳ {selectedOption.detail}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Qualitative Anonymous Constructive Feedback */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: theme.headingColor, marginBottom: '6px' }}>
-                    Nhận xét đóng góp mang tính xây dựng (Ẩn danh, không bắt buộc):
-                  </label>
-                  <textarea
-                    rows={3}
-                    disabled={activeRound?.status !== 'OPEN'}
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                    placeholder="Ví dụ: Hoàn thành tốt các task sprint 2, code cẩn thận. Cần chủ động cập nhật trạng thái trên Jira/Kanban sớm hơn để nhóm nắm tiến độ..."
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      backgroundColor: theme.inputBg,
-                      color: theme.inputColor,
-                      border: theme.inputBorder,
-                      borderRadius: '10px',
-                      padding: '12px 14px',
-                      fontSize: '13px',
-                      outline: 'none',
-                      resize: 'vertical',
-                      lineHeight: 1.5,
-                    }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: theme.subTextColor, marginTop: '4px' }}>
-                    <span>Nội dung nhận xét sẽ được mã hóa và làm sạch mọi siêu dữ liệu nhận dạng cá nhân.</span>
-                    <span>{feedbackText.length} / 500 ký tự</span>
-                  </div>
-                </div>
-
-                {/* Already submitted notice */}
-                {completedReviewees.has(selectedReviewee.id) && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      backgroundColor: isLight ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.12)',
-                      border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
-                      color: isLight ? '#059669' : '#34d399',
-                      fontSize: '13px',
-                      marginBottom: '14px',
-                    }}
-                  >
-                    <CheckCircle size={16} style={{ flexShrink: 0 }} />
-                    <span>
-                      Đánh giá của bạn cho <strong>{selectedReviewee.name}</strong> đã được ghi nhận trong CSDL MariaDB{' '}
-                      {existingSubmissions[selectedReviewee.id]?.submittedAt
-                        ? `(Gửi lúc ${new Date(existingSubmissions[selectedReviewee.id].submittedAt!).toLocaleTimeString('vi-VN')} ${new Date(existingSubmissions[selectedReviewee.id].submittedAt!).toLocaleDateString('vi-VN')})`
-                        : ''}
-                      . Điểm TB đã chấm: <strong>{existingSubmissions[selectedReviewee.id]?.averageScore?.toFixed(1) || '5.0'} ★</strong>.
-                    </span>
-                  </div>
-                )}
-
-                {/* Submit button */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
-                  <button
-                    type="submit"
-                    disabled={submitting || activeRound?.status !== 'OPEN' || completedReviewees.has(selectedReviewee.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 22px',
-                      borderRadius: '10px',
-                      backgroundColor:
-                        completedReviewees.has(selectedReviewee.id)
-                          ? isLight ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.2)'
-                          : activeRound?.status === 'OPEN'
-                          ? '#6366f1'
-                          : isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)',
-                      color: completedReviewees.has(selectedReviewee.id) ? (isLight ? '#059669' : '#34d399') : '#fff',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      border: completedReviewees.has(selectedReviewee.id) ? (isLight ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(16, 185, 129, 0.4)') : 'none',
-                      cursor:
-                        completedReviewees.has(selectedReviewee.id)
-                          ? 'default'
-                          : activeRound?.status === 'OPEN'
-                          ? 'pointer'
-                          : 'not-allowed',
-                      opacity: submitting ? 0.7 : 1,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {completedReviewees.has(selectedReviewee.id) ? (
-                      <>
-                        <CheckCircle size={15} />
-                        Đã lưu đánh giá vào CSDL
-                      </>
-                    ) : (
-                      <>
-                        <Send size={15} />
-                        {submitting ? 'Đang gửi ẩn danh...' : 'Gửi đánh giá ẩn danh (Nghị định 13)'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
-                <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-                <p>Vui lòng chọn một thành viên trong danh sách bên trái để tiến hành đánh giá.</p>
+                  {stats.totalReviews > 0 ? `${stats.qualityAvg.toFixed(1)}/5 ★ (${stats.qualityVotes} votes)` : 'Chưa có vote'}
+                </span>
               </div>
-            )}
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '13px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid #475569',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: theme.subTextColor,
+                    }}
+                  >
+                    2
+                  </span>
+                  <span style={{ fontWeight: 600, color: theme.headingColor }}>Tiến độ (Punctuality)</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: stats.totalReviews > 0
+                      ? (isLight ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.15)')
+                      : (isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)'),
+                    color: stats.totalReviews > 0 ? '#10b981' : theme.subTextColor,
+                  }}
+                >
+                  {stats.totalReviews > 0 ? `${stats.punctualityAvg.toFixed(1)}/5 ★ (${stats.punctualityVotes} votes)` : 'Chưa có vote'}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '13px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid #475569',
+                      fontSize: '11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: theme.subTextColor,
+                    }}
+                  >
+                    3
+                  </span>
+                  <span style={{ fontWeight: 600, color: theme.headingColor }}>Hợp tác (Cooperation)</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: stats.totalReviews > 0
+                      ? (isLight ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.15)')
+                      : (isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)'),
+                    color: stats.totalReviews > 0 ? '#f59e0b' : theme.subTextColor,
+                  }}
+                >
+                  {stats.totalReviews > 0 ? `${stats.cooperationAvg.toFixed(1)}/5 ★ (${stats.cooperationVotes} votes)` : 'Chưa có vote'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Member Filter Section */}
+          <div style={{ borderTop: isLight ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '8px' }}>
+              Xem đánh giá theo thành viên:
+            </label>
+            <select
+              value={selectedMemberId}
+              onChange={(e) => setSelectedMemberId(Number(e.target.value))}
+              style={{
+                width: '100%',
+                backgroundColor: theme.inputBg,
+                color: theme.inputColor,
+                border: theme.inputBorder,
+                borderRadius: '10px',
+                padding: '9px 12px',
+                fontSize: '13px',
+                outline: 'none',
+              }}
+            >
+              <option value={0}>Tất cả thành viên trong nhóm</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} · {m.role}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
 
-      {/* 5. Tab 2: Báo Cáo 360° Tổng Hợp (Aggregated 360° Results) */}
-      {activeTab === 'results' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '22px', alignItems: 'start' }}>
-          {/* Left Column: Member Result Selector */}
+        {/* ==================== RIGHT COLUMN: HERO BANNER & REVIEWS ==================== */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Top Banner (Purple Gradient with Connected Avatars & Anonymous Toggle) */}
           <div
             style={{
-              backgroundColor: theme.cardBg,
-              border: theme.cardBorder,
+              position: 'relative',
               borderRadius: theme.cardRadius,
-              boxShadow: theme.cardShadow,
-              padding: '18px',
+              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)',
+              color: '#ffffff',
+              padding: '24px 28px',
+              overflow: 'hidden',
+              boxShadow: '0 12px 32px rgba(79, 70, 229, 0.28)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
             }}
           >
-            <h2 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', color: theme.headingColor }}>
-              Danh sách thành viên
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {members.map((m) => {
-                const res = resultsMap[m.id];
-                const isSelected = m.id === selectedResultMemberId;
-                const isSafe = res?.anonymousSafe ?? false;
+            {/* Banner Left: Team Info */}
+            <div style={{ zIndex: 2, maxWidth: '340px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+                  {activeTeam?.name || 'KINGSHA'}
+                </h3>
+                <span style={{ fontSize: '14px' }}>✨</span>
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
+                {stats.totalReviews > 0 ? `(${stats.totalReviews}) ${stats.avgScore.toFixed(1)} Ratings` : 'Hệ thống đánh giá đồng đội'}
+              </div>
+              <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '6px' }}>
+                Đợt chấm: {activeRound?.name || 'Đợt hiện tại'} · K-Anonymity
+              </div>
+            </div>
 
+            {/* Banner Center: Floating avatar network nodes */}
+            <div
+              style={{
+                position: 'relative',
+                width: '180px',
+                height: '70px',
+                zIndex: 1,
+              }}
+            >
+              {(members.length > 0 ? members.slice(0, 4) : [
+                { id: 1, name: 'Minh Trieu', color: '#3b82f6' },
+                { id: 2, name: 'An Nguyen', color: '#10b981' },
+                { id: 3, name: 'Gia Bao', color: '#ef4444' },
+                { id: 4, name: 'Le Hoang', color: '#06b6d4' },
+              ]).map((member, idx) => {
+                const positions = [
+                  { left: '10px', top: '18px', size: 34, bg: '#3b82f6' },
+                  { left: '60px', top: '5px', size: 30, bg: '#10b981' },
+                  { left: '52px', top: '32px', size: 40, bg: '#ef4444' },
+                  { right: '20px', top: '18px', size: 32, bg: '#06b6d4' },
+                ];
+                const pos = positions[idx] || positions[0];
+                const initials = (member.name || 'MB')
+                  .trim()
+                  .split(' ')
+                  .map((w) => w[0])
+                  .filter(Boolean)
+                  .slice(-2)
+                  .join('')
+                  .toUpperCase() || 'MB';
                 return (
                   <div
-                    key={m.id}
-                    onClick={() => setSelectedResultMemberId(m.id)}
+                    key={member.id}
+                    title={member.name}
                     style={{
+                      position: 'absolute',
+                      left: pos.left,
+                      right: pos.right,
+                      top: pos.top,
+                      width: pos.size,
+                      height: pos.size,
+                      borderRadius: '50%',
+                      border: idx === 2 ? '2px solid #ffffff' : '2px solid rgba(255,255,255,0.85)',
+                      backgroundColor: ('color' in member && member.color) ? member.color : pos.bg,
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: pos.size > 34 ? '13px' : '10px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      border: theme.candidateItemBorder(isSelected),
-                      backgroundColor: theme.candidateItemBg(isSelected),
-                      transition: 'all 0.15s ease',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
                     }}
                   >
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '50%',
-                        backgroundColor: m.color,
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '11px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {getInitials(m.name)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          color: theme.candidateNameColor(isSelected),
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {m.name}
-                      </div>
-                      <div style={{ fontSize: '11px', color: theme.subTextColor }}>
-                        {res ? `${res.submissionCount} phiếu` : 'Đang tải...'}
-                      </div>
-                    </div>
-
-                    {isSafe ? (
-                      <span
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          color: isLight ? '#059669' : '#34d399',
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        {res.averageScore.toFixed(2)} ★
-                      </span>
-                    ) : (
-                      <span
-                        title="Chưa đủ ngưỡng ẩn danh (Cần ≥ 3 phiếu)"
-                        style={{
-                          fontSize: '11px',
-                          color: isLight ? '#d97706' : '#f59e0b',
-                          backgroundColor: isLight ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.12)',
-                          padding: '2px 6px',
-                          borderRadius: '10px',
-                        }}
-                      >
-                        <Lock size={10} style={{ display: 'inline', marginRight: 2 }} /> Ẩn danh
-                      </span>
-                    )}
+                    {initials}
                   </div>
                 );
               })}
             </div>
-          </div>
 
-          {/* Right Column: Detailed 360° Result Card for Selected Member */}
-          <div
-            style={{
-              backgroundColor: theme.cardBg,
-              border: theme.cardBorder,
-              borderRadius: theme.cardRadius,
-              boxShadow: theme.cardShadow,
-              padding: '24px',
-            }}
-          >
-            {loadingResults ? (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
-                <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
-                <p>Đang tổng hợp dữ liệu đánh giá ẩn danh...</p>
-              </div>
-            ) : activeResult ? (
-              <div>
-                {/* Result Member Header */}
-                {(() => {
-                  const targetMember = members.find((m) => m.id === selectedResultMemberId);
-                  return (
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        borderBottom: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-                        paddingBottom: '16px',
-                        marginBottom: '20px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: '50%',
-                            backgroundColor: targetMember?.color || '#6366f1',
-                            color: '#fff',
-                            fontWeight: 700,
-                            fontSize: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {getInitials(targetMember?.name || '')}
-                        </div>
-                        <div>
-                          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
-                            {targetMember?.name}
-                          </h2>
-                          <div style={{ fontSize: '13px', color: theme.subTextColor }}>
-                            {targetMember?.role} · Đợt chấm: {activeRound?.name}
-                          </div>
-                        </div>
-                      </div>
+            {/* Banner Right: KEY FEATURE - TOGGLE "ẨN DANH" */}
+            <div
+              style={{
+                zIndex: 2,
+                backgroundColor: 'rgba(0, 0, 0, 0.22)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '16px',
+                padding: '12px 18px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {isAnonymous ? <EyeOff size={18} color="#a7f3d0" /> : <Eye size={18} color="#fed7aa" />}
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                    Chế độ Ẩn danh:
+                  </span>
+                </div>
 
-                      {activeResult.anonymousSafe ? (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '6px 14px',
-                            borderRadius: '20px',
-                            backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
-                            color: isLight ? '#059669' : '#34d399',
-                            border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                          }}
-                        >
-                          <ShieldCheck size={16} /> Đạt chuẩn ẩn danh (≥ 3 phiếu)
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '6px 14px',
-                            borderRadius: '20px',
-                            backgroundColor: isLight ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.15)',
-                            color: isLight ? '#d97706' : '#fbbf24',
-                            border: isLight ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(245, 158, 11, 0.3)',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                          }}
-                        >
-                          <Lock size={14} /> Bảo vệ danh tính (Dưới ngưỡng)
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Condition: Anonymity Threshold Met */}
-                {activeResult.anonymousSafe ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                    {/* Big Score Card */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '220px 1fr',
-                        gap: '20px',
-                        padding: '20px',
-                        backgroundColor: theme.avgScoreCardBg,
-                        border: theme.avgScoreCardBorder,
-                        borderRadius: '16px',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div style={{ textAlign: 'center', borderRight: theme.avgScoreCardDivider, paddingRight: '16px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: isLight ? '#4f46e5' : '#818cf8', textTransform: 'uppercase' }}>
-                          Điểm đánh giá trung bình
-                        </div>
-                        <div style={{ fontSize: '42px', fontWeight: 800, color: theme.avgScoreCardNumber, fontFamily: 'monospace', margin: '4px 0' }}>
-                          {activeResult.averageScore.toFixed(2)}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '3px', color: '#fbbf24' }}>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              size={16}
-                              fill={star <= Math.round(activeResult.averageScore) ? '#fbbf24' : 'transparent'}
-                            />
-                          ))}
-                        </div>
-                        <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '6px' }}>
-                          Trên thang điểm 5.0 chuẩn Agile
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <Award size={18} color="#818cf8" />
-                          <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: theme.headingColor }}>
-                            Tổng hợp {activeResult.submissionCount} lượt đánh giá hợp lệ
-                          </h3>
-                        </div>
-                        <p style={{ margin: 0, fontSize: '13px', color: theme.subTextColor, lineHeight: 1.5 }}>
-                          Kết quả được tổng hợp tự động từ các thành viên trong nhóm dự án theo chuẩn K-Anonymity (Nghị định 13/2023/NĐ-CP). Điểm số này được tính vào Hệ số Đóng góp Toàn diện (FairShare Comprehensive Score).
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Qualitative Comments Wall */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                        <MessageSquare size={18} color="#818cf8" />
-                        <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: theme.headingColor }}>
-                          Nhận xét đóng góp định tính (Đã ẩn danh)
-                        </h3>
-                      </div>
-
-                      {activeResult.feedbackComments && activeResult.feedbackComments.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {activeResult.feedbackComments.map((cmt, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                padding: '14px 16px',
-                                backgroundColor: theme.commentCardBg,
-                                border: theme.commentCardBorder,
-                                borderRadius: '10px',
-                                fontSize: '13px',
-                                color: theme.commentCardText,
-                                lineHeight: 1.5,
-                                fontStyle: 'italic',
-                                position: 'relative',
-                              }}
-                            >
-                              <span style={{ fontSize: '18px', color: '#6366f1', marginRight: '6px' }}>“</span>
-                              {cmt}
-                              <span style={{ fontSize: '18px', color: '#6366f1', marginLeft: '4px' }}>”</span>
-                              <div style={{ marginTop: '6px', fontSize: '11px', color: theme.subTextColor, fontStyle: 'normal' }}>
-                                🔒 Thành viên nhóm ẩn danh #{idx + 1} · Xác nhận tuân thủ Nghị định 13
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            padding: '24px',
-                            textAlign: 'center',
-                            backgroundColor: theme.commentCardBg,
-                            borderRadius: '10px',
-                            color: theme.subTextColor,
-                            fontSize: '13px',
-                          }}
-                        >
-                          Không có nhận xét định tính bổ sung nào cho đợt chấm này.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Condition: Anonymity Threshold NOT Met (< 3 submissions) */
+                <button
+                  type="button"
+                  onClick={() => setIsAnonymous(!isAnonymous)}
+                  style={{
+                    position: 'relative',
+                    width: '48px',
+                    height: '26px',
+                    borderRadius: '13px',
+                    backgroundColor: isAnonymous ? '#10b981' : 'rgba(255, 255, 255, 0.35)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s ease',
+                    padding: '2px',
+                    outline: 'none',
+                  }}
+                  title={isAnonymous ? 'Bật: Hiển thị Anonymous001, Anonymous002,...' : 'Tắt: Hiển thị tên thật user'}
+                >
                   <div
                     style={{
-                      padding: '40px 24px',
-                      textAlign: 'center',
-                      backgroundColor: theme.lockCardBg,
-                      border: theme.lockCardBorder,
-                      borderRadius: '16px',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ffffff',
+                      transform: isAnonymous ? 'translateX(22px)' : 'translateX(0)',
+                      transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                     }}
-                  >
-                    <div
-                      style={{
-                        width: 54,
-                        height: 54,
-                        borderRadius: '50%',
-                        backgroundColor: isLight ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.15)',
-                        color: isLight ? '#d97706' : '#fbbf24',
-                        display: 'grid',
-                        placeItems: 'center',
-                        margin: '0 auto 16px',
-                      }}
-                    >
-                      <Lock size={26} />
-                    </div>
-
-                    <h3 style={{ fontSize: '17px', fontWeight: 700, color: theme.lockCardTitle, margin: '0 0 8px 0' }}>
-                      Bảo vệ danh tính cá nhân (K-Anonymity Gate)
-                    </h3>
-
-                    <p style={{ fontSize: '13px', color: theme.lockCardText, maxWidth: '540px', margin: '0 auto 16px', lineHeight: 1.6 }}>
-                      Hiện tại thành viên này mới nhận được <strong>{activeResult.submissionCount} / 3</strong> lượt đánh giá tối thiểu. Để đảm bảo người được đánh giá không thể suy đoán hoặc xác định danh tính đồng đội đã chấm mình, hệ thống tạm thời khóa kết quả chi tiết.
-                    </p>
-
-                    <div style={{ maxWidth: '320px', margin: '0 auto 18px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: theme.subTextColor, marginBottom: '6px' }}>
-                        <span>Tiến độ thu thập</span>
-                        <span style={{ color: isLight ? '#d97706' : '#fbbf24', fontWeight: 600 }}>{activeResult.submissionCount} / 3 phiếu</span>
-                      </div>
-                      <div style={{ height: '6px', backgroundColor: theme.lockCardTrack, borderRadius: '3px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${(activeResult.submissionCount / 3) * 100}%`,
-                            backgroundColor: '#f59e0b',
-                            transition: 'width 0.3s ease',
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: '12px', color: theme.subTextColor }}>
-                      📌 Kết quả sẽ tự động mở và tính vào bảng điểm khi có đủ từ 3 phiếu đánh giá hợp lệ trở lên.
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
-                <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-                <p>Chọn một thành viên trong danh sách bên trái để xem kết quả đánh giá 360°.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 6. Modal: Leader Create New Review Round */}
-      {showCreateModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: theme.modalBg,
-              border: theme.modalBorder,
-              borderRadius: '20px',
-              padding: '24px',
-              maxWidth: '480px',
-              width: '100%',
-              boxShadow: theme.modalShadow,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={18} color="#818cf8" />
-                <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
-                  Khởi tạo đợt chấm chéo mới
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: theme.subTextColor,
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRound} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: theme.headingColor, marginBottom: '6px' }}>
-                  Sprint áp dụng:
-                </label>
-                <select
-                  value={newRoundSprintId}
-                  onChange={(e) => {
-                    const spId = Number(e.target.value);
-                    setNewRoundSprintId(spId);
-                    const sp = sprints.find((s) => s.id === spId);
-                    if (sp) {
-                      setNewRoundName(`Đánh giá chéo ${sp.name}`);
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    backgroundColor: theme.inputBg,
-                    color: theme.inputColor,
-                    border: theme.inputBorder,
-                    borderRadius: '8px',
-                    padding: '9px 12px',
-                    fontSize: '13px',
-                    outline: 'none',
-                  }}
-                >
-                  {sprints.map((sp) => (
-                    <option key={sp.id} value={sp.id} style={{ backgroundColor: theme.cardBg, color: theme.textColor }}>
-                      {sp.name} ({sp.status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: theme.headingColor, marginBottom: '6px' }}>
-                  Tên đợt chấm chéo:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newRoundName}
-                  onChange={(e) => setNewRoundName(e.target.value)}
-                  placeholder="Ví dụ: Đánh giá chéo Sprint 3 - Kiểm thử & Đóng gói"
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    backgroundColor: theme.inputBg,
-                    color: theme.inputColor,
-                    border: theme.inputBorder,
-                    borderRadius: '8px',
-                    padding: '9px 12px',
-                    fontSize: '13px',
-                    outline: 'none',
-                  }}
-                />
+                  />
+                </button>
               </div>
 
               <div
                 style={{
-                  padding: '10px 12px',
-                  backgroundColor: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.08)',
-                  border: isLight ? '1px solid rgba(99, 102, 241, 0.15)' : '1px solid rgba(99, 102, 241, 0.2)',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  color: theme.subTextColor,
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: isAnonymous ? '#a7f3d0' : '#fed7aa',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                🔒 Đợt chấm mới sẽ được tạo ở trạng thái <strong>Bản nháp (DRAFT)</strong> với ngưỡng tối thiểu là 3 lượt đánh giá theo quy chuẩn Nghị định 13/2023/NĐ-CP.
+                {isAnonymous ? (
+                  <>
+                    <CheckCircle2 size={12} /> BẬT: Hiển thị Anonymous001, Anonymous002,...
+                  </>
+                ) : (
+                  <>
+                    <Eye size={12} /> TẮT: Hiển thị tên thật thành viên
+                  </>
+                )}
               </div>
+            </div>
+          </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+          {/* Sub-bar: Round selector & Star filter pills */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: theme.subTextColor }}>
+                Đợt chấm:
+              </span>
+              <select
+                value={activeRoundId}
+                onChange={(e) => setActiveRoundId(Number(e.target.value))}
+                style={{
+                  backgroundColor: theme.cardBg,
+                  color: theme.headingColor,
+                  border: theme.cardBorder,
+                  borderRadius: '10px',
+                  padding: '7px 12px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  outline: 'none',
+                  boxShadow: theme.cardShadow,
+                }}
+              >
+                {rounds.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Star Filters */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={() => setSelectedStarFilter(0)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: theme.filterBadgeBg(selectedStarFilter === 0),
+                  color: theme.filterBadgeColor(selectedStarFilter === 0),
+                }}
+              >
+                Tất cả ({reviews.length})
+              </button>
+              {[5, 4, 3].map((star) => (
                 <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  key={star}
+                  onClick={() => setSelectedStarFilter(star)}
                   style={{
-                    padding: '8px 16px',
+                    padding: '5px 10px',
                     borderRadius: '8px',
-                    backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
-                    color: isLight ? '#475569' : '#cbd5e1',
-                    fontSize: '13px',
-                    border: isLight ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingRound}
-                  style={{
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    backgroundColor: '#6366f1',
-                    color: '#fff',
-                    fontSize: '13px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
+                    gap: '3px',
+                    backgroundColor: theme.filterBadgeBg(selectedStarFilter === star),
+                    color: theme.filterBadgeColor(selectedStarFilter === star),
                   }}
                 >
-                  <Plus size={14} /> {creatingRound ? 'Đang tạo...' : 'Tạo đợt chấm'}
+                  <span>{star}</span>
+                  <Star size={11} fill={selectedStarFilter === star ? '#fff' : '#f59e0b'} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ==================== REVIEW CARDS LIST ==================== */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {loadingReviews ? (
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
+                <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                <p>Đang tải danh sách đánh giá...</p>
+              </div>
+            ) : filteredReviews.length === 0 ? (
+              <div
+                style={{
+                  backgroundColor: theme.cardBg,
+                  border: theme.cardBorder,
+                  borderRadius: theme.cardRadius,
+                  padding: '48px 24px',
+                  textAlign: 'center',
+                  color: theme.subTextColor,
+                }}
+              >
+                <MessageSquare size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 6px', color: theme.headingColor }}>
+                  Chưa có đánh giá nào phù hợp
+                </h3>
+                <p style={{ fontSize: '13px', margin: '0 0 16px' }}>
+                  Hãy là người đầu tiên chấm điểm đồng đội cho đợt review này!
+                </p>
+                <button
+                  onClick={openReviewModal}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '999px',
+                    backgroundColor: '#6366f1',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                  }}
+                >
+                  Bắt đầu chấm điểm ngay
                 </button>
               </div>
-            </form>
+            ) : (
+              filteredReviews.map((review) => {
+                const displayName = isAnonymous
+                  ? reviewerAnonymousMap.get(review.reviewerId) || `Anonymous${String(review.reviewerId % 100).padStart(3, '0')}`
+                  : review.reviewerName;
+
+                const reviewerObj = members.find((m) => m.id === review.reviewerId);
+                const avatarBg = isAnonymous ? '#6366f1' : reviewerObj?.color || '#3b82f6';
+                const avatarText = isAnonymous ? '🕶️' : getInitials(review.reviewerName);
+
+                const currentLikes = likesMap[review.id] ?? (review.likesCount || 0);
+                const isLiked = Boolean(userLikedMap[review.id]);
+
+                const formattedDate = review.submittedAt
+                  ? new Date(review.submittedAt).toLocaleDateString('vi-VN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Gần đây';
+
+                return (
+                  <div
+                    key={review.id}
+                    style={{
+                      backgroundColor: theme.reviewCardBg,
+                      border: theme.reviewCardBorder,
+                      borderRadius: '18px',
+                      padding: '22px 24px',
+                      boxShadow: theme.cardShadow,
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px',
+                    }}
+                  >
+                    {/* Card Header: Avatar + Name + Date & Stars */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: '50%',
+                            backgroundColor: avatarBg,
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            fontSize: isAnonymous ? '16px' : '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                          }}
+                        >
+                          {avatarText}
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <h4
+                              style={{
+                                fontSize: '15px',
+                                fontWeight: 700,
+                                margin: 0,
+                                color: theme.headingColor,
+                              }}
+                            >
+                              {displayName}
+                            </h4>
+                            {isAnonymous && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                  padding: '1px 6px',
+                                  borderRadius: '10px',
+                                  backgroundColor: isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)',
+                                  color: '#6366f1',
+                                }}
+                              >
+                                Ẩn danh K-Anonymity
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px' }}>
+                            {formattedDate} · Chấm cho:{' '}
+                            <strong style={{ color: theme.headingColor }}>
+                              {review.revieweeName || 'Thành viên'}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top Right Stars */}
+                      <div style={{ display: 'flex', gap: '3px', color: '#f59e0b' }}>
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            size={16}
+                            fill={s <= Math.round(review.averageScore) ? '#f59e0b' : 'transparent'}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Criteria score tags */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          backgroundColor: theme.pillBg,
+                          border: theme.pillBorder,
+                          color: theme.pillText,
+                        }}
+                      >
+                        Chất lượng: {review.qualityScore ?? 5}/5 ★
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          backgroundColor: theme.pillBg,
+                          border: theme.pillBorder,
+                          color: theme.pillText,
+                        }}
+                      >
+                        Tiến độ: {review.punctualityScore ?? 5}/5 ★
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          backgroundColor: theme.pillBg,
+                          border: theme.pillBorder,
+                          color: theme.pillText,
+                        }}
+                      >
+                        Hợp tác: {review.cooperationScore ?? 5}/5 ★
+                      </span>
+                    </div>
+
+                    {/* Linked Done Card Badge */}
+                    {review.cardTitle && (
+                      <div style={{ marginBottom: '-4px' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            backgroundColor: isLight ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
+                            border: '1px solid rgba(16,185,129,0.25)',
+                            color: '#10b981',
+                          }}
+                        >
+                          ✅ Thẻ hoàn thành: {review.cardTitle}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Feedback Content Text */}
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '13px',
+                        lineHeight: 1.6,
+                        color: theme.textColor,
+                      }}
+                    >
+                      {review.feedback ||
+                        'Thành viên hoàn thành tốt công việc được phân công, phối hợp ăn ý với nhóm và duy trì tiến độ sprint ổn định.'}
+                    </p>
+
+                    {/* Footer Actions: Reply, Share, Likes */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '4px',
+                        paddingTop: '10px',
+                        borderTop: isLight ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <button
+                          type="button"
+                          onClick={() => showToast({ message: 'Tính năng phản hồi đang được phát triển', type: 'info' })}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: theme.subTextColor,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <MessageCircle size={14} /> Reply
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(review.feedback);
+                              showToast({ message: 'Đã sao chép nhận xét!', type: 'success' });
+                            }
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: theme.subTextColor,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Share2 size={14} /> Share
+                        </button>
+                      </div>
+
+                      {/* Likes Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLike(review.id, review.likesCount || 0)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'none',
+                          border: 'none',
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: isLiked ? '#6366f1' : theme.subTextColor,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          backgroundColor: isLiked
+                            ? isLight
+                              ? 'rgba(99, 102, 241, 0.1)'
+                              : 'rgba(99, 102, 241, 0.15)'
+                            : 'transparent',
+                        }}
+                      >
+                        <span>{currentLikes}</span>
+                        <ThumbsUp size={15} fill={isLiked ? '#6366f1' : 'transparent'} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ==================== MULTI-STEP MODAL: CHẤM ĐIỂM (4 BƯỚC) ==================== */}
+      {/* ========================================================================= */}
+      {showReviewModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem',
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submittingReview) setShowReviewModal(false);
+          }}
+        >
+          <div
+            className="mini-window"
+            style={{
+              width: '100%',
+              maxWidth: '620px',
+              borderRadius: '26px',
+              border: '1px solid var(--line)',
+              background: 'var(--surface)',
+              color: 'var(--fg)',
+              boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--glass-line)',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.25s ease',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '1.5rem 1.75rem 0.5rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                position: 'relative',
+              }}
+            >
+              <div style={{ flex: 1, paddingRight: '1.5rem' }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '1.35rem',
+                    fontWeight: 700,
+                    letterSpacing: '-0.02em',
+                    color: 'var(--fg)',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {reviewStep === 1 && 'Chọn Sprint & Đồng đội đánh giá'}
+                  {reviewStep === 2 && 'Chọn thẻ công việc đã hoàn thành (Done)'}
+                  {reviewStep === 3 && 'Chấm điểm thanh trượt & Nhận xét'}
+                  {reviewStep === 4 && 'Kiểm tra & Xác nhận gửi phiếu chấm'}
+                </h2>
+                <p
+                  style={{
+                    margin: '0.4rem 0 0',
+                    fontSize: '0.85rem',
+                    color: 'var(--fg3)',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {reviewStep === 1 && 'Chọn sprint diễn ra và đồng đội bạn muốn đánh giá chéo trong nhóm.'}
+                  {reviewStep === 2 && 'Chọn thẻ nhiệm vụ thuộc cột Done mà đồng đội đã hoàn thành để chấm.'}
+                  {reviewStep === 3 && 'Kéo thanh trượt từ 1-5 sao theo từng tiêu chí và để lại nhận xét chân thành.'}
+                  {reviewStep === 4 && 'Xem lại tổng thể kết quả trước khi hệ thống lưu đánh giá vào cơ sở dữ liệu.'}
+                </p>
+              </div>
+
+              {/* Circular Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowReviewModal(false)}
+                disabled={submittingReview}
+                aria-label="Đóng"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--surface2)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--fg2)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            {/* Modal Content Body */}
+            <div style={{ padding: '1.25rem 1.75rem 1.25rem', maxHeight: '68vh', overflowY: 'auto' }}>
+              {/* ==================== BƯỚC 1: SPRINT & REVIEWEE ==================== */}
+              {reviewStep === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Select Sprint */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)', marginBottom: '8px' }}>
+                      1. Chọn Sprint / Tuần làm việc:
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: sprints.length > 1 ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                      {sprints.map((sp) => {
+                        const isSelected = modalSprintId === sp.id;
+                        return (
+                          <div
+                            key={sp.id}
+                            onClick={() => setModalSprintId(sp.id)}
+                            style={{
+                              padding: '12px 14px',
+                              borderRadius: '16px',
+                              background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface2)',
+                              border: isSelected ? '2px solid #6366f1' : '1px solid var(--line)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? '#6366f1' : 'var(--fg)' }}>
+                                {sp.name}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px' }}>
+                                Trạng thái: {sp.status === 'ACTIVE' ? 'Đang chạy' : 'Đã kết thúc'}
+                              </div>
+                            </div>
+                            {isSelected && <CheckCircle2 size={18} color="#6366f1" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Select Round if multiple exist */}
+                  {rounds.length > 1 && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)', marginBottom: '6px' }}>
+                        Đợt chấm chéo tương ứng:
+                      </label>
+                      <select
+                        value={modalRoundId}
+                        onChange={(e) => setModalRoundId(Number(e.target.value))}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'var(--surface2)',
+                          color: 'var(--fg)',
+                          border: '1px solid var(--line)',
+                          borderRadius: '12px',
+                          padding: '10px 14px',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {rounds.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} ({r.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Select Teammate (Anti-Self-Review) */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)', marginBottom: '8px' }}>
+                      2. Chọn đồng đội cần chấm điểm:
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+                      {members
+                        .filter((m) => m.id !== currentEvaluatorId)
+                        .map((m) => {
+                          const isSelected = modalRevieweeId === m.id;
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={() => setModalRevieweeId(m.id)}
+                              style={{
+                                padding: '12px 14px',
+                                borderRadius: '16px',
+                                background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface2)',
+                                border: isSelected ? '2px solid #6366f1' : '1px solid var(--line)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: '50%',
+                                  backgroundColor: m.color,
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                  fontSize: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {getInitials(m.name)}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? '#6366f1' : 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {m.name}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px' }}>
+                                  {m.role}
+                                </div>
+                              </div>
+                              {isSelected && <CheckCircle2 size={18} color="#6366f1" />}
+                            </div>
+                          );
+                        })}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
+                      ⚠️ Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ==================== BƯỚC 2: CHỌN THẺ ĐÃ DONE ==================== */}
+              {reviewStep === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--fg3)' }}>
+                    Chọn thẻ công việc hoàn thành của <strong>{selectedTeammate?.name}</strong> trong sprint:
+                  </div>
+
+                  {/* Option: No specific card */}
+                  <div
+                    onClick={() => setModalCardId(0)}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '16px',
+                      background: modalCardId === 0 ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface2)',
+                      border: modalCardId === 0 ? '2px solid #6366f1' : '1px solid var(--line)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Award size={18} color={modalCardId === 0 ? '#6366f1' : 'var(--fg3)'} />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: modalCardId === 0 ? '#6366f1' : 'var(--fg)' }}>
+                          Đánh giá chung toàn sprint
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px' }}>
+                          Không gắn vào một thẻ cụ thể, đánh giá tổng thể đóng góp của thành viên
+                        </div>
+                      </div>
+                    </div>
+                    {modalCardId === 0 && <CheckCircle2 size={18} color="#6366f1" />}
+                  </div>
+
+                  {/* Done Cards List */}
+                  {doneCards.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '30px 20px',
+                        textAlign: 'center',
+                        borderRadius: '16px',
+                        border: '1px dashed var(--line)',
+                        color: 'var(--fg3)',
+                        fontSize: '13px',
+                      }}
+                    >
+                      Hiện chưa có thẻ nào ở cột "Done" trong sprint này. Bạn có thể chọn "Đánh giá chung toàn sprint".
+                    </div>
+                  ) : (
+                    doneCards.map((card) => {
+                      const isSelected = modalCardId === card.id;
+                      return (
+                        <div
+                          key={card.id}
+                          onClick={() => setModalCardId(card.id)}
+                          style={{
+                            padding: '14px 16px',
+                            borderRadius: '16px',
+                            background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface2)',
+                            border: isSelected ? '2px solid #6366f1' : '1px solid var(--line)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                            <CheckSquare size={18} color={isSelected ? '#10b981' : '#10b981'} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? '#6366f1' : 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {card.title}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px', display: 'flex', gap: '8px' }}>
+                                <span style={{ color: '#10b981', fontWeight: 600 }}>● Đã hoàn thành (Done)</span>
+                                {card.storyPoints != null && <span>· {card.storyPoints} SP</span>}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle2 size={18} color="#6366f1" className="shrink-0" />}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* ==================== BƯỚC 3: RANGE SLIDERS & COMMENT & ANONYMOUS ==================== */}
+              {reviewStep === 3 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  {/* Slider 1: Quality */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '16px',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
+                          1. Chất lượng công việc (Quality)
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--fg3)' }}>
+                          Code sạch, ít bug, kiến trúc chặt chẽ, hoàn thiện đúng yêu cầu
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#6366f1' }}>
+                        {modalQuality} / 5 ★
+                      </span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      step={1}
+                      value={modalQuality}
+                      onChange={(e) => setModalQuality(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        accentColor: '#6366f1',
+                        cursor: 'pointer',
+                        margin: '8px 0',
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
+                      <span>1★ Kém</span>
+                      <span>2★ Trung bình</span>
+                      <span>3★ Đạt yêu cầu</span>
+                      <span>4★ Tốt</span>
+                      <span style={{ color: '#6366f1' }}>5★ Xuất sắc</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#6366f1', fontWeight: 600, marginTop: '4px', textAlign: 'right' }}>
+                      {SCORE_LABELS[modalQuality]}
+                    </div>
+                  </div>
+
+                  {/* Slider 2: Punctuality */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '16px',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
+                          2. Tiến độ &amp; Đúng hạn (Punctuality)
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--fg3)' }}>
+                          Bàn giao task đúng hạn deadline cam kết, không làm nghẽn tiến độ sprint
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#10b981' }}>
+                        {modalPunctuality} / 5 ★
+                      </span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      step={1}
+                      value={modalPunctuality}
+                      onChange={(e) => setModalPunctuality(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        accentColor: '#10b981',
+                        cursor: 'pointer',
+                        margin: '8px 0',
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
+                      <span>1★ Rất trễ</span>
+                      <span>2★ Chậm trễ</span>
+                      <span>3★ Đúng hẹn</span>
+                      <span>4★ Sớm hạn</span>
+                      <span style={{ color: '#10b981' }}>5★ Xuất sắc</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, marginTop: '4px', textAlign: 'right' }}>
+                      {SCORE_LABELS[modalPunctuality]}
+                    </div>
+                  </div>
+
+                  {/* Slider 3: Cooperation */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '16px',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
+                          3. Tinh thần hợp tác &amp; Giao tiếp (Cooperation)
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--fg3)' }}>
+                          Hỗ trợ đồng đội gỡ blocker, tham gia trao đổi tích cực trong daily meeting
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#f59e0b' }}>
+                        {modalCooperation} / 5 ★
+                      </span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      step={1}
+                      value={modalCooperation}
+                      onChange={(e) => setModalCooperation(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        accentColor: '#f59e0b',
+                        cursor: 'pointer',
+                        margin: '8px 0',
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
+                      <span>1★ Thụ động</span>
+                      <span>2★ Ít giao tiếp</span>
+                      <span>3★ Hợp tác tốt</span>
+                      <span>4★ Tích cực</span>
+                      <span style={{ color: '#f59e0b' }}>5★ Cống hiến cao</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 600, marginTop: '4px', textAlign: 'right' }}>
+                      {SCORE_LABELS[modalCooperation]}
+                    </div>
+                  </div>
+
+                  {/* Comment / Qualitative Feedback */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)', marginBottom: '6px' }}>
+                      Nhận xét định tính (Comment):
+                    </label>
+                    <textarea
+                      value={modalFeedback}
+                      onChange={(e) => setModalFeedback(e.target.value)}
+                      placeholder="Ghi nhận điểm mạnh nổi bật và góp ý cải thiện cụ thể cho đồng đội..."
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'var(--surface2)',
+                        color: 'var(--fg)',
+                        border: '1px solid var(--line)',
+                        borderRadius: '12px',
+                        padding: '12px 14px',
+                        fontSize: '13px',
+                        outline: 'none',
+                        lineHeight: 1.5,
+                      }}
+                      required
+                    />
+                  </div>
+
+                  {/* In-form Anonymous Toggle Switch */}
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '14px',
+                      background: modalIsAnonymous ? 'rgba(99, 102, 241, 0.08)' : 'var(--surface2)',
+                      border: modalIsAnonymous ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid var(--line)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {modalIsAnonymous ? <EyeOff size={18} color="#6366f1" /> : <Eye size={18} color="var(--fg2)" />}
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
+                          Bật chế độ Ẩn danh (Anonymous)
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px' }}>
+                          {modalIsAnonymous
+                            ? 'Phiếu chấm sẽ hiển thị dưới danh xưng Anonymous (K-Anonymity)'
+                            : 'Phiếu chấm sẽ hiển thị tên thật của bạn'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setModalIsAnonymous(!modalIsAnonymous)}
+                      style={{
+                        position: 'relative',
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        backgroundColor: modalIsAnonymous ? '#10b981' : 'var(--line)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease',
+                        padding: '2px',
+                        outline: 'none',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ffffff',
+                          transform: modalIsAnonymous ? 'translateX(20px)' : 'translateX(0)',
+                          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        }}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ==================== BƯỚC 4: XÁC NHẬN & GỬI (CONFIRM) ==================== */}
+              {reviewStep === 4 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div
+                    style={{
+                      padding: '16px',
+                      borderRadius: '16px',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    {/* Teammate info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid var(--line)' }}>
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          backgroundColor: selectedTeammate?.color || '#6366f1',
+                          color: '#fff',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {getInitials(selectedTeammate?.name || 'TV')}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--fg)' }}>
+                          {selectedTeammate?.name}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--fg3)', marginTop: '2px' }}>
+                          {selectedTeammate?.role} · {selectedSprint?.name || 'Sprint hiện tại'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Linked Done Card */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Thẻ nhiệm vụ:</span>
+                      <span style={{ fontWeight: 600, color: '#10b981' }}>
+                        {selectedCard ? `✅ ${selectedCard.title}` : 'Đánh giá chung toàn sprint'}
+                      </span>
+                    </div>
+
+                    {/* Scores preview */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Điểm bình quân:</span>
+                      <span style={{ fontWeight: 800, fontSize: '15px', color: '#6366f1' }}>
+                        {((modalQuality + modalPunctuality + modalCooperation) / 3).toFixed(2)} / 5.0 ★
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '11px', marginTop: '4px' }}>
+                      <div style={{ padding: '6px 8px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
+                        Chất lượng: <strong>{modalQuality}★</strong>
+                      </div>
+                      <div style={{ padding: '6px 8px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
+                        Tiến độ: <strong>{modalPunctuality}★</strong>
+                      </div>
+                      <div style={{ padding: '6px 8px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
+                        Hợp tác: <strong>{modalCooperation}★</strong>
+                      </div>
+                    </div>
+
+                    {/* Feedback preview */}
+                    <div style={{ marginTop: '4px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--fg3)', marginBottom: '4px' }}>Nhận xét gửi đi:</div>
+                      <div style={{ fontSize: '13px', fontStyle: 'italic', background: 'var(--surface)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--line)' }}>
+                        "{modalFeedback || '(Chưa nhập nhận xét)'}"
+                      </div>
+                    </div>
+
+                    {/* Identity Mode */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
+                      <span style={{ color: 'var(--fg3)' }}>Chế độ hiển thị:</span>
+                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1' }}>
+                        {modalIsAnonymous ? '🕶️ Ẩn danh (Anonymous K-Anonymity)' : '👤 Công khai tên thật'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Step Footer with Progress Bar */}
+            <div
+              style={{
+                padding: '0.9rem 1.75rem 1.25rem',
+                borderTop: '1px solid var(--line)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--surface)',
+              }}
+            >
+              {/* Progress indicator */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    height: '6px',
+                    width: '64px',
+                    borderRadius: '999px',
+                    background: 'var(--surface2)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${(reviewStep / 4) * 100}%`,
+                      borderRadius: '999px',
+                      background: 'linear-gradient(90deg, #6366f1, #a855f7)',
+                      transition: 'width 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--fg3)' }}>
+                  Bước {reviewStep}/4
+                </span>
+              </div>
+
+              {/* Navigation Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                {reviewStep > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setReviewStep(reviewStep - 1)}
+                    disabled={submittingReview}
+                    style={{
+                      padding: '0.55rem 1.15rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      color: 'var(--fg)',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <ChevronLeft size={15} /> Quay lại
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowReviewModal(false)}
+                    disabled={submittingReview}
+                    style={{
+                      padding: '0.55rem 1.15rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      color: 'var(--fg3)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Hủy
+                  </button>
+                )}
+
+                {reviewStep < 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (reviewStep === 1 && (!modalRevieweeId || modalRevieweeId === currentEvaluatorId)) {
+                        showToast({ message: 'Vui lòng chọn đồng đội cần đánh giá', type: 'error' });
+                        return;
+                      }
+                      if (reviewStep === 3 && !modalFeedback.trim()) {
+                        showToast({ message: 'Vui lòng điền nhận xét định tính cho đồng đội', type: 'error' });
+                        return;
+                      }
+                      setReviewStep(reviewStep + 1);
+                    }}
+                    style={{
+                      padding: '0.55rem 1.4rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      background: '#6366f1',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                    }}
+                  >
+                    Tiếp tục <ChevronRight size={15} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleFinalSubmitReview}
+                    disabled={submittingReview}
+                    style={{
+                      padding: '0.55rem 1.45rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      background: '#6366f1',
+                      border: 'none',
+                      cursor: submittingReview ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                    }}
+                  >
+                    {submittingReview ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
+                    Xác nhận gửi đánh giá
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ==================== MULTI-STEP MODAL: TẠO ĐỢT MỚI (3 BƯỚC) ==================== */}
+      {/* ========================================================================= */}
+      {showCreateModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem',
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !creatingRound) setShowCreateModal(false);
+          }}
+        >
+          <div
+            className="mini-window"
+            style={{
+              width: '100%',
+              maxWidth: '540px',
+              borderRadius: '26px',
+              border: '1px solid var(--line)',
+              background: 'var(--surface)',
+              color: 'var(--fg)',
+              boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--glass-line)',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.25s ease',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '1.5rem 1.75rem 0.5rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                position: 'relative',
+              }}
+            >
+              <div style={{ flex: 1, paddingRight: '1.5rem' }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '1.35rem',
+                    fontWeight: 700,
+                    letterSpacing: '-0.02em',
+                    color: 'var(--fg)',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {createRoundStep === 1 && 'Chọn Sprint áp dụng'}
+                  {createRoundStep === 2 && 'Thiết lập đợt chấm chéo'}
+                  {createRoundStep === 3 && 'Xác nhận khởi tạo đợt chấm'}
+                </h2>
+                <p
+                  style={{
+                    margin: '0.4rem 0 0',
+                    fontSize: '0.85rem',
+                    color: 'var(--fg3)',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {createRoundStep === 1 && 'Chọn sprint nhiệm vụ mà đợt chấm chéo này sẽ đánh giá kết quả.'}
+                  {createRoundStep === 2 && 'Đặt tên đợt chấm và khoảng thời gian mở cổng nhận đánh giá.'}
+                  {createRoundStep === 3 && 'Kiểm tra thông tin đợt chấm trước khi phát hành cho cả nhóm.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                disabled={creatingRound}
+                aria-label="Đóng"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--surface2)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--fg2)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            {/* Modal Content Body */}
+            <div style={{ padding: '1.25rem 1.75rem 1.25rem' }}>
+              {createRoundStep === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)' }}>
+                    Chọn Sprint mục tiêu:
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {sprints.map((s) => {
+                      const isSelected = newRoundSprintId === s.id;
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => setNewRoundSprintId(s.id)}
+                          style={{
+                            padding: '14px 16px',
+                            borderRadius: '16px',
+                            background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface2)',
+                            border: isSelected ? '2px solid #6366f1' : '1px solid var(--line)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <Calendar size={18} color={isSelected ? '#6366f1' : 'var(--fg3)'} />
+                            <div>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? '#6366f1' : 'var(--fg)' }}>
+                                {s.name}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px' }}>
+                                Trạng thái: {s.status === 'ACTIVE' ? 'Đang hoạt động' : 'Đã kết thúc'}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle2 size={18} color="#6366f1" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {createRoundStep === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)', marginBottom: '6px' }}>
+                      Tên đợt chấm chéo:
+                    </label>
+                    <input
+                      type="text"
+                      value={newRoundName}
+                      onChange={(e) => setNewRoundName(e.target.value)}
+                      placeholder="Ví dụ: Đợt chấm chéo Sprint 3 (Giữa kỳ)"
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'var(--surface2)',
+                        color: 'var(--fg)',
+                        border: '1px solid var(--line)',
+                        borderRadius: '12px',
+                        padding: '11px 14px',
+                        fontSize: '13px',
+                        outline: 'none',
+                      }}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--fg3)', marginBottom: '6px' }}>
+                        Ngày bắt đầu mở cổng:
+                      </label>
+                      <input
+                        type="date"
+                        value={newRoundStartDate}
+                        onChange={(e) => setNewRoundStartDate(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'var(--surface2)',
+                          color: 'var(--fg)',
+                          border: '1px solid var(--line)',
+                          borderRadius: '12px',
+                          padding: '9px 12px',
+                          fontSize: '12px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--fg3)', marginBottom: '6px' }}>
+                        Ngày kết thúc đóng cổng:
+                      </label>
+                      <input
+                        type="date"
+                        value={newRoundEndDate}
+                        onChange={(e) => setNewRoundEndDate(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'var(--surface2)',
+                          color: 'var(--fg)',
+                          border: '1px solid var(--line)',
+                          borderRadius: '12px',
+                          padding: '9px 12px',
+                          fontSize: '12px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {createRoundStep === 3 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div
+                    style={{
+                      padding: '16px',
+                      borderRadius: '16px',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Tên đợt:</span>
+                      <strong style={{ color: 'var(--fg)' }}>{newRoundName}</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Sprint:</span>
+                      <span>{sprints.find((s) => s.id === newRoundSprintId)?.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Thời hạn:</span>
+                      <span>
+                        {newRoundStartDate ? new Date(newRoundStartDate).toLocaleDateString('vi-VN') : 'Ngay sau khi tạo'} → {newRoundEndDate ? new Date(newRoundEndDate).toLocaleDateString('vi-VN') : 'Vô thời hạn'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#10b981', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
+                      <Check size={14} /> Trạng thái ban đầu: Bản nháp (DRAFT) - Có thể mở nhận đánh giá ngay
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Step Footer with Progress Bar */}
+            <div
+              style={{
+                padding: '0.9rem 1.75rem 1.25rem',
+                borderTop: '1px solid var(--line)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--surface)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    height: '6px',
+                    width: '60px',
+                    borderRadius: '999px',
+                    background: 'var(--surface2)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${(createRoundStep / 3) * 100}%`,
+                      borderRadius: '999px',
+                      background: 'linear-gradient(90deg, #6366f1, #a855f7)',
+                      transition: 'width 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--fg3)' }}>
+                  Bước {createRoundStep}/3
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                {createRoundStep > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setCreateRoundStep(createRoundStep - 1)}
+                    disabled={creatingRound}
+                    style={{
+                      padding: '0.55rem 1.15rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      color: 'var(--fg)',
+                      background: 'var(--surface2)',
+                      border: '1px solid var(--line)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <ChevronLeft size={15} /> Quay lại
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    disabled={creatingRound}
+                    style={{
+                      padding: '0.55rem 1.15rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      color: 'var(--fg3)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Hủy
+                  </button>
+                )}
+
+                {createRoundStep < 3 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (createRoundStep === 2 && !newRoundName.trim()) {
+                        showToast({ message: 'Vui lòng nhập tên đợt chấm chéo', type: 'error' });
+                        return;
+                      }
+                      setCreateRoundStep(createRoundStep + 1);
+                    }}
+                    style={{
+                      padding: '0.55rem 1.4rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      background: '#6366f1',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                    }}
+                  >
+                    Tiếp tục <ChevronRight size={15} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleFinalCreateRound}
+                    disabled={creatingRound}
+                    style={{
+                      padding: '0.55rem 1.45rem',
+                      borderRadius: '999px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      background: '#6366f1',
+                      border: 'none',
+                      cursor: creatingRound ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                    }}
+                  >
+                    {creatingRound ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                    Tạo đợt chấm
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 };
+
+export default ReviewRoundPage;

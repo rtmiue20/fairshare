@@ -18,6 +18,8 @@ public class ReviewSubmissionDto {
 
     private Long reviewerId;
 
+    private Long cardId;
+
     @NotNull(message = "Reviewee is required")
     private Long revieweeId;
 

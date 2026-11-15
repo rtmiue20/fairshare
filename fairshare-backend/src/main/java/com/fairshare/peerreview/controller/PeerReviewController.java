@@ -1,7 +1,9 @@
 package com.fairshare.peerreview.controller;
 
+import com.fairshare.board.dto.CardDto;
 import com.fairshare.common.dto.ApiResponse;
 import com.fairshare.peerreview.dto.CreateReviewRoundRequest;
+import com.fairshare.peerreview.dto.PeerReviewDetailDto;
 import com.fairshare.peerreview.dto.ReviewRoundDto;
 import com.fairshare.peerreview.dto.ReviewSubmissionDto;
 import com.fairshare.peerreview.dto.ReviewerSubmissionDto;
@@ -110,6 +112,33 @@ public class PeerReviewController {
                 : null;
         AnonymityAggregator.AggregatedResult result = peerReviewService.getAggregatedResults(roundId, revieweeId, requesterId);
         return ResponseEntity.ok(ApiResponse.ok("Kết quả đánh giá tổng hợp ẩn danh", result));
+    }
+
+    @GetMapping("/{roundId}/reviews")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<List<PeerReviewDetailDto>>> getRoundReviewDetails(
+            @PathVariable Long roundId,
+            @RequestParam(required = false) Long revieweeId
+    ) {
+        List<PeerReviewDetailDto> list = peerReviewService.getRoundReviewDetails(roundId, revieweeId);
+        return ResponseEntity.ok(ApiResponse.ok("Chi tiết đánh giá của đợt chấm chéo", list));
+    }
+
+    @PostMapping("/submissions/{submissionId}/like")
+    public ResponseEntity<ApiResponse<Integer>> toggleLike(
+            @PathVariable Long submissionId,
+            Authentication authentication
+    ) {
+        Long userId = getUserId(authentication);
+        int newCount = peerReviewService.toggleLike(submissionId, userId);
+        return ResponseEntity.ok(ApiResponse.ok("Đã thích nhận xét", newCount));
+    }
+
+    @GetMapping("/team/{teamId}/done-cards")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<List<CardDto>>> getDoneCardsForTeam(@PathVariable Long teamId) {
+        List<CardDto> cards = peerReviewService.getDoneCardsForTeam(teamId);
+        return ResponseEntity.ok(ApiResponse.ok("Danh sách thẻ đã hoàn thành", cards));
     }
 
     private Long getUserId(Authentication authentication) {
