@@ -46,9 +46,19 @@ export interface CreateReviewRoundPayload {
 }
 
 export interface ReviewSubmissionPayload {
+  reviewerId?: number;
   revieweeId: number;
   scores: { criterion: ReviewCriterion; score: number }[];
   feedback?: string;
+}
+
+export interface ReviewerSubmissionItem {
+  revieweeId: number;
+  revieweeName?: string;
+  averageScore: number;
+  scores: { criterion: ReviewCriterion; score: number }[];
+  feedback?: string;
+  submittedAt?: string;
 }
 
 export interface AggregatedReviewResult {
@@ -121,6 +131,16 @@ export const peerReviewApi = {
   ): Promise<ApiResponse<AggregatedReviewResult>> => {
     const response = await apiClient.get<ApiResponse<AggregatedReviewResult>>(
       `/review-rounds/${roundId}/results/${revieweeId}`,
+    );
+    return response.data;
+  },
+
+  getSubmissionsByReviewer: async (
+    roundId: number,
+    reviewerId: number,
+  ): Promise<ApiResponse<ReviewerSubmissionItem[]>> => {
+    const response = await apiClient.get<ApiResponse<ReviewerSubmissionItem[]>>(
+      `/review-rounds/${roundId}/submissions/reviewer/${reviewerId}`,
     );
     return response.data;
   },
