@@ -2,6 +2,7 @@ package com.fairshare.peerreview;
 
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.peerreview.dto.ReviewSubmissionDto;
+import com.fairshare.peerreview.dto.ReviewerSubmissionDto;
 import com.fairshare.peerreview.entity.ReviewCriterion;
 import com.fairshare.peerreview.entity.ReviewRound;
 import com.fairshare.peerreview.entity.ReviewRoundStatus;
@@ -167,6 +168,39 @@ class PeerReviewServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("only be submitted once");
         verify(reviewSubmissionRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void getSubmissionsByReviewer_shouldReturnGroupedSubmissions() {
+        User reviewee = new User();
+        reviewee.setId(110L);
+        reviewee.setFullName("Trần Thu Trang");
+
+        ReviewSubmission s1 = new ReviewSubmission();
+        s1.setId(1L);
+        s1.setReviewee(reviewee);
+        s1.setCriterion(ReviewCriterion.QUALITY);
+        s1.setScore(5);
+        s1.setFeedback("Code rất tốt");
+
+        ReviewSubmission s2 = new ReviewSubmission();
+        s2.setId(2L);
+        s2.setReviewee(reviewee);
+        s2.setCriterion(ReviewCriterion.PUNCTUALITY);
+        s2.setScore(4);
+
+        when(reviewSubmissionRepository.findByReviewRoundIdAndReviewerId(12L, 3L))
+                .thenReturn(List.of(s1, s2));
+
+        List<ReviewerSubmissionDto> result = peerReviewService.getSubmissionsByReviewer(12L, 3L);
+
+        assertThat(result).hasSize(1);
+        ReviewerSubmissionDto item = result.get(0);
+        assertThat(item.getRevieweeId()).isEqualTo(110L);
+        assertThat(item.getRevieweeName()).isEqualTo("Trần Thu Trang");
+        assertThat(item.getAverageScore()).isEqualTo(4.5);
+        assertThat(item.getFeedback()).isEqualTo("Code rất tốt");
+        assertThat(item.getScores()).hasSize(2);
     }
 
     private static ReviewSubmissionDto request(Long revieweeId, ReviewSubmissionDto.CriterionScore... scores) {

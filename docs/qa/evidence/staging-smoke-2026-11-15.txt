@@ -1,0 +1,25 @@
+﻿# Smoke test staging - master @ d2eab98 + script WP5 sua 15/11 - 15/11/2026 (GMT+7)
+# Lenh: ./scripts/staging-up.sh (Git Bash, Windows, Docker Desktop 29.9.3)
+
+NAME                 IMAGE                        COMMAND                  SERVICE    CREATED          STATUS                    PORTS
+fairshare-backend    fairshare-staging-backend    "java -jar app.jar"      backend    27 seconds ago   Up 21 seconds (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+fairshare-db         mariadb:10.11                "docker-entrypoint.s…"   db         27 seconds ago   Up 26 seconds (healthy)   3306/tcp
+fairshare-frontend   fairshare-staging-frontend   "/docker-entrypoint.…"   frontend   27 seconds ago   Up 10 seconds (healthy)   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+[staging] Đang chạy smoke test...
+== 1. Trạng thái container
+  [PASS] db: healthy
+  [PASS] backend: healthy
+  [PASS] frontend: healthy
+== 2. Flyway migration
+  [PASS] Successfully applied 20 migrations to schema `fairshare`
+== 3. DB không mở cổng ra ngoài
+  [PASS] 3306 không publish
+== 4. Frontend + reverse proxy /api
+  [PASS] index.html tại http://localhost:8081
+  [PASS] /api/teams chưa đăng nhập -> 401 (proxy tới backend OK)
+== 5. Đăng ký + đăng nhập qua Nginx
+  [PASS] register smoke_1794711607_13824@staging.local
+  [PASS] login trả JWT
+  [PASS] /api/teams có token -> 200
+
+SMOKE TEST: PASS

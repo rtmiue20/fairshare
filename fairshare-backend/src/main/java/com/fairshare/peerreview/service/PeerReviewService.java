@@ -4,6 +4,7 @@ import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.peerreview.dto.ReviewSubmissionDto;
+import com.fairshare.peerreview.dto.ReviewerSubmissionDto;
 import com.fairshare.peerreview.entity.ReviewCriterion;
 import com.fairshare.peerreview.entity.ReviewRound;
 import com.fairshare.peerreview.entity.ReviewRoundStatus;
@@ -22,10 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -182,6 +181,55 @@ public class PeerReviewService {
         }
         List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
         return anonymityAggregator.aggregateForReviewee(revieweeId, submissions, round.getMinSubmissionsRequired());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReviewerSubmissionDto> getSubmissionsByReviewer(Long roundId, Long reviewerId) {
+        if (roundId == null || reviewerId == null) {
+            return List.of();
+        }
+        List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndReviewerId(roundId, reviewerId);
+        Map<Long, List<ReviewSubmission>> byReviewee = submissions.stream()
+                .filter(s -> s.getReviewee() != null)
+                .collect(Collectors.groupingBy(s -> s.getReviewee().getId()));
+
+        List<ReviewerSubmissionDto> result = new ArrayList<>();
+        for (Map.Entry<Long, List<ReviewSubmission>> entry : byReviewee.entrySet()) {
+            Long revieweeId = entry.getKey();
+            List<ReviewSubmission> subList = entry.getValue();
+            if (subList.isEmpty()) continue;
+
+            String revieweeName = subList.get(0).getReviewee().getFullName();
+            String feedback = subList.stream()
+                    .map(ReviewSubmission::getFeedback)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+            LocalDateTime submittedAt = subList.stream()
+                    .map(ReviewSubmission::getCreatedAt)
+                    .filter(Objects::nonNull)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(null);
+
+            double avg = subList.stream()
+                    .mapToInt(ReviewSubmission::getScore)
+                    .average()
+                    .orElse(0.0);
+
+            List<ReviewerSubmissionDto.CriterionScoreDto> scores = subList.stream()
+                    .map(s -> new ReviewerSubmissionDto.CriterionScoreDto(s.getCriterion(), s.getScore()))
+                    .toList();
+
+            result.add(ReviewerSubmissionDto.builder()
+                    .revieweeId(revieweeId)
+                    .revieweeName(revieweeName)
+                    .averageScore(Math.round(avg * 100.0) / 100.0)
+                    .scores(scores)
+                    .feedback(feedback)
+                    .submittedAt(submittedAt)
+                    .build());
+        }
+        return result;
     }
 
     private ReviewRound getRound(Long roundId) {
