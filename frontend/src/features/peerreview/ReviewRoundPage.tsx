@@ -113,6 +113,88 @@ export const ReviewRoundPage: React.FC = () => {
   const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
   const { user: currentUser } = useAuthStore();
 
+  // Theme detector for Light / Dark Mode synchronization (matching Project Tab)
+  const [isLight, setIsLight] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.dataset.theme === 'light';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsLight(document.documentElement.dataset.theme === 'light');
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const theme = useMemo(() => {
+    return {
+      isLight,
+      pageColor: isLight ? 'var(--fg)' : '#f8fafc',
+      textColor: isLight ? '#0f172a' : '#f8fafc',
+      headingColor: isLight ? '#0f172a' : '#ffffff',
+      subTextColor: isLight ? '#64748b' : '#94a3b8',
+      cardBg: isLight ? '#ffffff' : '#121318',
+      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      cardShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.03)' : '0 4px 24px rgba(0, 0, 0, 0.25)',
+      cardRadius: '22px',
+      inputBg: isLight ? '#f8fafc' : '#0c0d12',
+      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
+      inputColor: isLight ? '#0f172a' : '#f8fafc',
+      tabBg: isLight ? 'rgba(0, 0, 0, 0.04)' : '#0c0d12',
+      tabBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      tabInactiveText: isLight ? '#64748b' : '#94a3b8',
+      candidateItemBg: (isSelected: boolean) =>
+        isSelected
+          ? isLight
+            ? 'rgba(99, 102, 241, 0.1)'
+            : 'rgba(99, 102, 241, 0.12)'
+          : isLight
+          ? '#f8fafc'
+          : 'rgba(255, 255, 255, 0.02)',
+      candidateItemBorder: (isSelected: boolean) =>
+        isSelected
+          ? '1px solid #6366f1'
+          : isLight
+          ? '1px solid rgba(0, 0, 0, 0.06)'
+          : '1px solid transparent',
+      candidateNameColor: (isSelected: boolean) =>
+        isSelected ? (isLight ? '#4338ca' : '#fff') : isLight ? '#0f172a' : '#e2e8f0',
+      candidateNoteBg: isLight ? '#f1f5f9' : 'rgba(0, 0, 0, 0.25)',
+      candidateNoteColor: isLight ? '#475569' : '#64748b',
+      boxBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
+      boxBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+      pillBg: (isChosen: boolean) =>
+        isChosen ? '#6366f1' : isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.04)',
+      pillBorder: (isChosen: boolean) =>
+        isChosen ? '1px solid #6366f1' : isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
+      pillColor: (isChosen: boolean) =>
+        isChosen ? '#fff' : isLight ? '#334155' : '#cbd5e1',
+      bannerBg: isLight ? 'rgba(99, 102, 241, 0.06)' : 'rgba(99, 102, 241, 0.08)',
+      bannerBorder: isLight ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid rgba(99, 102, 241, 0.25)',
+      bannerColor: isLight ? '#334155' : '#cbd5e1',
+      avgScoreCardBg: isLight ? 'rgba(99, 102, 241, 0.06)' : 'rgba(99, 102, 241, 0.08)',
+      avgScoreCardBorder: isLight ? '1px solid rgba(99, 102, 241, 0.18)' : '1px solid rgba(99, 102, 241, 0.2)',
+      avgScoreCardNumber: isLight ? '#1e1b4b' : '#fff',
+      avgScoreCardDivider: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      commentCardBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
+      commentCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.06)',
+      commentCardText: isLight ? '#1e293b' : '#e2e8f0',
+      lockCardBg: isLight ? 'rgba(245, 158, 11, 0.06)' : 'rgba(245, 158, 11, 0.05)',
+      lockCardBorder: isLight ? '1px dashed rgba(245, 158, 11, 0.35)' : '1px dashed rgba(245, 158, 11, 0.3)',
+      lockCardTitle: isLight ? '#92400e' : '#f8fafc',
+      lockCardText: isLight ? '#78350f' : '#94a3b8',
+      lockCardTrack: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+      modalBg: isLight ? '#ffffff' : '#121318',
+      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
+      modalShadow: isLight ? '0 20px 40px rgba(0, 0, 0, 0.12)' : '0 20px 40px rgba(0, 0, 0, 0.5)',
+    };
+  }, [isLight]);
+
   // Data states
   const [rounds, setRounds] = useState<ReviewRound[]>([]);
   const [activeRoundId, setActiveRoundId] = useState<number>(0);
@@ -460,11 +542,11 @@ export const ReviewRoundPage: React.FC = () => {
   }
 
   return (
-    <div className="page pad" style={{ maxWidth: '1240px', margin: '0 auto', color: '#f8fafc' }}>
+    <div className="page pad" style={{ maxWidth: '1240px', margin: '0 auto', color: theme.pageColor }}>
       {/* 1. Header & Breadcrumb */}
       <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>
-          <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.subTextColor, marginBottom: '8px' }}>
+          <Link to="/" style={{ color: theme.subTextColor, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <ArrowLeft size={14} /> Dashboard
           </Link>
           <ChevronRight size={14} />
@@ -474,7 +556,7 @@ export const ReviewRoundPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: '#fff' }}>
+              <h1 style={{ fontSize: '26px', fontWeight: 700, margin: 0, letterSpacing: '-0.02em', color: theme.headingColor }}>
                 Đánh giá chéo đồng đội Agile
               </h1>
               {activeRound && (
@@ -487,9 +569,9 @@ export const ReviewRoundPage: React.FC = () => {
                     borderRadius: '20px',
                     fontSize: '12px',
                     fontWeight: 600,
-                    backgroundColor: activeRound.status === 'OPEN' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                    color: activeRound.status === 'OPEN' ? '#34d399' : '#94a3b8',
-                    border: `1px solid ${activeRound.status === 'OPEN' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
+                    backgroundColor: activeRound.status === 'OPEN' ? (isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)') : (isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(148, 163, 184, 0.15)'),
+                    color: activeRound.status === 'OPEN' ? (isLight ? '#059669' : '#34d399') : theme.subTextColor,
+                    border: `1px solid ${activeRound.status === 'OPEN' ? (isLight ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.3)') : (isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(148, 163, 184, 0.3)')}`,
                   }}
                 >
                   <span
@@ -504,7 +586,7 @@ export const ReviewRoundPage: React.FC = () => {
                 </span>
               )}
             </div>
-            <p style={{ margin: '6px 0 0', fontSize: '14px', color: '#94a3b8', maxWidth: '780px', lineHeight: 1.5 }}>
+            <p style={{ margin: '6px 0 0', fontSize: '14px', color: theme.subTextColor, maxWidth: '780px', lineHeight: 1.5 }}>
               Thuật toán tổng hợp K-Anonymity (Nghị định 13/2023/NĐ-CP): Điểm trung bình và nhận xét chỉ được giải mã khi đạt tối thiểu ≥ 3 lượt đánh giá để bảo vệ danh tính tuyệt đối.
             </p>
           </div>
@@ -519,11 +601,11 @@ export const ReviewRoundPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                  color: '#f87171',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  backgroundColor: isLight ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.15)',
+                  color: isLight ? '#dc2626' : '#f87171',
+                  border: isLight ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(239, 68, 68, 0.3)',
                   padding: '7px 14px',
-                  borderRadius: '6px',
+                  borderRadius: '10px',
                   fontSize: '13px',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -541,11 +623,11 @@ export const ReviewRoundPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  color: '#34d399',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
+                  color: isLight ? '#059669' : '#34d399',
+                  border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
                   padding: '7px 14px',
-                  borderRadius: '6px',
+                  borderRadius: '10px',
                   fontSize: '13px',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -567,7 +649,7 @@ export const ReviewRoundPage: React.FC = () => {
                   color: '#fff',
                   border: 'none',
                   padding: '7px 14px',
-                  borderRadius: '6px',
+                  borderRadius: '10px',
                   fontSize: '13px',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -585,11 +667,11 @@ export const ReviewRoundPage: React.FC = () => {
               }}
               title="Làm mới dữ liệu"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#94a3b8',
+                background: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.05)',
+                border: isLight ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
+                color: theme.subTextColor,
                 padding: '7px 10px',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -607,16 +689,17 @@ export const ReviewRoundPage: React.FC = () => {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '14px',
-          padding: '14px 18px',
-          backgroundColor: '#121318',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '10px',
+          padding: '16px 20px',
+          backgroundColor: theme.cardBg,
+          border: theme.cardBorder,
+          borderRadius: theme.cardRadius,
+          boxShadow: theme.cardShadow,
           marginBottom: '20px',
         }}
       >
         {/* Dropdown 1: Round selection */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '6px' }}>
             Đợt chấm chéo (Review Round):
           </label>
           <select
@@ -624,17 +707,18 @@ export const ReviewRoundPage: React.FC = () => {
             onChange={(e) => setActiveRoundId(Number(e.target.value))}
             style={{
               width: '100%',
-              backgroundColor: '#0c0d12',
-              color: '#f8fafc',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '6px',
-              padding: '8px 12px',
+              backgroundColor: theme.inputBg,
+              color: theme.inputColor,
+              border: theme.inputBorder,
+              borderRadius: '10px',
+              padding: '9px 12px',
               fontSize: '13px',
               outline: 'none',
+              fontWeight: 500,
             }}
           >
             {rounds.map((r) => (
-              <option key={r.id} value={r.id}>
+              <option key={r.id} value={r.id} style={{ backgroundColor: theme.cardBg, color: theme.textColor }}>
                 {r.name} {r.status === 'OPEN' ? '(Đang mở)' : '(Đã đóng)'}
               </option>
             ))}
@@ -643,7 +727,7 @@ export const ReviewRoundPage: React.FC = () => {
 
         {/* Dropdown 2: Evaluator identity switcher */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '6px' }}>
             Đang chấm với tư cách (Người đánh giá):
           </label>
           <select
@@ -655,17 +739,18 @@ export const ReviewRoundPage: React.FC = () => {
             }}
             style={{
               width: '100%',
-              backgroundColor: '#0c0d12',
-              color: '#f8fafc',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '6px',
-              padding: '8px 12px',
+              backgroundColor: theme.inputBg,
+              color: theme.inputColor,
+              border: theme.inputBorder,
+              borderRadius: '10px',
+              padding: '9px 12px',
               fontSize: '13px',
               outline: 'none',
+              fontWeight: 500,
             }}
           >
             {members.map((m) => (
-              <option key={m.id} value={m.id}>
+              <option key={m.id} value={m.id} style={{ backgroundColor: theme.cardBg, color: theme.textColor }}>
                 {m.name} · {m.role} {m.id === currentUser?.id ? '(Tài khoản của bạn)' : ''}
               </option>
             ))}
@@ -677,9 +762,9 @@ export const ReviewRoundPage: React.FC = () => {
           <div
             style={{
               display: 'flex',
-              backgroundColor: '#0c0d12',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '6px',
+              backgroundColor: theme.tabBg,
+              border: theme.tabBorder,
+              borderRadius: '10px',
               padding: '3px',
             }}
           >
@@ -687,14 +772,14 @@ export const ReviewRoundPage: React.FC = () => {
               onClick={() => setActiveTab('form')}
               style={{
                 flex: 1,
-                padding: '6px 12px',
-                borderRadius: '4px',
+                padding: '7px 12px',
+                borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
                 backgroundColor: activeTab === 'form' ? '#6366f1' : 'transparent',
-                color: activeTab === 'form' ? '#fff' : '#94a3b8',
+                color: activeTab === 'form' ? '#fff' : theme.tabInactiveText,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -708,14 +793,14 @@ export const ReviewRoundPage: React.FC = () => {
               onClick={() => setActiveTab('results')}
               style={{
                 flex: 1,
-                padding: '6px 12px',
-                borderRadius: '4px',
+                padding: '7px 12px',
+                borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
                 backgroundColor: activeTab === 'results' ? '#6366f1' : 'transparent',
-                color: activeTab === 'results' ? '#fff' : '#94a3b8',
+                color: activeTab === 'results' ? '#fff' : theme.tabInactiveText,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -736,17 +821,17 @@ export const ReviewRoundPage: React.FC = () => {
           alignItems: 'center',
           gap: '12px',
           padding: '12px 16px',
-          backgroundColor: 'rgba(99, 102, 241, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.25)',
-          borderRadius: '8px',
+          backgroundColor: theme.bannerBg,
+          border: theme.bannerBorder,
+          borderRadius: '12px',
           marginBottom: '22px',
           fontSize: '13px',
-          color: '#cbd5e1',
+          color: theme.bannerColor,
         }}
       >
         <ShieldCheck size={20} color="#818cf8" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
-          <strong style={{ color: '#fff' }}>Nguyên tắc bảo vệ danh tính &amp; Chống thiên vị:</strong>{' '}
+          <strong style={{ color: theme.headingColor }}>Nguyên tắc bảo vệ danh tính &amp; Chống thiên vị:</strong>{' '}
           Hệ thống chặn tự đánh giá bản thân (Anti-Self-Review) và tách rời danh tính người gửi khỏi phiếu điểm. Nhận xét định tính được làm sạch thông tin nhận dạng trước khi tổng hợp.
         </div>
       </div>
@@ -757,17 +842,18 @@ export const ReviewRoundPage: React.FC = () => {
           {/* Left Column: Teammates List */}
           <div
             style={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '10px',
-              padding: '16px',
+              backgroundColor: theme.cardBg,
+              border: theme.cardBorder,
+              borderRadius: theme.cardRadius,
+              boxShadow: theme.cardShadow,
+              padding: '18px',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: '#fff' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: theme.headingColor }}>
                 Đồng đội cần đánh giá
               </h2>
               <span
@@ -776,8 +862,8 @@ export const ReviewRoundPage: React.FC = () => {
                   fontWeight: 600,
                   padding: '2px 8px',
                   borderRadius: '12px',
-                  backgroundColor: completedReviewees.size >= teammatesToReview.length ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                  color: completedReviewees.size >= teammatesToReview.length ? '#34d399' : '#94a3b8',
+                  backgroundColor: completedReviewees.size >= teammatesToReview.length ? 'rgba(16, 185, 129, 0.2)' : isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)',
+                  color: completedReviewees.size >= teammatesToReview.length ? (isLight ? '#059669' : '#34d399') : theme.subTextColor,
                 }}
               >
                 {completedReviewees.size} / {teammatesToReview.length} hoàn thành
@@ -785,7 +871,7 @@ export const ReviewRoundPage: React.FC = () => {
             </div>
 
             {/* Progress bar */}
-            <div style={{ height: '4px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{ height: '4px', backgroundColor: isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
               <div
                 style={{
                   height: '100%',
@@ -799,7 +885,7 @@ export const ReviewRoundPage: React.FC = () => {
             {/* List of candidates */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
               {teammatesToReview.length === 0 ? (
-                <div style={{ padding: '24px 12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                <div style={{ padding: '24px 12px', textAlign: 'center', color: theme.subTextColor, fontSize: '13px' }}>
                   Không có thành viên nào khác để đánh giá.
                 </div>
               ) : (
@@ -816,10 +902,10 @@ export const ReviewRoundPage: React.FC = () => {
                         alignItems: 'center',
                         gap: '12px',
                         padding: '10px 12px',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         cursor: 'pointer',
-                        border: isSelected ? '1px solid #6366f1' : '1px solid transparent',
-                        backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                        border: theme.candidateItemBorder(isSelected),
+                        backgroundColor: theme.candidateItemBg(isSelected),
                         transition: 'all 0.15s ease',
                       }}
                     >
@@ -848,7 +934,7 @@ export const ReviewRoundPage: React.FC = () => {
                           style={{
                             fontSize: '13px',
                             fontWeight: 600,
-                            color: isSelected ? '#fff' : '#e2e8f0',
+                            color: theme.candidateNameColor(isSelected),
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -859,7 +945,7 @@ export const ReviewRoundPage: React.FC = () => {
                         <div
                           style={{
                             fontSize: '11px',
-                            color: '#94a3b8',
+                            color: theme.subTextColor,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -879,8 +965,8 @@ export const ReviewRoundPage: React.FC = () => {
                             gap: '3px',
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: '#34d399',
-                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            color: isLight ? '#059669' : '#34d399',
+                            backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
                             padding: '3px 7px',
                             borderRadius: '12px',
                           }}
@@ -894,8 +980,8 @@ export const ReviewRoundPage: React.FC = () => {
                         <span
                           style={{
                             fontSize: '11px',
-                            color: '#64748b',
-                            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                            color: theme.subTextColor,
+                            backgroundColor: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.04)',
                             padding: '3px 7px',
                             borderRadius: '12px',
                           }}
@@ -914,10 +1000,10 @@ export const ReviewRoundPage: React.FC = () => {
               style={{
                 marginTop: '12px',
                 padding: '10px 12px',
-                backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                borderRadius: '6px',
+                backgroundColor: theme.candidateNoteBg,
+                borderRadius: '8px',
                 fontSize: '11px',
-                color: '#64748b',
+                color: theme.candidateNoteColor,
                 lineHeight: 1.4,
               }}
             >
@@ -928,9 +1014,10 @@ export const ReviewRoundPage: React.FC = () => {
           {/* Right Column: Active Evaluation Form */}
           <div
             style={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '10px',
+              backgroundColor: theme.cardBg,
+              border: theme.cardBorder,
+              borderRadius: theme.cardRadius,
+              boxShadow: theme.cardShadow,
               padding: '24px',
             }}
           >
@@ -942,7 +1029,7 @@ export const ReviewRoundPage: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderBottom: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
                     paddingBottom: '16px',
                   }}
                 >
@@ -965,7 +1052,7 @@ export const ReviewRoundPage: React.FC = () => {
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
                           Đánh giá cho: {selectedReviewee.name}
                         </h2>
                         {completedReviewees.has(selectedReviewee.id) && (
@@ -973,8 +1060,8 @@ export const ReviewRoundPage: React.FC = () => {
                             style={{
                               fontSize: '11px',
                               fontWeight: 600,
-                              color: '#34d399',
-                              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                              color: isLight ? '#059669' : '#34d399',
+                              backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
                               padding: '2px 8px',
                               borderRadius: '10px',
                             }}
@@ -983,7 +1070,7 @@ export const ReviewRoundPage: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '2px' }}>
+                      <div style={{ fontSize: '13px', color: theme.subTextColor, marginTop: '2px' }}>
                         {selectedReviewee.role} · {selectedReviewee.email}
                       </div>
                     </div>
@@ -993,17 +1080,17 @@ export const ReviewRoundPage: React.FC = () => {
                   <div
                     style={{
                       textAlign: 'right',
-                      backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      backgroundColor: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.12)',
+                      border: isLight ? '1px solid rgba(99, 102, 241, 0.2)' : '1px solid rgba(99, 102, 241, 0.25)',
                       padding: '8px 14px',
-                      borderRadius: '8px',
+                      borderRadius: '10px',
                     }}
                   >
-                    <div style={{ fontSize: '11px', color: '#818cf8', fontWeight: 600, textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '11px', color: isLight ? '#4f46e5' : '#818cf8', fontWeight: 600, textTransform: 'uppercase' }}>
                       Điểm trung bình phiếu
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
-                      {currentFormAverage} <span style={{ fontSize: '13px', color: '#94a3b8' }}>/ 5.0 ★</span>
+                    <div style={{ fontSize: '20px', fontWeight: 700, color: theme.headingColor, fontFamily: 'monospace' }}>
+                      {currentFormAverage} <span style={{ fontSize: '13px', color: theme.subTextColor }}>/ 5.0 ★</span>
                     </div>
                   </div>
                 </div>
@@ -1016,11 +1103,11 @@ export const ReviewRoundPage: React.FC = () => {
                       alignItems: 'center',
                       gap: '10px',
                       padding: '12px 16px',
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      borderRadius: '8px',
+                      backgroundColor: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.1)',
+                      border: isLight ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: '10px',
                       fontSize: '13px',
-                      color: '#fca5a5',
+                      color: isLight ? '#b91c1c' : '#fca5a5',
                     }}
                   >
                     <ShieldAlert size={18} color="#f87171" />
@@ -1053,26 +1140,26 @@ export const ReviewRoundPage: React.FC = () => {
                       <div
                         key={crit.key}
                         style={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                          border: '1px solid rgba(255, 255, 255, 0.06)',
-                          borderRadius: '8px',
+                          backgroundColor: theme.boxBg,
+                          border: theme.boxBorder,
+                          borderRadius: '14px',
                           padding: '16px',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                           <div>
-                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: theme.headingColor }}>
                               {crit.label}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{crit.desc}</div>
+                            <div style={{ fontSize: '12px', color: theme.subTextColor }}>{crit.desc}</div>
                           </div>
                           <div
                             style={{
                               fontSize: '16px',
                               fontWeight: 700,
-                              color: '#818cf8',
+                              color: isLight ? '#4f46e5' : '#818cf8',
                               fontFamily: 'monospace',
-                              backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                              backgroundColor: isLight ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.15)',
                               padding: '2px 10px',
                               borderRadius: '6px',
                             }}
@@ -1093,22 +1180,23 @@ export const ReviewRoundPage: React.FC = () => {
                                 onClick={() => setScore(opt.score)}
                                 style={{
                                   padding: '10px 4px',
-                                  borderRadius: '6px',
-                                  border: isChosen ? '1px solid #6366f1' : '1px solid rgba(255, 255, 255, 0.08)',
-                                  backgroundColor: isChosen ? '#6366f1' : 'rgba(255, 255, 255, 0.04)',
-                                  color: isChosen ? '#fff' : '#cbd5e1',
+                                  borderRadius: '8px',
+                                  border: theme.pillBorder(isChosen),
+                                  backgroundColor: theme.pillBg(isChosen),
+                                  color: theme.pillColor(isChosen),
                                   cursor: activeRound?.status === 'OPEN' ? 'pointer' : 'not-allowed',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   alignItems: 'center',
                                   gap: '2px',
                                   transition: 'all 0.15s ease',
+                                  boxShadow: isChosen ? '0 2px 8px rgba(99, 102, 241, 0.25)' : 'none',
                                 }}
                               >
                                 <div style={{ fontSize: '15px', fontWeight: 700 }}>
                                   {opt.score} ★
                                 </div>
-                                <div style={{ fontSize: '11px', opacity: isChosen ? 0.95 : 0.7 }}>
+                                <div style={{ fontSize: '11px', opacity: isChosen ? 0.95 : 0.75 }}>
                                   {opt.label}
                                 </div>
                               </button>
@@ -1118,7 +1206,7 @@ export const ReviewRoundPage: React.FC = () => {
 
                         {/* Selected detail description */}
                         {selectedOption && (
-                          <div style={{ marginTop: '8px', fontSize: '12px', color: '#818cf8', fontStyle: 'italic' }}>
+                          <div style={{ marginTop: '8px', fontSize: '12px', color: isLight ? '#4f46e5' : '#818cf8', fontStyle: 'italic' }}>
                             ↳ {selectedOption.detail}
                           </div>
                         )}
@@ -1129,7 +1217,7 @@ export const ReviewRoundPage: React.FC = () => {
 
                 {/* Qualitative Anonymous Constructive Feedback */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#f8fafc', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: theme.headingColor, marginBottom: '6px' }}>
                     Nhận xét đóng góp mang tính xây dựng (Ẩn danh, không bắt buộc):
                   </label>
                   <textarea
@@ -1141,10 +1229,10 @@ export const ReviewRoundPage: React.FC = () => {
                     style={{
                       width: '100%',
                       boxSizing: 'border-box',
-                      backgroundColor: '#0c0d12',
-                      color: '#f8fafc',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '8px',
+                      backgroundColor: theme.inputBg,
+                      color: theme.inputColor,
+                      border: theme.inputBorder,
+                      borderRadius: '10px',
                       padding: '12px 14px',
                       fontSize: '13px',
                       outline: 'none',
@@ -1152,7 +1240,7 @@ export const ReviewRoundPage: React.FC = () => {
                       lineHeight: 1.5,
                     }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: theme.subTextColor, marginTop: '4px' }}>
                     <span>Nội dung nhận xét sẽ được mã hóa và làm sạch mọi siêu dữ liệu nhận dạng cá nhân.</span>
                     <span>{feedbackText.length} / 500 ký tự</span>
                   </div>
@@ -1166,10 +1254,10 @@ export const ReviewRoundPage: React.FC = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 14px',
-                      borderRadius: '8px',
-                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                      color: '#34d399',
+                      borderRadius: '10px',
+                      backgroundColor: isLight ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.12)',
+                      border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
+                      color: isLight ? '#059669' : '#34d399',
                       fontSize: '13px',
                       marginBottom: '14px',
                     }}
@@ -1195,17 +1283,17 @@ export const ReviewRoundPage: React.FC = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 22px',
-                      borderRadius: '8px',
+                      borderRadius: '10px',
                       backgroundColor:
                         completedReviewees.has(selectedReviewee.id)
-                          ? 'rgba(16, 185, 129, 0.2)'
+                          ? isLight ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.2)'
                           : activeRound?.status === 'OPEN'
                           ? '#6366f1'
-                          : 'rgba(255, 255, 255, 0.1)',
-                      color: completedReviewees.has(selectedReviewee.id) ? '#34d399' : '#fff',
+                          : isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)',
+                      color: completedReviewees.has(selectedReviewee.id) ? (isLight ? '#059669' : '#34d399') : '#fff',
                       fontSize: '14px',
                       fontWeight: 600,
-                      border: completedReviewees.has(selectedReviewee.id) ? '1px solid rgba(16, 185, 129, 0.4)' : 'none',
+                      border: completedReviewees.has(selectedReviewee.id) ? (isLight ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(16, 185, 129, 0.4)') : 'none',
                       cursor:
                         completedReviewees.has(selectedReviewee.id)
                           ? 'default'
@@ -1231,7 +1319,7 @@ export const ReviewRoundPage: React.FC = () => {
                 </div>
               </form>
             ) : (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
                 <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                 <p>Vui lòng chọn một thành viên trong danh sách bên trái để tiến hành đánh giá.</p>
               </div>
@@ -1246,13 +1334,14 @@ export const ReviewRoundPage: React.FC = () => {
           {/* Left Column: Member Result Selector */}
           <div
             style={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '10px',
-              padding: '16px',
+              backgroundColor: theme.cardBg,
+              border: theme.cardBorder,
+              borderRadius: theme.cardRadius,
+              boxShadow: theme.cardShadow,
+              padding: '18px',
             }}
           >
-            <h2 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', color: '#fff' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 12px 0', color: theme.headingColor }}>
               Danh sách thành viên
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1270,10 +1359,10 @@ export const ReviewRoundPage: React.FC = () => {
                       alignItems: 'center',
                       gap: '12px',
                       padding: '10px 12px',
-                      borderRadius: '8px',
+                      borderRadius: '10px',
                       cursor: 'pointer',
-                      border: isSelected ? '1px solid #6366f1' : '1px solid transparent',
-                      backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                      border: theme.candidateItemBorder(isSelected),
+                      backgroundColor: theme.candidateItemBg(isSelected),
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -1299,7 +1388,7 @@ export const ReviewRoundPage: React.FC = () => {
                         style={{
                           fontSize: '13px',
                           fontWeight: 600,
-                          color: isSelected ? '#fff' : '#e2e8f0',
+                          color: theme.candidateNameColor(isSelected),
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -1307,7 +1396,7 @@ export const ReviewRoundPage: React.FC = () => {
                       >
                         {m.name}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor }}>
                         {res ? `${res.submissionCount} phiếu` : 'Đang tải...'}
                       </div>
                     </div>
@@ -1317,7 +1406,7 @@ export const ReviewRoundPage: React.FC = () => {
                         style={{
                           fontSize: '13px',
                           fontWeight: 700,
-                          color: '#34d399',
+                          color: isLight ? '#059669' : '#34d399',
                           fontFamily: 'monospace',
                         }}
                       >
@@ -1328,8 +1417,8 @@ export const ReviewRoundPage: React.FC = () => {
                         title="Chưa đủ ngưỡng ẩn danh (Cần ≥ 3 phiếu)"
                         style={{
                           fontSize: '11px',
-                          color: '#f59e0b',
-                          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                          color: isLight ? '#d97706' : '#f59e0b',
+                          backgroundColor: isLight ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.12)',
                           padding: '2px 6px',
                           borderRadius: '10px',
                         }}
@@ -1346,14 +1435,15 @@ export const ReviewRoundPage: React.FC = () => {
           {/* Right Column: Detailed 360° Result Card for Selected Member */}
           <div
             style={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '10px',
+              backgroundColor: theme.cardBg,
+              border: theme.cardBorder,
+              borderRadius: theme.cardRadius,
+              boxShadow: theme.cardShadow,
               padding: '24px',
             }}
           >
             {loadingResults ? (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
                 <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
                 <p>Đang tổng hợp dữ liệu đánh giá ẩn danh...</p>
               </div>
@@ -1368,7 +1458,7 @@ export const ReviewRoundPage: React.FC = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderBottom: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
                         paddingBottom: '16px',
                         marginBottom: '20px',
                       }}
@@ -1391,10 +1481,10 @@ export const ReviewRoundPage: React.FC = () => {
                           {getInitials(targetMember?.name || '')}
                         </div>
                         <div>
-                          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
                             {targetMember?.name}
                           </h2>
-                          <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                          <div style={{ fontSize: '13px', color: theme.subTextColor }}>
                             {targetMember?.role} · Đợt chấm: {activeRound?.name}
                           </div>
                         </div>
@@ -1408,9 +1498,9 @@ export const ReviewRoundPage: React.FC = () => {
                             gap: '8px',
                             padding: '6px 14px',
                             borderRadius: '20px',
-                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                            color: '#34d399',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            backgroundColor: isLight ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
+                            color: isLight ? '#059669' : '#34d399',
+                            border: isLight ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
                             fontSize: '12px',
                             fontWeight: 600,
                           }}
@@ -1425,9 +1515,9 @@ export const ReviewRoundPage: React.FC = () => {
                             gap: '8px',
                             padding: '6px 14px',
                             borderRadius: '20px',
-                            backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                            color: '#fbbf24',
-                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                            backgroundColor: isLight ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                            color: isLight ? '#d97706' : '#fbbf24',
+                            border: isLight ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(245, 158, 11, 0.3)',
                             fontSize: '12px',
                             fontWeight: 600,
                           }}
@@ -1449,17 +1539,17 @@ export const ReviewRoundPage: React.FC = () => {
                         gridTemplateColumns: '220px 1fr',
                         gap: '20px',
                         padding: '20px',
-                        backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                        border: '1px solid rgba(99, 102, 241, 0.2)',
-                        borderRadius: '10px',
+                        backgroundColor: theme.avgScoreCardBg,
+                        border: theme.avgScoreCardBorder,
+                        borderRadius: '16px',
                         alignItems: 'center',
                       }}
                     >
-                      <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.08)', paddingRight: '16px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#818cf8', textTransform: 'uppercase' }}>
+                      <div style={{ textAlign: 'center', borderRight: theme.avgScoreCardDivider, paddingRight: '16px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: isLight ? '#4f46e5' : '#818cf8', textTransform: 'uppercase' }}>
                           Điểm đánh giá trung bình
                         </div>
-                        <div style={{ fontSize: '42px', fontWeight: 800, color: '#fff', fontFamily: 'monospace', margin: '4px 0' }}>
+                        <div style={{ fontSize: '42px', fontWeight: 800, color: theme.avgScoreCardNumber, fontFamily: 'monospace', margin: '4px 0' }}>
                           {activeResult.averageScore.toFixed(2)}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '3px', color: '#fbbf24' }}>
@@ -1471,7 +1561,7 @@ export const ReviewRoundPage: React.FC = () => {
                             />
                           ))}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
+                        <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '6px' }}>
                           Trên thang điểm 5.0 chuẩn Agile
                         </div>
                       </div>
@@ -1479,11 +1569,11 @@ export const ReviewRoundPage: React.FC = () => {
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                           <Award size={18} color="#818cf8" />
-                          <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: '#fff' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: theme.headingColor }}>
                             Tổng hợp {activeResult.submissionCount} lượt đánh giá hợp lệ
                           </h3>
                         </div>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.5 }}>
+                        <p style={{ margin: 0, fontSize: '13px', color: theme.subTextColor, lineHeight: 1.5 }}>
                           Kết quả được tổng hợp tự động từ các thành viên trong nhóm dự án theo chuẩn K-Anonymity (Nghị định 13/2023/NĐ-CP). Điểm số này được tính vào Hệ số Đóng góp Toàn diện (FairShare Comprehensive Score).
                         </p>
                       </div>
@@ -1493,7 +1583,7 @@ export const ReviewRoundPage: React.FC = () => {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                         <MessageSquare size={18} color="#818cf8" />
-                        <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: '#fff' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0, color: theme.headingColor }}>
                           Nhận xét đóng góp định tính (Đã ẩn danh)
                         </h3>
                       </div>
@@ -1505,11 +1595,11 @@ export const ReviewRoundPage: React.FC = () => {
                               key={idx}
                               style={{
                                 padding: '14px 16px',
-                                backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                                border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '8px',
+                                backgroundColor: theme.commentCardBg,
+                                border: theme.commentCardBorder,
+                                borderRadius: '10px',
                                 fontSize: '13px',
-                                color: '#e2e8f0',
+                                color: theme.commentCardText,
                                 lineHeight: 1.5,
                                 fontStyle: 'italic',
                                 position: 'relative',
@@ -1518,7 +1608,7 @@ export const ReviewRoundPage: React.FC = () => {
                               <span style={{ fontSize: '18px', color: '#6366f1', marginRight: '6px' }}>“</span>
                               {cmt}
                               <span style={{ fontSize: '18px', color: '#6366f1', marginLeft: '4px' }}>”</span>
-                              <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', fontStyle: 'normal' }}>
+                              <div style={{ marginTop: '6px', fontSize: '11px', color: theme.subTextColor, fontStyle: 'normal' }}>
                                 🔒 Thành viên nhóm ẩn danh #{idx + 1} · Xác nhận tuân thủ Nghị định 13
                               </div>
                             </div>
@@ -1529,9 +1619,9 @@ export const ReviewRoundPage: React.FC = () => {
                           style={{
                             padding: '24px',
                             textAlign: 'center',
-                            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                            borderRadius: '8px',
-                            color: '#64748b',
+                            backgroundColor: theme.commentCardBg,
+                            borderRadius: '10px',
+                            color: theme.subTextColor,
                             fontSize: '13px',
                           }}
                         >
@@ -1546,9 +1636,9 @@ export const ReviewRoundPage: React.FC = () => {
                     style={{
                       padding: '40px 24px',
                       textAlign: 'center',
-                      backgroundColor: 'rgba(245, 158, 11, 0.05)',
-                      border: '1px dashed rgba(245, 158, 11, 0.3)',
-                      borderRadius: '10px',
+                      backgroundColor: theme.lockCardBg,
+                      border: theme.lockCardBorder,
+                      borderRadius: '16px',
                     }}
                   >
                     <div
@@ -1556,8 +1646,8 @@ export const ReviewRoundPage: React.FC = () => {
                         width: 54,
                         height: 54,
                         borderRadius: '50%',
-                        backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                        color: '#fbbf24',
+                        backgroundColor: isLight ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                        color: isLight ? '#d97706' : '#fbbf24',
                         display: 'grid',
                         placeItems: 'center',
                         margin: '0 auto 16px',
@@ -1566,20 +1656,20 @@ export const ReviewRoundPage: React.FC = () => {
                       <Lock size={26} />
                     </div>
 
-                    <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#f8fafc', margin: '0 0 8px 0' }}>
+                    <h3 style={{ fontSize: '17px', fontWeight: 700, color: theme.lockCardTitle, margin: '0 0 8px 0' }}>
                       Bảo vệ danh tính cá nhân (K-Anonymity Gate)
                     </h3>
 
-                    <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '540px', margin: '0 auto 16px', lineHeight: 1.6 }}>
+                    <p style={{ fontSize: '13px', color: theme.lockCardText, maxWidth: '540px', margin: '0 auto 16px', lineHeight: 1.6 }}>
                       Hiện tại thành viên này mới nhận được <strong>{activeResult.submissionCount} / 3</strong> lượt đánh giá tối thiểu. Để đảm bảo người được đánh giá không thể suy đoán hoặc xác định danh tính đồng đội đã chấm mình, hệ thống tạm thời khóa kết quả chi tiết.
                     </p>
 
                     <div style={{ maxWidth: '320px', margin: '0 auto 18px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: theme.subTextColor, marginBottom: '6px' }}>
                         <span>Tiến độ thu thập</span>
-                        <span style={{ color: '#fbbf24', fontWeight: 600 }}>{activeResult.submissionCount} / 3 phiếu</span>
+                        <span style={{ color: isLight ? '#d97706' : '#fbbf24', fontWeight: 600 }}>{activeResult.submissionCount} / 3 phiếu</span>
                       </div>
-                      <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ height: '6px', backgroundColor: theme.lockCardTrack, borderRadius: '3px', overflow: 'hidden' }}>
                         <div
                           style={{
                             height: '100%',
@@ -1591,14 +1681,14 @@ export const ReviewRoundPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    <div style={{ fontSize: '12px', color: theme.subTextColor }}>
                       📌 Kết quả sẽ tự động mở và tính vào bảng điểm khi có đủ từ 3 phiếu đánh giá hợp lệ trở lên.
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: theme.subTextColor }}>
                 <Users size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                 <p>Chọn một thành viên trong danh sách bên trái để xem kết quả đánh giá 360°.</p>
               </div>
@@ -1613,7 +1703,7 @@ export const ReviewRoundPage: React.FC = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -1624,19 +1714,19 @@ export const ReviewRoundPage: React.FC = () => {
         >
           <div
             style={{
-              backgroundColor: '#121318',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '12px',
+              backgroundColor: theme.modalBg,
+              border: theme.modalBorder,
+              borderRadius: '20px',
               padding: '24px',
               maxWidth: '480px',
               width: '100%',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+              boxShadow: theme.modalShadow,
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sparkles size={18} color="#818cf8" />
-                <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
                   Khởi tạo đợt chấm chéo mới
                 </h3>
               </div>
@@ -1645,7 +1735,7 @@ export const ReviewRoundPage: React.FC = () => {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: theme.subTextColor,
                   fontSize: '18px',
                   cursor: 'pointer',
                   padding: '4px',
@@ -1657,7 +1747,7 @@ export const ReviewRoundPage: React.FC = () => {
 
             <form onSubmit={handleCreateRound} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: theme.headingColor, marginBottom: '6px' }}>
                   Sprint áp dụng:
                 </label>
                 <select
@@ -1672,17 +1762,17 @@ export const ReviewRoundPage: React.FC = () => {
                   }}
                   style={{
                     width: '100%',
-                    backgroundColor: '#0c0d12',
-                    color: '#f8fafc',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '6px',
+                    backgroundColor: theme.inputBg,
+                    color: theme.inputColor,
+                    border: theme.inputBorder,
+                    borderRadius: '8px',
                     padding: '9px 12px',
                     fontSize: '13px',
                     outline: 'none',
                   }}
                 >
                   {sprints.map((sp) => (
-                    <option key={sp.id} value={sp.id}>
+                    <option key={sp.id} value={sp.id} style={{ backgroundColor: theme.cardBg, color: theme.textColor }}>
                       {sp.name} ({sp.status})
                     </option>
                   ))}
@@ -1690,7 +1780,7 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: theme.headingColor, marginBottom: '6px' }}>
                   Tên đợt chấm chéo:
                 </label>
                 <input
@@ -1702,10 +1792,10 @@ export const ReviewRoundPage: React.FC = () => {
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
-                    backgroundColor: '#0c0d12',
-                    color: '#f8fafc',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '6px',
+                    backgroundColor: theme.inputBg,
+                    color: theme.inputColor,
+                    border: theme.inputBorder,
+                    borderRadius: '8px',
                     padding: '9px 12px',
                     fontSize: '13px',
                     outline: 'none',
@@ -1716,10 +1806,11 @@ export const ReviewRoundPage: React.FC = () => {
               <div
                 style={{
                   padding: '10px 12px',
-                  backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                  borderRadius: '6px',
+                  backgroundColor: isLight ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.08)',
+                  border: isLight ? '1px solid rgba(99, 102, 241, 0.15)' : '1px solid rgba(99, 102, 241, 0.2)',
+                  borderRadius: '8px',
                   fontSize: '12px',
-                  color: '#94a3b8',
+                  color: theme.subTextColor,
                 }}
               >
                 🔒 Đợt chấm mới sẽ được tạo ở trạng thái <strong>Bản nháp (DRAFT)</strong> với ngưỡng tối thiểu là 3 lượt đánh giá theo quy chuẩn Nghị định 13/2023/NĐ-CP.
@@ -1731,11 +1822,11 @@ export const ReviewRoundPage: React.FC = () => {
                   onClick={() => setShowCreateModal(false)}
                   style={{
                     padding: '8px 16px',
-                    borderRadius: '6px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#cbd5e1',
+                    borderRadius: '8px',
+                    backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
+                    color: isLight ? '#475569' : '#cbd5e1',
                     fontSize: '13px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    border: isLight ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
                     cursor: 'pointer',
                   }}
                 >
@@ -1746,7 +1837,7 @@ export const ReviewRoundPage: React.FC = () => {
                   disabled={creatingRound}
                   style={{
                     padding: '8px 18px',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     backgroundColor: '#6366f1',
                     color: '#fff',
                     fontSize: '13px',
