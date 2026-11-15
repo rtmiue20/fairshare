@@ -31,6 +31,10 @@ public class SprintService {
         if (request.getName() == null || request.getName().isBlank()) {
             throw new BusinessException("Sprint name is required");
         }
+        if (request.getStartDate() != null && request.getEndDate() != null
+                && request.getEndDate().isBefore(request.getStartDate())) {
+            throw new BusinessException("Ngày kết thúc sprint không được trước ngày bắt đầu");
+        }
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
 
@@ -58,13 +62,21 @@ public class SprintService {
     }
 
     @Transactional(readOnly = true)
-    public List<SprintDto> getSprintsByTeam(Long teamId) {
+    public List<SprintDto> getSprintsByTeam(Long teamId, Long userId) {
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found: " + teamId);
+        }
+        if (userId != null && !teamMemberRepository.existsByTeamIdAndUserId(teamId, userId)) {
+            throw new ForbiddenException("Bạn không phải là thành viên của nhóm này");
         }
         return sprintRepository.findByTeamId(teamId).stream()
                 .map(this::mapToDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SprintDto> getSprintsByTeam(Long teamId) {
+        return getSprintsByTeam(teamId, null);
     }
 
     @Transactional(readOnly = true)
