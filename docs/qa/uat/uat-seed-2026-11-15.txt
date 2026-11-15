@@ -1,0 +1,4 @@
+== UAT seed trên http://localhost:8081
+   12 tài khoản sẵn sàng (uat01..uat12, id 2..13)
+   Nhóm A id 1: sprint 1, board 1, 10 card, đợt chấm 1 (OPEN)
+   Đã ghi docs/qa/uat/uat-accounts.md và .uat-credentials.local

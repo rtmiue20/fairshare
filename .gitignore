@@ -19,3 +19,8 @@ frontend/test-results/
 .env.staging
 fairshare-backend/uploads/*
 !fairshare-backend/uploads/.gitkeep
+
+# Tài khoản UAT (scripts/uat-seed.py) – không commit
+.uat-credentials.local
+# Video demo (lớn, lưu ngoài Git)
+docs/qa/evidence/demo/*.avi
