@@ -1,7 +1,7 @@
 # CHƯƠNG: KIỂM THỬ VÀ TRIỂN KHAI (BẢN NHÁP 1)
 
 **Người viết:** M5 – Khiếu Hoàng Nam Anh (MSSV 31241022203), PM QA & Deployment, WP5
-**Bản nháp:** 15/11/2026, số liệu đến `master` @ `d2eab98` (retest staging 15/11) | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
+**Bản nháp:** 15/11/2026, số liệu đến `master` @ `d2eab98` (retest staging, pilot UAT 15/11) | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
 **Nguồn số liệu:** `docs/qa/` (test case, test report, integration log, defect log, evidence), `docs/deploy/staging.md`, `.github/workflows/`
 
 > Các chỗ `<TODO: …>` là số liệu **chưa có**: kết quả UAT (M2 đóng UAT ngày 17/11), lần chạy cuối trên bản release, release tag và URL/video demo (18/11). Bản nháp này không tự điền các số liệu đó.
@@ -74,7 +74,8 @@ Kèm theo là các script chạy tay trên Windows (`scripts/ci-*.ps1`) và scri
 |---|---|---|---|---|
 | 02/11 (Sprint 3) | `master` @ `3b1086f` | 26 test: 19 pass, 7 pending | 17/17 pass | Auth backend chưa hiện thực |
 | 10/11 (Sprint 5) | `master` @ `0ed8f05` | 124 test: 0 lỗi, 7 skip | 65/65 pass (15 file) | 7 skip: nhóm `AuthContract` còn `@Disabled` (DEF-01) |
-| **14/11 (Sprint 6)** | `master` @ `d2eab98` | **178 test: 165 pass, 4 lỗi, 9 skip** | **74/74 pass (17 file)** | 4 lỗi mới (DEF-27). 9 skip là test Testcontainers, vì máy chạy không có Docker |
+| 14/11 (Sprint 6) | `master` @ `d2eab98` | 178 test: 165 pass, 4 lỗi, 9 skip | **74/74 pass (17 file)** | 4 lỗi mới (DEF-27). 9 skip là test Testcontainers (máy chạy không có Docker) |
+| **15/11 (Sprint 6)** | `master` @ `d2eab98` | **195 test: 191 pass, 4 lỗi, 0 skip** | – | Chạy `mvn test` trong container Maven có Docker: `AuthApiTest` và các test Testcontainers chạy thật và đạt (đóng DEF-01). 4 lỗi vẫn là DEF-27 |
 
 Số test backend tăng từ 26 lên 178 sau ba sprint. Phần lớn là test phân quyền, chấm chéo và đóng góp mà các chủ module bổ sung sau mỗi lần sửa lỗi.
 
@@ -124,7 +125,11 @@ Phía server (51 lần): trung vị 27 ms, chậm nhất 204 ms. Lần đo lại
 
 ### 3.6 Kiểm thử chấp nhận người dùng (UAT)
 
-`<TODO (M2 cung cấp 17/11): số phiếu, mức hài lòng G5, số lỗi UAT theo mức độ, lỗi nào đã đóng>`
+**Chạy thử (pilot) trước UAT – 15/11.** M5 chuẩn bị môi trường UAT bằng `scripts/uat-seed.py`: 12 tài khoản thử, nhóm A có dữ liệu mẫu. Sau đó chạy thử 24 ca bằng `scripts/uat-pilot.py`, gồm 5 kịch bản UAT-M2-01..05, các luồng chính, và phân quyền/chống gian lận. Kết quả **14/24 đạt**, phát hiện **7 lỗi mới (DEF-31..37), trong đó 2 lỗi High**: khai báo đóng góp giả danh/tự duyệt (DEF-31), người ngoài tự thêm mình làm Leader (DEF-33). Khi quay video demo, phát hiện thêm **DEF-38 (High)**: kéo thẻ vào cột Review lặp lại thì tự cộng điểm. Khuyến nghị M2 chưa mở UAT diện rộng khi 3 lỗi High chưa sửa. Chi tiết: `docs/qa/uat/uat-pilot-report.md`.
+
+Điểm đáng chú ý: cả 3 lỗi High đều **không bị unit test phát hiện**, vì unit test gọi thẳng service với tham số đúng. Chỉ khi thử như người dùng thật (gọi API bằng token của người khác, thao tác lặp lại) thì lỗi mới lộ ra.
+
+**UAT chính thức:** `<TODO (M2 cung cấp 17/11): số phiếu, mức hài lòng G5, số lỗi UAT theo mức độ, lỗi nào đã đóng>`
 
 ---
 
@@ -134,16 +139,16 @@ Phía server (51 lần): trung vị 27 ms, chậm nhất 204 ms. Lần đo lại
 
 `Open` → `In Progress` → `Fixed` (dev đã sửa) → `Closed` (M5 chạy lại ca kiểm thử đạt). Mỗi lỗi có mức độ (High/Medium/Low), người xử lý theo lát cắt dọc, bằng chứng và đề xuất sửa. M5 cập nhật `docs/qa/defect-log.md` sau mỗi lần chạy tích hợp hoặc hồi quy.
 
-### 4.2 Số liệu (15/11/2026)
+### 4.2 Số liệu (15/11/2026, sau pilot UAT)
 
 | Mức độ | Open | In Progress | Fixed – chờ retest | Closed | Tổng |
 |---|---|---|---|---|---|
-| High | 0 | 0 | 1 | 9 | 10 |
-| Medium | 1 | 1 | 0 | 7 | 9 |
-| Low | 3 | 0 | 0 | 8 | 11 |
-| **Tổng** | **4** | **1** | **1** | **24** | **30** |
+| High | 3 | 0 | 0 | 10 | 13 |
+| Medium | 3 | 0 | 0 | 8 | 11 |
+| Low | 6 | 0 | 0 | 8 | 14 (+1 bị rút: DEF-29) |
+| **Tổng** | **12** | **0** | **0** | **26** | **38 (+1 rút)** |
 
-Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..30). Cả 10 lỗi High đã đóng, trừ DEF-01 (còn chờ xác nhận `AuthApiTest` chạy trên CI có Docker).
+Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..39, trong đó pilot UAT và quay demo tìm được DEF-31..39). Cả 10 lỗi High cũ đã đóng; 3 lỗi High mới (DEF-31, 33, 38) đang mở. DEF-29 bị rút vì M5 ghi nhầm.
 
 ### 4.3 Các lỗi đáng chú ý
 
@@ -153,11 +158,14 @@ Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..
 | DEF-11 | Client tự gửi tên cột "Done", giả được việc hoàn thành card (rủi ro R05 – gian lận) | M1 dùng tên cột thật. Đóng 11/11 |
 | DEF-20 | Xuất PDF luôn lỗi 500 (transaction chỉ đọc gọi routine có ghi). Unit test dùng mock nên không phát hiện, chỉ test tích hợp mới bắt được | M0 sửa. Đóng 15/11 |
 | DEF-27 | Commit mới làm hỏng 4 unit test, CI backend đỏ ngay trước release | Đã giao M0, hạn trước 18/11 |
+| DEF-31, 33 | API tin tham số `userId`/`reviewerId`/`role` từ client, không đọc người dùng từ token → giả danh, tự duyệt, tự làm Leader | Đã giao M3, M2. Khuyến nghị dừng UAT diện rộng tới khi sửa |
+| DEF-38 | Kéo thẻ vào Review lặp lại thì cộng điểm không giới hạn (+25 SP sau 5 lần) | Đã giao M1, M3 |
 
 ### 4.4 Bài học từ quản lý lỗi
 
 - Test dùng mock cho kết quả "xanh" nhưng không phản ánh lỗi thật với CSDL (DEF-20). Vì vậy nhóm cần thêm tầng tích hợp gọi API thật.
 - Ghi "Closed" khi chưa chạy lại test dẫn tới đóng sai (DEF-07 từng bị ghi Closed khi còn 1/5 test giả). Quy tắc mới: chỉ M5 đóng lỗi, và phải có ca kiểm thử chạy lại.
+- Rà soát chỉ bằng đọc code cũng có thể sai: DEF-29 (14/11) bị rút ngày 15/11 vì endpoint nằm ở controller khác chỗ M5 tìm. Vì vậy lỗi chỉ nên ghi sau khi đã chạy thử.
 
 ---
 
@@ -184,9 +192,9 @@ Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, bu
 | Hạng mục | Kết quả |
 |---|---|
 | Release tag | `<TODO: tag, commit, ngày – 18/11>` |
-| URL demo | `<TODO>` |
-| Tài khoản demo | `<TODO: chỉ ghi vai trò, không ghi mật khẩu>` |
-| Video demo dự phòng | `<TODO: link>` |
+| URL demo | `<TODO: chờ M0 chốt máy chung/VPS; hiện chạy http://localhost:8081 trên máy M5>` |
+| Tài khoản demo | 12 tài khoản `uat01..uat12@fairshare.test` (Leader nhóm mẫu: `uat01`), danh sách trong `docs/qa/uat/uat-accounts.md`; mật khẩu gửi riêng |
+| Video demo dự phòng | Đã quay 15/11 bằng `scripts/record-demo.ps1` (102 giây, có chú thích từng bước). File 84 MB nên không đưa vào Git, lưu ở `docs/qa/evidence/demo/` trên máy M5. `<TODO: link thư mục chung>` |
 | Smoke test trên bản release | `<TODO>` |
 
 ---
