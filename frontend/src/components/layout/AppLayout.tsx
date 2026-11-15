@@ -12,6 +12,8 @@ export const AppLayout: React.FC = () => {
     let pageTitle = 'FairShare';
     if (path.startsWith('/dashboard') || path.startsWith('/dong-gop')) {
       pageTitle = 'Dashboard Đóng Góp · FairShare';
+    } else if (path.startsWith('/integration') || path.startsWith('/tich-hop')) {
+      pageTitle = 'Mạng Lưới Vector Đa Chiều · Tích Hợp · FairShare';
     } else if (path.startsWith('/teams/') && path.endsWith('/board')) {
       pageTitle = 'Bảng Kanban · FairShare';
     } else if (path.startsWith('/teams/') && path !== '/teams') {
