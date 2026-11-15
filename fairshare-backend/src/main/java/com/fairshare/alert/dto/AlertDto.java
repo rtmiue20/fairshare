@@ -18,6 +18,7 @@ public class AlertDto {
     private Long userId;
     private String userName;
     private String alertType;
+    private String severity;
     private String message;
     private boolean resolved;
     private LocalDateTime createdAt;
@@ -29,6 +30,7 @@ public class AlertDto {
                 .userId(alert.getUser() != null ? alert.getUser().getId() : null)
                 .userName(alert.getUser() != null ? alert.getUser().getFullName() : null)
                 .alertType(alert.getAlertType())
+                .severity(alert.getSeverity() != null ? alert.getSeverity() : "INFO")
                 .message(alert.getMessage())
                 .resolved(alert.isResolved())
                 .createdAt(alert.getCreatedAt())

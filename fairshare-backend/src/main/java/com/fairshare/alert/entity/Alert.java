@@ -28,9 +28,15 @@ public class Alert extends BaseEntity {
     @Column(name = "alert_type", nullable = false)
     private String alertType;
 
+    @Column(name = "severity")
+    private String severity = "INFO";
+
     @Column(columnDefinition = "TEXT")
     private String message;
 
     @Column(nullable = false)
     private boolean resolved;
+
+    @Column(name = "resolved_at")
+    private java.time.LocalDateTime resolvedAt;
 }

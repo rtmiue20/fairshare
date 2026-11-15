@@ -10,4 +10,6 @@ import java.util.List;
 public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByTeamId(Long teamId);
     List<Alert> findByTeamIdAndResolvedFalse(Long teamId);
+    List<Alert> findByTeamIdAndResolvedFalseOrderByCreatedAtDesc(Long teamId);
+    boolean existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(Long teamId, Long userId, String alertType);
 }
