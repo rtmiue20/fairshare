@@ -160,3 +160,4 @@ class InactivityAlertServiceTest {
         verify(alertRepository, times(1)).save(alert);
     }
 }
+

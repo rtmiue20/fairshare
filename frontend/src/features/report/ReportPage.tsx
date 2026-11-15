@@ -59,6 +59,24 @@ export const ReportPage: React.FC = () => {
   const urlTeamId = Number(searchParams.get('teamId'));
   const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
 
+  // Theme detector for Light / Dark Mode synchronization
+  const [isLight, setIsLight] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.dataset.theme === 'light';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsLight(document.documentElement.dataset.theme === 'light');
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
   const [sprintList, setSprintList] = useState<ReviewSprint[]>([]);
   const [selectedSprintId, setSelectedSprintId] = useState<number>(Number(searchParams.get('sprintId')) || 2);
   const [teamName, setTeamName] = useState<string>('Đồ án nhóm');
@@ -80,11 +98,9 @@ export const ReportPage: React.FC = () => {
       .getSprints(currentTeamId)
       .then((res) => {
         if (Array.isArray(res.data) && res.data.length > 0) {
-          // Sort sprints by id ascending
           const sorted = [...res.data].sort((a, b) => a.id - b.id);
           setSprintList(sorted);
 
-          // If current selected sprint isn't in list, pick the active one or first one
           const currentUrlSprint = Number(searchParams.get('sprintId'));
           if (currentUrlSprint && sorted.some((s) => s.id === currentUrlSprint)) {
             setSelectedSprintId(currentUrlSprint);
@@ -215,7 +231,7 @@ export const ReportPage: React.FC = () => {
           const trelloScore = item.trelloScore ?? 0;
           const manualScore = item.manualScore ?? 0;
 
-          // Real card count: if board has cards for user, use it. Otherwise compute from trelloScore if > 0. Exactly 0 if score is 0!
+          // Real card count: if board has cards for user, use it. Otherwise compute from trelloScore
           let taskCount = 0;
           if (memberCardsMap[item.userId] !== undefined) {
             taskCount = memberCardsMap[item.userId];
@@ -223,7 +239,7 @@ export const ReportPage: React.FC = () => {
             taskCount = Math.max(1, Math.round(trelloScore / 2.5));
           }
 
-          // Real edits / activity count: Exactly 0 if pct == 0!
+          // Real edits / activity count
           let editsCount = 0;
           if (pct > 0 || trelloScore > 0) {
             editsCount = Math.max(12, Math.round(trelloScore * 8 + manualScore * 10));
@@ -319,6 +335,35 @@ export const ReportPage: React.FC = () => {
     return members.reduce((acc, m) => acc + m.edits, 0);
   }, [members]);
 
+  // Dynamic Gini calculation from member percentages
+  const { giniValue, giniLabel } = useMemo(() => {
+    if (members.length === 0) return { giniValue: '0.00', giniLabel: 'Chưa đủ dữ liệu' };
+    const values = members.map((m) => m.pct);
+    const n = values.length;
+    const sum = values.reduce((a, b) => a + b, 0);
+    if (sum === 0) return { giniValue: '0.00', giniLabel: 'Chưa có phân bổ' };
+
+    let diffSum = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        diffSum += Math.abs(values[i] - values[j]);
+      }
+    }
+    const gini = diffSum / (2 * n * sum);
+    const valStr = gini.toFixed(2);
+
+    let label = 'Cân bằng rất cao';
+    if (gini > 0.35) {
+      label = 'Lệch tải cao';
+    } else if (gini > 0.25) {
+      label = 'Chênh lệch vừa phải';
+    } else if (gini > 0.15) {
+      label = 'Cân bằng tốt';
+    }
+
+    return { giniValue: valStr, giniLabel: label };
+  }, [members]);
+
   const todayStr = useMemo(() => {
     const d = new Date();
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -328,12 +373,43 @@ export const ReportPage: React.FC = () => {
     return <NoProjectState />;
   }
 
+  // Visual Theme Tokens for Light / Dark Mode Synchronization
+  const theme = {
+    textColor: isLight ? '#0f172a' : '#f8fafc',
+    subTextColor: isLight ? '#64748b' : '#94a3b8',
+    headingColor: isLight ? '#0f172a' : '#ffffff',
+    kpiBg: isLight ? '#ffffff' : '#121318',
+    kpiBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+    kpiShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.03)' : '0 4px 24px rgba(0, 0, 0, 0.25)',
+    kpiRadius: '16px',
+    selectBg: isLight ? '#ffffff' : '#121318',
+    selectColor: isLight ? '#0f172a' : '#f8fafc',
+    selectBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.14)',
+    printBtnBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+    printBtnColor: isLight ? '#334155' : '#e2e8f0',
+    printBtnBorder: isLight ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.12)',
+    refreshBtnBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+    refreshBtnColor: isLight ? '#64748b' : '#94a3b8',
+    refreshBtnBorder: isLight ? '1px solid rgba(0, 0, 0, 0.1)' : '1px solid rgba(255, 255, 255, 0.1)',
+    badgeActiveBg: isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.15)',
+    badgeActiveColor: isLight ? '#047857' : '#34d399',
+    badgeActiveBorder: isLight ? '1px solid #a7f3d0' : '1px solid rgba(16, 185, 129, 0.3)',
+    badgeClosedBg: isLight ? '#f1f5f9' : 'rgba(148, 163, 184, 0.15)',
+    badgeClosedColor: isLight ? '#475569' : '#94a3b8',
+    badgeClosedBorder: isLight ? '1px solid #cbd5e1' : '1px solid rgba(148, 163, 184, 0.3)',
+    paperBg: '#ffffff',
+    paperColor: '#1e293b',
+    paperBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
+    paperShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.06)' : '0 12px 36px rgba(0, 0, 0, 0.45)',
+    paperRadius: '16px',
+  };
+
   return (
-    <div className="page pad" style={{ maxWidth: '1080px', margin: '0 auto', color: '#f8fafc' }}>
+    <div className="page pad" style={{ maxWidth: '1120px', margin: '0 auto', color: theme.textColor }}>
       {/* 1. Page Header & Actions */}
       <div className="no-print" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>
-          <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.subTextColor, marginBottom: '8px' }}>
+          <Link to="/" style={{ color: theme.subTextColor, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <ArrowLeft size={14} /> Dashboard
           </Link>
           <ChevronRight size={14} />
@@ -343,7 +419,7 @@ export const ReportPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 700, margin: 0, color: '#fff', letterSpacing: '-0.02em' }}>
+              <h1 style={{ fontSize: '28px', fontWeight: 700, margin: 0, color: theme.headingColor, letterSpacing: '-0.02em' }}>
                 Bản đóng góp nộp cho giảng viên
               </h1>
               {currentSprint && (
@@ -351,18 +427,18 @@ export const ReportPage: React.FC = () => {
                   style={{
                     fontSize: '12px',
                     fontWeight: 600,
-                    padding: '3px 10px',
-                    borderRadius: '16px',
-                    backgroundColor: currentSprint.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                    color: currentSprint.status === 'ACTIVE' ? '#34d399' : '#94a3b8',
-                    border: `1px solid ${currentSprint.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    backgroundColor: currentSprint.status === 'ACTIVE' ? theme.badgeActiveBg : theme.badgeClosedBg,
+                    color: currentSprint.status === 'ACTIVE' ? theme.badgeActiveColor : theme.badgeClosedColor,
+                    border: currentSprint.status === 'ACTIVE' ? theme.badgeActiveBorder : theme.badgeClosedBorder,
                   }}
                 >
                   {currentSprint.status === 'ACTIVE' ? 'Sprint đang diễn ra' : 'Sprint đã chốt'}
                 </span>
               )}
             </div>
-            <p style={{ margin: '6px 0 0', fontSize: '14px', color: '#94a3b8', maxWidth: '720px', lineHeight: 1.5 }}>
+            <p style={{ margin: '6px 0 0', fontSize: '14.5px', color: theme.subTextColor, maxWidth: '740px', lineHeight: 1.5 }}>
               Bảng tổng hợp điểm danh nghĩa và tỷ lệ đóng góp được chốt theo thuật toán đa chiều (Multi-Dimensional Scoring v1.1). Dữ liệu minh chứng truy vết bất biến phục vụ nghiệm thu đồ án.
             </p>
           </div>
@@ -378,15 +454,16 @@ export const ReportPage: React.FC = () => {
                 onChange={(e) => handleSprintChange(Number(e.target.value))}
                 style={{
                   padding: '9px 14px',
-                  borderRadius: '6px',
-                  backgroundColor: '#121318',
-                  color: '#f8fafc',
-                  border: '1px solid rgba(255, 255, 255, 0.14)',
+                  borderRadius: '10px',
+                  backgroundColor: theme.selectBg,
+                  color: theme.selectColor,
+                  border: theme.selectBorder,
                   fontSize: '13px',
                   fontWeight: 500,
                   outline: 'none',
                   cursor: 'pointer',
                   maxWidth: '360px',
+                  boxShadow: isLight ? '0 1px 3px rgba(0, 0, 0, 0.05)' : 'none',
                 }}
               >
                 {sprintList.map((s) => (
@@ -405,14 +482,15 @@ export const ReportPage: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '9px 14px',
-                borderRadius: '6px',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                color: '#e2e8f0',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                padding: '9px 16px',
+                borderRadius: '10px',
+                backgroundColor: theme.printBtnBg,
+                color: theme.printBtnColor,
+                border: theme.printBtnBorder,
                 fontSize: '13px',
-                fontWeight: 500,
+                fontWeight: 600,
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               <Printer size={15} /> Xem trước / In
@@ -427,15 +505,17 @@ export const ReportPage: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '9px 16px',
-                borderRadius: '6px',
-                backgroundColor: '#6366f1',
+                padding: '9px 18px',
+                borderRadius: '10px',
+                backgroundColor: '#4f46e5',
                 color: '#fff',
                 border: 'none',
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: downloading ? 'not-allowed' : 'pointer',
                 opacity: downloading ? 0.7 : 1,
+                boxShadow: '0 2px 10px rgba(79, 70, 229, 0.3)',
+                transition: 'all 0.15s ease',
               }}
             >
               <Download size={15} /> {downloading ? 'Đang tạo PDF...' : 'Xuất PDF chính thức'}
@@ -445,64 +525,111 @@ export const ReportPage: React.FC = () => {
               onClick={loadReportData}
               title="Làm mới dữ liệu báo cáo"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#94a3b8',
-                padding: '8px 10px',
-                borderRadius: '6px',
+                background: theme.refreshBtnBg,
+                border: theme.refreshBtnBorder,
+                color: theme.refreshBtnColor,
+                padding: '9px 11px',
+                borderRadius: '10px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
+                transition: 'all 0.15s ease',
               }}
             >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* 2. Executive KPI Summary Cards (No-print only for app view) */}
+      {/* 2. Executive KPI Summary Cards (Synchronized for Light/Dark Mode) */}
       <div
         className="no-print"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '12px',
-          marginBottom: '22px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px',
         }}
       >
-        <div style={{ backgroundColor: '#121318', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '14px 16px' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Giai đoạn báo cáo</div>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div
+          style={{
+            backgroundColor: theme.kpiBg,
+            border: theme.kpiBorder,
+            borderRadius: theme.kpiRadius,
+            boxShadow: theme.kpiShadow,
+            padding: '16px 18px',
+          }}
+        >
+          <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Giai đoạn báo cáo
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: theme.headingColor, marginTop: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {currentSprint ? currentSprint.name.split('-')[0].trim() : 'Sprint'}
           </div>
-          <div style={{ fontSize: '12px', color: '#818cf8', marginTop: '2px' }}>
+          <div style={{ fontSize: '12px', color: '#6366f1', marginTop: '3px', fontWeight: 500 }}>
             {formatDate(currentSprint?.startDate)} — {formatDate(currentSprint?.endDate)}
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#121318', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '14px 16px' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Tổng nhiệm vụ &amp; Hoạt động</div>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#34d399', marginTop: '4px', fontFamily: 'monospace' }}>
+        <div
+          style={{
+            backgroundColor: theme.kpiBg,
+            border: theme.kpiBorder,
+            borderRadius: theme.kpiRadius,
+            boxShadow: theme.kpiShadow,
+            padding: '16px 18px',
+          }}
+        >
+          <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Tổng nhiệm vụ &amp; Hoạt động
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#10b981', marginTop: '5px', fontFamily: 'monospace' }}>
             {totalTasks} Tasks · {totalEdits} Events
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Ghi nhận từ Task Board &amp; Git commits</div>
-        </div>
-
-        <div style={{ backgroundColor: '#121318', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '14px 16px' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Độ phân bổ đóng góp (Gini)</div>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#60a5fa', marginTop: '4px', fontFamily: 'monospace' }}>
-            0.12 (Cân bằng cao)
+          <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '3px' }}>
+            Ghi nhận từ Task Board &amp; Git commits
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Khối lượng công việc phân bổ đồng đều</div>
         </div>
 
-        <div style={{ backgroundColor: '#121318', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '14px 16px' }}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Chuẩn mực pháp lý</div>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginTop: '4px' }}>
+        <div
+          style={{
+            backgroundColor: theme.kpiBg,
+            border: theme.kpiBorder,
+            borderRadius: theme.kpiRadius,
+            boxShadow: theme.kpiShadow,
+            padding: '16px 18px',
+          }}
+        >
+          <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Độ phân bổ đóng góp (Gini)
+          </div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#3b82f6', marginTop: '5px', fontFamily: 'monospace' }}>
+            {giniValue} ({giniLabel})
+          </div>
+          <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '3px' }}>
+            Khối lượng công việc phân bổ đồng đều
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: theme.kpiBg,
+            border: theme.kpiBorder,
+            borderRadius: theme.kpiRadius,
+            boxShadow: theme.kpiShadow,
+            padding: '16px 18px',
+          }}
+        >
+          <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Chuẩn mực pháp lý
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: theme.headingColor, marginTop: '5px' }}>
             100% Consent
           </div>
-          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '2px' }}>Nghị định 13/2023/NĐ-CP</div>
+          <div style={{ fontSize: '12px', color: '#10b981', marginTop: '3px', fontWeight: 500 }}>
+            Nghị định 13/2023/NĐ-CP
+          </div>
         </div>
       </div>
 
@@ -510,11 +637,12 @@ export const ReportPage: React.FC = () => {
       <div
         className="paper report-print-document"
         style={{
-          backgroundColor: '#ffffff',
-          color: '#1e293b',
-          borderRadius: '8px',
-          padding: '40px 44px',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+          backgroundColor: theme.paperBg,
+          color: theme.paperColor,
+          borderRadius: theme.paperRadius,
+          border: theme.paperBorder,
+          padding: '42px 46px',
+          boxShadow: theme.paperShadow,
           maxWidth: '100%',
           boxSizing: 'border-box',
           fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -526,7 +654,7 @@ export const ReportPage: React.FC = () => {
             <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', color: '#475569', textTransform: 'uppercase' }}>
               FAIRSHARE · HỆ THỐNG ĐO LƯỜNG ĐÓNG GÓP ĐỒ ÁN NHÓM
             </div>
-            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '4px 0 2px 0' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: '4px 0 2px 0' }}>
               BÁO CÁO NGHIỆM THU ĐÓNG GÓP &amp; MINH BẠCH NĂNG SUẤT
             </h2>
             <div style={{ fontSize: '13px', color: '#64748b' }}>
@@ -549,7 +677,7 @@ export const ReportPage: React.FC = () => {
             gap: '12px 24px',
             backgroundColor: '#f8fafc',
             border: '1px solid #e2e8f0',
-            borderRadius: '6px',
+            borderRadius: '8px',
             padding: '14px 18px',
             fontSize: '13px',
             marginBottom: '22px',
@@ -664,7 +792,7 @@ export const ReportPage: React.FC = () => {
                     </td>
 
                     {/* Peer Review score */}
-                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
+                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: m.peerScore.includes('★') ? '#b45309' : '#0f172a' }}>
                       {m.peerScore}
                     </td>
 

@@ -18,3 +18,4 @@ public class MemberInactivityDto {
     private LocalDateTime lastActivity;
     private boolean exceeded;
 }
+

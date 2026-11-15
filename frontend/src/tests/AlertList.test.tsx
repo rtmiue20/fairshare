@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -76,7 +75,7 @@ describe('AlertList Component (CR-04 Rule-Based Alerts & Inactivity)', () => {
     vi.clearAllMocks();
     useProjectStore.setState({
       initialized: true,
-      teams: [{ id: 1, name: 'EduConnect' }],
+      teams: [{ id: 1, name: 'EduConnect', createdAt: '2026-10-15T08:00:00' }],
       activeTeamId: 1,
     });
 
