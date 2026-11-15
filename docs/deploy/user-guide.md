@@ -35,14 +35,15 @@ Ba container chạy chung mạng Docker `fairshare-network`.
 ```bash
 git clone https://github.com/rtmiue20/fairshare.git
 cd fairshare
-cp .env.example .env        # rồi mở .env, điền DB_PASSWORD và DB_ROOT_PASSWORD
+cp .env.example .env        # rồi mở .env, điền DB_PASSWORD, DB_ROOT_PASSWORD và JWT_SECRET
+                            # sinh JWT_SECRET: openssl rand -hex 32  (Windows: py -c "import secrets;print(secrets.token_hex(32))")
 docker compose up -d --build
 docker compose ps           # chờ cả 3 container ở trạng thái Up / healthy
 ```
 
 Mở trình duyệt: **http://localhost** (cổng `FRONTEND_PORT`, mặc định 80).
 
-> ⚠️ Bản dev chưa truyền `JWT_SECRET` (lỗi DEF-18, đang xử lý), nên backend dùng secret mặc định. **Không dùng cách này cho demo công khai.** Khi cần đưa cho người ngoài dùng, chạy theo Cách 2.
+> Từ 15/11 (DEF-18) bản dev cũng bắt buộc `JWT_SECRET`: thiếu thì `docker compose` dừng và báo *Thiếu JWT_SECRET trong .env*. Khi đưa cho người ngoài dùng (UAT, demo), nên chạy theo Cách 2.
 
 ### A4. Cách 2 – Staging / UAT / demo (khuyến nghị)
 
@@ -75,7 +76,7 @@ Mở trình duyệt: **http://localhost:8081** (hoặc `http://<địa chỉ má
 |---|---|---|
 | `DB_NAME`, `DB_USER` | Có (đã có giá trị mặc định) | Tên CSDL và tài khoản ứng dụng |
 | `DB_PASSWORD`, `DB_ROOT_PASSWORD` | **Có** | Mật khẩu MariaDB. Sau khi volume DB đã được tạo thì **không đổi** nữa |
-| `JWT_SECRET` | **Có** (staging) | Chuỗi ngẫu nhiên ≥ 32 byte để ký token đăng nhập |
+| `JWT_SECRET` | **Có** (dev và staging) | Chuỗi ngẫu nhiên ≥ 32 byte để ký token đăng nhập |
 | `JWT_EXPIRATION_MS` | Không | Thời hạn token, mặc định 86 400 000 ms (24 giờ) |
 | `BACKEND_PORT`, `FRONTEND_PORT` | Không | Cổng xuất ra máy host |
 
@@ -85,7 +86,8 @@ Không commit `.env` và `.env.staging` lên Git (cả hai đã có trong `.giti
 
 - Hệ thống không có tài khoản tạo sẵn. Người dùng tự đăng ký ở `/register`.
 - Dữ liệu mẫu lớn của M3 (6 thành viên, 500 sự kiện, 5 sprint): `fairshare-backend/src/main/resources/seed/large_dataset_500_tasks.sql`. Seed phải nạp **trước** khi có ai đăng ký, vì seed dùng `users.id` 1–6. Lệnh nạp xem `docs/qa/test-report-sprint5.md` mục 7.
-- Tài khoản demo cho buổi bảo vệ: `<TODO: điền sau khi dựng bản demo – email Leader, email thành viên; mật khẩu gửi riêng trong nhóm, không ghi vào repo>`.
+- **Tài khoản UAT/demo:** chạy `py -X utf8 scripts/uat-seed.py` (Linux/macOS: `python3 scripts/uat-seed.py`) để tạo 12 tài khoản `uat01..uat12@fairshare.test` và nhóm A có dữ liệu mẫu. Danh sách và vai trò: `docs/qa/uat/uat-accounts.md`. Mật khẩu chung nằm trong `.uat-credentials.local` (không commit), gửi riêng trong nhóm.
+- **Video demo dự phòng:** `powershell -ExecutionPolicy Bypass -File scripts\record-demo.ps1` quay lại luồng demo (khoảng 100 giây, file `.avi` trong `docs/qa/evidence/demo/`).
 
 ### A7. Xử lý sự cố thường gặp
 
@@ -116,14 +118,16 @@ Không commit `.env` và `.env.staging` lên Git (cả hai đã có trong `.giti
 
 Menu chính (thanh điều hướng trên cùng): **Bảng đóng góp** (`/dashboard`) · **Nhóm đồ án** (`/teams`) · **Kanban Board** (`/board`) · **Chấm chéo** (`/peer-review`) · **Cảnh báo** (`/alerts`) · **Hồ sơ & Consent** (`/profile`).
 
-> Ảnh minh họa: mỗi mục dưới đây có chỗ `<TODO: ảnh ...>`. Ảnh sẽ chụp trên bản demo (có ngày giờ trên màn hình) và lưu vào `docs/qa/evidence/user-guide/`.
+> Ảnh minh họa chụp trên staging ngày 15/11/2026 bằng `scripts/capture-screens.ps1` (dữ liệu mẫu nhóm A từ `scripts/uat-seed.py`). Nhãn ở góc phải dưới mỗi ảnh ghi màn hình và thời điểm chụp. Muốn chụp lại sau khi giao diện thay đổi: chạy lại script này.
 
 ### B2. Đăng ký và đăng nhập
 
 1. Mở trang chủ, chọn **Đăng ký** (`/register`). Nhập họ tên, email, mật khẩu. Email phải đúng định dạng; nếu nhập sai, form báo lỗi ngay dưới từng ô.
 2. Đăng nhập tại `/login`. Phiên đăng nhập giữ 24 giờ. Tải lại trang (F5) không bị đăng xuất.
 
-`<TODO: ảnh màn hình đăng nhập>`
+![Màn hình đăng nhập](../qa/evidence/user-guide/01-dang-nhap.png)
+
+![Màn hình đăng ký](../qa/evidence/user-guide/02-dang-ky.png)
 
 ### B3. Tạo dự án hoặc tham gia nhóm
 
@@ -136,7 +140,7 @@ Menu chính (thanh điều hướng trên cùng): **Bảng đóng góp** (`/dash
 1. Vào **Nhóm đồ án** → **+ Tạo dự án** → chọn tham gia bằng mã, nhập **Mã mời tham gia nhóm (Invite Code)** do trưởng nhóm gửi.
 2. Hoặc trưởng nhóm mời trực tiếp từ trang chi tiết nhóm: **+ Mời thành viên**. Mã mời cũng hiện ở mục **Mã tham gia**.
 
-`<TODO: ảnh hộp thoại Tạo dự án mới>`
+![Trang nhóm sau khi tạo dự án: mã mời, Task Calendar, Kanban](../qa/evidence/user-guide/03-danh-sach-nhom.png)
 
 ### B4. Đồng thuận chia sẻ dữ liệu (Consent – Nghị định 13/2023/NĐ-CP)
 
@@ -150,13 +154,13 @@ Menu chính (thanh điều hướng trên cùng): **Bảng đóng góp** (`/dash
 
 Người không đồng thuận vẫn ghi nhận được công sức qua **Khai báo đóng góp** (mục B8), có thành viên khác xác nhận.
 
-`<TODO: ảnh trang Hồ sơ & Consent>`
+![Hồ sơ và Consent](../qa/evidence/user-guide/12-ho-so-consent.png)
 
 ### B5. Quản lý sprint (Trưởng nhóm)
 
 Trong trang chi tiết nhóm, mục **Lộ trình Sprints theo Đồ án Môn học**: tạo sprint (tên, ngày bắt đầu, ngày kết thúc) và theo dõi **Sprint hiện tại**. Điểm đóng góp, chấm chéo và báo cáo đều tính theo sprint.
 
-`<TODO: ảnh lộ trình sprint>`
+![Chi tiết nhóm: thành viên, đồng thuận, sprint hiện tại](../qa/evidence/user-guide/04-chi-tiet-nhom.png)
 
 ### B6. Task Board nội bộ (Kanban) – thay cho Trello
 
@@ -175,7 +179,9 @@ Vào **Kanban Board** (`/board`), hoặc từ trang nhóm chọn board của nh�
 
 **Lưu ý phân quyền:** người ngoài nhóm không xem hay sửa được board. Thành viên chỉ kéo được thẻ mình phụ trách.
 
-`<TODO: ảnh board 4 cột có thẻ>` `<TODO: ảnh chi tiết thẻ>`
+![Task Board nội bộ 4 cột](../qa/evidence/user-guide/05-task-board.png)
+
+![Chi tiết thẻ](../qa/evidence/user-guide/06-chi-tiet-the.png)
 
 ### B7. Bảng đóng góp (Dashboard)
 
@@ -187,7 +193,9 @@ Vào **Bảng đóng góp** (`/dashboard`):
 
 FairShare là **công cụ hỗ trợ ra quyết định**. Tỷ lệ đóng góp là căn cứ tham khảo, không tự quyết định điểm của ai.
 
-`<TODO: ảnh dashboard>`
+![Bảng đóng góp: tỷ lệ theo thành viên](../qa/evidence/user-guide/07-bang-dong-gop.png)
+
+![Bảng bằng chứng truy vết](../qa/evidence/user-guide/07b-bang-chung.png)
 
 ### B8. Khai báo đóng góp ngoài board
 
@@ -196,7 +204,7 @@ Dùng cho công việc không nằm trên board (ví dụ họp với khách hà
 2. Khai báo ở trạng thái **Chờ duyệt (Pending)**. Một **thành viên khác** trong nhóm xét và bấm **Duyệt** hoặc **Từ chối**. Không ai tự duyệt khai báo của chính mình.
 3. Chỉ khai báo **Đã duyệt (Approved)** mới được cộng vào điểm.
 
-`<TODO: ảnh trang khai báo đóng góp>`
+![Khai báo đóng góp ngoài board](../qa/evidence/user-guide/08-khai-bao-dong-gop.png)
 
 ### B9. Chấm chéo ẩn danh (Peer Review 360°)
 
@@ -211,13 +219,15 @@ Dùng cho công việc không nằm trên board (ví dụ họp với khách hà
 
 **Bảo vệ danh tính:** điểm của một người **chỉ hiện khi có ít nhất 3 người khác nhau đã chấm** (**Đạt chuẩn ẩn danh (≥ 3 phiếu)**). Dưới ngưỡng này, màn hình chỉ báo **Bảo vệ danh tính (Dưới ngưỡng)**, không hiện điểm. Không ai, kể cả trưởng nhóm, xem được ai chấm ai.
 
-`<TODO: ảnh phiếu chấm>` `<TODO: ảnh kết quả đạt ngưỡng và dưới ngưỡng>`
+![Chấm chéo: góc nhìn Leader](../qa/evidence/user-guide/09-cham-cheo.png)
+
+![Chấm chéo: thành viên chưa đủ 3 phiếu](../qa/evidence/user-guide/13-cham-cheo-duoi-nguong.png)
 
 ### B10. Cảnh báo sớm
 
 Vào **Cảnh báo** (`/alerts`) để xem cảnh báo theo quy tắc, ví dụ thành viên không có hoạt động trong sprint hoặc có nhiều thẻ trễ hạn. Trưởng nhóm có thể gửi nhắc nhở cho thành viên.
 
-`<TODO: ảnh danh sách cảnh báo>`
+![Cảnh báo sớm](../qa/evidence/user-guide/10-canh-bao.png)
 
 ### B11. Xuất báo cáo PDF cho giảng viên (Trưởng nhóm)
 
@@ -226,7 +236,9 @@ Vào **Cảnh báo** (`/alerts`) để xem cảnh báo theo quy tắc, ví dụ 
 
 Báo cáo gồm: tỷ lệ đóng góp từng người, điểm chấm chéo (chỉ khi đạt ngưỡng ≥ 3 người chấm), bằng chứng chính, chỗ ký của trưởng nhóm và giảng viên. Chỉ thành viên trong nhóm xuất được báo cáo của nhóm mình.
 
-`<TODO: ảnh trang xuất báo cáo>` `<TODO: ảnh trang đầu file PDF>`
+![Xuất báo cáo đóng góp](../qa/evidence/user-guide/11-xuat-bao-cao.png)
+
+File PDF mẫu: [`report-vietnamese-2026-11-15.pdf`](../qa/evidence/report-vietnamese-2026-11-15.pdf).
 
 ### B12. Câu hỏi thường gặp
 
