@@ -93,10 +93,17 @@ for u in (B, C, D):
     st, r = call("POST", f"/api/teams/{team_id}/members", {"email": u["email"]}, A["token"])
     assert st in (200, 201), f"invite {u['email']}: {st} {r}"
 today = date.today()
-st, r = call("POST", f"/api/teams/{team_id}/sprints",
-             {"name": f"IT Sprint {RUN}", "startDate": str(today - timedelta(days=3)),
-              "endDate": str(today + timedelta(days=4))}, A["token"])
-sprint_id = data(r)["id"]
+# Từ 11/11 backend tự tạo "Sprint 1" (ACTIVE, 14 ngày) khi tạo nhóm, và gắn sự kiện board
+# vào sprint đang mở đầu tiên. Dùng lại sprint đó; chỉ tạo mới khi nhóm chưa có sprint.
+st, r = call("GET", f"/api/teams/{team_id}/sprints", token=A["token"])
+existing = data(r) if st == 200 else None
+if existing:
+    sprint_id = existing[0]["id"]
+else:
+    st, r = call("POST", f"/api/teams/{team_id}/sprints",
+                 {"name": f"IT Sprint {RUN}", "startDate": str(today - timedelta(days=3)),
+                  "endDate": str(today + timedelta(days=4))}, A["token"])
+    sprint_id = data(r)["id"]
 st, r = call("POST", "/api/boards", {"teamId": team_id, "name": "IT Board"}, A["token"])
 board = data(r)
 cols = {c["name"]: c["id"] for c in board["columns"]}

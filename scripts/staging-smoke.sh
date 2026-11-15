@@ -44,7 +44,11 @@ reg=$(curl -s -X POST "$FE_URL/api/auth/register" -H 'Content-Type: application/
 echo "$reg" | grep -q '"accessToken"' && ok "register $email" || bad "register: $reg"
 login=$(curl -s -X POST "$FE_URL/api/auth/login" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$email\",\"password\":\"Smoke@123456\"}")
-token=$(echo "$login" | python3 -c 'import sys,json; print(json.load(sys.stdin)["data"]["accessToken"])' 2>/dev/null)
+PY=""
+for c in python3 python py; do
+  if command -v "$c" >/dev/null 2>&1 && "$c" -c 'print(1)' >/dev/null 2>&1; then PY="$c"; break; fi
+done
+token=$(echo "$login" | "${PY:-python3}" -c 'import sys,json; print(json.load(sys.stdin)["data"]["accessToken"])' 2>/dev/null)
 [[ -n "$token" ]] && ok "login trả JWT" || bad "login: $login"
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$FE_URL/api/teams")
 [[ "$code" == "200" ]] && ok "/api/teams có token -> 200" || bad "/api/teams có token -> $code"
