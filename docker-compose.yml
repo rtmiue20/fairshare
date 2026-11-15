@@ -44,6 +44,9 @@ services:
       DB_NAME: ${DB_NAME:-fairshare}
       DB_USER: ${DB_USER:-fairshare}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?}
+      # DEF-18: bắt buộc secret riêng, không dùng secret mặc định trong application.yaml
+      JWT_SECRET: ${JWT_SECRET:?Thiếu JWT_SECRET trong .env (xem .env.example)}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Ho_Chi_Minh
     ports:
