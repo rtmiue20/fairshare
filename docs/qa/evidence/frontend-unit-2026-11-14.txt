@@ -1,0 +1,29 @@
+# Unit test frontend – master @ d2eab98 – 14/11/2026 23:21 (GMT+7)
+# Lệnh: cd frontend && npm ci && npx vitest run
+
+ ✓ src/tests/BoardView.test.tsx  (13 tests) 2732ms
+ ✓ src/tests/ManualContributionForm.test.tsx  (4 tests) 366ms
+ ✓ src/tests/PendingContributionsList.test.tsx  (4 tests) 236ms
+stderr | src/tests/ProfileSettingsPage.test.tsx > ProfileSettingsPage Component Tests > renders page without hardcoded UEH text and initializes blank fields for new user
+ ✓ src/tests/ProfileSettingsPage.test.tsx  (3 tests) 418ms
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > renders LoginPage with email, password inputs and demo login button
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > validates empty email on LoginPage submit
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > renders RegisterPage with required fields
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > ContributionDashboard teamId handling (DEF-22) > fetches contribution data using prop teamId when provided
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > ContributionDashboard teamId handling (DEF-22) > fetches contribution data using URL search param teamId
+ ✓ src/tests/ContributionDashboard.test.tsx  (7 tests) 656ms
+ ✓ src/tests/MemberRadarChart.test.tsx  (4 tests) 61ms
+ ✓ src/tests/EvidenceTraceabilityModal.test.tsx  (5 tests) 141ms
+ ✓ src/tests/auth/LoginPage.test.tsx  (4 tests) 598ms
+ ✓ src/tests/peerreview/ReviewForm.test.tsx  (3 tests) 353ms
+ ✓ src/tests/DashboardFilters.test.tsx  (4 tests) 65ms
+ ✓ src/tests/BoardRolePermission.test.tsx  (3 tests) 1101ms
+stderr | src/tests/BoardRolePermission.test.tsx > BoardView Role-Based Permissions & UI Locking Tests (M1) > renders Leader role with "Thêm cột" button and full card editing access
+ ✓ src/tests/auth/RegisterPage.test.tsx  (3 tests) 370ms
+ ✓ src/tests/EvidenceTable.test.tsx  (5 tests) 94ms
+ ✓ src/tests/MemberTable.test.tsx  (3 tests) 226ms
+ ✓ src/tests/auth/apiClient.test.ts  (3 tests) 16ms
+ ✓ src/tests/auth/ProtectedRoute.test.tsx  (3 tests) 34ms
+ ✓ src/tests/auth/authStore.test.ts  (3 tests) 4ms
+ Test Files  17 passed (17)
+      Tests  74 passed (74)

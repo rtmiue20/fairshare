@@ -1,0 +1,77 @@
+== Setup tr├¬n http://localhost:8081 (run 1794711609)
+   team=2 sprint=6 board=2 cß╗Öt=['To Do', 'In Progress', 'Review', 'Done']
+
+== Luß╗ông 1: Board -> ActivityEvent -> ─æ├│ng g├│p
+[PASS] IT-BRD-01 Tß║ío card sinh CARD_CREATED nguß╗ôn BOARD, gß║»n ─æ├║ng sprint
+       mong ─æß╗úi: 3 sß╗▒ kiß╗çn CARD_CREATED, source=BOARD, sprintId=6
+       thß╗▒c tß║┐ : 3 sß╗▒ kiß╗çn, source=['BOARD']
+[PASS] IT-BRD-02 K├⌐o card giß╗»a cß╗Öt th╞░ß╗¥ng sinh CARD_MOVED
+       mong ─æß╗úi: >= 1 CARD_MOVED cß╗ºa B
+       thß╗▒c tß║┐ : 1 sß╗▒ kiß╗çn
+[PASS] IT-BRD-03 Card v├áo Done tr╞░ß╗¢c hß║ín -> CARD_COMPLETED, is_on_time=true, delay_days=0
+       mong ─æß╗úi: isOnTime=true, delayDays=0, storyPoints=3
+       thß╗▒c tß║┐ : [(True, 0.0, 3.0)]
+[PASS] IT-BRD-04 Card v├áo Done sau hß║ín 1 ng├áy -> is_on_time=false, delay_daysΓëê1
+       mong ─æß╗úi: isOnTime=false, 0.9 <= delayDays <= 1.1
+       thß╗▒c tß║┐ : [(False, 1.0)]
+[PASS] IT-BRD-05 API tß╗òng hß╗úp ─æ├│ng g├│p (sp_calculate_contribution_scores) trß║ú ─æiß╗âm cho th├ánh vi├¬n c├│ card Done
+       mong ─æß╗úi: HTTP 200; B v├á C c├│ finalPct > 0
+       thß╗▒c tß║┐ : HTTP 200; user 7: finalPct=0.0, user 8: finalPct=55.26, user 9: finalPct=31.58, user 10: finalPct=13.16
+[PASS] IT-BRD-06 Truy vß║┐t bß║▒ng chß╗⌐ng cß╗ºa B chß╗⌐a sß╗▒ kiß╗çn ho├án th├ánh card
+       mong ─æß╗úi: HTTP 200; c├│ mß╗Ñc chß╗⌐a 'IT card ─æ├║ng hß║ín'
+       thß╗▒c tß║┐ : HTTP 200; 3 mß╗Ñc; sourceType=['BOARD']
+[PASS] IT-BRD-07 Nguß╗ôn bß║▒ng chß╗⌐ng ghi ─æ├║ng l├á BOARD (theo CR-02, kh├┤ng c├▓n Trello)
+       mong ─æß╗úi: sourceType = BOARD
+       thß╗▒c tß║┐ : sourceType = ['BOARD']
+[PASS] IT-BRD-08 X├│a card kh├┤ng l├ám mß║Ñt sß╗▒ kiß╗çn ─æ├ú ghi
+       mong ─æß╗úi: HTTP 200; sß╗æ CARD_COMPLETED giß╗» nguy├¬n
+       thß╗▒c tß║┐ : HTTP 200; tr╞░ß╗¢c=2, sau=2
+[PASS] IT-BRD-09 Chß╗æng gian lß║¡n: k├⌐o card v├áo 'In Progress' nh╞░ng gß╗¡i toColumnName='Done'
+       mong ─æß╗úi: Kh├┤ng sinh CARD_COMPLETED (server phß║úi d├╣ng t├¬n cß╗Öt thß║¡t)
+       thß╗▒c tß║┐ : HTTP 200; 0 CARD_COMPLETED giß║ú cho D
+[PASS] IT-BRD-10 Ng╞░ß╗¥i ngo├ái nh├│m xem bß║úng ─æ├│ng g├│p cß╗ºa nh├│m
+       mong ─æß╗úi: HTTP 403
+       thß╗▒c tß║┐ : HTTP 403
+[PASS] IT-BRD-11 Ng╞░ß╗¥i ngo├ái nh├│m xem log hoß║ít ─æß╗Öng cß╗ºa nh├│m
+       mong ─æß╗úi: HTTP 403
+       thß╗▒c tß║┐ : HTTP 403; 0 sß╗▒ kiß╗çn lß╗Ö ra
+
+== Luß╗ông 2: Chß║Ñm ch├⌐o -> DB -> ß║⌐n danh
+[PASS] IT-PR-00 Tr╞░ß╗ƒng nh├│m tß║ío + mß╗ƒ ─æß╗út chß║Ñm qua API; th├ánh vi├¬n th╞░ß╗¥ng kh├┤ng ─æ╞░ß╗úc tß║ío
+       mong ─æß╗úi: Tß║ío 201, mß╗ƒ 200 (OPEN); th├ánh vi├¬n B tß║ío -> 4xx
+       thß╗▒c tß║┐ : tß║ío HTTP 201, mß╗ƒ HTTP 200 (OPEN); B tß║ío -> HTTP 400
+[PASS] IT-PR-01 API liß╗çt k├¬ ─æß╗út chß║Ñm theo sprint
+       mong ─æß╗úi: HTTP 200, c├│ round 1
+       thß╗▒c tß║┐ : HTTP 200; [1]
+[PASS] IT-PR-02 Gß╗¡i ─æ├ính gi├í: API trß║ú th├ánh c├┤ng v├á l╞░u v├áo bß║úng review_submissions
+       mong ─æß╗úi: HTTP 200; 1 d├▓ng (7, 9, QUALITY, 4)
+       thß╗▒c tß║┐ : HTTP 200; DB: '7\t9\tQUALITY\t4'
+[PASS] IT-PR-03 Response gß╗¡i ─æ├ính gi├í kh├┤ng trß║ú lß║íi th├┤ng tin ng╞░ß╗¥i chß║Ñm
+       mong ─æß╗úi: HTTP 200, kh├┤ng c├│ tr╞░ß╗¥ng reviewer/email trong response
+       thß╗▒c tß║┐ : HTTP 200; kh├┤ng c├│
+[PASS] IT-PR-04 D╞░ß╗¢i 3 l╞░ß╗út (1 l╞░ß╗út): kh├┤ng lß╗Ö ─æiß╗âm/nhß║¡n x├⌐t
+       mong ─æß╗úi: isAnonymousSafe=false, averageScore ß║⌐n (null/0), feedback rß╗ùng
+       thß╗▒c tß║┐ : HTTP 200; safe=False, avg=0.0, count=1, fb=[]
+[PASS] IT-PR-05 Tß╗▒ chß║Ñm ch├¡nh m├¼nh bß╗ï tß╗½ chß╗æi
+       mong ─æß╗úi: HTTP 400
+       thß╗▒c tß║┐ : HTTP 400
+[PASS] IT-PR-06 ─Éiß╗âm ngo├ái thang 1ΓÇô5 bß╗ï tß╗½ chß╗æi vß╗¢i lß╗ùi validation
+       mong ─æß╗úi: HTTP 400
+       thß╗▒c tß║┐ : HTTP 400
+[PASS] IT-PR-07 Ng╞░ß╗¥i ngo├ái nh├│m kh├┤ng ─æ╞░ß╗úc chß║Ñm th├ánh vi├¬n nh├│m
+       mong ─æß╗úi: HTTP 403/400 v├á KH├öNG c├│ d├▓ng n├áo trong DB
+       thß╗▒c tß║┐ : HTTP 403; 0 d├▓ng ─æ├ú l╞░u v├áo DB
+[PASS] IT-PR-08 Mß╗Öt ng╞░ß╗¥i chß║Ñm 3 lß║ºn cho c├╣ng ng╞░ß╗¥i: kh├┤ng ─æ╞░ß╗úc coi l├á ─æß╗º 3 l╞░ß╗út ß║⌐n danh
+       mong ─æß╗úi: Lß║ºn 2, 3 bß╗ï tß╗½ chß╗æi (4xx) v├á isAnonymousSafe=false
+       thß╗▒c tß║┐ : HTTP c├íc lß║ºn gß╗¡i=[200, 400, 400]; safe=False, count=1, fb=[]
+[PASS] IT-PR-09 ─Éß╗º 3 ng╞░ß╗¥i chß║Ñm kh├íc nhau: hiß╗çn ─æiß╗âm trung b├¼nh v├á nhß║¡n x├⌐t, kh├┤ng k├¿m danh t├¡nh
+       mong ─æß╗úi: isAnonymousSafe=true, avg=4.0, 3 nhß║¡n x├⌐t, kh├┤ng c├│ reviewerId
+       thß╗▒c tß║┐ : safe=True, avg=4.0, fb=3, reviewerId trong response=False
+[PASS] IT-PR-10 Trigger DB tß║ío alert PEER_REVIEW_SUFFICIENT khi ─æß╗º 3 ng╞░ß╗¥i chß║Ñm
+       mong ─æß╗úi: 1 alert
+       thß╗▒c tß║┐ : 1 alert
+[PASS] IT-PR-11 Ng╞░ß╗¥i ngo├ái nh├│m xem kß║┐t quß║ú chß║Ñm ch├⌐o cß╗ºa th├ánh vi├¬n
+       mong ─æß╗úi: HTTP 403
+       thß╗▒c tß║┐ : HTTP 403; avg=None
+
+Tß╗öNG: 23/23 PASS
