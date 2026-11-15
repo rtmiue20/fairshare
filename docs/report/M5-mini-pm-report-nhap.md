@@ -1,7 +1,7 @@
 # MINI-PM REPORT – WP5 KIỂM THỬ & TRIỂN KHAI (BẢN NHÁP)
 
 **Môn:** Quản lý dự án CNTT – UEH | **GVHD:** TS. Nguyễn Mạnh Tuấn | **Dự án:** FairShare
-**Bản nháp:** 14/11/2026 (hạn nộp nháp 17/11, 23:00). Số liệu đến `master` @ `d2eab98`.
+**Bản nháp:** 15/11/2026 (hạn nộp nháp 17/11, 23:00). Số liệu đến `master` @ `d2eab98`, retest staging 15/11.
 **Khung:** 7 mục theo `PCCV-Module.md` mục 10. Độ dài mục tiêu 3–5 trang.
 
 > `<TODO: …>` = phần cần bổ sung sau UAT, release (18/11) và phần tự đánh giá cá nhân.
@@ -69,7 +69,7 @@ Backlog chi tiết từng sprint được theo dõi trên Trello: board cá nhâ
 | Staging + tích hợp Sprint 4 | Staging 1 lệnh + smoke 11 kiểm tra; 23 ca tích hợp | Commit `a0d93d6` (09/11); `docs/deploy/staging.md`; `integration-log-sprint4.md` |
 | Hồi quy + hiệu năng Sprint 5 | 30 ca hồi quy; đo PDF (G4) | Commit `c1b04be` (10/11); `test-report-sprint5.md`; PDF mẫu trong `docs/qa/evidence/` |
 | Defect Log | 28 lỗi, mỗi lỗi có mức độ, người xử lý, bằng chứng, đề xuất sửa | `docs/qa/defect-log.md` |
-| Sprint 6 (đến 14/11) | Rà soát mã nguồn 9 lỗi đã sửa; chạy lại unit test; phát hiện DEF-27, 28; user guide; nháp chương kiểm thử/triển khai | `docs/qa/evidence/*-2026-11-14.txt`, `docs/deploy/user-guide.md`, `docs/report/M5-chuong-kiem-thu-trien-khai.md` |
+| Sprint 6 (14–15/11) | Rà soát mã nguồn; chạy lại unit test; dựng staging trên Windows (sửa script, DEF-30); retest tích hợp 23/23, hồi quy 30/30; đóng 9 lỗi; phát hiện DEF-27, 28, 29; user guide; nháp chương kiểm thử/triển khai | `docs/qa/evidence/*-2026-11-1[45].*`, `docs/qa/defect-log.md`, `docs/deploy/user-guide.md`, `docs/report/M5-chuong-kiem-thu-trien-khai.md` |
 | UAT, demo, release | `<TODO: số lỗi UAT đã ghi; URL/video demo; release tag 18/11>` | `<TODO>` |
 
 Tổng số commit của M5 trên repo: khoảng 22 (tác giả `Nvm4nh`, `Khiếu Hoàng Nam Anh`). `<TODO: chụp ảnh lịch sử commit/PR có ngày giờ>`
@@ -80,15 +80,15 @@ Tổng số commit của M5 trên repo: khoảng 22 (tác giả `Nvm4nh`, `Khi�
 |---|---|
 | Unit backend | 26 test (02/11) → 124 (10/11) → **178 (14/11)**. 14/11 có 4 lỗi mới (DEF-27) |
 | Unit frontend | 17 → 65 → **74/74 pass** |
-| Tích hợp | 11/22 (09/11) → 18/23 (10/11) → **21/23** (11/11) |
-| Hồi quy Sprint 5 | 13/30 → **20/30** (11/11); 25/30 khi vá DEF-20 |
-| Hiệu năng PDF (G4) | Chậm nhất 0,109 s, mục tiêu < 10 s → **Đạt** |
+| Tích hợp | 11/22 (09/11) → 18/23 (10/11) → 21/23 (11/11) → **23/23** (15/11) |
+| Hồi quy Sprint 5 | 13/30 (10/11) → 20/30 (11/11) → **30/30** (15/11) |
+| Hiệu năng PDF (G4) | Chậm nhất **0,078 s** trên `master` (15/11), mục tiêu < 10 s → **Đạt** |
 | UAT | `<TODO: số phiếu, mức hài lòng G5 – M2 cung cấp 17/11>` |
 
 **Lỗi tiêu biểu và cách xử lý:**
 - **DEF-08/09 (High) – lộ điểm chấm chéo:** test tích hợp cho thấy điểm hiện ra khi mới có 1 lượt chấm, và một người chấm nhiều lần cũng được tính đủ ngưỡng. M5 báo kèm ca tái hiện, M4 sửa trong 1 ngày (PR #57). M5 chạy lại và đóng ngày 10/11.
 - **DEF-11 (High) – giả mạo hoàn thành card:** client tự gửi tên cột "Done". Lỗi này ứng với rủi ro gian lận R05. M1 sửa, M5 đóng 11/11.
-- **DEF-20 (High) – PDF luôn lỗi 500:** unit test dùng mock nên không phát hiện, chỉ test tích hợp mới bắt được. M5 thử bản vá 1 dòng để chứng minh nguyên nhân và đo hiệu năng trước, rồi giao M0 sửa chính thức.
+- **DEF-20 (High) – PDF luôn lỗi 500:** unit test dùng mock nên không phát hiện, chỉ test tích hợp mới bắt được. M5 thử bản vá 1 dòng để chứng minh nguyên nhân và đo hiệu năng trước, rồi giao M0 sửa chính thức. Đóng 15/11 sau retest.
 
 ## 6. Quản lý: một vấn đề đã xử lý
 
@@ -98,9 +98,9 @@ Tổng số commit của M5 trên repo: khoảng 22 (tác giả `Nvm4nh`, `Khi�
 1. **Đánh giá tác động:** xếp DEF-20 vào mức High vì nó chặn DoD và chặn demo. Ước lượng công sửa (1 dòng) bằng cách thử bản vá tạm trên staging, không commit.
 2. **Truyền đạt:** ghi vào Defect Log bảng "theo người xử lý", kèm hạn (trước code freeze 11/11 17:00). Báo M0 trong Sprint Review để quyết định: sửa ngay, hoặc ghi Change Log / chuyển sang Sprint 6.
 3. **Giảm rủi ro cho UAT:** đề xuất M2 tránh luồng PDF và dashboard nhóm khác khi chạy UAT cho tới khi lỗi được sửa.
-4. **Kết quả:** DEF-24, 25 đóng 11/11. DEF-20, 22 được sửa trong code tới 14/11 và đang chờ retest. `<TODO: kết quả retest trước release>`
+4. **Kết quả:** DEF-24, 25 đóng 11/11. DEF-20, 22 đóng 15/11 sau retest; hồi quy đạt 30/30.
 
-**Vấn đề thứ hai (đang xử lý):** staging chỉ chạy trên máy cá nhân M5. Ngày 14/11, máy kiểm thử thiếu Docker nên không retest được. Đây là rủi ro R13 đã xảy ra một phần. Biện pháp: ghi rõ 9 lỗi "Fixed – chờ retest" thay vì đóng sai; đề xuất M0 chốt máy chung; chuẩn bị video demo dự phòng. `<TODO: cập nhật kết quả>`
+**Vấn đề thứ hai:** staging chỉ chạy trên máy cá nhân M5. Ngày 14/11, máy kiểm thử thiếu Docker nên không retest được. Đây là rủi ro R13 đã xảy ra một phần. Biện pháp: (1) ghi rõ 9 lỗi "Fixed – chờ retest" thay vì đóng sai; (2) cài Docker Desktop, sửa script staging để chạy được trên Windows (DEF-30); (3) retest ngày 15/11, đóng 9 lỗi. Việc còn lại: đề xuất M0 chốt máy chung cho demo, chuẩn bị video demo dự phòng.
 
 ## 7. Tổng kết
 
@@ -113,6 +113,7 @@ Tổng số commit của M5 trên repo: khoảng 22 (tác giả `Nvm4nh`, `Khi�
 - Nên dựng staging và test tích hợp sớm hơn, ngay khi có lát cắt dọc đầu tiên (Sprint 2–3).
 - Mock trong unit test che giấu lỗi tầng CSDL. Mỗi luồng quan trọng cần ít nhất một test tích hợp gọi API thật.
 - Chỉ đóng lỗi khi có ca kiểm thử chạy lại đạt. Đóng theo lời báo "đã sửa" từng dẫn tới đóng sai (DEF-07).
+- Script kiểm thử phải cập nhật theo thay đổi của sản phẩm. Ngày 15/11 có 10 ca fail giả, do backend đổi hành vi mà script chưa theo kịp.
 
 **Tự đánh giá đóng góp:** `<TODO: % tự đánh giá, số giờ ước tính, đối chiếu bảng đóng góp FairShare của nhóm>`
 

@@ -1,6 +1,6 @@
 # FairShare – Hướng dẫn cài đặt và sử dụng
 
-**Phụ trách:** M5 – Khiếu Hoàng Nam Anh (WP5 – Kiểm thử & Triển khai) | **Cập nhật:** 14/11/2026
+**Phụ trách:** M5 – Khiếu Hoàng Nam Anh (WP5 – Kiểm thử & Triển khai) | **Cập nhật:** 15/11/2026 (đã thử trên Windows + Docker Desktop 29.9.3)
 **Áp dụng cho:** `master` @ `d2eab98`
 **Phạm vi:** Phần A là hướng dẫn cài đặt (Deployment Guide), cho người dựng hệ thống. Phần B là hướng dẫn sử dụng (User Guide), cho sinh viên, trưởng nhóm và giảng viên.
 
@@ -98,6 +98,9 @@ Không commit `.env` và `.env.staging` lên Git (cả hai đã có trong `.giti
 | `/api/...` trả 502 | Backend chưa sẵn sàng | Xem log backend, chờ healthcheck (tối đa khoảng 3 phút) |
 | `Bind for 0.0.0.0:8081 failed` | Cổng đã bị chiếm | Đổi `FRONTEND_PORT` trong file env |
 | `PKIX path building failed` khi build | Mạng có proxy chặn SSL | Build jar trên máy (`./mvnw package -DskipTests`) rồi build image, hoặc đổi mạng |
+| Docker Desktop báo *Virtual Machine Platform is not enabled* | Windows chưa bật tính năng ảo hóa cho WSL 2 | Mở PowerShell **Run as administrator**: `Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart` và `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -All -NoRestart`, rồi khởi động lại máy |
+| `The requested operation requires elevation` | PowerShell chưa chạy quyền Administrator | Mở lại bằng chuột phải → *Run as administrator* |
+| `python3: command not found` (Git Bash) | Windows dùng `py`/`python` | Script đã tự dò `python3` → `python` → `py` → `openssl` (từ 15/11). Cài Python: `winget install Python.Python.3.12` |
 
 ---
 
