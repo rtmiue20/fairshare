@@ -10,12 +10,24 @@ cd "$(dirname "$0")/.."
 ENV_FILE=.env.staging
 COMPOSE=(docker compose -p fairshare-staging --env-file "$ENV_FILE" -f docker-compose.yml -f docker-compose.staging.yml)
 
-gen_secret() { python3 -c 'import secrets; print(secrets.token_hex(32))'; }
+# Tìm Python chạy được: python3 (Linux/macOS), python hoặc py (Windows/Git Bash).
+# Bỏ qua lối tắt Microsoft Store (gọi được nhưng không chạy).
+PY=""
+for c in python3 python py; do
+  if command -v "$c" >/dev/null 2>&1 && "$c" -c 'print(1)' >/dev/null 2>&1; then PY="$c"; break; fi
+done
+gen_secret() {
+  if [[ -n "$PY" ]]; then "$PY" -c 'import secrets; print(secrets.token_hex(32))'
+  elif command -v openssl >/dev/null 2>&1; then openssl rand -hex 32
+  else echo "[staging] Cần python3/python/py hoặc openssl để sinh mật khẩu" >&2; exit 1; fi
+}
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "[staging] Chưa có $ENV_FILE -> tạo từ .env.staging.example với mật khẩu ngẫu nhiên"
   cp .env.staging.example "$ENV_FILE"
 fi
+# Windows: file có thể mang CRLF -> bỏ \r để grep/sed và docker compose đọc đúng giá trị
+sed -i 's/\r$//' "$ENV_FILE"
 # Điền các biến bí mật còn trống (không ghi đè giá trị đã có)
 for var in DB_PASSWORD DB_ROOT_PASSWORD JWT_SECRET; do
   if grep -qE "^${var}=$" "$ENV_FILE"; then
