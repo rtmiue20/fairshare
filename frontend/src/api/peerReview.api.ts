@@ -50,6 +50,16 @@ export interface ReviewSubmissionPayload {
   revieweeId: number;
   scores: { criterion: ReviewCriterion; score: number }[];
   feedback?: string;
+  cardId?: number;
+}
+
+export interface DoneCard {
+  id: number;
+  title: string;
+  boardId?: number;
+  columnName?: string;
+  assigneeId?: number;
+  storyPoints?: number;
 }
 
 export interface ReviewerSubmissionItem {
@@ -75,6 +85,26 @@ export interface PeerReviewResult {
   averageScore: number;
   submissionCount: number;
   isAnonymousValid: boolean;
+}
+
+export interface PeerReviewDetail {
+  id: number;
+  reviewRoundId: number;
+  reviewerId: number;
+  reviewerName: string;
+  reviewerEmail: string;
+  revieweeId: number;
+  revieweeName: string;
+  averageScore: number;
+  qualityScore?: number;
+  punctualityScore?: number;
+  cooperationScore?: number;
+  scores?: { criterion: ReviewCriterion; score: number }[];
+  feedback: string;
+  submittedAt?: string;
+  likesCount?: number;
+  cardId?: number;
+  cardTitle?: string;
 }
 
 export const peerReviewApi = {
@@ -141,6 +171,32 @@ export const peerReviewApi = {
   ): Promise<ApiResponse<ReviewerSubmissionItem[]>> => {
     const response = await apiClient.get<ApiResponse<ReviewerSubmissionItem[]>>(
       `/review-rounds/${roundId}/submissions/reviewer/${reviewerId}`,
+    );
+    return response.data;
+  },
+
+  getRoundReviews: async (
+    roundId: number,
+    revieweeId?: number,
+  ): Promise<ApiResponse<PeerReviewDetail[]>> => {
+    const params = revieweeId && revieweeId > 0 ? { revieweeId } : {};
+    const response = await apiClient.get<ApiResponse<PeerReviewDetail[]>>(
+      `/review-rounds/${roundId}/reviews`,
+      { params },
+    );
+    return response.data;
+  },
+
+  toggleLike: async (submissionId: number): Promise<ApiResponse<number>> => {
+    const response = await apiClient.post<ApiResponse<number>>(
+      `/review-rounds/submissions/${submissionId}/like`,
+    );
+    return response.data;
+  },
+
+  getDoneCardsForTeam: async (teamId: number): Promise<ApiResponse<DoneCard[]>> => {
+    const response = await apiClient.get<ApiResponse<DoneCard[]>>(
+      `/review-rounds/team/${teamId}/done-cards`,
     );
     return response.data;
   },
