@@ -25,7 +25,15 @@ if re.search(r"^DB_ROOT_PASSWORD=.*", content, flags=re.MULTILINE):
 else:
     content += f"\nDB_ROOT_PASSWORD={root_password}"
 
+# JWT_SECRET is required by docker-compose.yml (DEF-18). Generate one only when it is
+# missing or empty, so an existing secret in a developer's .env is kept.
+jwt_match = re.search(r"^JWT_SECRET=(.*)$", content, flags=re.MULTILINE)
+if jwt_match is None:
+    content += f"\nJWT_SECRET={secrets.token_hex(32)}"
+elif not jwt_match.group(1).strip():
+    content = re.sub(r"^JWT_SECRET=.*$", f"JWT_SECRET={secrets.token_hex(32)}", content, count=1, flags=re.MULTILINE)
+
 with open(env_file, "w", encoding="utf-8") as f:
     f.write(content)
 
-print(f"[gen-env] Generated {env_file} with secure random passwords.")
+print(f"[gen-env] Generated {env_file} with secure random passwords and JWT secret.")
