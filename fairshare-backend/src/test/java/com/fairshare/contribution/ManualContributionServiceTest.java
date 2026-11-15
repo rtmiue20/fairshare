@@ -5,6 +5,7 @@ import com.fairshare.contribution.dto.ManualContributionRequest;
 import com.fairshare.contribution.dto.ManualContributionResponse;
 import com.fairshare.contribution.entity.ManualContribution;
 import com.fairshare.contribution.repository.ManualContributionRepository;
+import com.fairshare.user.repository.UserRepository;
 import com.fairshare.contribution.service.ManualContributionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class ManualContributionServiceTest {
 
     @Mock
     private ManualContributionRepository manualContributionRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private ManualContributionService manualContributionService;
