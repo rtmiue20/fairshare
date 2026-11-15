@@ -1,10 +1,10 @@
 # CHƯƠNG: KIỂM THỬ VÀ TRIỂN KHAI (BẢN NHÁP 1)
 
 **Người viết:** M5 – Khiếu Hoàng Nam Anh (MSSV 31241022203), PM QA & Deployment, WP5
-**Bản nháp:** 14/11/2026, số liệu đến `master` @ `d2eab98` | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
+**Bản nháp:** 15/11/2026, số liệu đến `master` @ `d2eab98` (retest staging 15/11) | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
 **Nguồn số liệu:** `docs/qa/` (test case, test report, integration log, defect log, evidence), `docs/deploy/staging.md`, `.github/workflows/`
 
-> Các chỗ `<TODO: …>` là số liệu **chưa có**: kết quả UAT (M2 đóng UAT ngày 17/11), lần retest cuối trên staging, release tag và URL/video demo (18/11). Bản nháp này không tự điền các số liệu đó.
+> Các chỗ `<TODO: …>` là số liệu **chưa có**: kết quả UAT (M2 đóng UAT ngày 17/11), lần chạy cuối trên bản release, release tag và URL/video demo (18/11). Bản nháp này không tự điền các số liệu đó.
 
 > **Lưu ý CR-02:** Kế hoạch ban đầu thu thập dữ liệu từ Trello qua API/Webhook. Theo Change Request **CR-02**, nhóm đã thay bằng **Task Board nội bộ**. Vì vậy mọi ca kiểm thử từ Sprint 4 trở đi kiểm tra luồng *board nội bộ → sự kiện hoạt động → điểm đóng góp*, không còn kiểm thử tích hợp Trello. Mã tích hợp Trello cũ đã được gỡ (DEF-25, đóng 11/11).
 
@@ -91,19 +91,22 @@ Minh chứng: `docs/qa/evidence/backend-unit-2026-11-14.txt`, `frontend-unit-202
 | 09/11 | `c32a069` | 11/22 pass | Lần đầu. Phát hiện DEF-08..18 (lộ điểm khi < 3 người chấm, đếm lượt thay vì đếm người, người ngoài nhóm chấm được…) |
 | 10/11 | `0ed8f05` | **18/23 pass** | Sau khi M4 sửa (PR #57): luồng chấm chéo 11/12, **đạt yêu cầu ẩn danh** |
 | 11/11 | `8b51f18` | 21/23 pass | Đóng DEF-11 (giả mạo hoàn thành card), DEF-24 (phân quyền board) |
+| **15/11** | `d2eab98` | **23/23 pass** | Lần đầu đạt trọn. Đóng DEF-12 (người ngoài nhóm xem kết quả chấm chéo), DEF-16 (nguồn bằng chứng) |
 
 ### 3.4 Kiểm thử hồi quy Sprint 5 (30 ca)
 
-| Nhóm ca | 10/11 trên `master` | 11/11 trên `master` |
-|---|---|---|
-| Board → sự kiện → `ScoringEngine` | **8/8** | 8/8 |
-| Dashboard | 2/5 (DEF-22) | `<TODO: tách số từ regression-result>` |
-| Phân quyền board | 2/6 (DEF-24) | **6/6** |
-| Gỡ Trello legacy (CR-02) | 0/3 (DEF-25) | 2/3 (TRL-03 lỗi do DEF-20) |
-| PDF | 1/8 (DEF-20) | `<TODO>` |
-| **Tổng** | **13/30** | **20/30** (25/30 khi vá tạm DEF-20) |
+| Nhóm ca | 10/11 trên `master` | 11/11 trên `master` | **15/11 trên `master`** |
+|---|---|---|---|
+| Board → sự kiện → `ScoringEngine` | **8/8** | 8/8 | **8/8** |
+| Dashboard | 2/5 (DEF-22) | – | **5/5** |
+| Phân quyền board | 2/6 (DEF-24) | **6/6** | **6/6** |
+| Gỡ Trello legacy (CR-02) | 0/3 (DEF-25) | 2/3 (TRL-03 lỗi do DEF-20) | **3/3** |
+| PDF | 1/8 (DEF-20) | – | **8/8** (*) |
+| **Tổng** | **13/30** | **20/30** (25/30 khi vá tạm DEF-20) | **30/30** |
 
-`<TODO: lần chạy hồi quy cuối trước release 18/11 – cần môi trường Docker>`
+(*) PDF-02..05 kiểm nội dung bằng cách trích text từ file PDF thật (lưu ở `docs/qa/evidence/report-*-2026-11-15.pdf`), vì máy Windows chạy staging không có `pdftotext`. Hai thay đổi của sản phẩm sau 11/11 đã làm script cũ báo fail giả, nên M5 cập nhật script trước khi chạy: backend tự tạo "Sprint 1" khi tạo nhóm, và API báo cáo chặn người ngoài nhóm.
+
+`<TODO: lần chạy trên bản release 18/11>`
 
 ### 3.5 Hiệu năng xuất PDF (mục tiêu G4 < 10 giây)
 
@@ -117,7 +120,7 @@ Minh chứng: `docs/qa/evidence/backend-unit-2026-11-14.txt`, `frontend-unit-202
 | 4 | 0,033 | 0,040 | 0,040 | Đạt |
 
 Phía server (51 lần): trung vị 27 ms, chậm nhất 204 ms. Lần đo lại ngày 11/11: chậm nhất 0,109 s. Như vậy **G4 đạt**, nhanh hơn mục tiêu hơn 90 lần.
-Lưu ý: các số đo này lấy trên bản vá DEF-20. `master` đã có bản sửa (14/11), cần đo lại chính thức: `<TODO: số đo trên master trước release>`.
+**Đo lại chính thức ngày 15/11 trên `master`** (đã có bản sửa DEF-20): 11 lần × 4 sprint, mọi lần HTTP 200, file khoảng 70 KB, **chậm nhất 0,078 s**, p50 từ 0,031 đến 0,041 s.
 
 ### 3.6 Kiểm thử chấp nhận người dùng (UAT)
 
@@ -131,16 +134,16 @@ Lưu ý: các số đo này lấy trên bản vá DEF-20. `master` đã có bả
 
 `Open` → `In Progress` → `Fixed` (dev đã sửa) → `Closed` (M5 chạy lại ca kiểm thử đạt). Mỗi lỗi có mức độ (High/Medium/Low), người xử lý theo lát cắt dọc, bằng chứng và đề xuất sửa. M5 cập nhật `docs/qa/defect-log.md` sau mỗi lần chạy tích hợp hoặc hồi quy.
 
-### 4.2 Số liệu (14/11/2026)
+### 4.2 Số liệu (15/11/2026)
 
 | Mức độ | Open | In Progress | Fixed – chờ retest | Closed | Tổng |
 |---|---|---|---|---|---|
-| High | 0 | 1 | 3 | 6 | 10 |
-| Medium | 1 | 1 | 3 | 4 | 9 |
-| Low | 2 | 0 | 3 | 4 | 9 |
-| **Tổng** | **3** | **2** | **9** | **14** | **28** |
+| High | 0 | 0 | 1 | 9 | 10 |
+| Medium | 1 | 1 | 0 | 7 | 9 |
+| Low | 3 | 0 | 0 | 8 | 11 |
+| **Tổng** | **4** | **1** | **1** | **24** | **30** |
 
-Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), rà soát Sprint 6 (DEF-27..28).
+Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..30). Cả 10 lỗi High đã đóng, trừ DEF-01 (còn chờ xác nhận `AuthApiTest` chạy trên CI có Docker).
 
 ### 4.3 Các lỗi đáng chú ý
 
@@ -148,7 +151,7 @@ Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..
 |---|---|---|
 | DEF-08, 09 | Lộ điểm chấm chéo khi dưới 3 người chấm; đếm số lượt thay vì số người, nên một người chấm 3 lần cũng vượt ngưỡng. Vi phạm cam kết ẩn danh cốt lõi | M4 sửa `AnonymityAggregator` (PR #57). Đóng 10/11 |
 | DEF-11 | Client tự gửi tên cột "Done", giả được việc hoàn thành card (rủi ro R05 – gian lận) | M1 dùng tên cột thật. Đóng 11/11 |
-| DEF-20 | Xuất PDF luôn lỗi 500 (transaction chỉ đọc gọi routine có ghi). Unit test dùng mock nên không phát hiện, chỉ test tích hợp mới bắt được | M0 sửa. Chờ retest |
+| DEF-20 | Xuất PDF luôn lỗi 500 (transaction chỉ đọc gọi routine có ghi). Unit test dùng mock nên không phát hiện, chỉ test tích hợp mới bắt được | M0 sửa. Đóng 15/11 |
 | DEF-27 | Commit mới làm hỏng 4 unit test, CI backend đỏ ngay trước release | Đã giao M0, hạn trước 18/11 |
 
 ### 4.4 Bài học từ quản lý lỗi
@@ -172,7 +175,7 @@ Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..
 
 ### 5.2 Môi trường staging
 
-Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, build, chạy, chờ healthy, rồi chạy smoke test 11 kiểm tra. Staging dùng cho tích hợp (09–11/11), Sprint Review 12/11 và UAT. Hướng dẫn: `docs/deploy/staging.md`, `docs/deploy/user-guide.md`.
+Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, build, chạy, chờ healthy, rồi chạy smoke test. Ngày 15/11, M5 sửa script để chạy được cả trên Windows (DEF-30: dò lệnh Python, bỏ CRLF, healthcheck dùng `127.0.0.1` thay vì `localhost` vì `localhost` trong Alpine phân giải ra IPv6). Staging dùng cho tích hợp (09–11/11), Sprint Review 12/11 và UAT. Hướng dẫn: `docs/deploy/staging.md`, `docs/deploy/user-guide.md`.
 
 **Tác dụng với rủi ro R13 (mất dữ liệu/môi trường):** dựng lại được bằng một lệnh; có lệnh sao lưu DB; mật khẩu không nằm trong Git; dữ liệu staging tách khỏi dữ liệu dev (project name riêng).
 
@@ -190,7 +193,7 @@ Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, bu
 
 ## 6. Hạn chế và hướng cải thiện
 
-- **Môi trường staging phụ thuộc máy cá nhân của M5.** Nhóm chưa chốt máy chung hoặc VPS, nên khi máy M5 không có Docker thì không chạy lại được tích hợp (tình huống ngày 14/11). Đề xuất: chốt một máy chung, hoặc chạy `docker-ci.yml` kèm script tích hợp trên GitHub Actions.
-- **Một số lỗi chỉ được xác nhận bằng đọc code** (9 lỗi "Fixed – chờ retest" ngày 14/11). Cần chạy lại trên staging trước khi đóng.
+- **Môi trường staging phụ thuộc máy cá nhân của M5.** Nhóm chưa chốt máy chung hoặc VPS. Ngày 14/11 máy M5 chưa có Docker nên phải lùi retest sang 15/11. Đề xuất: chốt một máy chung, hoặc chạy `docker-ci.yml` kèm script tích hợp trên GitHub Actions.
+- **Script kiểm thử phải đi theo thay đổi của sản phẩm.** Ngày 15/11 có 10 ca fail giả, do backend đổi hành vi (tự tạo sprint, siết quyền báo cáo) mà script chưa cập nhật. Cần đọc kỹ ca fail trước khi ghi defect.
 - **Chưa có test end-to-end giao diện** (ví dụ Playwright). Luồng UI hiện chỉ kiểm thử qua UAT thủ công.
 - Kế hoạch kiểm thử ban đầu có tích hợp Trello. Sau CR-02, toàn bộ phần này được thay bằng kiểm thử board nội bộ.
