@@ -7,6 +7,10 @@ import {
   EvidenceItemDto,
   ManualContributionRequest,
   ManualContributionItem,
+  MultidimensionalNetworkDto,
+  ImpactEventPayload,
+  UpdateAvailabilityPayload,
+  ResolveSuspicionPayload,
 } from '../types/contribution';
 
 export interface ManualContributionPayload {
@@ -112,6 +116,60 @@ export const contributionApi = {
       `/contributions/manual/${id}/review`,
       null,
       { params: { reviewerId, action } },
+    );
+    return response.data;
+  },
+
+  getNetworkGraph: async (
+    teamId: number,
+    sprintId?: number,
+    userId?: number,
+  ): Promise<ApiResponse<MultidimensionalNetworkDto>> => {
+    const params: Record<string, number> = { teamId };
+    if (sprintId) params.sprintId = sprintId;
+    if (userId) params.userId = userId;
+    const response = await apiClient.get<ApiResponse<MultidimensionalNetworkDto>>(
+      '/contributions/network-graph',
+      { params },
+    );
+    return response.data;
+  },
+
+  logImpactEvent: async (
+    payload: ImpactEventPayload,
+  ): Promise<ApiResponse<MultidimensionalNetworkDto>> => {
+    const response = await apiClient.post<ApiResponse<MultidimensionalNetworkDto>>(
+      '/contributions/impact-event',
+      payload,
+    );
+    return response.data;
+  },
+
+  updateAvailability: async (
+    payload: UpdateAvailabilityPayload,
+  ): Promise<ApiResponse<MultidimensionalNetworkDto>> => {
+    const response = await apiClient.put<ApiResponse<MultidimensionalNetworkDto>>(
+      '/contributions/availability',
+      payload,
+    );
+    return response.data;
+  },
+
+  resolveSuspicion: async (
+    payload: ResolveSuspicionPayload,
+  ): Promise<ApiResponse<MultidimensionalNetworkDto>> => {
+    const response = await apiClient.put<ApiResponse<MultidimensionalNetworkDto>>(
+      '/contributions/resolve-suspicion',
+      payload,
+    );
+    return response.data;
+  },
+
+  calculateSprintScores: async (
+    sprintId: number,
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post<ApiResponse<any>>(
+      `/contributions/sprints/${sprintId}/calculate`,
     );
     return response.data;
   },

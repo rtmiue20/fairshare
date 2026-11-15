@@ -13,6 +13,10 @@ vi.mock('../api/report.api', () => ({
   reportApi: {
     downloadPdfReport: vi.fn(),
     getReportMetadata: vi.fn(),
+    getOverviewReport: vi.fn(),
+    getIndividualReport: vi.fn(),
+    sendIndividualEmail: vi.fn(),
+    sendAllEmails: vi.fn(),
   },
 }));
 
@@ -166,7 +170,7 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
 
     // Check member rows
     expect(screen.getAllByText('Nguyễn Hoàng Nam (Trưởng nhóm Demo)').length).toBeGreaterThan(0);
-    expect(screen.getByText('Trần Thu Trang (Frontend & UI/UX)')).toBeInTheDocument();
+    expect(screen.getAllByText('Trần Thu Trang (Frontend & UI/UX)').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Đạt chuẩn').length).toBeGreaterThan(0);
   });
 
@@ -224,6 +228,87 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
 
     await waitFor(() => {
       expect(contributionApi.getContributionSummary).toHaveBeenCalledWith(1, 1);
+    });
+  });
+
+  it('switches to individual tab and displays 4D radar metrics', async () => {
+    vi.mocked(reportApi.getIndividualReport).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        userId: 109,
+        userName: 'Nguyễn Hoàng Nam (Trưởng nhóm Demo)',
+        email: 'nam@fairshare.io',
+        role: 'LEADER',
+        teamId: 1,
+        teamName: 'EduConnect',
+        sprintId: 2,
+        sprintName: 'Sprint 2',
+        startDate: '2026-10-29',
+        endDate: '2026-11-12',
+        finalPct: 22.9,
+        d1Output: 0.92,
+        d2Reliability: 0.88,
+        d3Collaboration: 0.85,
+        d4Peer: 0.90,
+        compositeScore: 22.9,
+        availabilityFactor: 1.0,
+        confidenceIntervalLow: 20.4,
+        confidenceIntervalHigh: 25.4,
+        isSuspicious: false,
+        hasSufficientEvidence: true,
+        evidenceList: [
+          { taskName: 'Thiết kế kiến trúc hệ thống', storyPoints: 5, earnedScore: 5, eventTime: '2026-11-05T10:00:00', status: 'Hoàn thành' }
+        ],
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <ReportPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Báo cáo cá nhân & Email/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Báo cáo cá nhân & Email/));
+
+    await waitFor(() => {
+      expect(screen.getByText('Hồ sơ Vector 4 Chiều (Radar Profile)')).toBeInTheDocument();
+      expect(screen.getAllByText(/D1 Output/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/D2 Reliability/).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('handles sending personal email report via reportApi', async () => {
+    vi.mocked(reportApi.sendIndividualEmail).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: 'Sent successfully',
+    });
+
+    render(
+      <MemoryRouter>
+        <ReportPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Báo cáo cá nhân & Email/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Báo cáo cá nhân & Email/));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Gửi báo cáo qua email/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Gửi báo cáo qua email/));
+
+    await waitFor(() => {
+      expect(reportApi.sendIndividualEmail).toHaveBeenCalledWith(1, 2, 109);
     });
   });
 });

@@ -13,6 +13,7 @@ import { ProfileSettingsPage } from '../features/profile/ProfileSettingsPage';
 import { LandingPage } from '../features/landing/LandingPage';
 import { ReportPage } from '../features/report/ReportPage';
 import { ManualContributionPage } from '../features/contribution/ManualContributionPage';
+import { MultidimensionalVectorPage } from '../features/integration/MultidimensionalVectorPage';
 
 export const router = createBrowserRouter([
   {
@@ -66,6 +67,14 @@ export const router = createBrowserRouter([
           {
             path: 'board',
             element: <BoardView />,
+          },
+          {
+            path: 'integration',
+            element: <MultidimensionalVectorPage />,
+          },
+          {
+            path: 'tich-hop',
+            element: <MultidimensionalVectorPage />,
           },
           {
             path: 'peer-review',

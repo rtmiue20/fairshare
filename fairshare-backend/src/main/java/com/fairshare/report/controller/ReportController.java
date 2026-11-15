@@ -1,8 +1,12 @@
 package com.fairshare.report.controller;
 
 import com.fairshare.common.dto.ApiResponse;
+import com.fairshare.report.dto.IndividualReportDto;
+import com.fairshare.report.dto.OverviewReportDto;
 import com.fairshare.report.dto.ReportDto;
+import com.fairshare.report.dto.SendReportRequest;
 import com.fairshare.report.service.PdfReportService;
+import com.fairshare.report.service.ReportService;
 import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,14 +22,11 @@ import org.springframework.web.bind.annotation.*;
 public class ReportController {
 
     private final PdfReportService pdfReportService;
+    private final ReportService reportService;
     private final UserRepository userRepository;
 
     /**
      * Xuat va tai file PDF bao cao dong gop cua Sprint (Chi Leader moi co quyen).
-     *
-     * @param teamId   ID nhom
-     * @param sprintId ID sprint
-     * @return File PDF dang byte stream
      */
     @GetMapping("/teams/{teamId}/sprints/{sprintId}/pdf")
     public ResponseEntity<byte[]> downloadSprintReportPdf(
@@ -50,10 +51,6 @@ public class ReportController {
 
     /**
      * Lay thong tin metadata cua bao cao Sprint.
-     *
-     * @param teamId   ID nhom
-     * @param sprintId ID sprint
-     * @return DTO chua URL tai bao cao
      */
     @GetMapping("/teams/{teamId}/sprints/{sprintId}")
     public ApiResponse<ReportDto> getReportInfo(
@@ -66,6 +63,63 @@ public class ReportController {
                 .reportUrl(url)
                 .build();
         return ApiResponse.ok(dto);
+    }
+
+    /**
+     * GET /api/reports/overview?teamId={}&sprintId={}
+     * Lấy báo cáo tổng quan của sprint cho cả nhóm.
+     */
+    @GetMapping("/overview")
+    public ApiResponse<OverviewReportDto> getOverviewReport(
+            @RequestParam Long teamId,
+            @RequestParam Long sprintId) {
+        OverviewReportDto report = reportService.getOverviewReport(teamId, sprintId);
+        return ApiResponse.ok(report);
+    }
+
+    /**
+     * GET /api/reports/individual?teamId={}&sprintId={}&userId={}
+     * Lấy báo cáo đóng góp cá nhân của một thành viên.
+     */
+    @GetMapping("/individual")
+    public ApiResponse<IndividualReportDto> getIndividualReport(
+            @RequestParam Long teamId,
+            @RequestParam Long sprintId,
+            @RequestParam Long userId) {
+        IndividualReportDto report = reportService.getIndividualReport(teamId, sprintId, userId);
+        return ApiResponse.ok(report);
+    }
+
+    /**
+     * POST /api/reports/send-email
+     * Gửi email báo cáo cá nhân cho một thành viên cụ thể (userIds[0]).
+     */
+    @PostMapping("/send-email")
+    public ApiResponse<String> sendEmail(@RequestBody SendReportRequest request) {
+        try {
+            if (request.getUserIds() == null || request.getUserIds().isEmpty()) {
+                return ApiResponse.error("Cần cung cấp ít nhất một userId");
+            }
+            Long userId = request.getUserIds().get(0);
+            reportService.sendIndividualEmail(request.getTeamId(), request.getSprintId(), userId);
+            return ApiResponse.ok("Email đã được gửi thành công cho userId: " + userId);
+        } catch (Exception e) {
+            return ApiResponse.error("Không thể gửi email: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/reports/send-all-emails
+     * Gửi email báo cáo cá nhân cho tất cả thành viên trong nhóm.
+     */
+    @PostMapping("/send-all-emails")
+    public ApiResponse<String> sendAllEmails(@RequestBody SendReportRequest request) {
+        try {
+            reportService.sendAllEmails(request.getTeamId(), request.getSprintId());
+            return ApiResponse.ok("Email đã được gửi đến tất cả thành viên trong nhóm");
+        } catch (Exception e) {
+            return ApiResponse.error("Lỗi khi gửi email hàng loạt: " + e.getMessage());
+        }
     }
 
     private Long getUserId(Authentication authentication) {

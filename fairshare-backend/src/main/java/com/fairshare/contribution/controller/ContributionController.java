@@ -2,10 +2,9 @@ package com.fairshare.contribution.controller;
 
 import com.fairshare.common.dto.ApiResponse;
 import com.fairshare.common.security.TeamSecurityService;
-import com.fairshare.contribution.dto.ContributionDto;
-import com.fairshare.contribution.dto.ContributionSummaryResponse;
-import com.fairshare.contribution.dto.EvidenceItemDto;
+import com.fairshare.contribution.dto.*;
 import com.fairshare.contribution.service.ContributionService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -98,5 +97,57 @@ public class ContributionController {
     public ResponseEntity<ApiResponse<List<ContributionDto>>> getTeamScores(@PathVariable Long teamId) {
         List<ContributionDto> scores = contributionService.getTeamScores(teamId);
         return ResponseEntity.ok(ApiResponse.ok("Điểm đóng góp nhóm", scores));
+    }
+
+    /**
+     * API đồ thị mạng lưới đa chiều (Cosmic Neural Impact Network).
+     */
+    @GetMapping("/network-graph")
+    public ResponseEntity<ApiResponse<MultidimensionalNetworkDto>> getMultidimensionalNetwork(
+            @RequestParam("teamId") Long teamId,
+            @RequestParam(value = "sprintId", required = false) Long sprintId,
+            @RequestParam(value = "userId", required = false) Long userId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
+        MultidimensionalNetworkDto network = contributionService.getMultidimensionalNetwork(teamId, sprintId, userId);
+        return ResponseEntity.ok(ApiResponse.ok("Dữ liệu mạng lưới vector đa chiều", network));
+    }
+
+    /**
+     * API khai báo yếu tố tác động / rào cản cản trở (Lưu xuống DB & tự động cập nhật vector điểm).
+     */
+    @PostMapping("/impact-event")
+    public ResponseEntity<ApiResponse<MultidimensionalNetworkDto>> logImpactEvent(
+            @Valid @RequestBody ImpactEventRequest request,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null && request.getTeamId() != null) {
+            teamSecurityService.assertTeamMember(request.getTeamId(), authentication);
+        }
+        MultidimensionalNetworkDto updated = contributionService.logImpactEvent(request);
+        return ResponseEntity.ok(ApiResponse.ok("Ghi nhận yếu tố tác động thành công & cập nhật vector đa chiều", updated));
+    }
+
+    /**
+     * API điều chỉnh hệ số khả dụng a_i của thành viên (Lưu xuống DB & chạy lại mô hình 4 tầng).
+     */
+    @PutMapping("/availability")
+    public ResponseEntity<ApiResponse<MultidimensionalNetworkDto>> updateAvailability(
+            @Valid @RequestBody UpdateAvailabilityRequest request) {
+        MultidimensionalNetworkDto updated = contributionService.updateAvailabilityFactor(
+                request.getSprintId(), request.getUserId(), request.getAvailabilityFactor(), request.getReason());
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật hệ số khả dụng thành công", updated));
+    }
+
+    /**
+     * API gỡ hoặc xác nhận cờ ngờ vực (Anti-fraud verification).
+     */
+    @PutMapping("/resolve-suspicion")
+    public ResponseEntity<ApiResponse<MultidimensionalNetworkDto>> resolveSuspicion(
+            @Valid @RequestBody ResolveSuspicionRequest request) {
+        MultidimensionalNetworkDto updated = contributionService.resolveSuspicion(
+                request.getSprintId(), request.getUserId(), request.isSuspicious(), request.getNote());
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật cờ kiểm tra bất thường thành công", updated));
     }
 }
