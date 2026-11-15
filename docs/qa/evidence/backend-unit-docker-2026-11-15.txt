@@ -1,0 +1,62 @@
+﻿# Unit test backend trong Docker (Testcontainers chạy thật) - master @ d2eab98 - 15/11/2026 (GMT+7)
+# Lệnh: docker run --rm -v <repo>/fairshare-backend:/src -v fairshare-m2:/root/.m2 -v //var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e TESTCONTAINERS_RYUK_DISABLED=true -w /src maven:3.9-eclipse-temurin-21-alpine mvn -B test
+# Kết quả: 195 test, 0 skip, 4 lỗi (DEF-27). AuthApiTest + UserRepositoryTest + ExpenseRepositoryTest (Testcontainers) chạy và đạt -> đóng DEF-01
+
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.074 s -- in Immutability & Append-Only Tests for ActivityEvent (M1)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.090 s -- in Backward Compatibility Tests for ActivitySource.TRELLO legacy data (M1)
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 22.65 s -- in Endpoint nghiß╗çp vß╗Ñ phß║úi y├¬u cß║ºu ─æ─âng nhß║¡p
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.693 s -- in Hß╗úp ─æß╗ông API /api/auth (acceptance test cho module auth)
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 25.43 s -- in com.fairshare.auth.AuthApiTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.195 s -- in Unit Test cho AuthController (M3 - Backend 1)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.193 s -- in API ─É─âng nhß║¡p (Login)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in API ─É─âng k├╜ (Register)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in API ─É─âng xuß║Ñt (Logout)
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.213 s -- in Unit Test cho AuthService (M3 - Backend 1)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.fairshare.auth.AuthTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in Unit Test cho JwtService (M3 - Backend 1)
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.322 s -- in 3. Quyß╗ün tr├¬n Thß║╗: Th├ánh vi├¬n chß╗ë sß╗¡a/di chuyß╗ân thß║╗ cß╗ºa m├¼nh (Leader sß╗¡a ─æ╞░ß╗úc mß╗ìi thß║╗)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.037 s -- in 1. Quyß╗ün tr├¬n Board (Tß║ío, Sß╗¡a, X├│a): Chß╗ë Leader
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in 4. Endpoint th├ánh vi├¬n kh├┤ng bß╗ï chß║╖n nhß║ºm (Create card, Comment, Checklist)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in 2. Quyß╗ün tr├¬n Cß╗Öt (Tß║ío, Sß╗¡a, X├│a): Chß╗ë Leader
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.412 s -- in Unit tests for Role-Based Access Control (Leader vs Member) on Board & Report APIs (M1)
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.075 s -- in Unit tests for BoardService & ActivityEvent Generation (M1)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.447 s -- in 4. Quyß╗ün tr├¬n Mß╗ƒ/─É├│ng ─Éß╗út (Sprint) & Xuß║Ñt B├ío C├ío PDF: Chß╗ë Leader
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.141 s -- in 1. Quyß╗ün tr├¬n Board & Column: Leader vs Th├ánh vi├¬n
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.187 s -- in 2. Quyß╗ün tr├¬n Card (Thß║╗): K├⌐o thß║ú, Sß╗¡a, X├│a
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.078 s -- in 3. Endpoint chung kh├┤ng bß╗ï chß║╖n nhß║ºm (Tß║ío thß║╗, Comment, Checklist)
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.855 s -- in Spring MVC Integration Tests: Role-Based Access Control (Leader vs Member) on APIs (M1)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in Unit Test cho TeamSecurityService (DEF-12 - Ph├ón quyß╗ün theo nh├│m)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.180 s -- in Unit Test cho ContributionController (M3 - Sprint 4)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.085 s -- in Unit Test cho ContributionService (M3 - Sprint 4)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in Benchmark kiß╗âm thß╗¡ hiß╗çu n─âng truy vß║Ñn Dashboard (Sprint 5 - WBS 5.4.1 & 5.4.2)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in Unit Test cho Evidence Traceability Routine & Service (M3 - Sprint 4 / Thß║╗ 3)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.023 s -- in Kiß╗âm thß╗¡ hiß╗çu n─âng xß╗¡ l├╜ dß╗» liß╗çu lß╗¢n 500 Tasks / 6 Th├ánh vi├¬n (WBS 5.4.3 - M3)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.159 s -- in Unit Test cho ManualContributionController (Card 8 - M3 Sprint 5)
+[ERROR] Tests run: 7, Failures: 0, Errors: 4, Skipped: 0, Time elapsed: 0.079 s <<< FAILURE! -- in Unit Test cho ManualContributionService (Card 8 - M3 Sprint 5)
+[ERROR] com.fairshare.contribution.ManualContributionServiceTest.reviewContribution_shouldRejectWhenActionIsReject -- Time elapsed: 0.060 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR] com.fairshare.contribution.ManualContributionServiceTest.getPendingContributions_shouldReturnListMapped -- Time elapsed: 0.001 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR] com.fairshare.contribution.ManualContributionServiceTest.createContribution_shouldSavePendingContributionSuccessfully -- Time elapsed: 0.001 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR] com.fairshare.contribution.ManualContributionServiceTest.reviewContribution_shouldApproveWhenReviewerIsDifferentFromCreator -- Time elapsed: 0.002 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in Unit Test cho M├┤ h├¼nh ─æo l╞░ß╗¥ng ─æ├│ng g├│p ─æa chiß╗üu 4 tß║ºng (Sprint 4 - CR-03)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in Unit tests for ScoringEngine v1
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.432 s -- in com.fairshare.expense.ExpenseRepositoryTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.115 s -- in com.fairshare.expense.SplitServiceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.732 s -- in com.fairshare.FairShareApplicationTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s -- in Unit tests for AnonymityAggregator (M4)
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.162 s -- in com.fairshare.peerreview.PeerReviewServiceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.540 s -- in com.fairshare.report.PdfReportServiceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in Unit tests for Sprint Permission (Leader vs Member): Mß╗ƒ/─É├│ng ─æß╗út
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.014 s -- in Unit tests for MemberService (M2 - Quß║ún l├╜ th├ánh vi├¬n & ─Éß╗òi vai tr├▓)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.114 s -- in Unit Test cho TeamController - Dashboard & Evidence Endpoints (DEF-22)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.028 s -- in com.fairshare.upload.FileUploadServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.871 s -- in com.fairshare.user.UserRepositoryTest
+[ERROR]   ManualContributionServiceTest.createContribution_shouldSavePendingContributionSuccessfully:67 ┬╗ NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR]   ManualContributionServiceTest.getPendingContributions_shouldReturnListMapped:247 ┬╗ NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR]   ManualContributionServiceTest.reviewContribution_shouldApproveWhenReviewerIsDifferentFromCreator:111 ┬╗ NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR]   ManualContributionServiceTest.reviewContribution_shouldRejectWhenActionIsReject:173 ┬╗ NullPointer Cannot invoke "com.fairshare.user.repository.UserRepository.findById(Object)" because "this.userRepository" is null
+[ERROR] Tests run: 195, Failures: 0, Errors: 4, Skipped: 0
+[INFO] BUILD FAILURE
