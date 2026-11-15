@@ -1,6 +1,7 @@
 package com.fairshare.team.controller;
 
 import com.fairshare.common.dto.ApiResponse;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.security.TeamSecurityService;
 import com.fairshare.contribution.dto.ContributionDto;
 import com.fairshare.contribution.dto.EvidenceItemDto;
@@ -101,12 +102,13 @@ public class TeamController {
     @PostMapping("/{teamId}/members")
     public ResponseEntity<ApiResponse<Void>> inviteMember(
             @PathVariable Long teamId,
-            @Valid @RequestBody InviteMemberRequest request) {
-        MemberRole role = MemberRole.MEMBER;
-        if (request.getRole() != null && request.getRole().equalsIgnoreCase("LEADER")) {
-            role = MemberRole.LEADER;
+            @Valid @RequestBody InviteMemberRequest request,
+            Authentication authentication) {
+        Long currentUserId = getUserId(authentication);
+        if (currentUserId == null) {
+            throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này");
         }
-        memberService.inviteByEmail(teamId, request.getEmail(), role);
+        memberService.inviteByEmail(teamId, request.getEmail(), MemberRole.MEMBER, currentUserId);
         return ResponseEntity.ok(ApiResponse.ok("Thêm thành viên thành công", null));
     }
 
@@ -205,8 +207,14 @@ public class TeamController {
     }
 
     @GetMapping("/{teamId}/sprints")
-    public ResponseEntity<ApiResponse<List<SprintDto>>> getSprints(@PathVariable Long teamId) {
-        List<SprintDto> sprints = sprintService.getSprintsByTeam(teamId);
+    public ResponseEntity<ApiResponse<List<SprintDto>>> getSprints(
+            @PathVariable Long teamId,
+            Authentication authentication) {
+        if (teamSecurityService != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
+        Long userId = getUserId(authentication);
+        List<SprintDto> sprints = sprintService.getSprintsByTeam(teamId, userId);
         return ResponseEntity.ok(ApiResponse.ok("Danh sách sprint", sprints));
     }
 

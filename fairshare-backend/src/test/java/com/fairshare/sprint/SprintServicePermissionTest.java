@@ -1,5 +1,6 @@
 package com.fairshare.sprint;
 
+import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.sprint.dto.CreateSprintRequest;
 import com.fairshare.sprint.dto.SprintDto;
@@ -21,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -128,6 +130,43 @@ class SprintServicePermissionTest {
         ForbiddenException ex = assertThrows(ForbiddenException.class,
                 () -> sprintService.closeSprint(50L, 2L));
         assertTrue(ex.getMessage().contains("Chỉ nhóm trưởng (Leader) mới có quyền đóng đợt"));
+    }
+
+    @Test
+    @DisplayName("Tạo sprint có endDate trước startDate bị chặn với BusinessException (DEF-36)")
+    void testCreateSprintFailsWhenEndDateBeforeStartDate() {
+        CreateSprintRequest req = new CreateSprintRequest();
+        req.setName("Sprint ngày ngược");
+        req.setStartDate(LocalDate.now().plusDays(7));
+        req.setEndDate(LocalDate.now());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> sprintService.createSprint(10L, req, 1L));
+        assertTrue(ex.getMessage().contains("Ngày kết thúc sprint không được trước ngày bắt đầu"));
+        verify(sprintRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Người ngoài nhóm xem danh sách sprint bị chặn với ForbiddenException (DEF-35)")
+    void testOutsiderCannotGetSprintsByTeam() {
+        when(teamRepository.existsById(10L)).thenReturn(true);
+        when(teamMemberRepository.existsByTeamIdAndUserId(10L, 99L)).thenReturn(false);
+
+        assertThrows(ForbiddenException.class,
+                () -> sprintService.getSprintsByTeam(10L, 99L));
+        verify(sprintRepository, never()).findByTeamId(anyLong());
+    }
+
+    @Test
+    @DisplayName("Thành viên trong nhóm xem danh sách sprint thành công (DEF-35)")
+    void testMemberCanGetSprintsByTeam() {
+        when(teamRepository.existsById(10L)).thenReturn(true);
+        when(teamMemberRepository.existsByTeamIdAndUserId(10L, 2L)).thenReturn(true);
+        when(sprintRepository.findByTeamId(10L)).thenReturn(List.of(activeSprint));
+
+        List<SprintDto> sprints = sprintService.getSprintsByTeam(10L, 2L);
+        assertEquals(1, sprints.size());
+        assertEquals("Sprint 5", sprints.get(0).getName());
     }
 }
 

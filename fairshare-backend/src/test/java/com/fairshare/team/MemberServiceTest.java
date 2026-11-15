@@ -1,6 +1,7 @@
 package com.fairshare.team;
 
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
@@ -183,5 +184,45 @@ class MemberServiceTest {
         assertEquals(2, members.size());
         assertEquals("Nguyễn Văn Minh Triều", members.get(0).getUser().getFullName());
         assertEquals("Hà Ngọc Thiện", members.get(1).getUser().getFullName());
+    }
+
+    @Test
+    @DisplayName("inviteByEmail (DEF-33): Leader mời thành viên thành công và luôn gán role MEMBER")
+    void inviteByEmail_success_whenCallerIsLeader_andForcesMemberRole() {
+        when(teamRepository.existsById(1L)).thenReturn(true);
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 10L)).thenReturn(Optional.of(leaderMember));
+        when(userRepository.findByEmail("thien@ueh.edu.vn")).thenReturn(Optional.of(memberUser));
+        when(userRepository.findById(20L)).thenReturn(Optional.of(memberUser));
+        when(teamMemberRepository.existsByTeamIdAndUserId(1L, 20L)).thenReturn(false);
+        when(teamMemberRepository.save(any(TeamMember.class))).thenAnswer(i -> i.getArgument(0));
+
+        TeamMember invited = memberService.inviteByEmail(1L, "thien@ueh.edu.vn", MemberRole.LEADER, 10L);
+        assertNotNull(invited);
+        assertEquals(MemberRole.MEMBER, invited.getRole());
+        verify(teamMemberRepository).save(any(TeamMember.class));
+    }
+
+    @Test
+    @DisplayName("inviteByEmail (DEF-33): Thành viên thường cố mời người khác bị chặn với ForbiddenException")
+    void inviteByEmail_throwsForbidden_whenCallerIsRegularMember() {
+        when(teamRepository.existsById(1L)).thenReturn(true);
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 20L)).thenReturn(Optional.of(regularMember));
+
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
+                () -> memberService.inviteByEmail(1L, "other@ueh.edu.vn", MemberRole.MEMBER, 20L));
+        assertTrue(ex.getMessage().contains("Chỉ nhóm trưởng"));
+        verify(teamMemberRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("inviteByEmail (DEF-33): Người ngoài nhóm cố tự thêm mình bị chặn với ForbiddenException")
+    void inviteByEmail_throwsForbidden_whenCallerIsNotTeamMember() {
+        when(teamRepository.existsById(1L)).thenReturn(true);
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 99L)).thenReturn(Optional.empty());
+
+        assertThrows(ForbiddenException.class,
+                () -> memberService.inviteByEmail(1L, "outsider@ueh.edu.vn", MemberRole.LEADER, 99L));
+        verify(teamMemberRepository, never()).save(any());
     }
 }
