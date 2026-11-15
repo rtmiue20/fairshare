@@ -4,6 +4,7 @@ import com.fairshare.common.dto.ApiResponse;
 import com.fairshare.peerreview.dto.CreateReviewRoundRequest;
 import com.fairshare.peerreview.dto.ReviewRoundDto;
 import com.fairshare.peerreview.dto.ReviewSubmissionDto;
+import com.fairshare.peerreview.dto.ReviewerSubmissionDto;
 import com.fairshare.peerreview.entity.ReviewRound;
 import com.fairshare.peerreview.service.AnonymityAggregator;
 import com.fairshare.peerreview.service.PeerReviewService;
@@ -81,9 +82,21 @@ public class PeerReviewController {
             @Valid @RequestBody ReviewSubmissionDto dto,
             Authentication authentication
     ) {
-        Long reviewerId = getUserId(authentication);
-        int savedCount = peerReviewService.submitReview(roundId, reviewerId, dto).size();
+        Long authenticatedId = authentication != null && authentication.getName() != null
+                ? getUserId(authentication)
+                : null;
+        Long effectiveReviewerId = dto.getReviewerId() != null ? dto.getReviewerId() : authenticatedId;
+        int savedCount = peerReviewService.submitReview(roundId, effectiveReviewerId, dto).size();
         return ResponseEntity.ok(ApiResponse.ok("Gửi đánh giá thành công", savedCount));
+    }
+
+    @GetMapping("/{roundId}/submissions/reviewer/{reviewerId}")
+    public ResponseEntity<ApiResponse<List<ReviewerSubmissionDto>>> getSubmissionsByReviewer(
+            @PathVariable Long roundId,
+            @PathVariable Long reviewerId
+    ) {
+        List<ReviewerSubmissionDto> list = peerReviewService.getSubmissionsByReviewer(roundId, reviewerId);
+        return ResponseEntity.ok(ApiResponse.ok("Danh sách đánh giá của thành viên", list));
     }
 
     @GetMapping("/{roundId}/results/{revieweeId}")

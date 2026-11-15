@@ -11,6 +11,7 @@ import java.util.List;
 public interface ReviewSubmissionRepository extends JpaRepository<ReviewSubmission, Long> {
     List<ReviewSubmission> findByReviewRoundId(Long reviewRoundId);
     List<ReviewSubmission> findByReviewRoundIdAndRevieweeId(Long reviewRoundId, Long revieweeId);
+    List<ReviewSubmission> findByReviewRoundIdAndReviewerId(Long reviewRoundId, Long reviewerId);
     boolean existsByReviewRoundIdAndReviewerIdAndRevieweeIdAndCriterion(
             Long reviewRoundId, Long reviewerId, Long revieweeId, ReviewCriterion criterion);
 }

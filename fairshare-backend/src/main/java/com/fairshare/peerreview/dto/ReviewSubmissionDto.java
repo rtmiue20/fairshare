@@ -16,6 +16,8 @@ import java.util.List;
 @Setter
 public class ReviewSubmissionDto {
 
+    private Long reviewerId;
+
     @NotNull(message = "Reviewee is required")
     private Long revieweeId;
 

@@ -6,6 +6,7 @@ import {
   AggregatedReviewResult,
   ReviewSprint,
   ReviewCriterion,
+  ReviewerSubmissionItem,
 } from '../../api/peerReview.api';
 import { teamApi } from '../../api/team.api';
 import { useAuthStore } from '../../store/authStore';
@@ -133,6 +134,7 @@ export const ReviewRoundPage: React.FC = () => {
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [completedReviewees, setCompletedReviewees] = useState<Set<number>>(new Set());
+  const [existingSubmissions, setExistingSubmissions] = useState<Record<number, ReviewerSubmissionItem>>({});
 
   // Results State
   const [resultsMap, setResultsMap] = useState<Record<number, AggregatedReviewResult>>({});
@@ -270,13 +272,56 @@ export const ReviewRoundPage: React.FC = () => {
     }
   }, [sprints]);
 
-  // Reset form when changing reviewee
+  // Load submissions already submitted by the current evaluator for the active round from DB
+  const loadEvaluatorSubmissions = useCallback(async () => {
+    if (!activeRoundId || !currentEvaluatorId) {
+      setExistingSubmissions({});
+      setCompletedReviewees(new Set());
+      return;
+    }
+    try {
+      const res = await peerReviewApi.getSubmissionsByReviewer(activeRoundId, currentEvaluatorId);
+      if (res?.data && Array.isArray(res.data)) {
+        const subMap: Record<number, ReviewerSubmissionItem> = {};
+        const completed = new Set<number>();
+        res.data.forEach((item) => {
+          subMap[item.revieweeId] = item;
+          completed.add(item.revieweeId);
+        });
+        setExistingSubmissions(subMap);
+        setCompletedReviewees(completed);
+      } else {
+        setExistingSubmissions({});
+        setCompletedReviewees(new Set());
+      }
+    } catch {
+      setExistingSubmissions({});
+      setCompletedReviewees(new Set());
+    }
+  }, [activeRoundId, currentEvaluatorId]);
+
   useEffect(() => {
-    setQualityScore(5);
-    setPunctualityScore(5);
-    setCooperationScore(5);
-    setFeedbackText('');
-  }, [selectedRevieweeId]);
+    loadEvaluatorSubmissions();
+  }, [loadEvaluatorSubmissions]);
+
+  // Update form when changing reviewee or when submissions are loaded
+  useEffect(() => {
+    const existing = existingSubmissions[selectedRevieweeId];
+    if (existing) {
+      const q = existing.scores?.find((s) => s.criterion === 'QUALITY')?.score ?? 5;
+      const p = existing.scores?.find((s) => s.criterion === 'PUNCTUALITY')?.score ?? 5;
+      const c = existing.scores?.find((s) => s.criterion === 'COOPERATION')?.score ?? 5;
+      setQualityScore(q);
+      setPunctualityScore(p);
+      setCooperationScore(c);
+      setFeedbackText(existing.feedback || '');
+    } else {
+      setQualityScore(5);
+      setPunctualityScore(5);
+      setCooperationScore(5);
+      setFeedbackText('');
+    }
+  }, [selectedRevieweeId, existingSubmissions]);
 
   // Fetch aggregated results for all members when activeRoundId changes or results tab is active
   const loadAggregatedResults = useCallback(async () => {
@@ -324,6 +369,7 @@ export const ReviewRoundPage: React.FC = () => {
     setSubmitting(true);
     try {
       await peerReviewApi.submitReview(activeRoundId, {
+        reviewerId: currentEvaluatorId,
         revieweeId: selectedReviewee.id,
         scores: [
           { criterion: 'QUALITY', score: qualityScore },
@@ -333,21 +379,19 @@ export const ReviewRoundPage: React.FC = () => {
         feedback: feedbackText.trim() || undefined,
       });
 
-      const updatedSet = new Set([...completedReviewees, selectedReviewee.id]);
-      setCompletedReviewees(updatedSet);
-
       const avgScore = ((qualityScore + punctualityScore + cooperationScore) / 3).toFixed(1);
-      showToast(`Đã gửi đánh giá ẩn danh cho ${selectedReviewee.name} (Điểm TB: ${avgScore}/5.0)`);
-      setFeedbackText('');
+      showToast(`Đã lưu đánh giá cho ${selectedReviewee.name} (Điểm TB: ${avgScore}/5.0) vào CSDL!`);
 
-      // Auto advance to next unrated teammate
+      // Refresh DB state
+      await loadEvaluatorSubmissions();
+      loadAggregatedResults();
+
+      // Auto advance to next unrated teammate if available
+      const updatedSet = new Set([...completedReviewees, selectedReviewee.id]);
       const nextUnrated = teammatesToReview.find((m) => m.id !== selectedReviewee.id && !updatedSet.has(m.id));
       if (nextUnrated) {
         setSelectedRevieweeId(nextUnrated.id);
       }
-
-      // Refresh results
-      loadAggregatedResults();
     } catch (err: unknown) {
       const msg =
         typeof err === 'object' && err !== null && 'response' in err
@@ -536,6 +580,7 @@ export const ReviewRoundPage: React.FC = () => {
             <button
               onClick={() => {
                 loadData();
+                loadEvaluatorSubmissions();
                 loadAggregatedResults();
               }}
               title="Làm mới dữ liệu"
@@ -827,7 +872,7 @@ export const ReviewRoundPage: React.FC = () => {
                       {/* Status badge */}
                       {isDone ? (
                         <span
-                          title="Đã gửi đánh giá"
+                          title="Đã gửi đánh giá (Đã lưu trong CSDL)"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -840,7 +885,10 @@ export const ReviewRoundPage: React.FC = () => {
                             borderRadius: '12px',
                           }}
                         >
-                          <CheckCircle size={12} /> Đã chấm
+                          <CheckCircle size={12} />
+                          {existingSubmissions[m.id]?.averageScore
+                            ? `${existingSubmissions[m.id].averageScore.toFixed(1)} ★`
+                            : 'Đã chấm'}
                         </span>
                       ) : (
                         <span
@@ -1110,29 +1158,75 @@ export const ReviewRoundPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Already submitted notice */}
+                {completedReviewees.has(selectedReviewee.id) && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      color: '#34d399',
+                      fontSize: '13px',
+                      marginBottom: '14px',
+                    }}
+                  >
+                    <CheckCircle size={16} style={{ flexShrink: 0 }} />
+                    <span>
+                      Đánh giá của bạn cho <strong>{selectedReviewee.name}</strong> đã được ghi nhận trong CSDL MariaDB{' '}
+                      {existingSubmissions[selectedReviewee.id]?.submittedAt
+                        ? `(Gửi lúc ${new Date(existingSubmissions[selectedReviewee.id].submittedAt!).toLocaleTimeString('vi-VN')} ${new Date(existingSubmissions[selectedReviewee.id].submittedAt!).toLocaleDateString('vi-VN')})`
+                        : ''}
+                      . Điểm TB đã chấm: <strong>{existingSubmissions[selectedReviewee.id]?.averageScore?.toFixed(1) || '5.0'} ★</strong>.
+                    </span>
+                  </div>
+                )}
+
                 {/* Submit button */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
                   <button
                     type="submit"
-                    disabled={submitting || activeRound?.status !== 'OPEN'}
+                    disabled={submitting || activeRound?.status !== 'OPEN' || completedReviewees.has(selectedReviewee.id)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 22px',
                       borderRadius: '8px',
-                      backgroundColor: activeRound?.status === 'OPEN' ? '#6366f1' : 'rgba(255, 255, 255, 0.1)',
-                      color: '#fff',
+                      backgroundColor:
+                        completedReviewees.has(selectedReviewee.id)
+                          ? 'rgba(16, 185, 129, 0.2)'
+                          : activeRound?.status === 'OPEN'
+                          ? '#6366f1'
+                          : 'rgba(255, 255, 255, 0.1)',
+                      color: completedReviewees.has(selectedReviewee.id) ? '#34d399' : '#fff',
                       fontSize: '14px',
                       fontWeight: 600,
-                      border: 'none',
-                      cursor: activeRound?.status === 'OPEN' ? 'pointer' : 'not-allowed',
+                      border: completedReviewees.has(selectedReviewee.id) ? '1px solid rgba(16, 185, 129, 0.4)' : 'none',
+                      cursor:
+                        completedReviewees.has(selectedReviewee.id)
+                          ? 'default'
+                          : activeRound?.status === 'OPEN'
+                          ? 'pointer'
+                          : 'not-allowed',
                       opacity: submitting ? 0.7 : 1,
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <Send size={15} />
-                    {submitting ? 'Đang gửi ẩn danh...' : 'Gửi đánh giá ẩn danh (Nghị định 13)'}
+                    {completedReviewees.has(selectedReviewee.id) ? (
+                      <>
+                        <CheckCircle size={15} />
+                        Đã lưu đánh giá vào CSDL
+                      </>
+                    ) : (
+                      <>
+                        <Send size={15} />
+                        {submitting ? 'Đang gửi ẩn danh...' : 'Gửi đánh giá ẩn danh (Nghị định 13)'}
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
