@@ -257,8 +257,8 @@ public class TeamService {
         String code;
         int attempts = 0;
         do {
-            // "FS" prefix + 10 alphanumeric chars = 12 total
-            code = "FS" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+            // "FS" prefix + 6 alphanumeric chars = 8 total
+            code = "FS" + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
             attempts++;
         } while (teamRepository.findByInviteCode(code).isPresent() && attempts < 10);
         return code;

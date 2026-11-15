@@ -2,6 +2,7 @@ package com.fairshare.team.service;
 
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.DuplicateResourceException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
@@ -43,14 +44,30 @@ public class MemberService {
     }
 
     @Transactional
-    public TeamMember inviteByEmail(Long teamId, String email, MemberRole role) {
+    public TeamMember inviteByEmail(Long teamId, String email, MemberRole role, Long currentUserId) {
         if (email == null || email.isBlank()) {
             throw new BusinessException("Email is required");
+        }
+        if (!teamRepository.existsById(teamId)) {
+            throw new ResourceNotFoundException("Team not found: " + teamId);
+        }
+        if (currentUserId != null) {
+            TeamMember caller = teamMemberRepository.findByTeamIdAndUserId(teamId, currentUserId)
+                    .orElseThrow(() -> new ForbiddenException("Bạn không phải thành viên của nhóm này"));
+            if (caller.getRole() != MemberRole.LEADER) {
+                throw new ForbiddenException("Chỉ nhóm trưởng (Leader) mới có quyền mời thành viên vào nhóm");
+            }
         }
         User user = userRepository.findByEmail(email.trim().toLowerCase())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        return addMember(teamId, user.getId(), role != null ? role : MemberRole.MEMBER);
+        MemberRole safeRole = (role == MemberRole.LEADER || role == null) ? MemberRole.MEMBER : role;
+        return addMember(teamId, user.getId(), safeRole);
+    }
+
+    @Transactional
+    public TeamMember inviteByEmail(Long teamId, String email, MemberRole role) {
+        return inviteByEmail(teamId, email, role, null);
     }
 
     @Transactional(readOnly = true)
