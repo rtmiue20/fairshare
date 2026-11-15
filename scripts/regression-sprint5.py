@@ -98,7 +98,18 @@ def pdf_text(pdf_bytes):
         f.write(pdf_bytes)
         path = f.name
     try:
-        return subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True).stdout
+        # Linux/macOS: pdftotext (poppler). Windows thường không có -> thử thư viện pypdf.
+        try:
+            return subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True).stdout
+        except FileNotFoundError:
+            pass
+        try:
+            from pypdf import PdfReader
+            return "\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
+        except ImportError:
+            print("   [CẢNH BÁO] Không có pdftotext hoặc pypdf -> không trích được text PDF "
+                  "(cài: pip install pypdf)")
+            return ""
     finally:
         os.unlink(path)
 
@@ -128,10 +139,17 @@ for u in (B, C, D, E, F):
     st, r = call("POST", f"/api/teams/{team_id}/members", {"email": u["email"]}, A["token"])
     assert st in (200, 201), f"invite {u['email']}: {st} {r}"
 today = date.today()
-st, r = call("POST", f"/api/teams/{team_id}/sprints",
-             {"name": f"R5 Sprint {RUN}", "startDate": str(today - timedelta(days=3)),
-              "endDate": str(today + timedelta(days=4))}, A["token"])
-sprint_id = data(r)["id"]
+# Từ 11/11 backend tự tạo "Sprint 1" (ACTIVE, 14 ngày) khi tạo nhóm, và gắn sự kiện board
+# vào sprint đang mở đầu tiên. Dùng lại sprint đó; chỉ tạo mới khi nhóm chưa có sprint.
+st, r = call("GET", f"/api/teams/{team_id}/sprints", token=A["token"])
+existing = data(r) if st == 200 else None
+if existing:
+    sprint_id = existing[0]["id"]
+else:
+    st, r = call("POST", f"/api/teams/{team_id}/sprints",
+                 {"name": f"R5 Sprint {RUN}", "startDate": str(today - timedelta(days=3)),
+                  "endDate": str(today + timedelta(days=4))}, A["token"])
+    sprint_id = data(r)["id"]
 st, r = call("POST", "/api/boards", {"teamId": team_id, "name": "R5 Board"}, A["token"])
 board = data(r)
 board_id = board["id"]
@@ -254,8 +272,18 @@ legacy = ["fairshare-backend/src/main/java/com/fairshare/integration/trello",
 left = [p for p in legacy if os.path.exists(os.path.join(REPO, p))]
 check("TRL-01", "Đã xóa module/test/trang Trello legacy theo DoD", "0 đường dẫn còn tồn tại",
       f"còn {len(left)}/{len(legacy)}: {', '.join(os.path.basename(p) for p in left) or '-'}", not left, "TRL")
-router_hits = subprocess.run(["grep", "-rlE", "path: *['\"]/?integration|ConnectTrelloPage", "frontend/src"],
-                             capture_output=True, text=True, cwd=REPO).stdout.split()
+# Tìm bằng Python thay vì `grep` để chạy được cả trên Windows
+_route_re = re.compile(r"path: *['\"]/?integration|ConnectTrelloPage")
+router_hits = []
+for _root, _dirs, _files in os.walk(os.path.join(REPO, "frontend", "src")):
+    for _fn in _files:
+        _fp = os.path.join(_root, _fn)
+        try:
+            with open(_fp, encoding="utf-8", errors="ignore") as _f:
+                if _route_re.search(_f.read()):
+                    router_hits.append(os.path.relpath(_fp, REPO).replace(os.sep, "/"))
+        except OSError:
+            pass
 check("TRL-02", "Router frontend không còn route integration / ConnectTrelloPage", "0 file tham chiếu",
       f"{len(router_hits)} file: {', '.join(router_hits) or '-'}", not router_hits, "TRL")
 sql(f"INSERT INTO activity_events (team_id, sprint_id, user_id, source, event_type, details, occurred_at, "
@@ -279,14 +307,23 @@ for reviewer, score in ((2, 4), (3, 5), (4, 3)):
     sql(f"INSERT IGNORE INTO review_submissions (review_round_id, reviewer_id, reviewee_id, criterion, score, feedback) "
         f"VALUES ({rr}, {reviewer}, 1, 'QUALITY', {score}, 'Seed feedback')")
 
+# Từ 14/11 API báo cáo chặn người ngoài nhóm (403). A không thuộc team seed 1, nên đăng nhập
+# bằng Leader seed (user 1). Seed chỉ có hash mật khẩu giả -> đặt lại mật khẩu bằng hash của A
+# (chỉ trên DB staging). SEED_TOKEN chỉ dùng cho các lời gọi tới team 1.
+_hash_a = sql(f"SELECT password FROM users WHERE id = {A['id']}")
+sql(f"UPDATE users SET password = '{_hash_a}' WHERE id = 1")
+_seed_email = sql("SELECT email FROM users WHERE id = 1")
+st, r = call("POST", "/api/auth/login", {"email": _seed_email, "password": "R5@123456"})
+assert st == 200, f"login leader seed: {st} {r}"
+SEED_TOKEN = data(r)["accessToken"]
 per_sprint = {}
 all_ok = True
 for s in (1, 2, 3, 4):
     ev = int(sql(f"SELECT COUNT(*) FROM activity_events WHERE team_id=1 AND sprint_id={s}"))
-    st0, body0, cold = fetch_pdf(1, s, A["token"])           # lần đầu (lạnh)
+    st0, body0, cold = fetch_pdf(1, s, SEED_TOKEN)           # lần đầu (lạnh)
     times = []
     for _ in range(PDF_RUNS):
-        st, body, t = fetch_pdf(1, s, A["token"])
+        st, body, t = fetch_pdf(1, s, SEED_TOKEN)
         all_ok &= st == 200 and body[:5] == b"%PDF-"
         times.append(t)
     times.sort()
@@ -303,7 +340,7 @@ check("PDF-01", f"G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (50
       f"chậm nhất {worst:.3f}s; p50 theo sprint = {[v['p50_s'] for v in per_sprint.values()]}s",
       all_ok and worst < G4_LIMIT_S, "PDF")
 
-st, body, _ = fetch_pdf(1, 4, A["token"])
+st, body, _ = fetch_pdf(1, 4, SEED_TOKEN)
 txt = pdf_text(body) if st == 200 else ""
 seed_names = sql("SELECT u.full_name FROM team_members tm JOIN users u ON u.id = tm.user_id WHERE tm.team_id = 1").split("\n")
 missing = [n for n in seed_names if n.split(" (")[0] not in txt]
@@ -325,9 +362,9 @@ check("PDF-05", "Tiếng Việt có dấu hiển thị đúng trong PDF (tên th
       f"HTTP {st}; đúng {len(shown)}/6; ví dụ dòng trong PDF: '{sample[:60]}'", st == 200 and len(shown) == 6, "PDF")
 st, body, _ = fetch_pdf(1, 4, X["token"])
 check("PDF-06", "Người ngoài nhóm tải PDF của nhóm khác", "HTTP 403", f"HTTP {st}", st == 403, "PDF")
-st, body, _ = fetch_pdf(1, 999999, A["token"])
+st, body, _ = fetch_pdf(1, 999999, SEED_TOKEN)
 check("PDF-07", "Sprint không tồn tại", "HTTP 404", f"HTTP {st}", st == 404, "PDF")
-st, body, _ = fetch_pdf(1, sprint_id, A["token"])
+st, body, _ = fetch_pdf(1, sprint_id, SEED_TOKEN)   # sprint_id thuộc nhóm hồi quy, không thuộc team 1
 check("PDF-08", "Ghép team 1 với sprint của nhóm khác", "HTTP 400/404 (sprint không thuộc team)",
       f"HTTP {st}" + (" – vẫn xuất PDF" if st == 200 else ""), st in (400, 404), "PDF")
 
