@@ -1,13 +1,13 @@
 {
-  "run": "1794316291",
+  "run": "1794711733",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-10T20:11:35",
+  "executed_at": "2026-11-15T10:02:22",
   "ids": {
-    "team": 3,
-    "sprint": 7,
-    "board": 2
+    "team": 5,
+    "sprint": 9,
+    "board": 8
   },
-  "passed": 13,
+  "passed": 26,
   "total": 30,
   "groups": {
     "SCR": [
@@ -15,19 +15,19 @@
       8
     ],
     "DASH": [
-      2,
+      5,
       5
     ],
     "PERM": [
-      2,
+      6,
       6
     ],
     "TRL": [
-      0,
+      3,
       3
     ],
     "PDF": [
-      1,
+      4,
       8
     ]
   },
@@ -35,42 +35,42 @@
     {
       "sprint": 1,
       "events": 100,
-      "cold_s": 0.021,
-      "p50_s": 0.022,
-      "p95_s": 0.033,
-      "max_s": 0.033,
-      "size_kb": 0.2,
-      "status": 500
+      "cold_s": 0.03,
+      "p50_s": 0.041,
+      "p95_s": 0.07,
+      "max_s": 0.07,
+      "size_kb": 70.4,
+      "status": 200
     },
     {
       "sprint": 2,
       "events": 100,
-      "cold_s": 0.026,
-      "p50_s": 0.023,
-      "p95_s": 0.034,
-      "max_s": 0.034,
-      "size_kb": 0.2,
-      "status": 500
+      "cold_s": 0.078,
+      "p50_s": 0.037,
+      "p95_s": 0.046,
+      "max_s": 0.046,
+      "size_kb": 70.8,
+      "status": 200
     },
     {
       "sprint": 3,
       "events": 100,
-      "cold_s": 0.024,
-      "p50_s": 0.022,
-      "p95_s": 0.028,
-      "max_s": 0.028,
-      "size_kb": 0.2,
-      "status": 500
+      "cold_s": 0.057,
+      "p50_s": 0.036,
+      "p95_s": 0.049,
+      "max_s": 0.049,
+      "size_kb": 70.6,
+      "status": 200
     },
     {
       "sprint": 4,
       "events": 100,
-      "cold_s": 0.019,
-      "p50_s": 0.023,
-      "p95_s": 0.035,
-      "max_s": 0.035,
-      "size_kb": 0.2,
-      "status": 500
+      "cold_s": 0.024,
+      "p50_s": 0.031,
+      "p95_s": 0.043,
+      "max_s": 0.043,
+      "size_kb": 70.8,
+      "status": 200
     }
   ],
   "cases": [
@@ -135,7 +135,7 @@
       "group": "SCR",
       "name": "Hai nguồn điểm thống nhất: ScoringEngine (/calculate) và routine (/summary) xếp cùng người đứng đầu",
       "expected": "Người có điểm cao nhất giống nhau",
-      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=0.0, Bích=16.67, Cường=16.67, Dũng=22.22, Én=16.67, Phú=27.78)",
+      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=0.0, Bích=19.57, Cường=19.57, Dũng=8.7, Én=19.57, Phú=32.61)",
       "result": "PASS"
     },
     {
@@ -143,16 +143,16 @@
       "group": "DASH",
       "name": "Dashboard lấy teamId theo nhóm đang chọn, không gán cứng",
       "expected": "Không có lời gọi contributionApi.*(1, ...)",
-      "actual": "4 lời gọi gán cứng teamId=1 (ContributionDashboard.tsx)",
-      "result": "FAIL"
+      "actual": "0 lời gọi gán cứng teamId=1 (ContributionDashboard.tsx)",
+      "result": "PASS"
     },
     {
       "id": "DASH-02",
       "group": "DASH",
       "name": "API điểm dashboard gọi: GET /api/teams/{teamId}/contributions (contribution.api.ts)",
       "expected": "HTTP 200",
-      "actual": "HTTP 500",
-      "result": "FAIL"
+      "actual": "HTTP 200",
+      "result": "PASS"
     },
     {
       "id": "DASH-03",
@@ -175,32 +175,32 @@
       "group": "DASH",
       "name": "API bằng chứng thành viên: GET /api/teams/{teamId}/contributions/{userId}/evidence (contribution.api.ts)",
       "expected": "HTTP 200",
-      "actual": "HTTP 500",
-      "result": "FAIL"
+      "actual": "HTTP 200",
+      "result": "PASS"
     },
     {
       "id": "PERM-01",
       "group": "PERM",
       "name": "Thành viên thường tạo cột -> bị chặn",
       "expected": "HTTP 403",
-      "actual": "HTTP 201",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "PERM-02",
       "group": "PERM",
       "name": "Thành viên thường đổi tên board -> bị chặn",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "PERM-03",
       "group": "PERM",
       "name": "Thành viên kéo card được giao cho người khác -> bị chặn",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "PERM-04",
@@ -223,40 +223,40 @@
       "group": "PERM",
       "name": "Người ngoài nhóm kéo card của nhóm -> bị chặn",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "TRL-01",
       "group": "TRL",
       "name": "Đã xóa module/test/trang Trello legacy theo DoD",
       "expected": "0 đường dẫn còn tồn tại",
-      "actual": "còn 4/4: trello, TrelloClientTest.java, ConnectTrelloPage.tsx, integration.api.ts",
-      "result": "FAIL"
+      "actual": "còn 0/4: -",
+      "result": "PASS"
     },
     {
       "id": "TRL-02",
       "group": "TRL",
       "name": "Router frontend không còn route integration / ConnectTrelloPage",
       "expected": "0 file tham chiếu",
-      "actual": "4 file: frontend/src/components/layout/AnimatedTopDock.tsx, frontend/src/components/layout/Sidebar.tsx, frontend/src/app/router.tsx, frontend/src/features/integration/ConnectTrelloPage.tsx",
-      "result": "FAIL"
+      "actual": "0 file: -",
+      "result": "PASS"
     },
     {
       "id": "TRL-03",
       "group": "TRL",
       "name": "Dữ liệu cũ nguồn TRELLO không làm lỗi summary / calculate / activities / PDF",
       "expected": "HTTP 200 cả 4",
-      "actual": "HTTP [200, 200, 200, 500]",
-      "result": "FAIL"
+      "actual": "HTTP [200, 200, 200, 200]",
+      "result": "PASS"
     },
     {
       "id": "PDF-01",
       "group": "PDF",
       "name": "G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (500 sự kiện), 11 lần/sprint",
       "expected": "Mọi lần HTTP 200, file %PDF hợp lệ, chậm nhất < 10 s",
-      "actual": "chậm nhất 0.035s; p50 theo sprint = [0.022, 0.023, 0.022, 0.023]s",
-      "result": "FAIL"
+      "actual": "chậm nhất 0.078s; p50 theo sprint = [0.041, 0.037, 0.036, 0.031]s",
+      "result": "PASS"
     },
     {
       "id": "PDF-02",
@@ -287,7 +287,7 @@
       "group": "PDF",
       "name": "Tiếng Việt có dấu hiển thị đúng trong PDF (tên thành viên)",
       "expected": "Đủ 6 tên có dấu, vd. 'Trần Thị Bích'",
-      "actual": "HTTP 500; đúng 0/6; ví dụ dòng trong PDF: ''",
+      "actual": "HTTP 200; đúng 0/6; ví dụ dòng trong PDF: ''",
       "result": "FAIL"
     },
     {
@@ -295,8 +295,8 @@
       "group": "PDF",
       "name": "Người ngoài nhóm tải PDF của nhóm khác",
       "expected": "HTTP 403",
-      "actual": "HTTP 500",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "PDF-07",
@@ -311,8 +311,8 @@
       "group": "PDF",
       "name": "Ghép team 1 với sprint của nhóm khác",
       "expected": "HTTP 400/404 (sprint không thuộc team)",
-      "actual": "HTTP 500",
-      "result": "FAIL"
+      "actual": "HTTP 404",
+      "result": "PASS"
     }
   ]
 }
