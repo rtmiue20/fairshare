@@ -113,28 +113,33 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
 
     vi.mocked(peerReviewApi.getSprints).mockResolvedValue({
       success: true,
+      message: 'OK',
       data: mockSprints,
-    } as any);
+    });
 
-    vi.mocked(contributionApi.getContributionSummary).mockResolvedValue(mockContributions as any);
+    vi.mocked(contributionApi.getContributionSummary).mockResolvedValue(mockContributions as unknown as typeof mockContributions);
 
     vi.mocked(teamApi.getTeamById).mockResolvedValue({
       success: true,
-      data: mockTeamData,
-    } as any);
+      message: 'OK',
+      data: mockTeamData as unknown as typeof mockTeamData,
+    } as unknown as Awaited<ReturnType<typeof teamApi.getTeamById>>);
 
     vi.mocked(boardApi.getBoardsByTeam).mockResolvedValue({
       success: true,
+      message: 'OK',
       data: [],
-    } as any);
+    });
 
     vi.mocked(peerReviewApi.getRoundsByTeam).mockResolvedValue({
       success: true,
+      message: 'OK',
       data: [{ id: 2, sprintId: 2, name: 'Round 2', teamId: 1, status: 'OPEN', minSubmissionsRequired: 3, startDate: '2026-11-03', endDate: '2026-11-17' }],
-    } as any);
+    });
 
     vi.mocked(peerReviewApi.getRoundResults).mockResolvedValue({
       success: true,
+      message: 'OK',
       data: {
         revieweeId: 109,
         anonymousSafe: true,
@@ -142,7 +147,7 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
         submissionCount: 3,
         feedbackComments: [],
       },
-    } as any);
+    });
   });
 
   it('renders report header, KPI cards, and academic paper document', async () => {
