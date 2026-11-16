@@ -5,6 +5,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { peerReviewApi } from '../../api/peerReview.api';
 import { teamApi } from '../../api/team.api';
+import { DashboardHeroCanvas } from './DashboardHeroCanvas';
 import { ContributionPieChart } from './ContributionPieChart';
 import { ContributionTimeline } from './ContributionTimeline';
 import { EvidenceTable } from './EvidenceTable';
@@ -351,28 +352,22 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     return <NoProjectState />;
   }
 
-  const currentTeam = teams.find((t) => t.id === currentTeamId) ?? teams[0] ?? null;
-
   return (
-    <div
-      data-testid="contribution-dashboard"
-      className="pad space-y-6 max-w-7xl mx-auto pb-16 px-4 sm:px-6 lg:px-8"
-      style={{ paddingTop: 'calc(var(--top) + 24px)' }}
-    >
-      {/* ── Top Project Banner (Cosmic Glassmorphism) ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 rounded-2xl bg-white/80 dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/80 dark:border-cyan-500/15 shadow-xl relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-cyan-400/40 before:to-transparent">
-        <div className="space-y-1.5 z-10">
-          <div className="flex items-center gap-2 text-xs text-cyan-600 dark:text-cyan-400 font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#38bdf8]" />
-            <span>DỰ ÁN ĐỒ ÁN • {currentTeam?.name ? currentTeam.name.toUpperCase() : 'FAIRSHARE'}</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">
-            {currentTeam?.name || 'FairShare'}
-          </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-2xl leading-relaxed">
-            {currentTeam?.description || 'Phân tích đóng góp đa chiều chuẩn Khoa học Dữ liệu · Bằng chứng truy vết (Audit Trail)'}
+    <div data-testid="contribution-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* 3D Interactive Hero Canvas from FairShare UI sample */}
+      <DashboardHeroCanvas teamId={currentTeamId} />
+
+      <div className="pad" style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* ── Page header ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>
+            Bảng đo lường đóng góp
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--fg3)' }}>
+            Phân tích đóng góp đa chiều chuẩn Khoa học Dữ liệu · Bằng chứng truy vết (Audit Trail)
           </p>
-          <div className="flex gap-2 flex-wrap pt-1">
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '6px' }}>
             <span
               className="chip"
               data-testid="badge-scoring-engine-version"
@@ -395,19 +390,12 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             </span>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2.5 z-10">
-          {currentTeam?.inviteCode && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200/80 dark:border-white/10 text-xs font-mono">
-              <span className="text-zinc-500 dark:text-zinc-400">🔑 Mã mời:</span>
-              <code className="text-cyan-600 dark:text-cyan-300 font-bold">{currentTeam.inviteCode}</code>
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setIsFeedbackModalOpen(true)}
             data-testid="btn-open-feedback-resolution"
-            className="btn ghost sm"
+            className="btn ghost"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
           >
             <ShieldCheck style={{ width: 14, height: 14, color: 'var(--ok)' }} />
@@ -417,7 +405,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             type="button"
             onClick={() => setIsManualModalOpen(true)}
             data-testid="btn-open-manual-contributions"
-            className="btn ghost sm"
+            className="btn ghost"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}
           >
             <Sparkles style={{ width: 13, height: 13 }} />
@@ -837,6 +825,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           />
         </>
       )}
+      </div>
     </div>
   );
 };
