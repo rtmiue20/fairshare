@@ -145,10 +145,40 @@ public class ContributionService {
                 users, events, manualPointsMap, peerScoresMap, peerCountsMap, availabilityMap, true
         );
 
+        // Tính điểm hoạt động thô (trelloScore) & tổng điểm nhóm để đồng bộ các trường tóm tắt
+        Map<Long, Double> trelloScoreMap = new HashMap<>();
+        double totalTeamActivity = 0.0;
+        for (User u : users) {
+            double uTrello = 0.0;
+            for (ActivityEvent ev : events) {
+                if (ev.getUser() == null || !u.getId().equals(ev.getUser().getId())) {
+                    continue;
+                }
+                String type = ev.getEventType() != null ? ev.getEventType().toUpperCase() : "";
+                double sp = ev.getStoryPoints() != null ? ev.getStoryPoints() : 1.0;
+                if (type.contains("COMPLETED") || type.contains("DONE")) {
+                    uTrello += sp;
+                } else if (type.contains("CARD_CREATED") || type.contains("CARD_MOVED")) {
+                    uTrello += (ev.getStoryPoints() != null ? ev.getStoryPoints() : 1.0) * 0.2;
+                } else if (ev.getStoryPoints() != null && ev.getStoryPoints() > 0) {
+                    uTrello += ev.getStoryPoints();
+                }
+            }
+            trelloScoreMap.put(u.getId(), uTrello);
+            totalTeamActivity += uTrello + manualPointsMap.getOrDefault(u.getId(), 0.0);
+        }
+
         List<ContributionDto> dtos = new ArrayList<>();
 
         for (ScoringEngine.MemberContributionResult res : calculated) {
             User user = res.getUser();
+            double uTrello = trelloScoreMap.getOrDefault(user.getId(), 0.0);
+            double uManual = manualPointsMap.getOrDefault(user.getId(), 0.0);
+            double uActivityPct = totalTeamActivity > 0.0 ? ((uTrello + uManual) / totalTeamActivity) * 100.0 : 0.0;
+            int uPeerCount = peerCountsMap.getOrDefault(user.getId(), 0);
+            double uPeerPct = (uPeerCount >= 3 && peerScoresMap.containsKey(user.getId()))
+                    ? Math.min(100.0, (peerScoresMap.get(user.getId()) / 5.0) * 100.0)
+                    : 0.0;
 
             ContributionScore scoreEntity = contributionScoreRepository
                     .findBySprintIdAndUserId(sprintId, user.getId())
@@ -160,6 +190,10 @@ public class ContributionService {
                         return cs;
                     });
 
+            scoreEntity.setTrelloScore(BigDecimal.valueOf(uTrello).setScale(2, RoundingMode.HALF_UP));
+            scoreEntity.setManualScore(BigDecimal.valueOf(uManual).setScale(2, RoundingMode.HALF_UP));
+            scoreEntity.setActivityPct(BigDecimal.valueOf(uActivityPct).setScale(2, RoundingMode.HALF_UP));
+            scoreEntity.setPeerPct(BigDecimal.valueOf(uPeerPct).setScale(2, RoundingMode.HALF_UP));
             scoreEntity.setScore(res.getFinalScore());
             scoreEntity.setPercentage(res.getPercentage());
             scoreEntity.setFinalPct(res.getFinalScore());
@@ -220,10 +254,15 @@ public class ContributionService {
         return dtos;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ContributionDto> getSprintScores(Long sprintId) {
         List<ContributionScore> existing = contributionScoreRepository.findBySprintId(sprintId);
-        if (existing.isEmpty()) {
+        boolean hasActivityWithout4D = !existing.isEmpty()
+                && existing.stream().allMatch(cs -> cs.getCompositeScore() == null || cs.getCompositeScore().compareTo(BigDecimal.ZERO) == 0)
+                && existing.stream().anyMatch(cs ->
+                        (cs.getTrelloScore() != null && cs.getTrelloScore().compareTo(BigDecimal.ZERO) > 0)
+                        || (cs.getManualScore() != null && cs.getManualScore().compareTo(BigDecimal.ZERO) > 0));
+        if (existing.isEmpty() || hasActivityWithout4D) {
             return calculateAndSaveSprintScores(sprintId);
         }
 

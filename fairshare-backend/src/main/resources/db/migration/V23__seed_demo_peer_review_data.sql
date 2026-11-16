@@ -14,7 +14,7 @@ ON DUPLICATE KEY UPDATE full_name = VALUES(full_name);
 
 -- 2. Đảm bảo Dự án Team 1 tồn tại
 INSERT INTO teams (id, name, course_name, description, invite_code, created_at, updated_at) VALUES
-(1, 'EduConnect — Nền tảng Học tập & Trao đổi Sinh viên', 'Quản lý Dự án Công nghệ Thông tin', 'Hệ thống hỗ trợ học tập nhóm, quản lý tiến độ Kanban, đo lường đóng góp đa chiều và đánh giá chéo minh bạch.', 'FS-EDU-2026', NOW(), NOW())
+(1, 'EduConnect', 'Quản lý Dự án Công nghệ Thông tin', 'Nền tảng học tập nhóm, quản lý tiến độ Kanban và đo lường đóng góp đa chiều minh bạch.', 'FS-EDU-2026', NOW(), NOW())
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- 3. Gán thành viên vào Team 1

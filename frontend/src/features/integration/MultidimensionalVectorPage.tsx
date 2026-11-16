@@ -42,22 +42,21 @@ export const MultidimensionalVectorPage: React.FC = () => {
     teamApi
       .getMembers(teamId)
       .then((res) => {
-        if (res.data && Array.isArray(res.data)) {
-          const list = res.data.map((tm) => ({
+        const rawMembers = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        if (rawMembers.length > 0) {
+          const list = rawMembers.map((tm) => ({
             id: tm.user?.id || tm.userId || tm.id,
             fullName: tm.user?.fullName || tm.fullName || 'Thành viên',
             email: tm.user?.email || tm.email || '',
           }));
           setMembers(list);
-          if (!selectedUserId && list.length > 0) {
-            setSelectedUserId(list[0].id);
-          }
+          setSelectedUserId((prev) => prev || list[0].id);
         }
       })
       .catch((err) => {
         console.warn('Could not fetch members, using defaults:', err);
       });
-  }, [teamId, selectedUserId]);
+  }, [teamId]);
 
   const createFallbackData = useCallback(() => {
     const targetMember = members.find((m) => m.id === selectedUserId);
@@ -264,6 +263,9 @@ export const MultidimensionalVectorPage: React.FC = () => {
         if (!selectedSprintId && res.data.sprintId) {
           setSelectedSprintId(res.data.sprintId);
         }
+        if (!selectedUserId && res.data.focusedUserId) {
+          setSelectedUserId(res.data.focusedUserId);
+        }
         const rootNode = res.data.nodes.find((n) => n.type === 'ROOT');
         setSelectedNode(rootNode || res.data.nodes[0] || null);
       }
@@ -316,12 +318,15 @@ export const MultidimensionalVectorPage: React.FC = () => {
     }
   };
 
+  const resolvedSprintId = selectedSprintId || networkData?.sprintId || 3;
+  const resolvedUserId = selectedUserId || networkData?.focusedUserId || members[0]?.id || 1;
+
   const handleUpdateAvailability = async (factor: number, reason: string) => {
     try {
       setIsUpdating(true);
       const res = await contributionApi.updateAvailability({
-        sprintId: selectedSprintId || 3,
-        userId: selectedUserId || 1,
+        sprintId: resolvedSprintId,
+        userId: resolvedUserId,
         availabilityFactor: factor,
         reason,
       });
@@ -348,8 +353,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
     try {
       setIsUpdating(true);
       const res = await contributionApi.resolveSuspicion({
-        sprintId: selectedSprintId || 3,
-        userId: selectedUserId || 1,
+        sprintId: resolvedSprintId,
+        userId: resolvedUserId,
         isSuspicious,
         note,
       });
@@ -376,7 +381,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
     try {
       setIsUpdating(true);
       showToast('Đang chạy lại Mô hình 4 tầng & Bootstrap 1000 lần...');
-      await contributionApi.calculateSprintScores(selectedSprintId || 3);
+      await contributionApi.calculateSprintScores(resolvedSprintId);
       await fetchNetworkGraph();
       showToast('Tính toán và cập nhật điểm CSDL hoàn tất!');
     } catch (err) {
