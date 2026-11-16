@@ -86,7 +86,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     { id: 5, name: 'Sprint 5', isCurrent: false, status: 'PLANNED' },
   ],
   selectedSprintId = 3,
-  onSelectSprint: _onSelectSprint,
   compositeScore = 99.1,
   distanceToCenter = 2.52,
   availabilityFactor = 1.0,
