@@ -400,7 +400,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
 
   return (
     <div
-      className="relative w-full h-full flex overflow-hidden select-none bg-[#020609]"
+      className="relative w-full h-full flex overflow-hidden select-none bg-slate-50 dark:bg-[#07090e] transition-colors duration-300"
       style={{
         color: 'var(--fg)',
       }}
@@ -423,7 +423,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
         type="button"
         title={isTimelineCollapsed ? 'Mở thanh Sprint' : 'Thu gọn thanh Sprint'}
         onClick={() => setIsTimelineCollapsed((prev) => !prev)}
-        className="absolute left-2 top-4 z-40 p-2 rounded-xl border border-cyan-500/25 bg-[#06151f]/80 backdrop-blur-md transition shadow-lg text-cyan-300 hover:text-white"
+        className="absolute left-2 top-4 z-40 p-2 rounded-xl border border-zinc-200/90 dark:border-white/10 bg-white/90 dark:bg-[#1f1f23]/90 backdrop-blur-md transition shadow-lg text-zinc-700 dark:text-zinc-300 hover:text-cyan-600 dark:hover:text-white"
       >
         {isTimelineCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
       </button>
@@ -433,7 +433,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
         {loading ? (
           <div className="flex h-full w-full items-center justify-center flex-col gap-3">
             <Spinner size="large" />
-            <span className="text-xs font-medium text-cyan-300">
+            <span className="text-xs font-semibold text-cyan-600 dark:text-cyan-300">
               Đang kiến tạo không gian vector đa chiều...
             </span>
           </div>
