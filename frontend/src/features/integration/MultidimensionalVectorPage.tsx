@@ -287,7 +287,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
         setNetworkData(res.data);
         showToast('Đã lưu rào cản vào CSDL & cập nhật mô hình 4 tầng');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error logging impact:', err);
       showToast('Đã ghi nhận cục bộ (Backend demo)');
       // Locally append impact node if needed
@@ -339,7 +339,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
         setNetworkData(res.data);
         showToast(`Đã lưu hệ số khả dụng a_i = ${factor.toFixed(2)} vào CSDL`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating availability:', err);
       showToast(`Đã cập nhật hệ số khả dụng a_i = ${factor.toFixed(2)}`);
       setNetworkData((prev) => {
@@ -367,7 +367,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
         setNetworkData(res.data);
         showToast('Đã gỡ cờ ngờ vực trong CSDL sau đối chiếu');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error resolving suspicion:', err);
       showToast('Đã đối chiếu thành công');
       setNetworkData((prev) => {
