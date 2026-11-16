@@ -86,6 +86,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     { id: 5, name: 'Sprint 5', isCurrent: false, status: 'PLANNED' },
   ],
   selectedSprintId = 3,
+  onSelectSprint,
   compositeScore = 99.1,
   distanceToCenter = 2.52,
   availabilityFactor = 1.0,
@@ -136,166 +137,225 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
   // Hub definitions mapped to project 4-tier model & members (Constellation layout)
   const constellationHubs = useMemo<ConstellationHub[]>(() => {
+    // 1. Nhận diện vai trò & profile của thành viên được quan sát
+    const nameLower = (focusedUserName || '').toLowerCase();
+    const isFrontend = nameLower.includes('trang') || nameLower.includes('frontend') || selectedUserId === 110;
+    const isLeader = nameLower.includes('nam') || nameLower.includes('trưởng') || nameLower.includes('leader') || selectedUserId === 109;
+    const isBackend = nameLower.includes('bảo') || nameLower.includes('backend') || selectedUserId === 111;
+    const isDevOps = nameLower.includes('đức') || nameLower.includes('devops') || selectedUserId === 112;
+    const isQA = nameLower.includes('vy') || nameLower.includes('qa') || selectedUserId === 113;
+
+    const pctVal = Math.round((finalPct || 0.22) * 100);
+    const availVal = Math.round((availabilityFactor || 1.0) * 100);
+
+    // 2. Dữ liệu số lượng task / Story Point / Đúng hạn thích ứng với từng thành viên đồ án
+    const d1TaskCount = isLeader ? 10 : isFrontend ? 7 : isQA ? 8 : isBackend ? 6 : 5;
+    const d1SpCount = isLeader ? '18.0 SP' : isFrontend ? '12.5 SP' : isQA ? '10.0 SP' : isBackend ? '11.0 SP' : '9.5 SP';
+    const d1ManualCount = isLeader ? '+5.0 SP' : isFrontend ? '+3.0 SP' : isBackend ? '+2.5 SP' : '+2.0 SP';
+    const d2OnTimePct = isLeader ? 95 : isFrontend ? 88 : isQA ? 92 : isBackend ? 82 : 90;
+    const d2Latency = isBackend ? '0.5 ngày' : '0.2 ngày';
+    const d2Rework = isBackend ? 'Rework 8%' : 'Rework 0%';
+    const d3Reviews = isLeader ? '12 Lượt' : isFrontend ? '5 Lượt' : isQA ? '8 Lượt' : '4 Lượt';
+    const d3Comments = isLeader ? '28 Thảo luận' : isFrontend ? '16 Thảo luận' : isQA ? '22 Thảo luận' : '12 Thảo luận';
+    const d4PeerScore = isLeader ? '9.6 / 10' : isFrontend ? '8.8 / 10' : isQA ? '9.0 / 10' : '8.5 / 10';
+    const d4ReviewCount = '4/4 Lượt';
+
     return [
       {
-        id: 'hub-gov',
-        label: 'Government affairs',
+        id: 'hub-d1-tasks',
+        label: 'Thẻ hoàn thành (Tasks)',
         category: 'D1',
-        percentage: 31,
-        badge: '31%',
-        color: '#c084fc', // purple
+        percentage: Math.min(100, Math.round(pctVal * 1.5)),
+        badge: `${d1TaskCount} Thẻ`,
+        color: '#10b981', // green
         angle: -2.35,
         distance: 280,
-        satellites: [
-          { id: 'sat-1', label: 'SRS Doc', count: 39, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
-          { id: 'sat-2', label: 'Auth flow', count: 11, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
-          { id: 'sat-3', label: 'Policy task', count: 27, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
-        ],
+        satellites: isFrontend
+          ? [
+              { id: 'sat-1', label: 'Giao diện Chấm chéo', count: 5, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Tích hợp API Axios', count: 4, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Form khai báo thủ công', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ]
+          : isLeader
+          ? [
+              { id: 'sat-1', label: 'Kiến trúc Spring Boot 3', count: 8, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Cấu hình Docker Compose', count: 5, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Tối ưu Stored Procedure', count: 5, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ]
+          : isBackend
+          ? [
+              { id: 'sat-1', label: 'RESTful API Swagger', count: 5, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Migration Flyway V21-V23', count: 3, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Mô hình 4 tầng scoring', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ]
+          : isQA
+          ? [
+              { id: 'sat-1', label: 'Đóng defect DEF-16/17/22', count: 4, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Test scenarios UAT', count: 3, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Kiểm thử hồi quy API', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ]
+          : isDevOps
+          ? [
+              { id: 'sat-1', label: 'Pipeline GitHub Actions', count: 4, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Deploy Docker Staging', count: 3, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Cấu hình Testcontainers', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ]
+          : [
+              { id: 'sat-1', label: 'Thực thi nhiệm vụ Sprint', count: 4, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Cập nhật tiến độ Board', count: 3, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Tương tác thảo luận nhóm', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ],
       },
       {
-        id: 'hub-energy',
-        label: 'Energy, transport an...',
+        id: 'hub-d1-sp',
+        label: 'Story Points & Trọng số',
         category: 'D1',
-        percentage: 38,
-        badge: '38%',
-        color: '#f472b6', // pink
+        percentage: Math.min(100, Math.round(pctVal * 2.2)),
+        badge: d1SpCount,
+        color: '#34d399', // bright emerald
         angle: -2.9,
         distance: 290,
         satellites: [
-          { id: 'sat-4', label: 'API Gateway', count: 19, color: '#34d399', angleOffset: -0.3, distOffset: 65 },
-          { id: 'sat-5', label: 'Worker queue', count: 16, color: '#c084fc', angleOffset: 0.35, distOffset: 75 },
+          { id: 'sat-4', label: 'Độ khó thẻ SP', count: 5, color: '#34d399', angleOffset: -0.3, distOffset: 65 },
+          { id: 'sat-5', label: 'Checklist item hoàn thành', count: 18, color: '#c084fc', angleOffset: 0.35, distOffset: 75 },
         ],
       },
       {
-        id: 'hub-env',
-        label: 'Environment and na...',
-        category: 'D2',
-        percentage: 17,
-        badge: '17%',
-        color: '#f472b6',
+        id: 'hub-d1-manual',
+        label: 'Đóng góp ngoài Board',
+        category: 'D1',
+        percentage: Math.min(100, Math.round(pctVal * 1.2)),
+        badge: d1ManualCount,
+        color: '#059669', // deep teal
         angle: -1.45,
         distance: 270,
-        satellites: [
-          { id: 'sat-6', label: 'MariaDB Pool', count: 20, color: '#38bdf8', angleOffset: -0.35, distOffset: 65 },
-          { id: 'sat-7', label: 'Redis Cache', count: 15, color: '#a78bfa', angleOffset: 0.3, distOffset: 60 },
-          { id: 'sat-8', label: 'Vite config', count: 18, color: '#34d399', angleOffset: 0.7, distOffset: 75 },
-        ],
+        satellites: isFrontend
+          ? [
+              { id: 'sat-6', label: 'Figma Design System', count: 24, color: '#38bdf8', angleOffset: -0.35, distOffset: 65 },
+              { id: 'sat-7', label: 'Tài liệu UX Guidelines', count: 12, color: '#a78bfa', angleOffset: 0.3, distOffset: 60 },
+              { id: 'sat-8', label: 'Prototype tương tác', count: 16, color: '#34d399', angleOffset: 0.7, distOffset: 75 },
+            ]
+          : [
+              { id: 'sat-6', label: 'Đặc tả yêu cầu SRS', count: 18, color: '#38bdf8', angleOffset: -0.35, distOffset: 65 },
+              { id: 'sat-7', label: 'Nghiên cứu kiến trúc', count: 10, color: '#a78bfa', angleOffset: 0.3, distOffset: 60 },
+              { id: 'sat-8', label: 'Khai báo duyệt hợp lệ', count: 14, color: '#34d399', angleOffset: 0.7, distOffset: 75 },
+            ],
       },
       {
-        id: 'hub-sport',
-        label: 'Sport',
-        category: 'D3',
-        percentage: 24,
-        badge: '24%',
-        color: '#f472b6',
+        id: 'hub-d2-ontime',
+        label: 'Tỷ lệ đúng hạn bàn giao',
+        category: 'D2',
+        percentage: d2OnTimePct,
+        badge: `${d2OnTimePct}%`,
+        color: '#06b6d4', // cyan
         angle: -0.92,
         distance: 310,
         satellites: [
-          { id: 'sat-9', label: 'Code Review', count: 6, color: '#fbbf24', angleOffset: 0.2, distOffset: 60 },
-          { id: 'sat-10', label: 'Doc collab', count: 34, color: '#34d399', angleOffset: 0.5, distOffset: 70 },
+          { id: 'sat-9', label: 'Giao đúng Deadline', count: d1TaskCount, color: '#fbbf24', angleOffset: 0.2, distOffset: 60 },
+          { id: 'sat-10', label: '0 Thẻ trễ hạn nghiêm trọng', count: 0, color: '#34d399', angleOffset: 0.5, distOffset: 70 },
         ],
       },
       {
-        id: 'hub-economy',
-        label: 'Economy and Busin...',
-        category: 'D1',
-        percentage: 15,
-        badge: '15%',
-        color: '#f472b6',
+        id: 'hub-d2-latency',
+        label: 'Độ trễ trung vị (Lead Time)',
+        category: 'D2',
+        percentage: 92,
+        badge: d2Latency,
+        color: '#22d3ee', // sky blue
         angle: -0.48,
         distance: 360,
         satellites: [
-          { id: 'sat-11', label: 'Scoring engine', count: 7, color: '#38bdf8', angleOffset: -0.25, distOffset: 60 },
-          { id: 'sat-12', label: 'Robust MAD', count: 12, color: '#c084fc', angleOffset: 0.25, distOffset: 65 },
-          { id: 'sat-13', label: 'Z-score trim', count: 15, color: '#34d399', angleOffset: 0.6, distOffset: 70 },
+          { id: 'sat-11', label: 'Độ trễ trung vị (ngày)', count: 1, color: '#38bdf8', angleOffset: -0.25, distOffset: 60 },
+          { id: 'sat-12', label: 'Chuẩn hóa Robust MAD', count: 12, color: '#c084fc', angleOffset: 0.25, distOffset: 65 },
+          { id: 'sat-13', label: 'Cắt biên Z-score [-3, 3]', count: 3, color: '#34d399', angleOffset: 0.6, distOffset: 70 },
         ],
       },
       {
-        id: 'hub-security',
-        label: 'Security and safety',
+        id: 'hub-d2-rework',
+        label: 'Kiểm thử & Rework',
         category: 'D2',
-        percentage: 23,
-        badge: '23%',
-        color: '#c084fc',
+        percentage: 96,
+        badge: d2Rework,
+        color: '#0891b2', // teal cyan
         angle: -0.15,
         distance: 400,
         satellites: [
-          { id: 'sat-14', label: 'JWT Token', count: 19, color: '#34d399', angleOffset: -0.28, distOffset: 65 },
-          { id: 'sat-15', label: 'CORS header', count: 24, color: '#f472b6', angleOffset: 0.32, distOffset: 70 },
+          { id: 'sat-14', label: 'Số lần mở lại thẻ (0)', count: 0, color: '#34d399', angleOffset: -0.28, distOffset: 65 },
+          { id: 'sat-15', label: 'Pass kiểm thử QA/CI', count: 24, color: '#f472b6', angleOffset: 0.32, distOffset: 70 },
         ],
       },
       {
-        id: 'hub-health',
-        label: 'Healthcare',
-        category: 'D2',
-        percentage: 13,
-        badge: '13%',
-        color: '#f472b6',
+        id: 'hub-d3-reviews',
+        label: 'Review chéo đồng đội',
+        category: 'D3',
+        percentage: Math.min(100, Math.round(pctVal * 1.4)),
+        badge: d3Reviews,
+        color: '#8b5cf6', // purple violet
         angle: 0.35,
         distance: 270,
         satellites: [
-          { id: 'sat-16', label: 'Health check', count: 8, color: '#c084fc', angleOffset: -0.3, distOffset: 55 },
-          { id: 'sat-17', label: 'Log rotation', count: 18, color: '#38bdf8', angleOffset: 0.4, distOffset: 60 },
+          { id: 'sat-16', label: 'Review Pull Request Git', count: isLeader ? 12 : 5, color: '#c084fc', angleOffset: -0.3, distOffset: 55 },
+          { id: 'sat-17', label: 'Duyệt thẻ Task Board', count: 8, color: '#38bdf8', angleOffset: 0.4, distOffset: 60 },
         ],
       },
       {
-        id: 'hub-education',
-        label: 'Education',
+        id: 'hub-d3-collab',
+        label: 'Thảo luận & Hỗ trợ (@Mentions)',
         category: 'D3',
-        percentage: 25,
-        badge: '25%',
-        color: '#f472b6',
+        percentage: Math.min(100, Math.round(pctVal * 1.6)),
+        badge: d3Comments,
+        color: '#a78bfa', // soft purple
         angle: 0.75,
         distance: 330,
         satellites: [
-          { id: 'sat-18', label: 'Peer feedback', count: 12, color: '#38bdf8', angleOffset: -0.25, distOffset: 55 },
-          { id: 'sat-19', label: 'Rubric scoring', count: 7, color: '#34d399', angleOffset: 0.3, distOffset: 60 },
+          { id: 'sat-18', label: 'Bình luận xây dựng', count: isFrontend ? 16 : 22, color: '#38bdf8', angleOffset: -0.25, distOffset: 55 },
+          { id: 'sat-19', label: 'Được @mention hỗ trợ', count: 7, color: '#34d399', angleOffset: 0.3, distOffset: 60 },
         ],
       },
       {
-        id: 'hub-family',
-        label: 'Family and commun...',
+        id: 'hub-d4-peer',
+        label: 'Điểm chấm chéo ẩn danh',
         category: 'D4',
-        percentage: 33,
-        badge: '33%',
-        color: '#f472b6',
+        percentage: Math.min(100, Math.round(parseFloat(d4PeerScore) * 10)),
+        badge: d4PeerScore,
+        color: '#ec4899', // pink
         angle: 1.15,
         distance: 390,
         satellites: [
-          { id: 'sat-20', label: 'Anonymous vote', count: 11, color: '#34d399', angleOffset: -0.2, distOffset: 60 },
-          { id: 'sat-21', label: 'Impediment a_i', count: 27, color: '#fbbf24', angleOffset: 0.35, distOffset: 70 },
+          { id: 'sat-20', label: 'Thái độ hợp tác (4.9/5)', count: 5, color: '#34d399', angleOffset: -0.2, distOffset: 60 },
+          { id: 'sat-21', label: 'Chất lượng bàn giao (4.8/5)', count: 5, color: '#fbbf24', angleOffset: 0.35, distOffset: 70 },
         ],
       },
       {
-        id: 'hub-justice',
-        label: 'Justice and Judiciary',
-        category: 'D2',
-        percentage: 12,
-        badge: '12%',
-        color: '#f472b6',
+        id: 'hub-d4-valid',
+        label: 'Lượt chấm hợp lệ (≥3)',
+        category: 'D4',
+        percentage: 100,
+        badge: d4ReviewCount,
+        color: '#f472b6', // soft pink
         angle: 1.62,
         distance: 270,
         satellites: [
-          { id: 'sat-22', label: 'Anti-fraud test', count: 36, color: '#c084fc', angleOffset: -0.3, distOffset: 60 },
-          { id: 'sat-23', label: 'Mahalanobis dist', count: 13, color: '#38bdf8', angleOffset: 0.3, distOffset: 65 },
+          { id: 'sat-22', label: 'Ẩn danh chống thiên vị', count: 4, color: '#c084fc', angleOffset: -0.3, distOffset: 60 },
+          { id: 'sat-23', label: 'Độ đồng thuận nhóm cao', count: 9, color: '#38bdf8', angleOffset: 0.3, distOffset: 65 },
         ],
       },
       {
-        id: 'hub-culture',
-        label: 'Culture and media',
-        category: 'D3',
-        percentage: 22,
-        badge: '22%',
-        color: '#f472b6',
+        id: 'hub-impediments',
+        label: 'Rào cản ngoại cảnh & Khả dụng',
+        category: 'IMPEDIMENT',
+        percentage: availVal,
+        badge: availVal === 100 ? 'a_i = 1.00' : 'a_i = 0.90',
+        color: '#f59e0b', // amber gold
         angle: 2.35,
         distance: 280,
         satellites: [
-          { id: 'sat-24', label: 'UI Mockups', count: 20, color: '#38bdf8', angleOffset: -0.35, distOffset: 60 },
-          { id: 'sat-25', label: 'Canvas shader', count: 18, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
+          { id: 'sat-24', label: 'Bù khả dụng D\' hợp lệ', count: 1, color: '#38bdf8', angleOffset: -0.35, distOffset: 60 },
+          { id: 'sat-25', label: isBackend ? 'Trùng lịch thi học phần' : 'Không có rào cản cản trở', count: isBackend ? 2 : 0, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
         ],
       },
     ];
-  }, []);
+  }, [focusedUserName, selectedUserId, finalPct, availabilityFactor]);
 
   // Filter hubs according to activeFilter
   const filteredHubs = useMemo(() => {
@@ -721,11 +781,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       // Vertical Sprint Years / Sprint Capsules
       const railItems = sprints && sprints.length > 0
-        ? sprints.map((s) => ({
-            id: s.id,
-            label: s.name.split(':')[0].trim(),
-            isCurrent: s.id === selectedSprintId || s.isCurrent,
-          }))
+        ? sprints.map((s) => {
+            const shortMatch = s.name.match(/Sprint\s*\d+/i);
+            const shortLabel = shortMatch ? shortMatch[0] : s.name.split(/[-:–]/)[0].trim();
+            return {
+              id: s.id,
+              label: shortLabel,
+              isCurrent: s.id === selectedSprintId || s.isCurrent,
+            };
+          })
         : [
             { id: 1, label: 'Sprint 1', isCurrent: false },
             { id: 2, label: 'Sprint 2', isCurrent: false },
@@ -742,15 +806,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
         if (sp.isCurrent) {
           // Highlighted Illuminated Rounded Capsule (like 2020 in Image 1)
-          const capW = 68;
-          const capH = 34;
-          const capX = railX - 10;
+          const capW = 76;
+          const capH = 30;
+          const capX = railX - 8;
           const capY = sy - capH / 2;
 
           ctx.fillStyle = 'rgba(15, 30, 40, 0.9)';
           ctx.strokeStyle = 'rgba(245, 194, 100, 0.8)';
           ctx.lineWidth = 1.8;
-          drawRoundRect(ctx, capX, capY, capW, capH, 17);
+          drawRoundRect(ctx, capX, capY, capW, capH, 15);
           ctx.fill();
           ctx.stroke();
 
@@ -838,6 +902,24 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+
+    // Check hit on sprint rail
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    if (screenX >= 20 && screenX <= 130 && onSelectSprint && sprints && sprints.length > 0) {
+      const railStartY = rect.height * 0.12;
+      const railSpacing = (rect.height * 0.68) / Math.max(1, sprints.length - 1);
+      const clickedIdx = Math.round((screenY - railStartY) / railSpacing);
+      if (
+        clickedIdx >= 0 &&
+        clickedIdx < sprints.length &&
+        Math.abs(screenY - (railStartY + clickedIdx * railSpacing)) < 24
+      ) {
+        onSelectSprint(sprints[clickedIdx].id);
+        return;
+      }
+    }
+
     const px = e.clientX - rect.left - rect.width / 2 - transform.x;
     const py = e.clientY - rect.top - rect.height / 2 - transform.y;
     const scaledX = px / transform.scale;
@@ -864,14 +946,18 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     e.preventDefault();
     if (!questionInput.trim()) return;
     const q = questionInput.toLowerCase();
+    const currentName = focusedUserName || 'Thành viên';
+    const pctStr = `${((finalPct || 0.22) * 100).toFixed(1)}%`;
+    const scoreStr = `${(compositeScore || 33.1).toFixed(1)}/100`;
+
     if (q.includes('ai') || q.includes('hoạt động') || q.includes('chậm') || q.includes('ít')) {
-      setAiAnswer('Quốc Bảo có 3 ngày chưa ghi nhận sự kiện hoạt động mới. Đóng góp hiện tại p = 5.0%.');
-    } else if (q.includes('cao nhất') || q.includes('nhiều nhất') || q.includes('top')) {
-      setAiAnswer('Minh Trieu đang dẫn đầu với p = 35.0% (C_i = 99.1), theo sau là Ngọc Anh 28.0%.');
-    } else if (q.includes('rào cản') || q.includes('bù')) {
-      setAiAnswer('Đã ghi nhận 1 rào cản hợp lệ: Trùng lịch thi (2 ngày). Hệ số bù khả dụng a_i = 1.00 kích hoạt.');
+      setAiAnswer('Lê Quốc Bảo (Backend) có 2 ngày bị chậm tiến độ do trùng lịch thi học phần. Hệ thống đã kích hoạt hệ số bù khả dụng a_i = 0.90 để bảo vệ quyền lợi thành viên.');
+    } else if (q.includes('cao nhất') || q.includes('nhiều nhất') || q.includes('top') || q.includes('dẫn đầu')) {
+      setAiAnswer('Nguyễn Hoàng Nam (Trưởng nhóm) đang dẫn đầu với p = 39.0% (C_i = 65.6), theo sau là Trần Thu Trang 22.0% (C_i = 33.1).');
+    } else if (q.includes('rào cản') || q.includes('bù') || q.includes('khả dụng')) {
+      setAiAnswer(`Thành viên ${currentName} có hệ số khả dụng a_i = ${(availabilityFactor * 100).toFixed(0)}%. Đã kích hoạt công thức bù một phần D' = D * (1 + 0.5(1 - a_i)).`);
     } else {
-      setAiAnswer(`Đóng góp Sprint 3: Minh Trieu 35.0% · Ngọc Anh 28.0% · Thu Hà 22.0%. Khoảng tin cậy [32.93%, 34.67%].`);
+      setAiAnswer(`Đóng góp Sprint hiện tại: ${currentName} đạt tỷ lệ p_i = ${pctStr} (Điểm tổng hợp C_i = ${scoreStr}), khoảng cách Mahalanobis tới tâm nhóm δ_i = ${(distanceToCenter || 2.20).toFixed(2)}.`);
     }
     setQuestionInput('');
   };
@@ -1055,10 +1141,10 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </button>
           </div>
           <div className="p-2.5 rounded-xl bg-purple-500/10 border-l-2 border-purple-400 leading-relaxed text-[11.5px]">
-            Phân bố đóng góp đồng đều: cao nhất <b>Minh Trieu 35.0%</b>, thấp nhất <b>Quốc Bảo 5.0%</b> (kỳ vọng đều là 20%).
+            Phân bố đóng góp đồng bộ theo đồ án EduConnect: <b>{focusedUserName}</b> đạt tỷ lệ đóng góp <b>{((finalPct || 0.22) * 100).toFixed(1)}%</b> (Điểm chuẩn hóa C_i = {(compositeScore || 33.1).toFixed(1)}/100).
           </div>
           <div className="p-2.5 rounded-xl bg-amber-500/10 border-l-2 border-amber-400 leading-relaxed text-[11.5px]">
-            Đã kích hoạt bù khả dụng cho <b>Minh Trieu</b> với hệ số a_i = 1.00 nhờ rào cản trùng lịch thi.
+            Hệ số khả dụng a_i = <b>{(availabilityFactor * 100).toFixed(0)}%</b>. Đã kích hoạt bảo vệ quyền lợi thành viên theo Mô hình 4 tầng.
           </div>
         </div>
       )}
@@ -1066,37 +1152,41 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       {/* 3. Bottom-Left Floating Legend Card (Matching Image 1) */}
       <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-[#06151f]/85 backdrop-blur-xl border border-cyan-500/25 shadow-2xl text-[11px] text-slate-300 w-64 space-y-2.5">
         <h4 className="font-bold text-[10px] tracking-wider text-slate-400 uppercase">
-          LEGEND
+          CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
         </h4>
 
         <div className="space-y-1.5">
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
-            <span className="text-slate-200">Constitution / Core</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#c084fc]" />
-            <span>Entities (D1: Sản lượng)</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-pink-400 shadow-[0_0_8px_#f472b6]" />
-            <span>Legislation (D2: Tin cậy)</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-            <span>Services (D3: Phối hợp)</span>
+            <span className="text-slate-200">Thành viên trọng tâm (Hạt nhân)</span>
           </div>
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-            <span>Regulations (D4: Chấm chéo)</span>
+            <span>D1: Sản lượng (Thẻ xong & SP)</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+            <span>D2: Tin cậy & Đúng hạn (Rework)</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#a78bfa]" />
+            <span>D3: Phối hợp (Review PR & @mentions)</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-pink-400 shadow-[0_0_8px_#f472b6]" />
+            <span>D4: Chấm chéo đồng đội (≥ 3 lượt)</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
+            <span>Rào cản & Khả dụng (Bù điểm D')</span>
           </div>
         </div>
 
         <div className="w-full h-[1px] bg-cyan-500/20 my-2" />
 
         <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-          <span>🏛 GAPS <b className="text-cyan-300">32%</b></span>
-          <span>↻ Updates <b className="text-emerald-300">56%</b></span>
+          <span>⚙ Chuẩn hóa: <b className="text-cyan-300">ln(1+x) · MAD</b></span>
+          <span>📊 Khoảng tin cậy: <b className="text-emerald-300">95% CI</b></span>
         </div>
       </div>
 

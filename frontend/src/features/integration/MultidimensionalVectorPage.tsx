@@ -57,69 +57,102 @@ export const MultidimensionalVectorPage: React.FC = () => {
   }, [teamId, selectedUserId]);
 
   const createFallbackData = useCallback(() => {
+    const targetMember = members.find((m) => m.id === selectedUserId);
+    const targetName =
+      targetMember?.fullName ||
+      (selectedUserId === 110
+        ? 'Trần Thu Trang (Frontend Dev)'
+        : selectedUserId === 109
+        ? 'Nguyễn Hoàng Nam (Trưởng nhóm)'
+        : selectedUserId === 111
+        ? 'Lê Quốc Bảo (Backend Dev)'
+        : selectedUserId === 112
+        ? 'Phạm Minh Đức (DevOps)'
+        : selectedUserId === 113
+        ? 'Đặng Thảo Vy (QA Engineer)'
+        : user?.fullName || 'Trần Thu Trang (Frontend Dev)');
+
+    const isTrang = targetName.includes('Trang') || selectedUserId === 110;
+    const isNam = targetName.includes('Nam') || selectedUserId === 109;
+    const isBao = targetName.includes('Bảo') || selectedUserId === 111;
+
+    const finalPct = isNam ? 0.39 : isTrang ? 0.22 : isBao ? 0.15 : 0.20;
+    const compositeScore = isNam ? 65.6 : isTrang ? 33.1 : isBao ? 25.4 : 35.0;
+    const distanceToCenter = isNam ? 1.34 : isTrang ? 2.20 : isBao ? 2.85 : 1.80;
+    const availabilityFactor = isBao ? 0.90 : 1.0;
+    const d1 = isNam ? 2.4 : isTrang ? 1.8 : 1.5;
+    const d2 = isNam ? 1.9 : isTrang ? 1.6 : 1.2;
+    const d3 = isNam ? 2.1 : isTrang ? 1.7 : 1.4;
+    const d4 = isNam ? 2.0 : isTrang ? 1.5 : 1.3;
+
     const mockData: MultidimensionalNetworkDto = {
       teamId,
-      sprintId: selectedSprintId || 3,
-      sprintName: 'Sprint 3: Hoàn thiện MVP & UI Chấm chéo',
-      focusedUserId: selectedUserId || 1,
-      focusedUserName: user?.fullName || 'Minh Trieu',
-      finalPct: 0.35,
-      score: 35.0,
-      d1Output: 2.4,
-      d2Reliability: 1.8,
-      d3Collaboration: 2.1,
-      d4Peer: 0.0,
-      compositeScore: 99.1,
-      availabilityFactor: 1.0,
-      confidenceIntervalLow: 32.93,
-      confidenceIntervalHigh: 34.67,
-      distanceToCenter: 2.52,
+      sprintId: selectedSprintId || 2,
+      sprintName:
+        selectedSprintId === 1
+          ? 'Sprint 1 - Thiết kế Kiến trúc & UI Kit'
+          : selectedSprintId === 2
+          ? 'Sprint 2 - Phát triển Tính năng & Tích hợp API'
+          : 'Sprint 3 - Hoàn thiện MVP & UI Chấm chéo',
+      focusedUserId: selectedUserId || 110,
+      focusedUserName: targetName,
+      finalPct,
+      score: finalPct * 100,
+      d1Output: d1,
+      d2Reliability: d2,
+      d3Collaboration: d3,
+      d4Peer: d4,
+      compositeScore,
+      availabilityFactor,
+      confidenceIntervalLow: Number((finalPct * 100 - 2.5).toFixed(1)),
+      confidenceIntervalHigh: Number((finalPct * 100 + 2.5).toFixed(1)),
+      distanceToCenter,
       isSuspicious: false,
       hasSufficientEvidence: true,
-      totalEventsCount: 22,
+      totalEventsCount: isNam ? 28 : isTrang ? 22 : 16,
       tierBreakdown: {
         rawFeatures: {
-          cardsCompleted: 8,
-          totalStoryPoints: 12.6,
-          onTimeRate: 0.85,
-          manualPoints: 2.0,
+          cardsCompleted: isNam ? 10 : isTrang ? 7 : 6,
+          totalStoryPoints: isNam ? 18.0 : isTrang ? 12.5 : 11.0,
+          onTimeRate: isNam ? 0.95 : isTrang ? 0.88 : 0.82,
+          manualPoints: isNam ? 5.0 : isTrang ? 3.0 : 2.5,
         },
         logFeatures: {
-          ln_1_sp: 2.61,
-          ln_1_cards: 2.19,
-          ln_1_manual: 1.09,
+          ln_1_sp: Number(Math.log1p(isNam ? 18.0 : 12.5).toFixed(2)),
+          ln_1_cards: Number(Math.log1p(isNam ? 10 : 7).toFixed(2)),
+          ln_1_manual: Number(Math.log1p(isNam ? 5.0 : 3.0).toFixed(2)),
         },
         robustZScores: {
-          z_sp: 2.4,
-          z_ontime: 1.8,
-          z_collab: 2.1,
-          z_peer: 0.0,
+          z_sp: d1,
+          z_ontime: d2,
+          z_collab: d3,
+          z_peer: d4,
         },
         dimensions: {
-          D1_Output: 2.4,
-          D2_Reliability: 1.8,
-          D3_Collaboration: 2.1,
-          D4_Peer: 0.0,
+          D1_Output: d1,
+          D2_Reliability: d2,
+          D3_Collaboration: d3,
+          D4_Peer: d4,
         },
-        availabilityFactor: 1.0,
-        availabilityBonusFactor: 1.0,
+        availabilityFactor,
+        availabilityBonusFactor: 1.0 + 0.5 * (1.0 - availabilityFactor),
         adjustedDimensions: {
-          D1_prime: 2.4,
-          D2_prime: 1.8,
-          D3_prime: 2.1,
-          D4_prime: 0.0,
+          D1_prime: d1,
+          D2_prime: d2,
+          D3_prime: d3,
+          D4_prime: d4,
         },
-        compositeScore: 99.1,
-        finalPercentage: 0.35,
+        compositeScore,
+        finalPercentage: finalPct,
       },
       nodes: [
         {
-          id: 'root-1',
-          label: user?.fullName || 'Minh Trieu',
+          id: `root-${selectedUserId || 110}`,
+          label: targetName,
           type: 'ROOT',
           category: 'MEMBER',
-          weight: 99.1,
-          badge: '35.0%',
+          weight: compositeScore,
+          badge: `${(finalPct * 100).toFixed(1)}%`,
           status: 'NORMAL',
           color: '#6366f1',
           description: 'Thành viên quan sát',
@@ -129,8 +162,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D1 - Sản lượng (Output)',
           type: 'DIMENSION',
           category: 'D1',
-          weight: 2.4,
-          badge: '+2.40',
+          weight: d1,
+          badge: `+${d1.toFixed(2)}`,
           status: 'ACTIVE',
           color: '#10b981',
           description: 'Story points, Cards hoàn thành, Độ khó thẻ',
@@ -140,8 +173,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D2 - Tin cậy & Tiến độ',
           type: 'DIMENSION',
           category: 'D2',
-          weight: 1.8,
-          badge: '+1.80',
+          weight: d2,
+          badge: `+${d2.toFixed(2)}`,
           status: 'ACTIVE',
           color: '#06b6d4',
           description: 'Tỷ lệ đúng hạn, Độ trễ trung vị, Rework',
@@ -151,8 +184,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D3 - Phối hợp & Review',
           type: 'DIMENSION',
           category: 'D3',
-          weight: 2.1,
-          badge: '+2.10',
+          weight: d3,
+          badge: `+${d3.toFixed(2)}`,
           status: 'ACTIVE',
           color: '#8b5cf6',
           description: 'Comment xây dựng, Review chéo, @mentions',
@@ -162,11 +195,11 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D4 - Đánh giá đồng cấp',
           type: 'DIMENSION',
           category: 'D4',
-          weight: 0.0,
-          badge: '0.00',
+          weight: d4,
+          badge: `+${d4.toFixed(2)}`,
           status: 'ACTIVE',
           color: '#ec4899',
-          description: 'Chấm chéo ẩn danh (chưa đủ 3 lượt)',
+          description: 'Chấm chéo ẩn danh (≥ 3 lượt đánh giá)',
         },
         {
           id: 'cat-impediments',
@@ -174,42 +207,44 @@ export const MultidimensionalVectorPage: React.FC = () => {
           type: 'CATEGORY',
           category: 'IMPEDIMENT',
           weight: 1.0,
-          badge: '1 Rào cản',
-          status: 'WARN',
+          badge: isBao ? '1 Rào cản' : '0 Rào cản',
+          status: isBao ? 'WARN' : 'ACTIVE',
           color: '#f59e0b',
           description: 'Lý do tiến độ trễ & ảnh hưởng khả dụng',
         },
         {
           id: 'imp-1',
-          label: 'Trùng lịch thi học kỳ (a_i = 1.00 bù hợp lệ)',
+          label: isBao
+            ? 'Trùng lịch thi học phần (a_i = 0.90 bù hợp lệ)'
+            : 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
           type: 'IMPEDIMENT',
           category: 'IMPEDIMENT',
-          weight: 2.0,
+          weight: isBao ? 1.5 : 0.0,
           badge: 'Khả dụng',
-          status: 'WARN',
+          status: isBao ? 'WARN' : 'ACTIVE',
           color: '#f59e0b',
-          description: 'Bù khả dụng kích hoạt: D\' = D * (1 + 0.5(1 - a_i))',
+          description: "Bù khả dụng kích hoạt: D' = D * (1 + 0.5(1 - a_i))",
         },
       ],
       links: [
-        { source: 'root-1', target: 'dim-d1', weight: 1.0, type: 'PRIMARY', color: '#10b981', animated: true },
-        { source: 'root-1', target: 'dim-d2', weight: 1.0, type: 'PRIMARY', color: '#06b6d4', animated: true },
-        { source: 'root-1', target: 'dim-d3', weight: 1.0, type: 'PRIMARY', color: '#8b5cf6', animated: true },
-        { source: 'root-1', target: 'dim-d4', weight: 1.0, type: 'PRIMARY', color: '#ec4899', animated: true },
-        { source: 'root-1', target: 'cat-impediments', weight: 1.0, type: 'SECONDARY', color: '#f59e0b', animated: true },
+        { source: `root-${selectedUserId || 110}`, target: 'dim-d1', weight: 1.0, type: 'PRIMARY', color: '#10b981', animated: true },
+        { source: `root-${selectedUserId || 110}`, target: 'dim-d2', weight: 1.0, type: 'PRIMARY', color: '#06b6d4', animated: true },
+        { source: `root-${selectedUserId || 110}`, target: 'dim-d3', weight: 1.0, type: 'PRIMARY', color: '#8b5cf6', animated: true },
+        { source: `root-${selectedUserId || 110}`, target: 'dim-d4', weight: 1.0, type: 'PRIMARY', color: '#ec4899', animated: true },
+        { source: `root-${selectedUserId || 110}`, target: 'cat-impediments', weight: 1.0, type: 'SECONDARY', color: '#f59e0b', animated: true },
       ],
       sprints: [
-        { id: 1, name: 'Sprint 1: Khởi động & Đặc tả SRS', isCurrent: false, status: 'COMPLETED' },
-        { id: 2, name: 'Sprint 2: Thiết kế DB & Kiến trúc', isCurrent: false, status: 'COMPLETED' },
-        { id: 3, name: 'Sprint 3: Hoàn thiện MVP & UI Chấm chéo', isCurrent: true, status: 'ACTIVE' },
-        { id: 4, name: 'Sprint 4: Cảnh báo sớm & Báo cáo PDF', isCurrent: false, status: 'PLANNED' },
-        { id: 5, name: 'Sprint 5: Kiểm thử & Bảo vệ đồ án', isCurrent: false, status: 'PLANNED' },
+        { id: 1, name: 'Sprint 1 - Thiết kế Kiến trúc & UI Kit', isCurrent: false, status: 'COMPLETED' },
+        { id: 2, name: 'Sprint 2 - Phát triển Tính năng & Tích hợp API', isCurrent: true, status: 'ACTIVE' },
+        { id: 3, name: 'Sprint 3 - Hoàn thiện MVP & UI Chấm chéo', isCurrent: false, status: 'PLANNED' },
+        { id: 4, name: 'Sprint 4 - Cảnh báo sớm & Báo cáo PDF', isCurrent: false, status: 'PLANNED' },
+        { id: 5, name: 'Sprint 5 - Kiểm thử & Bảo vệ đồ án', isCurrent: false, status: 'PLANNED' },
       ],
     };
     setNetworkData(mockData);
     const rootNode = mockData.nodes.find((n) => n.type === 'ROOT');
     setSelectedNode(rootNode || mockData.nodes[0]);
-  }, [teamId, selectedSprintId, selectedUserId, user?.fullName]);
+  }, [teamId, selectedSprintId, selectedUserId, user?.fullName, members]);
 
   // Fetch from Real MariaDB Backend
   const fetchNetworkGraph = useCallback(async () => {
