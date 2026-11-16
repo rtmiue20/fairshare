@@ -405,7 +405,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-64px)] flex overflow-hidden select-none bg-[#050811]">
+    <div className="relative w-full h-full flex overflow-hidden select-none bg-[#050811]">
       {/* 1. Left Vertical Timeline Scrubber (Sprint navigation & Legend) */}
       <div
         className={`h-full transition-all duration-300 relative ${
