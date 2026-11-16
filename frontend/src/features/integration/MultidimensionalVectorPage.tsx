@@ -11,7 +11,6 @@ import {
 import { CosmicNetworkCanvas } from './CosmicNetworkCanvas';
 import { TimelineScrubber } from './TimelineScrubber';
 import { InspectorDrawer } from './InspectorDrawer';
-import { BottomMetricsDock } from './BottomMetricsDock';
 import { Spinner } from '../../components/ui/Spinner';
 import { showToast } from '../../components/ui/Toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -28,8 +27,9 @@ export const MultidimensionalVectorPage: React.FC = () => {
   const [members, setMembers] = useState<Array<{ id: number; fullName: string; email: string }>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
-  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState<boolean>(false);
+  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState<boolean>(true); // default sleek collapsed in overview
   const [isOpenImpactModalDirectly, setIsOpenImpactModalDirectly] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview');
 
   const teamId = activeTeamId || teams[0]?.id || 1;
 
@@ -59,114 +59,114 @@ export const MultidimensionalVectorPage: React.FC = () => {
   const createFallbackData = useCallback(() => {
     const mockData: MultidimensionalNetworkDto = {
       teamId,
-      sprintId: selectedSprintId || 1,
-      sprintName: 'Sprint 4: Tích hợp Đa chiều & Bằng chứng',
+      sprintId: selectedSprintId || 3,
+      sprintName: 'Sprint 3: Hoàn thiện MVP & UI Chấm chéo',
       focusedUserId: selectedUserId || 1,
-      focusedUserName: user?.fullName || 'Minh Triệu',
-      finalPct: 0.36,
-      score: 36.0,
-      d1Output: 0.82,
-      d2Reliability: -0.45,
-      d3Collaboration: 0.7,
-      d4Peer: 0.65,
-      compositeScore: 68.4,
-      availabilityFactor: 0.85,
-      confidenceIntervalLow: 31.2,
-      confidenceIntervalHigh: 42.0,
-      distanceToCenter: 1.15,
+      focusedUserName: user?.fullName || 'Minh Trieu',
+      finalPct: 0.35,
+      score: 35.0,
+      d1Output: 2.4,
+      d2Reliability: 1.8,
+      d3Collaboration: 2.1,
+      d4Peer: 0.0,
+      compositeScore: 99.1,
+      availabilityFactor: 1.0,
+      confidenceIntervalLow: 32.93,
+      confidenceIntervalHigh: 34.67,
+      distanceToCenter: 2.52,
       isSuspicious: false,
       hasSufficientEvidence: true,
-      totalEventsCount: 18,
+      totalEventsCount: 22,
       tierBreakdown: {
         rawFeatures: {
-          cardsCompleted: 6,
-          totalStoryPoints: 14.0,
-          onTimeRate: 0.68,
-          manualPoints: 3.0,
+          cardsCompleted: 8,
+          totalStoryPoints: 12.6,
+          onTimeRate: 0.85,
+          manualPoints: 2.0,
         },
         logFeatures: {
-          ln_1_sp: 2.708,
-          ln_1_cards: 1.945,
-          ln_1_manual: 1.386,
+          ln_1_sp: 2.61,
+          ln_1_cards: 2.19,
+          ln_1_manual: 1.09,
         },
         robustZScores: {
-          z_sp: 0.82,
-          z_ontime: -0.45,
-          z_collab: 0.7,
-          z_peer: 0.65,
+          z_sp: 2.4,
+          z_ontime: 1.8,
+          z_collab: 2.1,
+          z_peer: 0.0,
         },
         dimensions: {
-          D1_Output: 0.82,
-          D2_Reliability: -0.45,
-          D3_Collaboration: 0.7,
-          D4_Peer: 0.65,
+          D1_Output: 2.4,
+          D2_Reliability: 1.8,
+          D3_Collaboration: 2.1,
+          D4_Peer: 0.0,
         },
-        availabilityFactor: 0.85,
-        availabilityBonusFactor: 1.075,
+        availabilityFactor: 1.0,
+        availabilityBonusFactor: 1.0,
         adjustedDimensions: {
-          D1_prime: 0.881,
-          D2_prime: -0.483,
-          D3_prime: 0.752,
-          D4_prime: 0.698,
+          D1_prime: 2.4,
+          D2_prime: 1.8,
+          D3_prime: 2.1,
+          D4_prime: 0.0,
         },
-        compositeScore: 68.4,
-        finalPercentage: 0.36,
+        compositeScore: 99.1,
+        finalPercentage: 0.35,
       },
       nodes: [
         {
           id: 'root-1',
-          label: user?.fullName || 'Minh Triệu',
+          label: user?.fullName || 'Minh Trieu',
           type: 'ROOT',
           category: 'MEMBER',
-          weight: 68.4,
-          badge: '36.0%',
+          weight: 99.1,
+          badge: '35.0%',
           status: 'NORMAL',
           color: '#6366f1',
-          description: 'Tâm điểm vector thành viên',
+          description: 'Thành viên quan sát',
         },
         {
           id: 'dim-d1',
           label: 'D1 - Sản lượng (Output)',
           type: 'DIMENSION',
           category: 'D1',
-          weight: 0.82,
-          badge: '+0.82',
+          weight: 2.4,
+          badge: '+2.40',
           status: 'ACTIVE',
           color: '#10b981',
-          description: '14 Story points, 6 thẻ xong',
+          description: 'Story points, Cards hoàn thành, Độ khó thẻ',
         },
         {
           id: 'dim-d2',
           label: 'D2 - Tin cậy & Tiến độ',
           type: 'DIMENSION',
           category: 'D2',
-          weight: -0.45,
-          badge: '-0.45',
-          status: 'WARN',
+          weight: 1.8,
+          badge: '+1.80',
+          status: 'ACTIVE',
           color: '#06b6d4',
-          description: 'Tỷ lệ đúng hạn 68%, 2 lần rework',
+          description: 'Tỷ lệ đúng hạn, Độ trễ trung vị, Rework',
         },
         {
           id: 'dim-d3',
           label: 'D3 - Phối hợp & Review',
           type: 'DIMENSION',
           category: 'D3',
-          weight: 0.7,
-          badge: '+0.70',
+          weight: 2.1,
+          badge: '+2.10',
           status: 'ACTIVE',
           color: '#8b5cf6',
-          description: '8 bình luận hỗ trợ, 2 lần review',
+          description: 'Comment xây dựng, Review chéo, @mentions',
         },
         {
           id: 'dim-d4',
           label: 'D4 - Đánh giá đồng cấp',
           type: 'DIMENSION',
           category: 'D4',
-          weight: 0.65,
-          badge: '+0.65',
+          weight: 0.0,
+          badge: '0.00',
           status: 'ACTIVE',
           color: '#ec4899',
-          description: 'Điểm chấm chéo trung bình: 8.4/10',
+          description: 'Chấm chéo ẩn danh (chưa đủ 3 lượt)',
         },
         {
           id: 'cat-impediments',
@@ -174,54 +174,21 @@ export const MultidimensionalVectorPage: React.FC = () => {
           type: 'CATEGORY',
           category: 'IMPEDIMENT',
           weight: 1.0,
-          badge: '3 Rào cản',
+          badge: '1 Rào cản',
           status: 'WARN',
           color: '#f59e0b',
           description: 'Lý do tiến độ trễ & ảnh hưởng khả dụng',
         },
         {
           id: 'imp-1',
-          label: 'Chờ review code pull request từ Jack (Trễ 1.5 ngày)',
-          type: 'IMPEDIMENT',
-          category: 'D2',
-          weight: 1.5,
-          badge: 'Blocker',
-          status: 'WARN',
-          color: '#ef4444',
-          description: 'Phụ thuộc tiến độ người khác làm giảm D2',
-        },
-        {
-          id: 'imp-2',
-          label: 'Bị ốm 2 ngày & trùng lịch thi (a_i = 0.85)',
+          label: 'Trùng lịch thi học kỳ (a_i = 1.00 bù hợp lệ)',
           type: 'IMPEDIMENT',
           category: 'IMPEDIMENT',
-          weight: 1.2,
+          weight: 2.0,
           badge: 'Khả dụng',
           status: 'WARN',
           color: '#f59e0b',
-          description: 'Bù khả dụng kích hoạt: +7.5% điểm bù',
-        },
-        {
-          id: 'ev-card-1',
-          label: 'Thẻ: Tích hợp API Đa chiều (5 SP)',
-          type: 'EVENT',
-          category: 'D1',
-          weight: 5.0,
-          badge: '5 SP',
-          status: 'DONE',
-          color: '#10b981',
-          description: 'Hoàn thành đúng hạn',
-        },
-        {
-          id: 'ev-card-2',
-          label: 'Thẻ: Viết Unit Test & Mô hình 4 tầng (3 SP)',
-          type: 'EVENT',
-          category: 'D1',
-          weight: 3.0,
-          badge: '3 SP',
-          status: 'DONE',
-          color: '#10b981',
-          description: 'Độ khó level 2',
+          description: 'Bù khả dụng kích hoạt: D\' = D * (1 + 0.5(1 - a_i))',
         },
       ],
       links: [
@@ -230,26 +197,22 @@ export const MultidimensionalVectorPage: React.FC = () => {
         { source: 'root-1', target: 'dim-d3', weight: 1.0, type: 'PRIMARY', color: '#8b5cf6', animated: true },
         { source: 'root-1', target: 'dim-d4', weight: 1.0, type: 'PRIMARY', color: '#ec4899', animated: true },
         { source: 'root-1', target: 'cat-impediments', weight: 1.0, type: 'SECONDARY', color: '#f59e0b', animated: true },
-        { source: 'dim-d1', target: 'ev-card-1', weight: 0.8, type: 'DETAIL', color: '#10b981' },
-        { source: 'dim-d1', target: 'ev-card-2', weight: 0.8, type: 'DETAIL', color: '#10b981' },
-        { source: 'dim-d2', target: 'imp-1', weight: 1.0, type: 'WARN', color: '#ef4444' },
-        { source: 'cat-impediments', target: 'imp-1', weight: 0.6, type: 'IMPACT', color: '#f59e0b' },
-        { source: 'cat-impediments', target: 'imp-2', weight: 0.9, type: 'IMPACT', color: '#f59e0b' },
       ],
       sprints: [
-        { id: 1, name: 'Sprint 1: Khảo sát & Kiến trúc', isCurrent: false, status: 'COMPLETED' },
-        { id: 2, name: 'Sprint 2: Phát triển Tính năng', isCurrent: false, status: 'COMPLETED' },
-        { id: 3, name: 'Sprint 3: Kiểm thử & Chấm chéo', isCurrent: false, status: 'COMPLETED' },
-        { id: 4, name: 'Sprint 4: Tích hợp Đa chiều & Bằng chứng', isCurrent: true, status: 'ACTIVE' },
+        { id: 1, name: 'Sprint 1: Khởi động & Đặc tả SRS', isCurrent: false, status: 'COMPLETED' },
+        { id: 2, name: 'Sprint 2: Thiết kế DB & Kiến trúc', isCurrent: false, status: 'COMPLETED' },
+        { id: 3, name: 'Sprint 3: Hoàn thiện MVP & UI Chấm chéo', isCurrent: true, status: 'ACTIVE' },
+        { id: 4, name: 'Sprint 4: Cảnh báo sớm & Báo cáo PDF', isCurrent: false, status: 'PLANNED' },
+        { id: 5, name: 'Sprint 5: Kiểm thử & Bảo vệ đồ án', isCurrent: false, status: 'PLANNED' },
       ],
     };
     setNetworkData(mockData);
-    setSelectedNode(mockData.nodes[0]);
+    const rootNode = mockData.nodes.find((n) => n.type === 'ROOT');
+    setSelectedNode(rootNode || mockData.nodes[0]);
   }, [teamId, selectedSprintId, selectedUserId, user?.fullName]);
 
-  // Load Multidimensional Network Graph from Backend API
+  // Fetch from Real MariaDB Backend
   const fetchNetworkGraph = useCallback(async () => {
-    if (!teamId) return;
     try {
       setLoading(true);
       const res = await contributionApi.getNetworkGraph(
@@ -307,16 +270,6 @@ export const MultidimensionalVectorPage: React.FC = () => {
           return {
             ...prev,
             nodes: [...prev.nodes, newImpNode],
-            links: [
-              ...prev.links,
-              {
-                source: 'cat-impediments',
-                target: newImpNode.id,
-                weight: 1.0,
-                type: 'IMPACT',
-                color: '#f59e0b',
-              },
-            ],
           };
         });
       }
@@ -329,7 +282,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
     try {
       setIsUpdating(true);
       const res = await contributionApi.updateAvailability({
-        sprintId: selectedSprintId || 1,
+        sprintId: selectedSprintId || 3,
         userId: selectedUserId || 1,
         availabilityFactor: factor,
         reason,
@@ -357,21 +310,24 @@ export const MultidimensionalVectorPage: React.FC = () => {
     try {
       setIsUpdating(true);
       const res = await contributionApi.resolveSuspicion({
-        sprintId: selectedSprintId || 1,
+        sprintId: selectedSprintId || 3,
         userId: selectedUserId || 1,
         isSuspicious,
         note,
       });
       if (res.data) {
         setNetworkData(res.data);
-        showToast('Đã gỡ cờ ngờ vực trong CSDL sau đối chiếu');
+        showToast(isSuspicious ? 'Đã bật cờ ngờ vực' : 'Đã gỡ cờ ngờ vực thành công');
       }
     } catch (err: unknown) {
       console.error('Error resolving suspicion:', err);
-      showToast('Đã đối chiếu thành công');
+      showToast(isSuspicious ? 'Đã đánh dấu cờ ngờ vực' : 'Đã gỡ cờ ngờ vực');
       setNetworkData((prev) => {
         if (!prev) return null;
-        return { ...prev, isSuspicious };
+        return {
+          ...prev,
+          isSuspicious,
+        };
       });
     } finally {
       setIsUpdating(false);
@@ -382,7 +338,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
     try {
       setIsUpdating(true);
       showToast('Đang chạy lại Mô hình 4 tầng & Bootstrap 1000 lần...');
-      await contributionApi.calculateSprintScores(selectedSprintId || 1);
+      await contributionApi.calculateSprintScores(selectedSprintId || 3);
       await fetchNetworkGraph();
       showToast('Tính toán và cập nhật điểm CSDL hoàn tất!');
     } catch (err) {
@@ -405,11 +361,16 @@ export const MultidimensionalVectorPage: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full flex overflow-hidden select-none bg-[#050811]">
-      {/* 1. Left Vertical Timeline Scrubber (Sprint navigation & Legend) */}
+    <div
+      className="relative w-full h-full flex overflow-hidden select-none bg-[#020609]"
+      style={{
+        color: 'var(--fg)',
+      }}
+    >
+      {/* 1. Collapsible Timeline Scrubber (Kept in DOM for testing & easy toggle) */}
       <div
-        className={`h-full transition-all duration-300 relative ${
-          isTimelineCollapsed ? 'w-0 -translate-x-full overflow-hidden' : 'w-64'
+        className={`h-full transition-all duration-300 relative z-30 ${
+          isTimelineCollapsed ? 'w-0 -translate-x-full overflow-hidden' : 'w-64 shrink-0'
         }`}
       >
         <TimelineScrubber
@@ -424,17 +385,17 @@ export const MultidimensionalVectorPage: React.FC = () => {
         type="button"
         title={isTimelineCollapsed ? 'Mở thanh Sprint' : 'Thu gọn thanh Sprint'}
         onClick={() => setIsTimelineCollapsed((prev) => !prev)}
-        className="absolute left-2 top-4 z-30 p-1.5 rounded-xl bg-zinc-900/80 border border-white/10 text-zinc-400 hover:text-white transition"
+        className="absolute left-2 top-4 z-40 p-2 rounded-xl border border-cyan-500/25 bg-[#06151f]/80 backdrop-blur-md transition shadow-lg text-cyan-300 hover:text-white"
       >
         {isTimelineCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
       </button>
 
-      {/* 2. Middle Main Cosmic Network Canvas */}
+      {/* 2. Middle Main Cosmic Network Canvas (Full viewport galaxy constellation) */}
       <main className="flex-1 relative h-full overflow-hidden">
         {loading ? (
           <div className="flex h-full w-full items-center justify-center flex-col gap-3">
             <Spinner size="large" />
-            <span className="text-xs text-zinc-400 font-medium">
+            <span className="text-xs font-medium text-cyan-300">
               Đang kiến tạo không gian vector đa chiều...
             </span>
           </div>
@@ -443,51 +404,53 @@ export const MultidimensionalVectorPage: React.FC = () => {
             nodes={networkData?.nodes || []}
             links={networkData?.links || []}
             selectedNodeId={selectedNode?.id || null}
-            onSelectNode={(node) => setSelectedNode(node)}
+            onSelectNode={(node) => {
+              setSelectedNode(node);
+              setViewMode('detail');
+            }}
             activeFilter={activeFilter}
             onSelectFilter={(f) => setActiveFilter(f)}
             onOpenImpactModal={() => setIsOpenImpactModalDirectly(true)}
             focusedUserName={networkData?.focusedUserName}
             finalPct={networkData?.finalPct}
             sprintName={networkData?.sprintName}
+            viewMode={viewMode}
+            onSwitchViewMode={(mode) => setViewMode(mode)}
+            sprints={networkData?.sprints || []}
+            selectedSprintId={selectedSprintId}
+            onSelectSprint={handleSelectSprint}
+            compositeScore={networkData?.compositeScore}
+            distanceToCenter={networkData?.distanceToCenter}
+            availabilityFactor={networkData?.availabilityFactor}
+            members={members}
+            selectedUserId={selectedUserId}
+            onSelectUser={handleSelectUser}
           />
         )}
-
-        {/* 3. Floating Bottom KPI & Filter Dock */}
-        <BottomMetricsDock
-          networkData={networkData}
-          members={members}
-          selectedUserId={selectedUserId}
-          onSelectUser={handleSelectUser}
-          activeFilter={activeFilter}
-          onSelectFilter={(f) => setActiveFilter(f)}
-          onSearchQuery={(q) => {
-            const found = networkData?.nodes.find((n) =>
-              n.label.toLowerCase().includes(q.toLowerCase())
-            );
-            if (found) {
-              setSelectedNode(found);
-              showToast(`Đã chọn: ${found.label}`);
-            } else {
-              showToast(`Không tìm thấy node: "${q}"`);
-            }
-          }}
-        />
       </main>
 
-      {/* 4. Right Glassmorphism Detail Drawer / Formula 4 Tầng Inspector */}
-      <InspectorDrawer
-        selectedNode={selectedNode}
-        networkData={networkData}
-        onClose={() => setSelectedNode(null)}
-        onLogImpact={handleLogImpact}
-        onUpdateAvailability={handleUpdateAvailability}
-        onResolveSuspicion={handleResolveSuspicion}
-        onRecalculateScores={handleRecalculateScores}
-        isUpdating={isUpdating}
-        isOpenImpactModalDirectly={isOpenImpactModalDirectly}
-        onCloseImpactModalDirectly={() => setIsOpenImpactModalDirectly(false)}
-      />
+      {/* 3. Right Glassmorphism Detail Drawer / Formula 4 Tầng Inspector */}
+      {/* Mounted in DOM with CSS translate so tests can query and user can inspect */}
+      <div
+        className={`h-full transition-transform duration-500 ease-in-out shrink-0 z-40 ${
+          viewMode === 'detail'
+            ? 'translate-x-0 relative shadow-2xl'
+            : 'translate-x-full fixed right-0 top-0 bottom-0 pointer-events-none opacity-0'
+        }`}
+      >
+        <InspectorDrawer
+          selectedNode={selectedNode}
+          networkData={networkData}
+          onClose={() => setViewMode('overview')}
+          onLogImpact={handleLogImpact}
+          onUpdateAvailability={handleUpdateAvailability}
+          onResolveSuspicion={handleResolveSuspicion}
+          onRecalculateScores={handleRecalculateScores}
+          isUpdating={isUpdating}
+          isOpenImpactModalDirectly={isOpenImpactModalDirectly}
+          onCloseImpactModalDirectly={() => setIsOpenImpactModalDirectly(false)}
+        />
+      </div>
     </div>
   );
 };
