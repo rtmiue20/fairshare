@@ -52,9 +52,9 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
       />
 
       {/* Modal Dialog Content */}
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900 shadow-2xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#18181b] shadow-2xl">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] bg-[#18181b] px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 text-indigo-400">
               <Sparkles className="h-5 w-5" />
@@ -83,7 +83,7 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 px-6 pt-3">
+        <div className="flex border-b border-[rgba(255,255,255,0.08)] bg-[#1f1f23] px-6 pt-3">
           <button
             onClick={() => setActiveTab('REVIEW')}
             data-testid="tab-review"
@@ -140,11 +140,11 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-slate-800 bg-slate-900/90 px-6 py-3 text-xs text-slate-400">
+        <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.08)] bg-[#18181b] px-6 py-3 text-xs text-slate-400">
           <span>Người dùng đang đăng nhập: <strong>User #{currentUserId}</strong></span>
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-1.5 font-medium text-slate-200 hover:bg-slate-700 hover:text-white"
+            className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#27272a] px-4 py-1.5 font-medium text-slate-200 hover:bg-[#3f3f46] hover:text-white"
           >
             Đóng
           </button>

@@ -64,9 +64,9 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
       />
 
       {/* Khung Modal chính */}
-      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-700/80 bg-slate-900 shadow-2xl transition-all">
+      <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#18181b] shadow-2xl transition-all">
         {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20">
               <ShieldCheck className="h-5 w-5" />
@@ -112,7 +112,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
 
         {/* Thống kê nhanh chỉ số khi có dữ liệu */}
         {!loading && evidenceData.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 border-b border-slate-800/80 bg-slate-950/40 px-6 py-3">
+          <div className="grid grid-cols-3 gap-3 border-b border-[rgba(255,255,255,0.08)] bg-[#1f1f23] px-6 py-3">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-blue-400" />
               <span className="text-xs text-slate-400">Số sự kiện:</span>
@@ -181,13 +181,13 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
         </div>
 
         {/* Footer Modal */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 bg-slate-950/60 px-6 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[rgba(255,255,255,0.08)] bg-[#18181b] px-6 py-3.5">
           <p className="text-[11px] text-slate-500">
             * Dữ liệu được ghi nhận tự động từ Task Board nội bộ (ActivityEvent nguồn BOARD) – Chống chỉnh sửa lịch sử (CR-02).
           </p>
           <button
             onClick={onClose}
-            className="rounded-xl bg-slate-800 px-4 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-700 hover:text-white"
+            className="rounded-xl bg-[#27272a] px-4 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-[#3f3f46] hover:text-white"
           >
             Đóng
           </button>
