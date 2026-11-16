@@ -134,7 +134,7 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
   return (
     <div
       data-testid="pending-contributions-container"
-      className="flex flex-col gap-4 rounded-xl border border-zinc-800/80 bg-[#121318] p-5 sm:p-6 shadow-sm"
+      className="flex flex-col gap-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#1f1f23] p-5 sm:p-6 shadow-sm"
     >
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">

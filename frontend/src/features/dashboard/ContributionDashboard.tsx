@@ -584,8 +584,8 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                           padding: '0.6rem 0.75rem',
                           border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--line)'}`,
                           background: isSelected
-                            ? 'color-mix(in srgb, var(--accent) 8%, var(--surface))'
-                            : 'var(--surface)',
+                            ? 'color-mix(in srgb, var(--accent) 12%, var(--surface2))'
+                            : 'var(--surface2)',
                           transition: 'all 0.15s',
                           display: 'flex',
                           alignItems: 'center',
