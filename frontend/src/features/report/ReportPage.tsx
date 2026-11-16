@@ -15,6 +15,7 @@ import { peerReviewApi, ReviewSprint } from '../../api/peerReview.api';
 import { boardApi } from '../../api/board.api';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
+import { exportElementToPdf } from '../../utils/pdfExport';
 import {
   Printer,
   Download,
@@ -442,21 +443,19 @@ export const ReportPage: React.FC = () => {
     }
   }, [selectedUserId, loadIndividualData]);
 
-  // Handle Download Official Backend PDF
+  // Handle Frontend Client-side PDF Export (avoids heavy OpenPDF memory usage on free backend hosting)
   const handleDownloadBackendPdf = async () => {
     try {
       setDownloading(true);
-      const blob = await reportApi.downloadPdfReport(currentTeamId, selectedSprintId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
+      const reportEl = document.querySelector('.report-print-document') as HTMLElement | null;
+      if (!reportEl) {
+        window.print();
+        return;
+      }
       const sprintSlug = currentSprint ? currentSprint.name.replace(/[^a-zA-Z0-9]/g, '_') : `Sprint_${selectedSprintId}`;
-      a.download = `FairShare_BaoCao_${teamName.replace(/\s+/g, '_')}_${sprintSlug}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showToast('Đã tải thành công file PDF báo cáo chính thức từ hệ thống FairShare');
+      const fileName = `FairShare_BaoCao_${teamName.replace(/\s+/g, '_')}_${sprintSlug}.pdf`;
+      await exportElementToPdf(reportEl, fileName);
+      showToast('Đã tạo và tải xuống file PDF báo cáo từ trình duyệt');
     } catch {
       showToast('Mở cửa sổ In / Lưu PDF từ trình duyệt...');
       window.print();

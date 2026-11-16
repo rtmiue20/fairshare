@@ -2,6 +2,8 @@ spring:
   config:
     activate:
       on-profile: prod
+  main:
+    lazy-initialization: true
   datasource:
     url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useUnicode=true&characterEncoding=utf8mb4
     username: ${DB_USER}

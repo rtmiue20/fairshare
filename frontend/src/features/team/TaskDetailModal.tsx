@@ -29,6 +29,7 @@ import { showToast } from '../../components/ui/Toast';
 import { boardApi } from '../../api/board.api';
 import { teamApi } from '../../api/team.api';
 import { activityApi, ActivityEventDto } from '../../api/activity.api';
+import { resolveFileUrl } from '../../utils/url';
 import { useAuthStore } from '../../store/authStore';
 import { TeamMember } from '../../types/team';
 import type { CardActivity, CardAttachment } from '../../types/board';
@@ -1259,9 +1260,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       att.contentType?.startsWith('image/') ||
                       /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileUrl) ||
                       /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileName);
-                    const fullUrl = att.fileUrl.startsWith('http')
-                      ? att.fileUrl
-                      : `http://localhost:8080${att.fileUrl}`;
+                    const fullUrl = resolveFileUrl(att.fileUrl);
                     const timeInfo = formatActivityTime(att.createdAt);
 
                     return (

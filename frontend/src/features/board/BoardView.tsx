@@ -38,6 +38,7 @@ import { teamApi } from '../../api/team.api';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
+import { resolveFileUrl } from '../../utils/url';
 import type { Board, BoardColumn, Card, CardActivity, CardAttachment } from '../../types/board';
 import type { Team } from '../../types/team';
 
@@ -1590,9 +1591,7 @@ export const BoardView: React.FC = () => {
                             att.contentType?.startsWith('image/') ||
                             /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileUrl) ||
                             /\.(png|jpe?g|gif|webp|svg)$/i.test(att.fileName);
-                          const fullUrl = att.fileUrl.startsWith('http')
-                            ? att.fileUrl
-                            : `http://localhost:8080${att.fileUrl}`;
+                          const fullUrl = resolveFileUrl(att.fileUrl);
 
                           return (
                             <div

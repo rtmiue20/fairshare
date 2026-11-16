@@ -8,6 +8,7 @@ import { teamApi } from '../api/team.api';
 import { peerReviewApi } from '../api/peerReview.api';
 import { boardApi } from '../api/board.api';
 import { useProjectStore } from '../store/projectStore';
+import * as pdfExport from '../utils/pdfExport';
 
 vi.mock('../api/report.api', () => ({
   reportApi: {
@@ -44,6 +45,11 @@ vi.mock('../api/board.api', () => ({
   boardApi: {
     getBoardsByTeam: vi.fn(),
   },
+}));
+
+vi.mock('../utils/pdfExport', () => ({
+  exportElementToPdf: vi.fn().mockResolvedValue(undefined),
+  exportOverviewReportPdf: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../components/ui/Toast', () => ({
@@ -174,12 +180,7 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     expect(screen.getAllByText('Đạt chuẩn').length).toBeGreaterThan(0);
   });
 
-  it('handles official PDF download via reportApi', async () => {
-    const mockBlob = new Blob(['pdf-bytes'], { type: 'application/pdf' });
-    vi.mocked(reportApi.downloadPdfReport).mockResolvedValueOnce(mockBlob);
-    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/mock-pdf');
-    window.URL.revokeObjectURL = vi.fn();
-
+  it('handles official PDF download client-side via exportElementToPdf', async () => {
     render(
       <MemoryRouter>
         <ReportPage />
@@ -193,8 +194,9 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     fireEvent.click(screen.getByText('Xuất PDF chính thức'));
 
     await waitFor(() => {
-      expect(reportApi.downloadPdfReport).toHaveBeenCalledWith(1, 2);
+      expect(pdfExport.exportElementToPdf).toHaveBeenCalledTimes(1);
     });
+    expect(reportApi.downloadPdfReport).not.toHaveBeenCalled();
   });
 
   it('triggers browser print when clicking Xem trước / In', async () => {

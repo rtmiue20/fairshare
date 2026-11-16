@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { reportApi } from '../../api/report.api';
+import { exportOverviewReportPdf } from '../../utils/pdfExport';
 
 export interface ExportReportButtonProps {
   teamId: number;
@@ -13,15 +14,11 @@ export const ExportReportButton: React.FC<ExportReportButtonProps> = ({ teamId, 
   const handleExport = async () => {
     try {
       setLoading(true);
-      const blob = await reportApi.downloadPdfReport(teamId, sprintId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `fairshare-report-team-${teamId}-sprint-${sprintId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      const res = await reportApi.getOverviewReport(teamId, sprintId);
+      if (!res?.data) {
+        throw new Error('Missing overview report data');
+      }
+      await exportOverviewReportPdf(res.data, `fairshare-report-team-${teamId}-sprint-${sprintId}.pdf`);
     } catch {
       alert('Không thể xuất báo cáo PDF');
     } finally {

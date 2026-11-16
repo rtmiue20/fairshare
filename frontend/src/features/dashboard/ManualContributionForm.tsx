@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { contributionApi } from '../../api/contribution.api';
 import { boardApi } from '../../api/board.api';
+import { resolveFileUrl } from '../../utils/url';
 import { ManualContributionItem, ManualContributionRequest } from '../../types/contribution';
 import {
   Send,
@@ -140,7 +141,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
     try {
       const res = await boardApi.uploadFile(file);
       if (res.data?.url) {
-        const fullUrl = res.data.url.startsWith('http') ? res.data.url : `http://localhost:8080${res.data.url}`;
+        const fullUrl = resolveFileUrl(res.data.url);
         setEvidenceLink(fullUrl);
         setUploadedImagePreview({
           url: fullUrl,
