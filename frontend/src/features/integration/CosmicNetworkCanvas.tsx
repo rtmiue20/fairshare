@@ -137,6 +137,22 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   const [showAiCard, setShowAiCard] = useState(false);
   const [questionInput, setQuestionInput] = useState('');
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+  const [showMemberDropdown2, setShowMemberDropdown2] = useState(false);
+
+  // Close member dropdowns on outside click
+  useEffect(() => {
+    if (!showMemberDropdown && !showMemberDropdown2) return;
+    const handler = () => {
+      setShowMemberDropdown(false);
+      setShowMemberDropdown2(false);
+    };
+    const id = setTimeout(() => document.addEventListener('click', handler), 10);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener('click', handler);
+    };
+  }, [showMemberDropdown, showMemberDropdown2]);
 
   // Detail View State
   const [selectedAxis, setSelectedAxis] = useState<'D1' | 'D2' | 'D3' | 'D4' | 'IMP'>('D1');
@@ -144,6 +160,22 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [itemFocus, setItemFocus] = useState<number>(0);
   const [stageDimensions, setStageDimensions] = useState({ width: 900, height: 650 });
+
+  // Theme detector for canvas & UI
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    return document.documentElement.dataset.theme !== 'light';
+  });
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const theme = document.documentElement.dataset.theme;
+      setIsDark(theme !== 'light');
+    };
+    updateTheme();
+    const obs = new MutationObserver(() => updateTheme());
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
 
   const cutDay = propCutDay !== undefined ? propCutDay : internalCutDay;
   const setCutDay = useCallback(
@@ -526,32 +558,70 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     const render = (time: number) => {
       if (!isRunning) return;
       const t = time / 1000;
-      const width = canvas.width;
-      const height = canvas.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = canvas.width / dpr;
+      const height = canvas.height / dpr;
 
+      ctx.save();
+      ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, width, height);
 
-      // Deep space background gradient
-      const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 20, width / 2, height / 2, Math.max(width, height) * 0.7);
-      bgGrad.addColorStop(0, '#0a232f');
-      bgGrad.addColorStop(0.4, '#05141c');
-      bgGrad.addColorStop(1, '#020609');
+      // 1. Cosmic / Clean Gradient Background according to Theme (Đồng bộ với trang Đóng góp)
+      const bgGrad = ctx.createRadialGradient(
+        width / 2,
+        height / 2,
+        20,
+        width / 2,
+        height / 2,
+        Math.max(width, height) * 0.75
+      );
+      if (isDark) {
+        bgGrad.addColorStop(0, '#12141c');
+        bgGrad.addColorStop(0.45, '#0b0d13');
+        bgGrad.addColorStop(1, '#07090e');
+      } else {
+        bgGrad.addColorStop(0, '#ffffff');
+        bgGrad.addColorStop(0.45, '#f8fafc');
+        bgGrad.addColorStop(1, '#e2e8f0');
+      }
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Starfield
+      // Subtle Ambient Glow Auras (Đồng bộ hiệu ứng mờ ảo với trang Đóng góp)
+      if (isDark) {
+        const aura1 = ctx.createRadialGradient(width * 0.5, 0, 10, width * 0.5, 0, width * 0.7);
+        aura1.addColorStop(0, 'rgba(56, 189, 248, 0.08)');
+        aura1.addColorStop(0.7, 'rgba(56, 189, 248, 0.01)');
+        aura1.addColorStop(1, 'transparent');
+        ctx.fillStyle = aura1;
+        ctx.fillRect(0, 0, width, height);
+
+        const aura2 = ctx.createRadialGradient(width * 0.85, height * 0.75, 10, width * 0.85, height * 0.75, width * 0.6);
+        aura2.addColorStop(0, 'rgba(99, 102, 241, 0.07)');
+        aura2.addColorStop(0.6, 'rgba(99, 102, 241, 0.01)');
+        aura2.addColorStop(1, 'transparent');
+        ctx.fillStyle = aura2;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // 2. Starfield & Galaxy Dust
       starField.forEach((star) => {
         const sx = star.x * width;
         const sy = (star.y * height + t * star.speed * 200) % height;
         const curAlpha = star.alpha * (0.6 + 0.4 * Math.sin(t * 1.8 + star.phase));
-        ctx.fillStyle = `rgba(180, 230, 255, ${curAlpha})`;
+        if (isDark) {
+          ctx.fillStyle = `rgba(180, 230, 255, ${curAlpha})`;
+        } else {
+          ctx.fillStyle = `rgba(14, 116, 144, ${curAlpha * 0.45})`;
+        }
         ctx.beginPath();
         ctx.arc(sx, sy, star.radius, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // If in Detail Mode, the background canvas is dimmed and blurred; detailed DOM renders in foreground
+      // If in Detail Mode, background canvas is just space backdrop; detail DOM renders above
       if (viewMode === 'detail') {
+        ctx.restore();
         animFrame = requestAnimationFrame(render);
         return;
       }
@@ -560,27 +630,36 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       ctx.translate(width / 2 + transform.x, height / 2 + transform.y);
       ctx.scale(transform.scale, transform.scale);
 
-      // Orbital Concentric Rings
+      // 3. Orbital Concentric Rings
       [220, 280, 340, 400].forEach((r, idx) => {
-        ctx.strokeStyle = idx % 2 === 0 ? 'rgba(70, 180, 210, 0.12)' : 'rgba(70, 180, 210, 0.06)';
+        if (isDark) {
+          ctx.strokeStyle = idx % 2 === 0 ? 'rgba(70, 180, 210, 0.14)' : 'rgba(70, 180, 210, 0.07)';
+        } else {
+          ctx.strokeStyle = idx % 2 === 0 ? 'rgba(14, 116, 144, 0.22)' : 'rgba(14, 116, 144, 0.12)';
+        }
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.stroke();
       });
 
-      // Beams from Center Core to Hubs
+      // 4. Beams from Center Core to Hubs
       filteredHubs.forEach((hub) => {
         const hx = Math.cos(hub.angle) * hub.distance;
         const hy = Math.sin(hub.angle) * hub.distance;
 
         // Gradient beam
         const grad = ctx.createLinearGradient(0, 0, hx, hy);
-        grad.addColorStop(0, 'rgba(245, 194, 100, 0.75)');
-        grad.addColorStop(1, `${hub.color}88`);
+        if (isDark) {
+          grad.addColorStop(0, 'rgba(245, 194, 100, 0.8)');
+          grad.addColorStop(1, `${hub.color}88`);
+        } else {
+          grad.addColorStop(0, 'rgba(217, 119, 6, 0.9)');
+          grad.addColorStop(1, `${hub.color}cc`);
+        }
 
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = isDark ? 1.8 : 2.2;
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(hx, hy);
@@ -590,71 +669,123 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         const pulseProgress = (t * 0.4 + hub.angle) % 1;
         const px = hx * pulseProgress;
         const py = hy * pulseProgress;
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = isDark ? '#ffffff' : '#b45309';
         ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Lines from Hub to its Satellites
+        // 5. Lines from Hub to its Satellites (NEURONS)
         hub.satellites.forEach((sat) => {
           const satAngle = hub.angle + sat.angleOffset;
           const satDist = hub.distance + sat.distOffset;
           const sx = Math.cos(satAngle) * satDist;
           const sy = Math.sin(satAngle) * satDist;
 
-          ctx.strokeStyle = 'rgba(120, 210, 235, 0.35)';
-          ctx.lineWidth = 0.9;
+          ctx.strokeStyle = isDark ? 'rgba(120, 210, 235, 0.4)' : 'rgba(15, 23, 42, 0.22)';
+          ctx.lineWidth = isDark ? 1.0 : 1.3;
           ctx.beginPath();
           ctx.moveTo(hx, hy);
           ctx.lineTo(sx, sy);
           ctx.stroke();
 
-          // Satellite Node
+          // Satellite Node (Glow + Node Circle)
           ctx.fillStyle = sat.color;
           ctx.beginPath();
-          ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+          ctx.arc(sx, sy, 5.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Satellite Label
-          ctx.fillStyle = 'rgba(215, 238, 245, 0.85)';
-          ctx.font = '9.5px monospace';
+          ctx.strokeStyle = isDark ? '#ffffff' : '#0f172a';
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+
+          // ========================================================
+          // CRITICAL FIX: HIGH-CONTRAST SATELLITE (NEURON) PILL BADGE
+          // Khắc phục hoàn toàn chữ mờ, đọc rõ 100% trên cả 2 theme
+          // ========================================================
+          ctx.font = '600 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          const labelPart = sat.label;
+          const countPart = ` (${sat.count})`;
+          const labelWidth = ctx.measureText(labelPart).width;
+          const countWidth = ctx.measureText(countPart).width;
+          const totalWidth = labelWidth + countWidth;
+
+          const padX = 7;
+          const badgeH = 20;
+          const badgeW = totalWidth + padX * 2;
+          const badgeX = sx + 8;
+          const badgeY = sy - badgeH / 2;
+
+          // Pill Background Container (Xám đen mờ ảo đồng bộ trang Đóng góp)
+          ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
+          ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : `${sat.color}99`;
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Text Label
+          ctx.fillStyle = isDark ? '#f8fafc' : '#0f172a';
           ctx.textAlign = 'left';
-          ctx.fillText(`${sat.label} (${sat.count})`, sx + 8, sy + 3);
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelPart, badgeX + padX, sy);
+
+          // Highlighted Count
+          ctx.fillStyle = sat.color;
+          ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+          ctx.fillText(countPart, badgeX + padX + labelWidth, sy);
         });
 
-        // Hub Circle Body
-        const hubR = 20;
+        // 6. Hub Circle Body
+        const hubR = 21;
         const hubGlow = ctx.createRadialGradient(hx, hy, 0, hx, hy, hubR * 2.2);
-        hubGlow.addColorStop(0, `${hub.color}aa`);
+        hubGlow.addColorStop(0, isDark ? `${hub.color}aa` : `${hub.color}55`);
         hubGlow.addColorStop(1, 'transparent');
         ctx.fillStyle = hubGlow;
         ctx.beginPath();
         ctx.arc(hx, hy, hubR * 2.2, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#081a24';
+        ctx.fillStyle = isDark ? '#1f1f23' : '#ffffff';
         ctx.beginPath();
         ctx.arc(hx, hy, hubR, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = hub.color;
-        ctx.lineWidth = 2.2;
+        ctx.lineWidth = 2.4;
         ctx.stroke();
 
         // Hub Badge inside
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 9.5px monospace';
+        ctx.fillStyle = isDark ? '#ffffff' : hub.color;
+        ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(hub.badge, hx, hy);
 
-        // Hub label text outside
-        ctx.fillStyle = '#e2f4f8';
-        ctx.font = '500 11px sans-serif';
-        ctx.fillText(hub.label, hx, hy + hubR + 13);
+        // Hub Label outside with pill background
+        const hubLabel = hub.label;
+        ctx.font = 'bold 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const hTextW = ctx.measureText(hubLabel).width;
+        const hPadX = 9;
+        const hBadgeH = 22;
+        const hBadgeW = hTextW + hPadX * 2;
+        const hBadgeY = hy + hubR + 14 - hBadgeH / 2;
+
+        ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
+        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : `${hub.color}aa`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.roundRect(hx - hBadgeW / 2, hBadgeY, hBadgeW, hBadgeH, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(hubLabel, hx, hy + hubR + 14);
       });
 
-      // Center Core Orb (Focused Member)
+      // 7. Center Core Orb (Focused Member Sun)
       const coreR = 48;
       const coreGlow = ctx.createRadialGradient(0, 0, coreR * 0.4, 0, 0, coreR * 3.2);
       coreGlow.addColorStop(0, 'rgba(245, 194, 100, 0.9)');
@@ -672,7 +803,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       for (let i = 0; i < spikesCount; i++) {
         const sa = (i / spikesCount) * Math.PI * 2;
         const sl = coreR * (1.18 + 0.22 * Math.sin(i * 3.5 + t * 2));
-        ctx.strokeStyle = 'rgba(255, 220, 140, 0.7)';
+        ctx.strokeStyle = isDark ? 'rgba(255, 220, 140, 0.75)' : 'rgba(217, 119, 6, 0.75)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(Math.cos(sa) * coreR * 1.02, Math.sin(sa) * coreR * 1.02);
@@ -696,25 +827,41 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       ctx.lineWidth = 2.4;
       ctx.stroke();
 
-      // Core Titles
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
+      // Core Titles with High-Contrast Pill (Xám đen mờ ảo đồng bộ trang Đóng góp)
+      const userName = focusedUserName || 'Thành viên';
+      ctx.font = 'bold 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const uTextW = ctx.measureText(userName).width;
+      const uPadX = 12;
+      const uBadgeH = 26;
+      const uBadgeW = uTextW + uPadX * 2;
+      const uBadgeY = coreR + 25 - uBadgeH / 2;
+
+      ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(217, 119, 6, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(-uBadgeW / 2, uBadgeY, uBadgeW, uBadgeH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(focusedUserName || 'Thành viên', 0, coreR + 24);
+      ctx.fillText(userName, 0, coreR + 25);
 
-      ctx.fillStyle = '#e5c479';
-      ctx.font = '11px monospace';
-      ctx.fillText(sprintName ? sprintName.split(':')[0] : 'FairShare Core · Sprint 3', 0, coreR + 42);
+      const sprintSub = sprintName ? sprintName.split(':')[0] : 'FairShare Core · Sprint 3';
+      ctx.font = '600 11.5px monospace';
+      ctx.fillStyle = isDark ? '#fcd34d' : '#b45309';
+      ctx.fillText(sprintSub, 0, coreR + 46);
 
       ctx.restore();
 
-      // Left Vertical Timeline Rail & Audio Soundwave Edge
+      // 8. Left Vertical Timeline Rail
       const railX = 48;
       const waveStartX = 18;
 
       ctx.save();
-      ctx.strokeStyle = 'rgba(120, 200, 220, 0.22)';
+      ctx.strokeStyle = isDark ? 'rgba(120, 200, 220, 0.24)' : 'rgba(14, 116, 144, 0.28)';
       ctx.lineWidth = 1.0;
       ctx.beginPath();
       const waveSteps = 60;
@@ -727,7 +874,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       }
       ctx.stroke();
 
-      // Vertical Sprint Years / Sprint Capsules
+      // Vertical Sprint Capsules
       const railItems = sprints && sprints.length > 0
         ? sprints.map((s) => {
             const shortMatch = s.name.match(/Sprint\s*\d+/i);
@@ -758,29 +905,29 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           const capX = railX - 8;
           const capY = sy - capH / 2;
 
-          ctx.fillStyle = 'rgba(15, 30, 40, 0.9)';
-          ctx.strokeStyle = 'rgba(245, 194, 100, 0.8)';
+          ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
+          ctx.strokeStyle = isDark ? 'rgba(245, 194, 100, 0.85)' : 'rgba(217, 119, 6, 0.85)';
           ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.roundRect(capX, capY, capW, capH, 15);
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = '#ffdf99';
+          ctx.fillStyle = isDark ? '#ffdf99' : '#b45309';
           ctx.font = 'bold 12px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(sp.label, capX + capW / 2, sy);
 
-          ctx.strokeStyle = 'rgba(245, 194, 100, 0.45)';
+          ctx.strokeStyle = isDark ? 'rgba(245, 194, 100, 0.45)' : 'rgba(217, 119, 6, 0.45)';
           ctx.lineWidth = 1.2;
           ctx.beginPath();
           ctx.moveTo(capX + capW, sy);
           ctx.lineTo(capX + capW + 22, sy);
           ctx.stroke();
         } else {
-          ctx.fillStyle = 'rgba(157, 181, 189, 0.45)';
-          ctx.font = '500 11.5px monospace';
+          ctx.fillStyle = isDark ? 'rgba(157, 181, 189, 0.7)' : 'rgba(51, 65, 85, 0.85)';
+          ctx.font = '600 11.5px monospace';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
           ctx.fillText(sp.label, railX, sy);
@@ -788,6 +935,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       });
       ctx.restore();
 
+      ctx.restore(); // restore dpr scale
       animFrame = requestAnimationFrame(render);
     };
 
@@ -796,16 +944,20 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       isRunning = false;
       cancelAnimationFrame(animFrame);
     };
-  }, [transform, filteredHubs, starField, viewMode, focusedUserName, sprintName, sprints, selectedSprintId]);
+  }, [transform, filteredHubs, starField, viewMode, focusedUserName, sprintName, sprints, selectedSprintId, isDark]);
 
-  // Handle Resize for canvas
+  // Handle Resize for canvas with HiDPI support
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (!canvas || !container) return;
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      const rect = container.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -947,7 +1099,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   const activeAxisMeta = DETAIL_AXES[activeCatIndex >= 0 ? activeCatIndex : 0];
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden select-none bg-[#020609]">
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden select-none bg-slate-50 dark:bg-[#07090e] transition-colors duration-300">
       {/* 1. Full Screen Canvas (Constellation in Overview mode / Dimmed galaxy background in Detail mode) */}
       <canvas
         ref={canvasRef}
@@ -962,15 +1114,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       />
 
       {/* 2. Top-Center Floating Toolbar Pill */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 p-1.5 rounded-2xl bg-[#08161e]/85 backdrop-blur-xl border border-cyan-500/25 shadow-2xl text-slate-300">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300">
         <button
           type="button"
           title="Sơ đồ tổng quan (Overview Galaxy)"
           onClick={() => onSwitchViewMode?.('overview')}
           className={`p-2 rounded-xl transition ${
             viewMode === 'overview'
-              ? 'bg-amber-400/20 text-amber-300 shadow-[0_0_15px_rgba(245,194,100,0.3)]'
-              : 'hover:bg-white/10 text-slate-400'
+              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 shadow-[0_0_15px_rgba(245,194,100,0.3)]'
+              : 'hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400'
           }`}
         >
           <Network className="w-4 h-4" />
@@ -982,20 +1134,20 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           onClick={() => onSwitchViewMode?.('detail')}
           className={`p-2 rounded-xl transition ${
             viewMode === 'detail'
-              ? 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
-              : 'hover:bg-white/10 text-slate-400'
+              ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+              : 'hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400'
           }`}
         >
           <GitBranch className="w-4 h-4" />
         </button>
 
-        <div className="w-[1px] h-5 bg-cyan-500/25 mx-1" />
+        <div className="w-[1px] h-5 bg-zinc-200 dark:bg-white/10 mx-1" />
 
         <button
           type="button"
           title="Phóng to (+)"
           onClick={() => handleZoom('in')}
-          className="p-2 rounded-xl hover:bg-white/10 text-slate-300 transition"
+          className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 transition"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
@@ -1004,7 +1156,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           type="button"
           title="Thu nhỏ (-)"
           onClick={() => handleZoom('out')}
-          className="p-2 rounded-xl hover:bg-white/10 text-slate-300 transition"
+          className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 transition"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
@@ -1013,12 +1165,12 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           type="button"
           title="Vừa khung nhìn"
           onClick={() => handleZoom('fit')}
-          className="p-2 rounded-xl hover:bg-white/10 text-slate-300 transition"
+          className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 transition"
         >
           <Maximize2 className="w-4 h-4" />
         </button>
 
-        <div className="w-[1px] h-5 bg-cyan-500/25 mx-1" />
+        <div className="w-[1px] h-5 bg-zinc-200 dark:bg-white/10 mx-1" />
 
         <button
           type="button"
@@ -1026,12 +1178,12 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           onClick={() => setShowFilterMenu((prev) => !prev)}
           className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-xs font-semibold transition ${
             activeFilter !== 'ALL'
-              ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/40'
-              : 'hover:bg-white/10 text-slate-300'
+              ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-400/40'
+              : 'hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300'
           }`}
         >
-          <Filter className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-[11px] font-mono bg-cyan-400/20 px-1.5 py-0.2 rounded-full text-cyan-300">
+          <Filter className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
+          <span className="text-[11px] font-mono bg-cyan-500/15 px-1.5 py-0.2 rounded-full text-cyan-600 dark:text-cyan-300">
             {activeFilter === 'ALL' ? '5' : '1'}
           </span>
         </button>
@@ -1043,7 +1195,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             const next = activeFilter === 'ALL' ? 'D1' : activeFilter === 'D1' ? 'D2' : 'ALL';
             onSelectFilter?.(next);
           }}
-          className="p-2 rounded-xl hover:bg-white/10 text-slate-400 transition"
+          className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition"
         >
           <ArrowUpDown className="w-4 h-4" />
         </button>
@@ -1054,8 +1206,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           onClick={() => setShowAiCard((prev) => !prev)}
           className={`p-2 rounded-xl transition ${
             showAiCard
-              ? 'bg-purple-500/30 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.4)]'
-              : 'hover:bg-white/10 text-purple-400'
+              ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.4)]'
+              : 'hover:bg-zinc-100 dark:hover:bg-white/10 text-purple-600 dark:text-purple-400'
           }`}
         >
           <Sparkles className="w-4 h-4" />
@@ -1067,7 +1219,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         <button
           type="button"
           onClick={onOpenImpactModal}
-          className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.4)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5"
+          className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>+ Khai báo rào cản</span>
@@ -1076,7 +1228,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* Filter Dropdown */}
       {showFilterMenu && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-[#071720]/95 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 max-w-md">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 max-w-md">
           {['ALL', 'D1', 'D2', 'D3', 'D4', 'IMPEDIMENT'].map((cat) => (
             <button
               key={cat}
@@ -1087,8 +1239,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
               }}
               className={`px-3 py-1 rounded-xl text-xs font-semibold transition ${
                 activeFilter === cat
-                  ? 'bg-cyan-500 text-slate-900 font-bold'
-                  : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                  ? 'bg-cyan-500 text-white dark:text-zinc-900 font-bold'
+                  : 'bg-zinc-100 hover:bg-zinc-200 dark:bg-[#18181b] dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 border border-transparent dark:border-white/5'
               }`}
             >
               {cat === 'ALL'
@@ -1109,21 +1261,21 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* AI Insight Flyout Panel */}
       {showAiCard && (
-        <div className="absolute top-16 right-6 z-40 w-80 p-4 rounded-2xl bg-[#091524]/90 backdrop-blur-xl border border-purple-500/40 shadow-2xl text-xs space-y-2 text-slate-200 animate-in fade-in">
-          <div className="flex items-center justify-between font-bold text-purple-300">
+        <div className="absolute top-16 right-6 z-40 w-80 p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl text-xs space-y-2 text-zinc-800 dark:text-zinc-200 animate-in fade-in">
+          <div className="flex items-center justify-between font-bold text-purple-600 dark:text-purple-300">
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               AI NHẬN XÉT NHÓM
             </span>
-            <button type="button" onClick={() => setShowAiCard(false)} className="text-slate-400 hover:text-white">
+            <button type="button" onClick={() => setShowAiCard(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-white">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="p-2.5 rounded-xl bg-purple-500/10 border-l-2 border-purple-400 leading-relaxed text-[11.5px]">
+          <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-[#18181b] border-l-2 border-purple-500 leading-relaxed text-[11.5px] dark:border-white/5">
             Phân bố đóng góp đồng bộ theo đồ án EduConnect: <b>{focusedUserName}</b> đạt tỷ lệ đóng góp <b>{((finalPct || 0.22) * 100).toFixed(1)}%</b> (Điểm chuẩn hóa C_i = {(compositeScore || 33.1).toFixed(1)}/100).
           </div>
-          <div className="p-2.5 rounded-xl bg-amber-500/10 border-l-2 border-amber-400 leading-relaxed text-[11.5px]">
-            Hệ số khả dụng a_i = <b>{(availabilityFactor * 100).toFixed(0)}%</b>. Đã kích hoạt bảo vệ quyền lợi thành viên theo Mô hình 4 tầng.
+          <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-[#18181b] border-l-2 border-amber-500 leading-relaxed text-[11.5px] dark:border-white/5">
+            Hệ số khả dụng a_i = <b>{((availabilityFactor || 1.0) * 100).toFixed(0)}%</b>. Đã kích hoạt bảo vệ quyền lợi thành viên theo Mô hình 4 tầng.
           </div>
         </div>
       )}
@@ -1134,25 +1286,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       {viewMode === 'detail' && (
         <div
           ref={detailAreaRef}
-          className="absolute inset-0 pointer-events-auto z-20 overflow-hidden text-slate-100"
+          className="absolute inset-0 pointer-events-auto z-20 overflow-hidden text-slate-800 dark:text-slate-100"
           onWheel={(e) => {
             if (axisEvents.length <= 5) return;
             setItemFocus((prev) => Math.max(0, Math.min(axisEvents.length - 1, prev + (e.deltaY > 0 ? 1 : -1))));
           }}
         >
           {/* Top-Left Breadcrumbs */}
-          <div className="absolute top-4 left-6 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#081720]/80 backdrop-blur-md border border-cyan-500/25 text-xs text-slate-300 shadow-lg">
+          <div className="absolute top-4 left-6 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 dark:bg-[#1f1f23]/90 backdrop-blur-md border border-zinc-200/90 dark:border-white/10 text-xs text-zinc-700 dark:text-zinc-300 shadow-lg">
             <button
               type="button"
               onClick={() => onSwitchViewMode?.('overview')}
-              className="flex items-center gap-1 text-cyan-400 hover:text-white font-semibold transition"
+              className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-white font-semibold transition"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>Tổng quan</span>
             </button>
-            <span className="text-slate-500">/</span>
-            <strong className="text-slate-200">{focusedUserName}</strong>
-            <span className="text-slate-500">/</span>
+            <span className="text-zinc-400 dark:text-zinc-500">/</span>
+            <strong className="text-zinc-900 dark:text-zinc-200">{focusedUserName}</strong>
+            <span className="text-zinc-400 dark:text-zinc-500">/</span>
             <span style={{ color: activeAxisMeta.color }} className="font-semibold">
               {activeAxisMeta.name}
             </span>
@@ -1184,14 +1336,14 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     fill="none"
                     stroke={isSelected ? '#f5c264' : '#7fdcef'}
                     strokeWidth={isSelected ? 5 : 2.5}
-                    style={{ opacity: isSelected ? 0.35 : 0.08 }}
+                    style={{ opacity: isSelected ? (isDark ? 0.35 : 0.5) : (isDark ? 0.08 : 0.18) }}
                   />
                   <path
                     d={d}
                     fill="none"
-                    stroke={isSelected ? '#f5d58a' : '#7fdcef'}
+                    stroke={isSelected ? '#f5d58a' : '#0891b2'}
                     strokeWidth={isSelected ? 1.8 : 1.1}
-                    style={{ opacity: isSelected ? 0.95 : 0.35 }}
+                    style={{ opacity: isSelected ? 0.95 : 0.4 }}
                   />
                 </g>
               );
@@ -1220,20 +1372,20 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     fill="none"
                     stroke={activeAxisMeta.color}
                     strokeWidth={isEventSelected ? 5 : 3}
-                    style={{ opacity: opacity * 0.2 }}
+                    style={{ opacity: opacity * 0.25 }}
                   />
                   <path
                     d={d}
                     fill="none"
-                    stroke={isEventSelected ? '#ffe2a0' : activeAxisMeta.color}
+                    stroke={isEventSelected ? '#f59e0b' : activeAxisMeta.color}
                     strokeWidth={isEventSelected ? 2.0 : 1.2}
-                    style={{ opacity: opacity * (isEventSelected ? 1 : 0.7) }}
+                    style={{ opacity: opacity * (isEventSelected ? 1 : 0.8) }}
                   />
                   {isEventSelected && (
                     <path
                       d={d}
                       fill="none"
-                      stroke="#ffe2a0"
+                      stroke="#f59e0b"
                       strokeWidth={2}
                       className="neuron-flow-anim"
                     />
@@ -1251,7 +1403,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             <div className="relative w-44 h-44 mx-auto flex items-center justify-center">
               <svg className="w-full h-full overflow-visible" viewBox="0 0 200 200">
                 {/* Spikes corona */}
-                <g className="neuron-spikes-anim" stroke="#b79cff" strokeOpacity="0.75" strokeWidth="1">
+                <g className="neuron-spikes-anim" stroke="#8b5cf6" strokeOpacity="0.75" strokeWidth="1">
                   {Array.from({ length: 80 }).map((_, i) => {
                     const angle = (i / 80) * Math.PI * 2;
                     const len = 64 + (Math.sin(i * 1.7) + 2) * 6;
@@ -1273,7 +1425,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                   cy="100"
                   r="74"
                   fill="none"
-                  stroke="#b79cff"
+                  stroke="#8b5cf6"
                   strokeOpacity="0.4"
                   strokeDasharray="2 7"
                 />
@@ -1297,31 +1449,86 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
             {/* Orb Member Labels */}
             <div className="mt-2 text-center w-56 -ml-6">
-              <h3 className="text-sm font-bold text-slate-100">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 EduConnect <br />
-                <span className="text-amber-300 font-extrabold">{focusedUserName}</span>
+                <span className="text-amber-600 dark:text-amber-300 font-extrabold">{focusedUserName}</span>
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Frontend Dev · Nhóm 1</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Frontend Dev · Nhóm 1</p>
 
-              <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-white/5 border border-cyan-500/25 text-[11px] font-mono text-cyan-300">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-cyan-500/25 text-[11px] font-mono text-cyan-700 dark:text-cyan-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
                 <span>p = {((finalPct || 0.22) * 100).toFixed(1)}% · C_i = {(compositeScore || 33.1).toFixed(1)}</span>
               </div>
 
-              {/* Member Selector Dropdown */}
-              <div className="mt-2.5">
-                <select
-                  aria-label="Chọn thành viên quan sát"
-                  value={selectedUserId || 110}
-                  onChange={(e) => onSelectUser?.(Number(e.target.value))}
-                  className="text-xs bg-slate-900/90 border border-cyan-500/30 rounded-xl px-2.5 py-1 text-slate-200 focus:outline-none cursor-pointer"
+              {/* Member Selector Dropdown — Custom Beautiful */}
+              <div className="mt-2.5 relative">
+                <button
+                  type="button"
+                  onClick={() => setShowMemberDropdown((v) => !v)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-cyan-500/40 bg-white dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800/90 transition-all text-xs text-slate-800 dark:text-slate-200 font-medium shadow-md w-full max-w-[200px] group"
                 >
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id} className="bg-slate-900 text-white">
-                      👤 {m.fullName}
-                    </option>
-                  ))}
-                </select>
+                  {/* Avatar initials */}
+                  <span
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#6366f1,#06b6d4)', color: '#fff' }}
+                  >
+                    {(members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'U')
+                      .split(' ')
+                      .slice(-2)
+                      .map((w) => w[0])
+                      .join('')
+                      .toUpperCase()}
+                  </span>
+                  <span className="truncate max-w-[130px] text-left">
+                    {members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'Chọn thành viên'}
+                  </span>
+                  <svg className={`w-3 h-3 ml-auto shrink-0 text-cyan-500 dark:text-cyan-400 transition-transform ${showMemberDropdown ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+
+                {showMemberDropdown && (
+                  <div className="absolute top-full left-0 mt-1.5 z-50 w-56 rounded-2xl border border-slate-200 dark:border-cyan-500/30 bg-white dark:bg-slate-950/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+                    <div className="px-3 pt-2.5 pb-1">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-400/70">Thành viên nhóm</span>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto py-1">
+                      {members.map((m) => {
+                        const isActive = (selectedUserId || 110) === m.id;
+                        const roleMatch = m.fullName.match(/\(([^)]+)\)/);
+                        const role = roleMatch ? roleMatch[1] : null;
+                        const displayName = roleMatch ? m.fullName.replace(/ *\([^)]*\)/, '').trim() : m.fullName;
+                        const initials = displayName.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || 'U';
+                        const colors = ['#6366f1,#8b5cf6', '#06b6d4,#0891b2', '#10b981,#059669', '#ec4899,#db2777', '#f59e0b,#d97706'];
+                        const colorIdx = m.id % colors.length;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => { onSelectUser?.(m.id); setShowMemberDropdown(false); }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 transition-all text-left group/item ${isActive ? 'bg-cyan-500/15 text-cyan-900 dark:text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}`}
+                          >
+                            <span
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md"
+                              style={{ background: `linear-gradient(135deg,${colors[colorIdx]})`, color: '#fff' }}
+                            >
+                              {initials}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100">{displayName}</div>
+                              {role && (
+                                <div className="text-[9px] font-medium mt-0.5 truncate" style={{ color: `#${colors[colorIdx].split(',')[0].replace('#', '')}` }}>
+                                  {role}
+                                </div>
+                              )}
+                            </div>
+                            {isActive && (
+                              <svg className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1343,8 +1550,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                   }}
                   className={`absolute pointer-events-auto flex flex-col justify-center px-3.5 rounded-2xl border transition-all text-left ${
                     isSelected
-                      ? 'bg-gradient-to-r from-amber-500/20 to-slate-900/90 border-amber-400 shadow-[0_0_24px_rgba(245,194,100,0.3)] ring-1 ring-amber-400/50'
-                      : 'bg-[#091b24]/85 border-cyan-500/20 hover:border-cyan-400/50 shadow-md'
+                      ? 'bg-gradient-to-r from-amber-500/20 to-white dark:to-[#18181b]/95 border-amber-400 shadow-[0_0_24px_rgba(245,194,100,0.3)] ring-1 ring-amber-400/50'
+                      : 'bg-white/90 dark:bg-[#1f1f23]/90 border-zinc-200/90 dark:border-white/10 hover:border-cyan-400/50 shadow-md'
                   }`}
                   style={{
                     left: `${catL}px`,
@@ -1361,9 +1568,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                       {axis.id === 'D4' && <Star className="w-4 h-4" />}
                       {axis.id === 'IMP' && <AlertTriangle className="w-4 h-4" />}
                     </span>
-                    <strong className="text-xl font-bold font-mono text-white leading-none">{count}</strong>
+                    <strong className="text-xl font-bold font-mono text-zinc-900 dark:text-white leading-none">{count}</strong>
                   </div>
-                  <span className="text-[11px] text-slate-300 mt-1 truncate">{axis.short} · {axis.sub}</span>
+                  <span className="text-[11px] text-zinc-600 dark:text-zinc-300 mt-1 truncate">{axis.short} · {axis.sub}</span>
                 </button>
               );
             })}
@@ -1373,11 +1580,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           <div className="absolute inset-0 pointer-events-none">
             {axisEvents.length === 0 ? (
               <div
-                className="absolute p-4 rounded-2xl border border-dashed border-cyan-500/30 text-xs text-slate-400 text-center"
+                className="absolute p-4 rounded-2xl border border-dashed border-zinc-300 dark:border-white/15 text-xs text-zinc-500 dark:text-zinc-400 text-center bg-white/70 dark:bg-[#18181b]/70"
                 style={{ left: `${xL}px`, top: `${oy - 40}px`, width: `${itemW}px` }}
               >
                 Chưa có sự kiện nào ở trục <b>{activeAxisMeta.short}</b> trong khoảng này.
-                {selectedAxis === 'IMP' && <div className="mt-1 text-cyan-300">Bấm <b>+ Khai báo rào cản</b> để ghi nhận lý do vắng/trễ.</div>}
+                {selectedAxis === 'IMP' && <div className="mt-1 text-cyan-600 dark:text-cyan-300">Bấm <b>+ Khai báo rào cản</b> để ghi nhận lý do vắng/trễ.</div>}
               </div>
             ) : (
               axisEvents.map((ev, idx) => {
@@ -1398,8 +1605,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     onClick={() => onSelectEvent?.(isSelected ? null : ev)}
                     className={`absolute pointer-events-auto flex items-center gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-amber-400/15 border-amber-400 shadow-[0_0_18px_rgba(245,194,100,0.35)]'
-                        : 'bg-[#091822]/85 border-cyan-500/25 hover:border-cyan-400/60'
+                        ? 'bg-amber-100/80 dark:bg-[#28251e] border-amber-400 shadow-[0_0_18px_rgba(245,194,100,0.35)]'
+                        : 'bg-white/95 dark:bg-[#1f1f23]/95 border-zinc-200/90 dark:border-white/10 hover:border-cyan-400/60 shadow-sm'
                     }`}
                     style={{
                       left: `${itemX}px`,
@@ -1420,14 +1627,14 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     />
 
                     <div className="flex-1 min-w-0">
-                      <strong className="block text-xs font-semibold text-slate-100 truncate">{ev.title}</strong>
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 font-mono">
-                        <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-300">{ev.src}</span>
+                      <strong className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{ev.title}</strong>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+                        <span className="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-zinc-300">{ev.src}</span>
                         <span>Ngày {ev.day}</span>
                         <span
                           className="font-bold"
                           style={{
-                            color: ev.axis === 'IMP' ? '#fbbf24' : (ev.dp || 0) < 0 ? '#f87171' : '#34d399',
+                            color: ev.axis === 'IMP' ? '#d97706' : (ev.dp || 0) < 0 ? '#ef4444' : '#10b981',
                           }}
                         >
                           {ev.axis === 'IMP' ? `+${ev.impact}ng` : `${(ev.dp || 0) >= 0 ? '+' : ''}${(ev.dp || 0).toFixed(1)}pp`}
@@ -1443,7 +1650,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                                 backgroundColor:
                                   lvl <= (ev.axis === 'IMP' ? 2 : Math.min(3, Math.ceil(Math.abs(ev.dp || 1))))
                                     ? activeAxisMeta.color
-                                    : 'rgba(255,255,255,0.15)',
+                                    : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
                               }}
                             />
                           ))}
@@ -1457,7 +1664,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           </div>
 
           {/* Bottom Sprint Replay Playbar */}
-          <div className="absolute bottom-5 left-6 right-6 z-30 pointer-events-auto flex items-center gap-4 px-4 py-3 rounded-2xl bg-[#081824]/90 backdrop-blur-xl border border-cyan-500/30 shadow-2xl">
+          <div className="absolute bottom-5 left-6 right-6 z-30 pointer-events-auto flex items-center gap-4 px-4 py-3 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl">
             <button
               type="button"
               aria-label={isPlaying ? 'Tạm dừng phát lại' : 'Bắt đầu phát lại sprint'}
@@ -1474,11 +1681,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                 max={14}
                 value={cutDay}
                 onChange={(e) => setCutDay(Number(e.target.value))}
-                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-700 accent-pink-500"
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-white/15 accent-pink-500"
               />
-              <div className="flex justify-between text-[11px] font-mono text-slate-400">
+              <div className="flex justify-between text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
                 <span>Phát lại sprint · Ngày {cutDay}/14 (16/11/2026)</span>
-                <span className="text-cyan-300 font-semibold">{activeEvents.length} sự kiện ghi nhận đến thời điểm này</span>
+                <span className="text-cyan-600 dark:text-cyan-300 font-semibold">{activeEvents.length} sự kiện ghi nhận đến thời điểm này</span>
               </div>
             </div>
           </div>
@@ -1487,30 +1694,30 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* 3. Bottom-Left Floating Legend Card (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-[#06151f]/85 backdrop-blur-xl border border-cyan-500/25 shadow-2xl text-[11px] text-slate-300 w-64 space-y-2.5">
-          <h4 className="font-bold text-[10px] tracking-wider text-slate-400 uppercase">
+        <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 w-64 space-y-2.5">
+          <h4 className="font-bold text-[10px] tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
             CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
           </h4>
 
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
-              <span className="text-slate-200">Thành viên trọng tâm (Hạt nhân)</span>
+              <span className="text-zinc-900 dark:text-zinc-200 font-medium">Thành viên trọng tâm (Hạt nhân)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
               <span>D1: Sản lượng (Thẻ xong & SP)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]" />
               <span>D2: Tin cậy & Đúng hạn (Rework)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#a78bfa]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_8px_#a855f7]" />
               <span>D3: Phối hợp (Review PR & @mentions)</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-pink-400 shadow-[0_0_8px_#f472b6]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]" />
               <span>D4: Chấm chéo đồng đội (≥ 3 lượt)</span>
             </div>
             <div className="flex items-center gap-2.5">
@@ -1519,62 +1726,62 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </div>
           </div>
 
-          <div className="w-full h-[1px] bg-cyan-500/20 my-2" />
+          <div className="w-full h-[1px] bg-zinc-200 dark:bg-white/10 my-2" />
 
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-            <span>⚙ Chuẩn hóa: <b className="text-cyan-300">ln(1+x) · MAD</b></span>
-            <span>📊 Khoảng tin cậy: <b className="text-emerald-300">95% CI</b></span>
+          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+            <span>⚙ Chuẩn hóa: <b className="text-cyan-600 dark:text-cyan-300">ln(1+x) · MAD</b></span>
+            <span>📊 Khoảng tin cậy: <b className="text-emerald-600 dark:text-emerald-300">95% CI</b></span>
           </div>
         </div>
       )}
 
       {/* 4. Bottom-Right Floating KPI & Ask AI Dock (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-6 right-6 z-30 pointer-events-auto w-[460px] max-w-[92vw] flex flex-col rounded-3xl bg-[#091b24]/90 backdrop-blur-2xl border-t-2 border-t-cyan-400 border border-cyan-500/30 shadow-[0_0_35px_rgba(6,182,212,0.15)] overflow-hidden">
-          <div className="grid grid-cols-4 divide-x divide-cyan-500/20 px-4 py-3 bg-cyan-950/20 text-center">
+        <div className="absolute bottom-6 right-6 z-30 pointer-events-auto w-[460px] max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)]" style={{ overflow: 'visible' }}>
+          <div className="grid grid-cols-4 divide-x divide-zinc-200 dark:divide-white/10 px-4 py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
             <div>
-              <span className="text-[10px] text-slate-400 block">Đóng góp p_i</span>
-              <strong className="text-sm font-extrabold text-cyan-300 flex items-center justify-center gap-0.5">
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Đóng góp p_i</span>
+              <strong className="text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-0.5">
                 ↗ {((finalPct || 0.22) * 100).toFixed(1)}%
               </strong>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">Điểm C_i</span>
-              <strong className="text-sm font-extrabold text-white flex items-center justify-center gap-0.5">
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Điểm C_i</span>
+              <strong className="text-sm font-extrabold text-zinc-900 dark:text-white flex items-center justify-center gap-0.5">
                 ◎ {(compositeScore || 33.1).toFixed(1)}
               </strong>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">Khoảng cách δ_i</span>
-              <strong className="text-sm font-extrabold text-emerald-400 flex items-center justify-center gap-0.5">
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Khoảng cách δ_i</span>
+              <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-0.5">
                 👥 {(distanceToCenter || 2.2).toFixed(2)}
               </strong>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">Khả dụng a_i</span>
-              <strong className="text-sm font-extrabold text-amber-300 flex items-center justify-center gap-0.5">
+              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Khả dụng a_i</span>
+              <strong className="text-sm font-extrabold text-amber-600 dark:text-amber-300 flex items-center justify-center gap-0.5">
                 👍 {((availabilityFactor || 1.0) * 100).toFixed(0)}%
               </strong>
             </div>
           </div>
 
           {aiAnswer && (
-            <div className="px-4 py-2.5 mx-3 mt-2 rounded-xl bg-cyan-950/60 border border-cyan-400/30 text-xs text-cyan-100 flex items-start justify-between gap-2">
+            <div className="px-4 py-2.5 mx-3 mt-2 rounded-xl bg-cyan-50 dark:bg-[#18181b] border border-cyan-200 dark:border-white/10 text-xs text-cyan-900 dark:text-cyan-200 flex items-start justify-between gap-2 shadow-sm">
               <span>{aiAnswer}</span>
-              <button type="button" onClick={() => setAiAnswer(null)} className="text-slate-400 hover:text-white shrink-0">
+              <button type="button" onClick={() => setAiAnswer(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-white shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
           <form onSubmit={handleAskSubmit} className="px-3 py-2 flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 bg-white/95 rounded-2xl px-3 py-2 text-slate-900 shadow-inner">
+            <div className="flex-1 flex items-center gap-2 bg-zinc-100 dark:bg-[#18181b] rounded-2xl px-3 py-2 text-zinc-900 dark:text-white shadow-inner border border-zinc-200 dark:border-white/10">
               <input
                 type="text"
                 value={questionInput}
                 onChange={(e) => setQuestionInput(e.target.value)}
                 placeholder="Ask a question... (vd: Ai đang đóng góp cao nhất?)"
-                className="w-full bg-transparent text-xs font-medium focus:outline-none placeholder-slate-500"
+                className="w-full bg-transparent text-xs font-medium focus:outline-none placeholder-zinc-400 dark:placeholder-zinc-500 text-zinc-900 dark:text-zinc-100"
               />
             </div>
             <button
@@ -1585,31 +1792,141 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </button>
           </form>
 
-          <div className="px-4 py-2.5 bg-black/30 border-t border-cyan-500/20 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <select
-                aria-label="Chọn thành viên quan sát"
-                value={selectedUserId || ''}
-                onChange={(e) => onSelectUser?.(Number(e.target.value))}
-                className="bg-transparent text-cyan-300 font-bold focus:outline-none cursor-pointer text-xs"
-              >
-                {members.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-slate-900 text-white">
-                    👤 {m.fullName}
-                  </option>
-                ))}
-              </select>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                +3
+          <div className="px-4 py-2.5 bg-zinc-50/90 dark:bg-[#18181b]/95 border-t border-zinc-200 dark:border-white/10 flex items-center justify-between text-xs rounded-b-3xl" style={{ overflow: 'visible' }}>
+            <div className="flex items-center gap-2 relative">
+              {/* Custom Member Dropdown — Bottom Dock */}
+              {(() => {
+                const activeMember = members.find((m) => m.id === (selectedUserId || 110));
+                const activeRoleMatch = activeMember?.fullName.match(/\(([^)]+)\)/);
+                const activeDisplayName = activeRoleMatch
+                  ? (activeMember?.fullName || '').replace(/ *\([^)]*\)/, '').trim()
+                  : activeMember?.fullName || 'Chọn thành viên';
+                const activeInitials = activeDisplayName
+                  .split(' ')
+                  .filter(Boolean)
+                  .slice(-2)
+                  .map((w: string) => w[0])
+                  .join('')
+                  .toUpperCase() || 'U';
+
+                return (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberDropdown2((v) => !v)}
+                      className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-zinc-300 dark:border-white/15 bg-white dark:bg-[#27272a] hover:bg-zinc-100 dark:hover:bg-[#323238] transition-all text-xs text-zinc-800 dark:text-zinc-200 font-bold shadow-sm max-w-[200px]"
+                    >
+                      <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 shadow-sm"
+                        style={{ background: 'linear-gradient(135deg,#6366f1,#06b6d4)', color: '#fff' }}
+                      >
+                        {activeInitials}
+                      </span>
+                      <span className="truncate max-w-[130px]">{activeDisplayName}</span>
+                      <svg
+                        className={`w-3 h-3 ml-1 shrink-0 transition-transform ${showMemberDropdown2 ? 'rotate-180' : ''}`}
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+
+                    {showMemberDropdown2 && (
+                      <div
+                        className="absolute bottom-full left-0 mb-2 z-[9999] w-64 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/98 dark:bg-[#18181b]/98 backdrop-blur-xl shadow-2xl"
+                        style={{ overflow: 'hidden' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="px-3 pt-2.5 pb-1">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                            Thành viên nhóm
+                          </span>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto py-1">
+                          {members.map((m) => {
+                            const isActive = (selectedUserId || 110) === m.id;
+                            const roleMatch = m.fullName.match(/\(([^)]+)\)/);
+                            const role = roleMatch ? roleMatch[1] : null;
+                            const displayName = roleMatch
+                              ? m.fullName.replace(/ *\([^)]*\)/, '').trim()
+                              : m.fullName;
+                            const initials = displayName
+                              .split(' ')
+                              .filter(Boolean)
+                              .slice(-2)
+                              .map((w: string) => w[0])
+                              .join('')
+                              .toUpperCase() || '?';
+                            const palette = [
+                              '#6366f1,#8b5cf6',
+                              '#06b6d4,#0891b2',
+                              '#10b981,#059669',
+                              '#ec4899,#db2777',
+                              '#f59e0b,#d97706',
+                            ];
+                            const ci = m.id % palette.length;
+                            const accentColor = palette[ci].split(',')[0];
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => {
+                                  onSelectUser?.(m.id);
+                                  setShowMemberDropdown2(false);
+                                }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 transition-all text-left ${
+                                  isActive ? 'bg-cyan-500/15 text-cyan-900 dark:text-white' : 'hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300'
+                                }`}
+                              >
+                                <span
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 shadow-lg"
+                                  style={{ background: `linear-gradient(135deg,${palette[ci]})`, color: '#fff' }}
+                                >
+                                  {initials}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100">{displayName}</div>
+                                  {role ? (
+                                    <span
+                                      className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.5 rounded-full border"
+                                      style={{
+                                        color: accentColor,
+                                        borderColor: `${accentColor}55`,
+                                        background: `${accentColor}20`,
+                                      }}
+                                    >
+                                      {role}
+                                    </span>
+                                  ) : (
+                                    <div className="text-[9px] text-zinc-500 mt-0.5">Thành viên</div>
+                                  )}
+                                </div>
+                                {isActive && (
+                                  <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20">
+                +{Math.max(0, members.length - 1)}
               </span>
             </div>
 
             <button
               type="button"
               onClick={() => onSwitchViewMode?.('detail')}
-              className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 transition"
+              className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-semibold flex items-center gap-1 transition"
             >
-              <Sparkles className="w-3 h-3 text-cyan-400" />
+              <Sparkles className="w-3 h-3 text-cyan-500 dark:text-cyan-400" />
               <span>Chi tiết neuron →</span>
             </button>
           </div>

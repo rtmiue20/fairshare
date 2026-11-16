@@ -6,7 +6,7 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { FairShareIcon } from '../ui/Icons';
 import { FairShareLogo } from '../ui/FairShareLogo';
 import { showToast } from '../ui/Toast';
-import { FolderPlus } from 'lucide-react';
+import { ChevronDown, Check, Plus } from 'lucide-react';
 import { CreateProjectModal } from '../../features/team/CreateProjectModal';
 import { NotificationPopover } from '../notifications/NotificationPopover';
 
@@ -19,12 +19,17 @@ export const TopNav: React.FC = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isProjectOpen, setIsProjectOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setIsNotifOpen(false);
+      }
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+        setIsProjectOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -68,17 +73,28 @@ export const TopNav: React.FC = () => {
     { to: '/report', label: 'Báo cáo' },
   ];
 
-  const handleSelectTeam = (val: string) => {
-    if (val === '__CREATE_NEW__') {
-      setIsModalOpen(true);
-      return;
-    }
-    const num = Number(val);
-    if (num > 0) {
-      setActiveTeamId(num);
-      showToast(`Đã chuyển sang dự án: ${teams.find((t) => t.id === num)?.name || num}`);
-    }
+  const getProjectPalette = (id: number) => {
+    const palettes = [
+      { bg: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff' },
+      { bg: 'linear-gradient(135deg, #06b6d4, #0891b2)', color: '#fff' },
+      { bg: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff' },
+      { bg: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff' },
+      { bg: 'linear-gradient(135deg, #ec4899, #db2777)', color: '#fff' },
+    ];
+    return palettes[id % palettes.length];
   };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'P';
+    const clean = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase() || 'P';
+  };
+
+  const activeTeam = teams.find((t) => t.id === activeTeamId) || teams[0];
 
   return (
     <>
@@ -90,43 +106,130 @@ export const TopNav: React.FC = () => {
           </Link>
 
           {isAuthenticated && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div ref={projectDropdownRef} className="relative">
               {teams.length > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <select
-                    aria-label="Chọn dự án"
-                    value={activeTeamId || teams[0]?.id || ''}
-                    onChange={(e) => handleSelectTeam(e.target.value)}
-                    style={{
-                      height: '28px',
-                      maxWidth: '190px',
-                      padding: '0 8px',
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      borderRadius: '6px',
-                      background: 'var(--surface2)',
-                      color: 'var(--fg)',
-                      border: '1px solid var(--line)',
-                      cursor: 'pointer',
-                      textOverflow: 'ellipsis',
-                    }}
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsProjectOpen((prev) => !prev)}
+                    className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-zinc-200/90 dark:border-white/10 bg-white/90 dark:bg-[#1f1f23] hover:bg-zinc-100 dark:hover:bg-[#27272a] text-zinc-900 dark:text-zinc-100 transition-all shadow-sm max-w-[210px] text-xs font-semibold select-none cursor-pointer"
+                    title={`Dự án đang chọn: ${activeTeam?.name || ''}`}
                   >
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                    <option value="__CREATE_NEW__">+ Tạo dự án mới...</option>
-                  </select>
-                </div>
+                    {/* Project Avatar */}
+                    <span
+                      className="w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm"
+                      style={{
+                        background: getProjectPalette(activeTeam?.id || 1).bg,
+                        color: getProjectPalette(activeTeam?.id || 1).color,
+                      }}
+                    >
+                      {getInitials(activeTeam?.name || 'K')}
+                    </span>
+
+                    {/* Project Name */}
+                    <span className="truncate max-w-[130px] font-bold tracking-tight">
+                      {activeTeam?.name || 'Chọn dự án'}
+                    </span>
+
+                    {/* Chevron Icon */}
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-zinc-400 dark:text-zinc-400 shrink-0 transition-transform duration-200 ${
+                        isProjectOpen ? 'rotate-180 text-cyan-500 dark:text-cyan-400' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {/* Dropdown Popup Menu */}
+                  {isProjectOpen && (
+                    <div
+                      className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl border border-zinc-200/90 dark:border-white/10 bg-white/98 dark:bg-[#18181b]/98 backdrop-blur-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                      style={{
+                        boxShadow: '0 20px 40px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      {/* Header */}
+                      <div className="px-3.5 pt-3 pb-1.5 flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-400 dark:text-zinc-400">
+                          DỰ ÁN CỦA BẠN
+                        </span>
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                          {teams.length}
+                        </span>
+                      </div>
+
+                      {/* Project List */}
+                      <div className="max-h-64 overflow-y-auto px-1.5 py-1 space-y-1" style={{ scrollbarWidth: 'thin' }}>
+                        {teams.map((t) => {
+                          const isActive = (activeTeamId || teams[0]?.id) === t.id;
+                          const palette = getProjectPalette(t.id);
+                          const initials = getInitials(t.name);
+
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                setActiveTeamId(t.id);
+                                setIsProjectOpen(false);
+                                showToast(`Đã chuyển sang dự án: ${t.name}`);
+                              }}
+                              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                                isActive
+                                  ? 'bg-cyan-500/10 dark:bg-cyan-500/15 text-cyan-900 dark:text-cyan-300 font-semibold'
+                                  : 'hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300'
+                              }`}
+                            >
+                              {/* Project Avatar */}
+                              <span
+                                className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm transition-transform group-hover:scale-105"
+                                style={{ background: palette.bg, color: palette.color }}
+                              >
+                                {initials}
+                              </span>
+
+                              {/* Project Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                  {t.name}
+                                </div>
+                                <div className="text-[10px] text-zinc-400 dark:text-zinc-400 truncate">
+                                  {isActive ? 'Đang hoạt động' : 'Chuyển không gian làm việc'}
+                                </div>
+                              </div>
+
+                              {/* Active Checkmark */}
+                              {isActive && (
+                                <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bottom Action: Create Project */}
+                      <div className="p-1.5 border-t border-zinc-200 dark:border-white/10 bg-zinc-50/70 dark:bg-[#141416]/70">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProjectOpen(false);
+                            setIsModalOpen(true);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 dark:hover:bg-cyan-500/15 border border-dashed border-cyan-500/30 transition-all hover:border-cyan-400 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tạo dự án mới...</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(true)}
-                  className="btn ghost sm"
-                  style={{ fontSize: '11px', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-semibold transition-all shadow-sm cursor-pointer"
                 >
-                  <FolderPlus size={12} style={{ color: 'var(--accent)' }} />
+                  <Plus size={13} />
                   <span>+ Tạo dự án</span>
                 </button>
               )}
