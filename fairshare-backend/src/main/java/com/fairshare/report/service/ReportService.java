@@ -9,14 +9,17 @@ import com.fairshare.report.dto.IndividualReportDto;
 import com.fairshare.report.dto.OverviewReportDto;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.Consent;
 import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
 import com.fairshare.team.entity.TeamMember;
+import com.fairshare.team.repository.ConsentRepository;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,11 +41,14 @@ public class ReportService {
     private final ActivityEventRepository activityEventRepository;
     private final EmailService emailService;
 
+    @Autowired(required = false)
+    private ConsentRepository consentRepository;
+
     // -------------------------------------------------------------------------
     // Overview Report
     // -------------------------------------------------------------------------
 
-    @Transactional(readOnly = true)
+    @Transactional
     public OverviewReportDto getOverviewReport(Long teamId, Long sprintId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
@@ -51,7 +57,24 @@ public class ReportService {
 
         List<TeamMember> members = teamMemberRepository.findByTeamIdWithUser(teamId);
         List<ContributionScore> scores = contributionScoreRepository.findByTeamIdAndSprintId(teamId, sprintId);
+        if (scores.isEmpty()) {
+            contributionScoreRepository.calculateContributionScores(teamId, sprintId);
+            scores = contributionScoreRepository.findByTeamIdAndSprintId(teamId, sprintId);
+        }
         List<ActivityEvent> events = activityEventRepository.findBySprintId(sprintId);
+
+        double consentRate = 0.0;
+        if (consentRepository != null && !members.isEmpty()) {
+            long consentedCount = members.stream()
+                    .filter(m -> m.getUser() != null)
+                    .filter(m -> consentRepository.findByTeamIdAndUserId(teamId, m.getUser().getId())
+                            .map(Consent::isAgreed)
+                            .orElse(false))
+                    .count();
+            consentRate = Math.round((consentedCount * 1000.0) / members.size()) / 10.0;
+        } else if (!members.isEmpty()) {
+            consentRate = 100.0;
+        }
 
         Map<Long, ContributionScore> scoreMap = scores.stream()
                 .filter(s -> s.getUser() != null)
@@ -117,7 +140,7 @@ public class ReportService {
                 .totalEvents(events.size())
                 .giniCoefficient(gini)
                 .giniLabel(giniLabel)
-                .consentRate(0.0) // placeholder – consent repo not injected here
+                .consentRate(consentRate)
                 .leaderName(leaderName)
                 .inviteCode(team.getInviteCode())
                 .members(memberDtos)
@@ -128,7 +151,7 @@ public class ReportService {
     // Individual Report
     // -------------------------------------------------------------------------
 
-    @Transactional(readOnly = true)
+    @Transactional
     public IndividualReportDto getIndividualReport(Long teamId, Long sprintId, Long userId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
@@ -141,6 +164,11 @@ public class ReportService {
 
         ContributionScore cs = contributionScoreRepository.findBySprintIdAndUserId(sprintId, userId)
                 .orElse(null);
+        if (cs == null) {
+            contributionScoreRepository.calculateContributionScores(teamId, sprintId);
+            cs = contributionScoreRepository.findBySprintIdAndUserId(sprintId, userId)
+                    .orElse(null);
+        }
 
         List<ActivityEvent> memberEvents = activityEventRepository.findBySprintIdAndUserId(sprintId, userId);
         if (memberEvents.isEmpty()) {
@@ -187,7 +215,7 @@ public class ReportService {
     // Email sending
     // -------------------------------------------------------------------------
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void sendIndividualEmail(Long teamId, Long sprintId, Long userId) {
         IndividualReportDto report = getIndividualReport(teamId, sprintId, userId);
         String html = buildIndividualHtmlEmail(report);
@@ -195,7 +223,7 @@ public class ReportService {
         emailService.sendHtmlEmail(report.getEmail(), subject, html);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void sendAllEmails(Long teamId, Long sprintId) {
         List<TeamMember> members = teamMemberRepository.findByTeamIdWithUser(teamId);
         for (TeamMember tm : members) {

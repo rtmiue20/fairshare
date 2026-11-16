@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   MoreHorizontal,
   ChevronLeft,
@@ -7,18 +7,33 @@ import {
   Database,
 } from 'lucide-react';
 import { ProjectTimelineModal } from './ProjectTimelineModal';
-import { TaskDetailModal } from './TaskDetailModal';
+import { TaskDetailModal, parseChecklistFromDescription } from './TaskDetailModal';
 import { TaskItem } from './AllTasksSection';
 import { showToast } from '../../components/ui/Toast';
 import { boardApi } from '../../api/board.api';
+import { getMemberAvatarGradient, getMemberInitials } from '../../utils/format';
 
 export interface CalendarPill {
   id: string;
+  cardId?: number;
   dayIndex: number; // 0..7
   dateLabel: string;
   title: string;
   lane: number; // 0, 1, 2
   isFocus?: boolean;
+}
+
+interface DbCalendarCard {
+  id: number;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  columnId: number;
+  columnName: string;
+  assigneeName?: string;
+  assigneeId?: number;
+  storyPoints?: number;
+  difficultyLevel?: number;
 }
 
 const MONTH_NAMES_SHORT = [
@@ -41,27 +56,39 @@ const isSameDate = (d1: Date, d2: Date) =>
   d1.getMonth() === d2.getMonth() &&
   d1.getDate() === d2.getDate();
 
+function mapColumnProgress(colName: string, description?: string): number {
+  const { items } = parseChecklistFromDescription(description);
+  if (items.length > 0) {
+    return Math.round((items.filter((x) => x.completed).length / items.length) * 100);
+  }
+  const lower = colName.toLowerCase();
+  if (lower.includes('done') || lower.includes('complete') || lower.includes('hoàn thành')) return 100;
+  if (lower.includes('review') || lower.includes('đánh giá')) return 75;
+  if (lower.includes('progress') || lower.includes('đang')) return 40;
+  return 0;
+}
+
 export const TaskCalendar: React.FC<{
   onSelectTask?: (title: string) => void;
   teamId?: number;
   projectName?: string;
-}> = ({ onSelectTask, teamId, projectName = 'KINGSHA' }) => {
-  // Khoảng thời gian dự án (Mặc định 10 Feb 2027 đến 30 Jun 2027)
-  const [projectStart, setProjectStart] = useState<Date>(new Date(2027, 1, 10));
-  const [projectEnd, setProjectEnd] = useState<Date>(new Date(2027, 5, 30));
+}> = ({ onSelectTask, teamId, projectName = 'EduConnect' }) => {
+  // Khoảng thời gian dự án (Mặc định 12 Nov 2026 - 20 Dec 2026, tự căn theo DB cards nếu chưa thiết lập riêng)
+  const [projectStart, setProjectStart] = useState<Date>(new Date(2026, 10, 12));
+  const [projectEnd, setProjectEnd] = useState<Date>(new Date(2026, 11, 20));
+  const hasCustomTimelineRef = useRef<boolean>(false);
 
   // Trạng thái đồng bộ Database
   const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
-  const [dbCards, setDbCards] = useState<
-    { id: number; title: string; dueDate?: string; columnId: number }[]
-  >([]);
+  const [dbCards, setDbCards] = useState<DbCalendarCard[]>([]);
 
   // Task Detail Modal State
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Tải khoảng thời gian đã lưu theo teamId từ Storage/DB
+  // Tải khoảng thời gian đã lưu theo teamId từ Storage
   useEffect(() => {
+    hasCustomTimelineRef.current = false;
     if (!teamId) return;
     try {
       const saved = localStorage.getItem(`fairshare_timeline_${teamId}`);
@@ -70,6 +97,7 @@ export const TaskCalendar: React.FC<{
         if (parsed.start && parsed.end) {
           setProjectStart(new Date(parsed.start));
           setProjectEnd(new Date(parsed.end));
+          hasCustomTimelineRef.current = true;
         }
       }
     } catch {
@@ -77,46 +105,76 @@ export const TaskCalendar: React.FC<{
     }
   }, [teamId]);
 
-  // ── KẾT NỐI DB: Lấy dữ liệu Cards từ Database qua boardApi ──
-  useEffect(() => {
+  // ── KẾT NỐI DB: Lấy dữ liệu Cards đầy đủ từ Database qua boardApi ──
+  const fetchBoardCards = useCallback(async () => {
     if (!teamId) return;
+    try {
+      const res = await boardApi.getBoardsByTeam(teamId);
+      if (res.data && res.data.length > 0) {
+        const boardRes = await boardApi.getBoardById(res.data[0].id);
+        const board = boardRes.data;
 
-    let mounted = true;
-    const fetchBoardCards = async () => {
-      try {
-        const res = await boardApi.getBoardsByTeam(teamId);
-        if (res.data && res.data.length > 0) {
-          const boardRes = await boardApi.getBoardById(res.data[0].id);
-          const board = boardRes.data;
-
-          if (board.columns && mounted) {
-            const cardsList: { id: number; title: string; dueDate?: string; columnId: number }[] = [];
-            board.columns.forEach((col) => {
-              if (col.cards) {
-                col.cards.forEach((card) => {
-                  cardsList.push({
-                    id: card.id,
-                    title: card.title,
-                    dueDate: card.dueDate,
-                    columnId: col.id,
-                  });
+        if (board.columns) {
+          const cardsList: DbCalendarCard[] = [];
+          board.columns.forEach((col) => {
+            if (col.cards) {
+              col.cards.forEach((card) => {
+                cardsList.push({
+                  id: card.id,
+                  title: card.title,
+                  description: card.description,
+                  dueDate: card.dueDate,
+                  columnId: col.id,
+                  columnName: col.name,
+                  assigneeName: card.assigneeName,
+                  assigneeId: card.assigneeId,
+                  storyPoints: card.storyPoints,
+                  difficultyLevel: card.difficultyLevel,
                 });
-              }
-            });
-            setDbCards(cardsList);
-            setIsDbConnected(true);
+              });
+            }
+          });
+          setDbCards(cardsList);
+          setIsDbConnected(true);
+
+          // Tự động căn chỉnh khung tuần mặc định theo ngày due_date thực tế trong DB nếu người dùng chưa tự cấu hình
+          if (!hasCustomTimelineRef.current) {
+            const datedTimes = cardsList
+              .map((c) => (c.dueDate ? new Date(c.dueDate).getTime() : NaN))
+              .filter((t) => !isNaN(t))
+              .sort((a, b) => a - b);
+
+            if (datedTimes.length > 0) {
+              const latest = new Date(datedTimes[datedTimes.length - 1]);
+              const earliest = new Date(datedTimes[0]);
+              // Ưu tiên cửa sổ 8 ngày kết thúc quanh ngày thẻ mới nhất hoặc hôm nay
+              const anchorStart = new Date(latest.getTime() - 6 * 24 * 3600 * 1000);
+              const startCandidate = anchorStart.getTime() > earliest.getTime() ? anchorStart : new Date(earliest.getTime() - 24 * 3600 * 1000);
+              startCandidate.setHours(0, 0, 0, 0);
+              const endCandidate = new Date(Math.max(latest.getTime() + 14 * 24 * 3600 * 1000, startCandidate.getTime() + 35 * 24 * 3600 * 1000));
+              setProjectStart(startCandidate);
+              setProjectEnd(endCandidate);
+            }
           }
         }
-      } catch (err) {
-        console.warn('TaskCalendar DB fetch fallback:', err);
       }
-    };
-
-    fetchBoardCards();
-    return () => {
-      mounted = false;
-    };
+    } catch (err) {
+      console.warn('TaskCalendar DB fetch fallback:', err);
+    }
   }, [teamId]);
+
+  useEffect(() => {
+    fetchBoardCards();
+  }, [fetchBoardCards]);
+
+  // Tự động đồng bộ lại lịch khi Kanban / AllTasksSection cập nhật thẻ
+  useEffect(() => {
+    const handleBoardUpdated = () => {
+      fetchBoardCards();
+    };
+    window.addEventListener('fairshare:board-updated', handleBoardUpdated);
+    return () => window.removeEventListener('fairshare:board-updated', handleBoardUpdated);
+  }, [fetchBoardCards]);
 
   // Modal chọn khoảng thời gian
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
@@ -174,6 +232,7 @@ export const TaskCalendar: React.FC<{
     const usedLanes: Record<number, number> = {};
 
     // 1. Ghép thẻ từ DB nếu có hạn chót khớp với ngày trong tuần
+    const hasAnyDatedCard = dbCards.some((c) => Boolean(c.dueDate));
     if (dbCards.length > 0) {
       dbCards.forEach((card) => {
         if (card.dueDate) {
@@ -185,6 +244,7 @@ export const TaskCalendar: React.FC<{
               usedLanes[dayIdx] = (usedLanes[dayIdx] || 0) + 1;
               matchedPills.push({
                 id: `db-card-${card.id}`,
+                cardId: card.id,
                 dayIndex: dayIdx,
                 dateLabel: weekDays[dayIdx].label, // Luôn đồng bộ nhãn ngày của cột
                 title: card.title,
@@ -199,7 +259,7 @@ export const TaskCalendar: React.FC<{
       });
     }
 
-    if (matchedPills.length > 0) {
+    if (matchedPills.length > 0 || (isDbConnected && hasAnyDatedCard)) {
       return matchedPills;
     }
 
@@ -273,8 +333,9 @@ export const TaskCalendar: React.FC<{
     setDragOffset(0);
   };
 
-  // Lưu khoảng thời gian vào Storage và DB
+  // Lưu khoảng thời gian vào Storage
   const handleSaveTimeline = (start: Date, end: Date) => {
+    hasCustomTimelineRef.current = true;
     setProjectStart(start);
     setProjectEnd(end);
     setCurrentWeekIndex(0); // Quay về tuần đầu tiên của khoảng thời gian mới
@@ -295,29 +356,52 @@ export const TaskCalendar: React.FC<{
     showToast.success(
       `Đã thiết lập lịch dự án: ${startLabel} - ${endLabel} (${Math.ceil(
         Math.abs(end.getTime() - start.getTime()) / (1000 * 3600 * 24 * 7)
-      )} tuần) và lưu vào DB!`,
-      'Database Synced'
+      )} tuần) và đồng bộ lịch!`,
+      'Timeline Updated'
     );
   };
 
   const handlePillClick = (pill: CalendarPill) => {
     onSelectTask?.(pill.title);
 
-    // Mở Task Detail Modal
-    setSelectedTask({
-      id: pill.id,
-      projectTag: `${projectName} Dashboard`,
-      title: pill.title,
-      dueDate: pill.dateLabel,
-      status: 'in_progress',
-      progress: pill.isFocus ? 50 : 25,
-      commentsCount: 2,
-      linksCount: 1,
-      assignees: [
-        { name: 'Minh Triều', avatarText: 'MT', bg: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-        { name: 'Lan Anh', avatarText: 'LA', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
-      ],
-    });
+    const matchedCard = pill.cardId ? dbCards.find((c) => c.id === pill.cardId) : undefined;
+    if (matchedCard) {
+      setSelectedTask({
+        id: String(matchedCard.id),
+        projectTag: `${projectName} · ${matchedCard.columnName}`,
+        title: matchedCard.title,
+        description: matchedCard.description,
+        dueDate: pill.dateLabel,
+        status: String(matchedCard.columnId),
+        progress: mapColumnProgress(matchedCard.columnName, matchedCard.description),
+        storyPoints: matchedCard.storyPoints,
+        difficultyLevel: matchedCard.difficultyLevel,
+        assigneeId: matchedCard.assigneeId,
+        commentsCount: 0,
+        linksCount: 0,
+        assignees: matchedCard.assigneeName
+          ? [
+              {
+                name: matchedCard.assigneeName,
+                avatarText: getMemberInitials(matchedCard.assigneeName),
+                bg: getMemberAvatarGradient(matchedCard.assigneeName),
+              },
+            ]
+          : [],
+      });
+    } else {
+      setSelectedTask({
+        id: pill.id,
+        projectTag: `${projectName} Dashboard`,
+        title: pill.title,
+        dueDate: pill.dateLabel,
+        status: 'in_progress',
+        progress: pill.isFocus ? 50 : 25,
+        commentsCount: 0,
+        linksCount: 0,
+        assignees: [],
+      });
+    }
     setIsDetailOpen(true);
   };
 
@@ -496,7 +580,11 @@ export const TaskCalendar: React.FC<{
       <TaskDetailModal
         isOpen={isDetailOpen}
         task={selectedTask}
+        teamId={teamId}
         onClose={() => setIsDetailOpen(false)}
+        onTaskUpdated={() => {
+          fetchBoardCards();
+        }}
       />
     </>
   );

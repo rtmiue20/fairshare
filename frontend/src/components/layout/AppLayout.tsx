@@ -46,7 +46,7 @@ export const AppLayout: React.FC = () => {
   return (
     <div
       className={`min-h-screen flex flex-col antialiased selection:bg-zinc-800 selection:text-zinc-100 relative ${
-        isFullscreenApp ? 'h-screen overflow-hidden' : 'overflow-x-hidden'
+        isFullscreenApp ? 'h-screen overflow-hidden' : 'overflow-x-clip'
       }`}
       style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
     >
