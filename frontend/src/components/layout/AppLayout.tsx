@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { TopNav } from './TopNav';
 import { ToastContainer } from '../ui/Toast';
 import { FairShareLogo } from '../ui/FairShareLogo';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
@@ -98,7 +99,9 @@ export const AppLayout: React.FC = () => {
             : { minHeight: 'calc(100vh - var(--top))' }
         }
       >
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {/* Modern footer (ẩn trên các trang canvas ứng dụng toàn màn hình như Tích Hợp) */}

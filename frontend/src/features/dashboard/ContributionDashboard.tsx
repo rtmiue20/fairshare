@@ -67,7 +67,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   const [selectedSprintId, setSelectedSprintId] = useState<number>(2);
   const [selectedUserId, setSelectedUserId] = useState<number | 'ALL'>('ALL');
   const [activeRadarUserId, setActiveRadarUserId] = useState<number>(109);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSprintEmpty, setIsSprintEmpty] = useState<boolean>(false);
 
   // Khi currentTeamId thay đổi: Tải sprints & thành viên thật từ backend
