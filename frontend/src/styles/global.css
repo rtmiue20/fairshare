@@ -3,14 +3,51 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme="dark"] {
   --primary: #6366f1;
   --primary-hover: #4f46e5;
-  --bg-color: #161616;
-  --card-bg: #1d1d1d;
-  --text-primary: #f4f4f2;
-  --text-secondary: #a6a6a2;
-  --border-color: #303030;
+  --bg-color: #07090e;
+  --bg: #07090e;
+  --surface: rgba(12, 19, 34, 0.78);
+  --surface2: rgba(18, 28, 49, 0.82);
+  --card-bg: rgba(12, 19, 34, 0.78);
+  --line: rgba(255, 255, 255, 0.08);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --glass: rgba(12, 19, 34, 0.65);
+  --glass-line: rgba(56, 189, 248, 0.16);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --fg: #f8fafc;
+  --fg2: #94a3b8;
+  --fg3: #64748b;
+  --accent: #38bdf8;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --bad: #f43f5e;
+}
+
+[data-theme="light"] {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --bg-color: #f8fafc;
+  --bg: #f8fafc;
+  --surface: rgba(255, 255, 255, 0.88);
+  --surface2: #f1f5f9;
+  --card-bg: #ffffff;
+  --line: #e2e8f0;
+  --border-color: #e2e8f0;
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-line: rgba(15, 23, 42, 0.08);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --fg: #0f172a;
+  --fg2: #475569;
+  --fg3: #64748b;
+  --accent: #0284c7;
+  --ok: #059669;
+  --warn: #d97706;
+  --bad: #e11d48;
 }
 
 body {
@@ -20,17 +57,64 @@ body {
   color: var(--fg);
   font-family: var(--f-body);
   -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.06), transparent 60%);
+  background-attachment: fixed;
 }
 
-/* Form controls dark mode baseline */
+[data-theme="light"] body {
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.05), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.04), transparent 60%);
+}
+
+/* Form controls baseline with glass styling */
 input, textarea, select {
-  background-color: var(--surface);
+  background-color: var(--surface2);
   color: var(--fg);
   border-color: var(--line);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+  outline: none;
 }
 
 input::placeholder, textarea::placeholder {
   color: var(--fg3);
+}
+
+/* Cosmic Glass & Dribbble Control Platform Tokens */
+.cosmic-card,
+.panel {
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cosmic-card:hover,
+.panel:hover {
+  border-color: rgba(56, 189, 248, 0.28);
+  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.65), 0 0 24px -4px rgba(56, 189, 248, 0.1);
+}
+
+[data-theme="light"] .cosmic-card,
+[data-theme="light"] .panel {
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .cosmic-card:hover,
+[data-theme="light"] .panel:hover {
+  border-color: rgba(2, 132, 199, 0.35);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.08), 0 0 16px -2px rgba(2, 132, 199, 0.08);
 }
 
 /* ThreeUI Glass & Modern Bento helpers */
@@ -39,6 +123,7 @@ input::placeholder, textarea::placeholder {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-line);
+  border-radius: 18px;
 }
 
 .threeui-glass-card {
@@ -46,17 +131,110 @@ input::placeholder, textarea::placeholder {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--line);
-  box-shadow: 0 20px 48px -20px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  box-shadow: 0 20px 48px -20px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
+}
+
+.threeui-glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 24px 52px -16px rgba(0, 0, 0, 0.8), 0 0 20px -4px rgba(56, 189, 248, 0.12);
 }
 
 .threeui-dock {
   background: var(--surface);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  border-radius: 20px;
   box-shadow: 0 22px 52px -24px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--line);
 }
 
 .threeui-dot-grid {
   background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+[data-theme="light"] .threeui-dot-grid {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+}
+
+/* Stats Bento Container */
+.stats {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.stat {
+  padding: 20px 24px;
+  transition: background 0.2s ease;
+}
+
+.stat:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="light"] .stat:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Chips / Badges with subtle cosmic neon glow */
+.chip {
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+/* Top Nav active tab indicator with cosmic neon glow */
+.links a[aria-current="page"] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.links a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 16px;
+  height: 3px;
+  margin-left: -8px;
+  background: var(--accent);
+  border-radius: 9999px;
+  box-shadow: 0 0 12px 2px var(--accent);
+}
+
+/* Sleek cosmic scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
 }

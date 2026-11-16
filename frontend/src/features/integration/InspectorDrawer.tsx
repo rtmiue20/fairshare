@@ -586,7 +586,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                   </label>
                   <select
                     value={impactCategory}
-                    onChange={(e) => setImpactCategory(e.target.value as any)}
+                    onChange={(e) => setImpactCategory(e.target.value as ImpactEventPayload['category'])}
                     className="w-full px-2.5 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white focus:outline-none focus:border-cyan-400"
                   >
                     <option value="IMPEDIMENT">Rào cản kỹ thuật</option>
@@ -602,7 +602,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                   </label>
                   <select
                     value={impactSeverity}
-                    onChange={(e) => setImpactSeverity(e.target.value as any)}
+                    onChange={(e) => setImpactSeverity(e.target.value as ImpactEventPayload['severity'])}
                     className="w-full px-2.5 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-white focus:outline-none focus:border-cyan-400"
                   >
                     <option value="LOW">Thấp</option>

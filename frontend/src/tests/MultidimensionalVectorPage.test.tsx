@@ -74,11 +74,11 @@ beforeEach(() => {
 
 describe('MultidimensionalVectorPage Component Tests', () => {
   it('renders the 4-tier multidimensional model and timeline scrubber', async () => {
-    (teamApi.getMembers as any).mockResolvedValue({
+    vi.mocked(teamApi.getMembers).mockResolvedValue({
       data: [{ id: 1, fullName: 'Minh Triệu', email: 'trieu@ueh.edu.vn' }],
-    });
+    } as unknown as Awaited<ReturnType<typeof teamApi.getMembers>>);
 
-    (contributionApi.getNetworkGraph as any).mockResolvedValue({
+    vi.mocked(contributionApi.getNetworkGraph).mockResolvedValue({
       data: {
         teamId: 1,
         sprintId: 4,
@@ -122,7 +122,7 @@ describe('MultidimensionalVectorPage Component Tests', () => {
           { id: 4, name: 'Sprint 4: Tích hợp Đa chiều & Bằng chứng', isCurrent: true, status: 'ACTIVE' },
         ],
       },
-    });
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
 
     render(<MultidimensionalVectorPage />);
 

@@ -598,6 +598,17 @@ export const ReportPage: React.FC = () => {
     return result;
   }, [members, searchQuery, filterStatus, sortBy]);
 
+  // Radar Chart Data for Selected Member
+  const radarData = useMemo(() => {
+    if (!selectedMember) return [];
+    return [
+      { dimension: 'D1 Sản lượng (Output)', value: Math.min(1.0, Math.max(0.1, selectedMember.d1Output)), fullMark: 1.0 },
+      { dimension: 'D2 Tin cậy (Reliability)', value: Math.min(1.0, Math.max(0.1, selectedMember.d2Reliability)), fullMark: 1.0 },
+      { dimension: 'D3 Phối hợp (Collab)', value: Math.min(1.0, Math.max(0.1, selectedMember.d3Collaboration)), fullMark: 1.0 },
+      { dimension: 'D4 Đánh giá chéo (Peer)', value: Math.min(1.0, Math.max(0.1, selectedMember.d4Peer)), fullMark: 1.0 },
+    ];
+  }, [selectedMember]);
+
   if (initialized && teams.length === 0 && !urlTeamId) {
     return <NoProjectState />;
   }
@@ -607,16 +618,18 @@ export const ReportPage: React.FC = () => {
     textColor: isLight ? '#0f172a' : '#f8fafc',
     subTextColor: isLight ? '#64748b' : '#94a3b8',
     headingColor: isLight ? '#0f172a' : '#ffffff',
-    panelBg: isLight ? '#ffffff' : 'rgba(18, 19, 26, 0.85)',
-    panelBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
-    panelShadow: isLight ? '0 20px 48px -10px rgba(0,0,0,0.06)' : '0 24px 60px -15px rgba(0, 0, 0, 0.7)',
-    sidebarBg: isLight ? '#fcfcfd' : 'rgba(14, 15, 20, 0.65)',
-    sidebarBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.06)',
-    itemHoverBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
+    panelBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.82)',
+    panelBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.09)',
+    panelShadow: isLight
+      ? '0 20px 48px -10px rgba(0,0,0,0.06)'
+      : '0 20px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.06)',
+    sidebarBg: isLight ? '#fcfcfd' : 'rgba(10, 15, 28, 0.75)',
+    sidebarBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.07)',
+    itemHoverBg: isLight ? '#f1f5f9' : 'rgba(56, 189, 248, 0.08)',
     activePillBg: '#4f46e5',
     activePillText: '#ffffff',
-    tableBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.06)',
-    tableRowBorder: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.04)',
+    tableBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.07)',
+    tableRowBorder: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.05)',
     tableHeaderBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
     paperBg: '#ffffff',
     paperColor: '#1e293b',
@@ -653,16 +666,6 @@ export const ReportPage: React.FC = () => {
     },
   ];
 
-  // Radar Chart Data for Selected Member
-  const radarData = useMemo(() => {
-    if (!selectedMember) return [];
-    return [
-      { dimension: 'D1 Sản lượng (Output)', value: Math.min(1.0, Math.max(0.1, selectedMember.d1Output)), fullMark: 1.0 },
-      { dimension: 'D2 Tin cậy (Reliability)', value: Math.min(1.0, Math.max(0.1, selectedMember.d2Reliability)), fullMark: 1.0 },
-      { dimension: 'D3 Phối hợp (Collab)', value: Math.min(1.0, Math.max(0.1, selectedMember.d3Collaboration)), fullMark: 1.0 },
-      { dimension: 'D4 Đánh giá chéo (Peer)', value: Math.min(1.0, Math.max(0.1, selectedMember.d4Peer)), fullMark: 1.0 },
-    ];
-  }, [selectedMember]);
 
   return (
     <div
