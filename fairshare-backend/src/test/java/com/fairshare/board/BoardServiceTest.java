@@ -871,4 +871,74 @@ class BoardServiceTest {
 
         assertThrows(BusinessException.class, () -> boardService.moveCard(70L, req, 100L));
     }
+
+    @Test
+    @DisplayName("DEF-34: Outsider calling getBoardsByTeam with actorUserId throws ForbiddenException")
+    void testGetBoardsByTeamOutsiderThrowsForbidden() {
+        when(teamRepository.existsById(10L)).thenReturn(true);
+        when(teamMemberRepository.findByTeamIdAndUserId(10L, 999L)).thenReturn(Optional.empty());
+
+        assertThrows(com.fairshare.common.exception.ForbiddenException.class,
+                () -> boardService.getBoardsByTeam(10L, 999L));
+    }
+
+    @Test
+    @DisplayName("DEF-38: Moving same card to Review a second time by same reviewer does NOT log duplicate REVIEW_CARD")
+    void testMoveCardToReviewSecondTimeBySameReviewerPreventsDuplicatePoints() {
+        BoardColumn colReview = new BoardColumn();
+        colReview.setId(13L);
+        colReview.setBoard(sampleBoard);
+        colReview.setName("Review");
+        colReview.setPosition(2);
+
+        User reviewer = new User();
+        reviewer.setId(200L);
+        reviewer.setFullName("Reviewer User");
+
+        Card card = new Card();
+        card.setId(52L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colInProgress);
+        card.setTitle("Dashboard Screen");
+        card.setAssignee(sampleUser); // 100L
+        card.setStoryPoints(5.0);
+
+        com.fairshare.activity.entity.ActivityEvent previousReview = new com.fairshare.activity.entity.ActivityEvent();
+        previousReview.setEventType("REVIEW_CARD");
+        previousReview.setUser(reviewer);
+        previousReview.setDetails("Member 'Reviewer User' reviewed card 'Dashboard Screen' (Assignee: 'Developer', From: 'In Progress' -> To: 'Review')");
+
+        when(cardRepository.findById(52L)).thenReturn(Optional.of(card));
+        when(columnRepository.findById(13L)).thenReturn(Optional.of(colReview));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(userRepository.findById(200L)).thenReturn(Optional.of(reviewer));
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+        when(activityService.getEventsByTeam(10L)).thenReturn(List.of(previousReview));
+
+        MoveCardRequest moveReq = MoveCardRequest.builder()
+                .targetColumnId(13L)
+                .position(0)
+                .fromColumnName("In Progress")
+                .toColumnName("Review")
+                .build();
+
+        boardService.moveCard(52L, moveReq, 200L);
+
+        // Must NOT log a second REVIEW_CARD
+        verify(activityService, never()).logActivity(
+                any(), any(), any(), eq("REVIEW_CARD"), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+        );
+        // Logs a 0-point CARD_MOVED instead
+        verify(activityService, times(1)).logActivity(
+                eq(sampleTeam),
+                eq(reviewer),
+                eq(ActivitySource.BOARD),
+                eq("CARD_MOVED"),
+                contains("Moved card 'Dashboard Screen' from 'In Progress' to 'Review'"),
+                any(),
+                isNull(),
+                eq(0.0),
+                isNull()
+        );
+    }
 }
