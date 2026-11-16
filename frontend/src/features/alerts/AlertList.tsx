@@ -223,17 +223,17 @@ export const AlertList: React.FC = () => {
     textColor: isLight ? '#0f172a' : '#f8fafc',
     subTextColor: isLight ? '#64748b' : '#94a3b8',
     headingColor: isLight ? '#0f172a' : '#ffffff',
-    cardBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.78)',
-    cardBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.09)',
+    cardBg: isLight ? '#ffffff' : 'rgba(24, 24, 27, 0.75)',
+    cardBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
     cardShadow: isLight
       ? '0 10px 30px rgba(0, 0, 0, 0.04)'
-      : '0 16px 40px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.06)',
+      : '0 4px 16px rgba(0, 0, 0, 0.25)',
     cardRadius: '20px',
-    rowBg: isLight ? '#fbfcfe' : 'rgba(15, 23, 42, 0.65)',
-    rowBorder: isLight ? '1px solid rgba(0, 0, 0, 0.06)' : '1px solid rgba(255, 255, 255, 0.07)',
+    rowBg: isLight ? '#fbfcfe' : '#1f1f23',
+    rowBorder: isLight ? '1px solid rgba(0, 0, 0, 0.06)' : '1px solid rgba(255, 255, 255, 0.08)',
     activeTabBg: '#4f46e5',
-    inactiveTabBg: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.05)',
-    sliderTrackBg: isLight ? '#e2e8f0' : 'rgba(56, 189, 248, 0.2)',
+    inactiveTabBg: isLight ? 'rgba(0, 0, 0, 0.04)' : '#27272a',
+    sliderTrackBg: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.12)',
   };
 
   return (
@@ -503,9 +503,9 @@ export const AlertList: React.FC = () => {
                         type="button"
                         onClick={() => handleRemind(a.id, a.userName)}
                         style={{
-                          background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+                          background: isLight ? '#f1f5f9' : '#27272a',
                           color: isLight ? '#334155' : '#cbd5e1',
-                          border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
+                          border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
                           borderRadius: '10px',
                           padding: '6px 12px',
                           fontSize: '12px',

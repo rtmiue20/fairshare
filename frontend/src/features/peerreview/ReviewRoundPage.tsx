@@ -107,23 +107,23 @@ export const ReviewRoundPage: React.FC = () => {
       textColor: isLight ? '#0f172a' : '#f8fafc',
       headingColor: isLight ? '#0f172a' : '#ffffff',
       subTextColor: isLight ? '#64748b' : '#94a3b8',
-      cardBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.78)',
-      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.09)',
-      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 16px 40px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.06)',
+      cardBg: isLight ? '#ffffff' : '#1f1f23',
+      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
       cardRadius: '20px',
-      inputBg: isLight ? '#f8fafc' : 'rgba(18, 28, 49, 0.8)',
-      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
+      inputBg: isLight ? '#f8fafc' : '#27272a',
+      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
       inputColor: isLight ? '#0f172a' : '#f8fafc',
-      pillBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+      pillBg: isLight ? '#f1f5f9' : '#27272a',
       pillBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
       pillText: isLight ? '#334155' : '#cbd5e1',
-      reviewCardBg: isLight ? '#ffffff' : 'rgba(14, 23, 42, 0.75)',
-      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(56, 189, 248, 0.14)',
-      modalBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.96)',
-      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(56, 189, 248, 0.2)',
-      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 25px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.1)',
+      reviewCardBg: isLight ? '#ffffff' : '#1f1f23',
+      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(255, 255, 255, 0.08)',
+      modalBg: isLight ? '#ffffff' : '#18181b',
+      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
+      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 4px 24px rgba(0, 0, 0, 0.4)',
       filterBadgeBg: (active: boolean) =>
-        active ? '#6366f1' : isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+        active ? '#6366f1' : isLight ? '#f1f5f9' : '#27272a',
       filterBadgeColor: (active: boolean) =>
         active ? '#ffffff' : isLight ? '#475569' : '#94a3b8',
     };
@@ -576,6 +576,10 @@ export const ReviewRoundPage: React.FC = () => {
       style={{
         minHeight: '100vh',
         backgroundColor: theme.pageColor,
+        backgroundImage: isLight
+          ? 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.05), transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.04), transparent 60%)'
+          : 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.08), transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.06), transparent 60%)',
+        backgroundAttachment: 'fixed',
         color: theme.textColor,
         paddingTop: 'calc(var(--top, 64px) + 24px)',
         paddingBottom: '60px',
@@ -1028,16 +1032,23 @@ export const ReviewRoundPage: React.FC = () => {
 
         {/* ==================== RIGHT COLUMN: HERO BANNER & REVIEWS ==================== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Top Banner (Purple Gradient with Connected Avatars & Anonymous Toggle) */}
+          {/* Top Banner (Glassmorphic Subtle Indigo - Mờ ảo xám đen đồng bộ với trang Đóng góp) */}
           <div
             style={{
               position: 'relative',
               borderRadius: theme.cardRadius,
-              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)',
-              color: '#ffffff',
+              background: isLight
+                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.95) 100%)'
+                : 'linear-gradient(135deg, rgba(31, 31, 35, 0.75) 0%, rgba(24, 24, 27, 0.88) 100%)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              color: isLight ? '#0f172a' : '#ffffff',
               padding: '24px 28px',
               overflow: 'hidden',
-              boxShadow: '0 12px 32px rgba(79, 70, 229, 0.28)',
+              border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: isLight
+                ? '0 10px 30px rgba(0, 0, 0, 0.04)'
+                : '0 12px 32px rgba(0, 0, 0, 0.35), inset 0 0 60px rgba(99, 102, 241, 0.06)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -1045,18 +1056,48 @@ export const ReviewRoundPage: React.FC = () => {
               gap: '16px',
             }}
           >
+            {/* Ambient Purple/Cyan Glow Aura (Mờ ảo như trang Đóng góp) */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '40px',
+                width: '280px',
+                height: '200px',
+                background: isLight
+                  ? 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-30px',
+                left: '20px',
+                width: '220px',
+                height: '140px',
+                background: isLight
+                  ? 'radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, transparent 70%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+
             {/* Banner Left: Team Info */}
             <div style={{ zIndex: 2, maxWidth: '340px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+                <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', color: isLight ? '#0f172a' : '#ffffff' }}>
                   {activeTeam?.name || 'KINGSHA'}
                 </h3>
                 <span style={{ fontSize: '14px' }}>✨</span>
               </div>
-              <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
+              <div style={{ fontSize: '13px', color: isLight ? '#64748b' : '#a1a1aa', marginTop: '4px' }}>
                 {stats.totalReviews > 0 ? `(${stats.totalReviews}) ${stats.avgScore.toFixed(1)} Ratings` : 'Hệ thống đánh giá đồng đội'}
               </div>
-              <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '6px' }}>
+              <div style={{ fontSize: '11px', color: isLight ? '#6366f1' : '#c084fc', marginTop: '6px', fontWeight: 600 }}>
                 Đợt chấm: {activeRound?.name || 'Đợt hiện tại'} · K-Anonymity
               </div>
             </div>
@@ -1103,7 +1144,7 @@ export const ReviewRoundPage: React.FC = () => {
                       width: pos.size,
                       height: pos.size,
                       borderRadius: '50%',
-                      border: idx === 2 ? '2px solid #ffffff' : '2px solid rgba(255,255,255,0.85)',
+                      border: idx === 2 ? '2px solid #6366f1' : '2px solid rgba(255,255,255,0.7)',
                       backgroundColor: ('color' in member && member.color) ? member.color : pos.bg,
                       color: '#fff',
                       fontWeight: 700,
@@ -1124,11 +1165,11 @@ export const ReviewRoundPage: React.FC = () => {
             <div
               style={{
                 zIndex: 2,
-                backgroundColor: 'rgba(0, 0, 0, 0.22)',
+                backgroundColor: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(0, 0, 0, 0.4)',
                 backdropFilter: 'blur(10px)',
                 borderRadius: '16px',
                 padding: '12px 18px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start',
@@ -1137,8 +1178,8 @@ export const ReviewRoundPage: React.FC = () => {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {isAnonymous ? <EyeOff size={18} color="#a7f3d0" /> : <Eye size={18} color="#fed7aa" />}
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                  {isAnonymous ? <EyeOff size={18} color={isLight ? '#059669' : '#a7f3d0'} /> : <Eye size={18} color={isLight ? '#d97706' : '#fed7aa'} />}
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
                     Chế độ Ẩn danh:
                   </span>
                 </div>
@@ -1151,7 +1192,7 @@ export const ReviewRoundPage: React.FC = () => {
                     width: '48px',
                     height: '26px',
                     borderRadius: '13px',
-                    backgroundColor: isAnonymous ? '#10b981' : 'rgba(255, 255, 255, 0.35)',
+                    backgroundColor: isAnonymous ? '#10b981' : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255, 255, 255, 0.25)'),
                     border: 'none',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s ease',
@@ -1178,7 +1219,7 @@ export const ReviewRoundPage: React.FC = () => {
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: isAnonymous ? '#a7f3d0' : '#fed7aa',
+                  color: isAnonymous ? (isLight ? '#059669' : '#a7f3d0') : (isLight ? '#d97706' : '#fed7aa'),
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
