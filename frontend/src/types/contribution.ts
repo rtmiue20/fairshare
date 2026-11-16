@@ -199,4 +199,27 @@ export interface ResolveSuspicionPayload {
   note?: string;
 }
 
+export interface NeuronEventItem {
+  id: string;
+  mid: string;
+  axis: 'D1' | 'D2' | 'D3' | 'D4' | 'IMP';
+  kind: string;
+  title: string;
+  src: string;
+  day: number;
+  time: string;
+  impact: number;
+  evid: string;
+  meta: {
+    sp?: number;
+    words?: number;
+    late?: number;
+    peer?: string;
+    rt?: number;
+    days?: number;
+    [key: string]: unknown;
+  };
+  dp?: number; // Delta on p_i percentage points (e.g. +1.20)
+}
+
 

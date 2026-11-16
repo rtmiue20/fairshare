@@ -238,3 +238,46 @@ input::placeholder, textarea::placeholder {
   background: var(--accent);
   box-shadow: 0 0 8px var(--accent);
 }
+
+/* =======================================================
+   Detail Neuron & Cosmic Branching Keyframes & Classes
+   ======================================================= */
+@keyframes neuron-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes neuron-spin-rev {
+  to { transform: rotate(-360deg); }
+}
+@keyframes neuron-flow {
+  to { stroke-dashoffset: -34; }
+}
+@keyframes neuron-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes neuron-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.neuron-spikes-anim {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: neuron-spin 60s linear infinite;
+}
+.neuron-ring-anim {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: neuron-spin-rev 24s linear infinite;
+}
+.neuron-flow-anim {
+  stroke-dasharray: 4 14;
+  animation: neuron-flow 1.6s linear infinite;
+}
+.neuron-pulse-anim {
+  animation: neuron-pulse 1.8s ease-in-out infinite;
+}
+.neuron-rise-anim {
+  animation: neuron-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

@@ -7,6 +7,7 @@ import {
   MultidimensionalNetworkDto,
   NetworkNodeDto,
   ImpactEventPayload,
+  NeuronEventItem,
 } from '../../types/contribution';
 import { CosmicNetworkCanvas } from './CosmicNetworkCanvas';
 import { TimelineScrubber } from './TimelineScrubber';
@@ -30,6 +31,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
   const [isTimelineCollapsed, setIsTimelineCollapsed] = useState<boolean>(true); // default sleek collapsed in overview
   const [isOpenImpactModalDirectly, setIsOpenImpactModalDirectly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview');
+  const [selectedEvent, setSelectedEvent] = useState<NeuronEventItem | null>(null);
+  const [cutDay, setCutDay] = useState<number>(5);
 
   const teamId = activeTeamId || teams[0]?.id || 1;
 
@@ -460,6 +463,10 @@ export const MultidimensionalVectorPage: React.FC = () => {
             members={members}
             selectedUserId={selectedUserId}
             onSelectUser={handleSelectUser}
+            selectedEvent={selectedEvent}
+            onSelectEvent={setSelectedEvent}
+            cutDay={cutDay}
+            onCutDayChange={setCutDay}
           />
         )}
       </main>
@@ -469,7 +476,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
       <div
         className={`h-full transition-transform duration-500 ease-in-out shrink-0 z-40 ${
           viewMode === 'detail'
-            ? 'translate-x-0 relative shadow-2xl'
+            ? 'w-[420px] max-w-[34vw] translate-x-0 relative shadow-2xl'
             : 'translate-x-full fixed right-0 top-0 bottom-0 pointer-events-none opacity-0'
         }`}
       >
@@ -484,6 +491,10 @@ export const MultidimensionalVectorPage: React.FC = () => {
           isUpdating={isUpdating}
           isOpenImpactModalDirectly={isOpenImpactModalDirectly}
           onCloseImpactModalDirectly={() => setIsOpenImpactModalDirectly(false)}
+          selectedEvent={selectedEvent}
+          onSelectEvent={setSelectedEvent}
+          cutDay={cutDay}
+          maxDays={14}
         />
       </div>
     </div>
