@@ -3,11 +3,14 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8mb4
+    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useUnicode=true&characterEncoding=utf8mb4
     username: ${DB_USER}
     # password: KHÔNG ghi ở đây. Trên server/Docker hãy đặt biến môi trường
     # SPRING_DATASOURCE_PASSWORD (hoặc dùng application-secret.yaml không commit).
     driver-class-name: org.mariadb.jdbc.Driver
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 1
   jpa:
     hibernate:
       ddl-auto: validate
@@ -18,7 +21,12 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+  address: ${IP:0.0.0.0}
+  tomcat:
+    threads:
+      max: 20
+      min-spare: 2
 
 management:
   health:

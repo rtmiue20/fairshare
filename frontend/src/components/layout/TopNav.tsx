@@ -85,7 +85,7 @@ export const TopNav: React.FC = () => {
       <header className="top" id="top">
         {/* Brand logo & Project selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Link to="/" className="brand" aria-label="FairShare, về trang chủ" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Link to="/landing" className="brand" aria-label="FairShare, về trang chủ" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             <FairShareLogo size={22} />
           </Link>
 

@@ -24,3 +24,7 @@ fairshare-backend/uploads/*
 .uat-credentials.local
 # Video demo (lớn, lưu ngoài Git)
 docs/qa/evidence/demo/*.avi
+
+# Alwaysdata local tools & embedded frontend static build output
+.tools/
+fairshare-backend/src/main/resources/static/

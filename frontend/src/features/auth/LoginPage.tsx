@@ -118,7 +118,7 @@ export const LoginPage: React.FC = () => {
           WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        <Link to="/" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
+        <Link to="/landing" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
           <FairShareLogo size={24} />
         </Link>
 
