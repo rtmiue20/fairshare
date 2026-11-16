@@ -770,23 +770,29 @@ public class ContributionService {
     private MultidimensionalNetworkDto.TierBreakdownDto buildTierBreakdown(
             ContributionDto cs, List<ActivityEvent> events, List<ManualContribution> manuals) {
 
-        int cardsDone = cs.getCardsCompleted();
-        double sp = cs.getTotalStoryPoints();
+        int cardsDone = cs.getCardsCompleted() != null ? cs.getCardsCompleted() : 0;
+        double sp = cs.getTotalStoryPoints() != null ? cs.getTotalStoryPoints() : 0.0;
         double onTime = cs.getOnTimeRate() != null ? cs.getOnTimeRate() : 1.0;
         double manualSp = manuals.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getStatus()))
                 .mapToDouble(m -> m.getStoryPoints() != null ? m.getStoryPoints().doubleValue() : 0.0)
                 .sum();
 
+        double d1 = cs.getD1Output() != null ? cs.getD1Output() : 0.0;
+        double d2 = cs.getD2Reliability() != null ? cs.getD2Reliability() : 0.0;
+        double d3 = cs.getD3Collaboration() != null ? cs.getD3Collaboration() : 0.0;
+        double d4 = cs.getD4Peer() != null ? cs.getD4Peer() : 0.0;
+        double comp = cs.getCompositeScore() != null ? cs.getCompositeScore() : 50.0;
+
         Map<String, Object> raw = new LinkedHashMap<>();
         raw.put("cardsCompleted", cardsDone);
         raw.put("totalStoryPoints", sp);
         raw.put("onTimeRate", onTime);
         raw.put("manualPoints", manualSp);
-        raw.put("d1Output", cs.getD1Output());
-        raw.put("d2Reliability", cs.getD2Reliability());
-        raw.put("d3Collaboration", cs.getD3Collaboration());
-        raw.put("d4Peer", cs.getD4Peer());
+        raw.put("d1Output", d1);
+        raw.put("d2Reliability", d2);
+        raw.put("d3Collaboration", d3);
+        raw.put("d4Peer", d4);
 
         Map<String, Double> logFeatures = new LinkedHashMap<>();
         logFeatures.put("ln_1_sp", Math.log1p(Math.max(0.0, sp)));
@@ -794,26 +800,26 @@ public class ContributionService {
         logFeatures.put("ln_1_manual", Math.log1p(Math.max(0.0, manualSp)));
 
         Map<String, Double> zScores = new LinkedHashMap<>();
-        zScores.put("z_sp", cs.getD1Output());
-        zScores.put("z_ontime", cs.getD2Reliability());
-        zScores.put("z_collab", cs.getD3Collaboration());
-        zScores.put("z_peer", cs.getD4Peer());
+        zScores.put("z_sp", d1);
+        zScores.put("z_ontime", d2);
+        zScores.put("z_collab", d3);
+        zScores.put("z_peer", d4);
 
         Map<String, Double> dims = new LinkedHashMap<>();
-        dims.put("D1_Output", cs.getD1Output());
-        dims.put("D2_Reliability", cs.getD2Reliability());
-        dims.put("D3_Collaboration", cs.getD3Collaboration());
-        dims.put("D4_Peer", cs.getD4Peer());
+        dims.put("D1_Output", d1);
+        dims.put("D2_Reliability", d2);
+        dims.put("D3_Collaboration", d3);
+        dims.put("D4_Peer", d4);
 
         double a_i = cs.getAvailabilityFactor() != null ? cs.getAvailabilityFactor() : 1.0;
         double beta = 0.5;
         double bonusFactor = 1.0 + beta * (1.0 - a_i);
 
         Map<String, Double> adjDims = new LinkedHashMap<>();
-        adjDims.put("D1_prime", cs.getD1Output() * bonusFactor);
-        adjDims.put("D2_prime", cs.getD2Reliability() * bonusFactor);
-        adjDims.put("D3_prime", cs.getD3Collaboration() * bonusFactor);
-        adjDims.put("D4_prime", cs.getD4Peer() * bonusFactor);
+        adjDims.put("D1_prime", d1 * bonusFactor);
+        adjDims.put("D2_prime", d2 * bonusFactor);
+        adjDims.put("D3_prime", d3 * bonusFactor);
+        adjDims.put("D4_prime", d4 * bonusFactor);
 
         return MultidimensionalNetworkDto.TierBreakdownDto.builder()
                 .rawFeatures(raw)
@@ -823,7 +829,7 @@ public class ContributionService {
                 .availabilityFactor(a_i)
                 .availabilityBonusFactor(bonusFactor)
                 .adjustedDimensions(adjDims)
-                .compositeScore(cs.getCompositeScore())
+                .compositeScore(comp)
                 .finalPercentage(cs.getPercentage() != null ? cs.getPercentage().doubleValue() : 0.0)
                 .build();
     }
@@ -923,6 +929,11 @@ public class ContributionService {
             pct = cs.getFinalPct().divide(new BigDecimal("100.0"), 4, RoundingMode.HALF_UP);
         }
 
+        double totalStoryPoints = tasksCount * 3.0 + (cs.getD1Output() != null ? Math.max(0.0, cs.getD1Output().doubleValue() * 4.0) : 0.0);
+        double onTimeRate = cs.getD2Reliability() != null
+                ? Math.max(0.5, Math.min(1.0, 0.85 + cs.getD2Reliability().doubleValue() * 0.1))
+                : 0.90;
+
         return ContributionDto.builder()
                 .id(cs.getId())
                 .teamId(cs.getTeam() != null ? cs.getTeam().getId() : null)
@@ -937,6 +948,8 @@ public class ContributionService {
                 .cardsCompleted(tasksCount)
                 .taskCompletedCount(tasksCount)
                 .docsEditCount(docsCount)
+                .totalStoryPoints(totalStoryPoints)
+                .onTimeRate(onTimeRate)
                 .d1Output(cs.getD1Output() != null ? cs.getD1Output().doubleValue() : 0.0)
                 .d2Reliability(cs.getD2Reliability() != null ? cs.getD2Reliability().doubleValue() : 0.0)
                 .d3Collaboration(cs.getD3Collaboration() != null ? cs.getD3Collaboration().doubleValue() : 0.0)
