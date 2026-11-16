@@ -13,7 +13,7 @@ import { NotificationPopover } from '../notifications/NotificationPopover';
 export const TopNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, token, isAuthenticated, logout } = useAuthStore();
   const { teams, activeTeamId, fetchTeams, setActiveTeamId } = useProjectStore();
   const unreadNotifCount = useNotificationStore((s) => s.notifications.filter((n) => !n.read).length);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -32,10 +32,10 @@ export const TopNav: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && token) {
       fetchTeams();
     }
-  }, [isAuthenticated, fetchTeams]);
+  }, [isAuthenticated, token, fetchTeams]);
 
   useEffect(() => {
     const saved = localStorage.getItem('fs-theme') as 'dark' | 'light' | null;
@@ -89,7 +89,7 @@ export const TopNav: React.FC = () => {
             <FairShareLogo size={22} />
           </Link>
 
-          {isAuthenticated && (
+          {isAuthenticated && token && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               {teams.length > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>

@@ -4,8 +4,12 @@ spring:
       on-profile: prod
   main:
     lazy-initialization: true
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 16MB
   datasource:
-    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useUnicode=true&characterEncoding=utf8mb4
+    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?useUnicode=true&characterEncoding=utf8mb4&connectTimeout=30000&socketTimeout=60000&sslMode=${DB_SSL_MODE:disable}
     username: ${DB_USER}
     # password: KHÔNG ghi ở đây. Trên server/Docker hãy đặt biến môi trường
     # SPRING_DATASOURCE_PASSWORD (hoặc dùng application-secret.yaml không commit).
@@ -13,6 +17,8 @@ spring:
     hikari:
       maximum-pool-size: 4
       minimum-idle: 1
+      connection-timeout: 45000
+      initialization-fail-timeout: 60000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -34,3 +40,9 @@ management:
   health:
     mail:
       enabled: false
+
+app:
+  supabase:
+    url: ${SUPABASE_URL:}
+    service-key: ${SUPABASE_SERVICE_KEY:}
+    bucket: ${SUPABASE_BUCKET:fairshare-uploads}
