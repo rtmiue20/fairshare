@@ -1,0 +1,55 @@
+# Unit test backend trong Docker (Testcontainers chạy thật) - master @ f18a705 - 16/11/2026 23:21 (GMT+7)
+# Lệnh: docker run --rm -v <repo>/fairshare-backend:/src -v fairshare-m2:/root/.m2 -v //var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e TESTCONTAINERS_RYUK_DISABLED=true -w /src maven:3.9-eclipse-temurin-21-alpine mvn -B test
+# Kết quả: 233 test, 0 lỗi, 0 skip, BUILD SUCCESS -> đóng DEF-27 (ManualContributionServiceTest đạt)
+
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.331 s -- in Immutability & Append-Only Tests for ActivityEvent (M1)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.344 s -- in Backward Compatibility Tests for ActivitySource.TRELLO legacy data (M1)
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.558 s -- in com.fairshare.alert.InactivityAlertServiceTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 25.32 s -- in Endpoint nghiệp vụ phải yêu cầu đăng nhập
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.004 s -- in Hợp đồng API /api/auth (acceptance test cho module auth)
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 28.48 s -- in com.fairshare.auth.AuthApiTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.200 s -- in Unit Test cho AuthController (M3 - Backend 1)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.185 s -- in API Đăng nhập (Login)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in API Đăng ký (Register)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in API Đăng xuất (Logout)
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.209 s -- in Unit Test cho AuthService (M3 - Backend 1)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.fairshare.auth.AuthTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in Unit Test cho JwtService (M3 - Backend 1)
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.187 s -- in 3. Quyền trên Thẻ: Thành viên chỉ sửa/di chuyển thẻ của mình (Leader sửa được mọi thẻ)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in 1. Quyền trên Board (Tạo, Sửa, Xóa): Chỉ Leader
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in 4. Endpoint thành viên không bị chặn nhầm (Create card, Comment, Checklist)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in 2. Quyền trên Cột (Tạo, Sửa, Xóa): Chỉ Leader
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.269 s -- in Unit tests for Role-Based Access Control (Leader vs Member) on Board & Report APIs (M1)
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.103 s -- in Unit tests for BoardService & ActivityEvent Generation (M1)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.520 s -- in 4. Quyền trên Mở/Đóng Đợt (Sprint) & Xuất Báo Cáo PDF: Chỉ Leader
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.153 s -- in 1. Quyền trên Board & Column: Leader vs Thành viên
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.165 s -- in 2. Quyền trên Card (Thẻ): Kéo thả, Sửa, Xóa
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.072 s -- in 3. Endpoint chung không bị chặn nhầm (Tạo thẻ, Comment, Checklist)
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.913 s -- in Spring MVC Integration Tests: Role-Based Access Control (Leader vs Member) on APIs (M1)
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in Unit Test cho TeamSecurityService (DEF-12 - Phân quyền theo nhóm)
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.264 s -- in Unit Test cho ContributionController (M3 - Sprint 4)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.084 s -- in Unit Test cho ContributionService (M3 - Sprint 4)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in Benchmark kiểm thử hiệu năng truy vấn Dashboard (Sprint 5 - WBS 5.4.1 & 5.4.2)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in Unit Test cho Evidence Traceability Routine & Service (M3 - Sprint 4 / Thẻ 3)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in Kiểm thử hiệu năng xử lý dữ liệu lớn 500 Tasks / 6 Thành viên (WBS 5.4.3 - M3)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.210 s -- in Unit Test cho ManualContributionController (Card 8 - M3 Sprint 5)
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.089 s -- in Unit Test cho ManualContributionService (Card 8 - M3 Sprint 5)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.047 s -- in Unit Test cho Mô hình đo lường đóng góp đa chiều 4 tầng (Sprint 4 - CR-03)
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in Unit tests for ScoringEngine v1
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.86 s -- in com.fairshare.expense.ExpenseRepositoryTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.131 s -- in com.fairshare.expense.SplitServiceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.81 s -- in com.fairshare.FairShareApplicationTests
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in Unit tests for AnonymityAggregator (M4)
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.223 s -- in com.fairshare.peerreview.PeerReviewServiceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.720 s -- in com.fairshare.report.PdfReportServiceTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.014 s -- in Unit tests for Sprint Permission (Leader vs Member): Mở/Đóng đợt
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in Unit tests for SprintService (M2 - Quản lý Sprint & Đóng Sprint)
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in Unit tests for MemberService (M2 - Quản lý thành viên & Đổi vai trò)
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.258 s -- in Unit Test cho TeamController - Dashboard & Evidence Endpoints (DEF-22)
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.094 s -- in Unit tests for TeamService (M2 - Quản lý Nhóm, Mã mời & Cam kết Consent)
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in com.fairshare.upload.FileUploadServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.397 s -- in com.fairshare.user.UserRepositoryTest
+[INFO] Tests run: 233, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  01:43 min
+[INFO] Finished at: 2026-11-16T16:21:08Z

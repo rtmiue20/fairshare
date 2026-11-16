@@ -19,6 +19,8 @@ frontend/test-results/
 .env.staging
 fairshare-backend/uploads/*
 !fairshare-backend/uploads/.gitkeep
+# Ảnh người dùng tải lên khi chạy backend từ thư mục gốc (DEF-28)
+/uploads/
 
 # Tài khoản UAT (scripts/uat-seed.py) – không commit
 .uat-credentials.local

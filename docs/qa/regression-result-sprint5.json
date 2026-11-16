@@ -1,13 +1,13 @@
 {
-  "run": "1794711733",
+  "run": "1794845793",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-15T10:02:22",
+  "executed_at": "2026-11-16T23:16:39",
   "ids": {
-    "team": 5,
-    "sprint": 9,
-    "board": 8
+    "team": 3,
+    "sprint": 7,
+    "board": 5
   },
-  "passed": 26,
+  "passed": 30,
   "total": 30,
   "groups": {
     "SCR": [
@@ -27,7 +27,7 @@
       3
     ],
     "PDF": [
-      4,
+      8,
       8
     ]
   },
@@ -35,41 +35,41 @@
     {
       "sprint": 1,
       "events": 100,
-      "cold_s": 0.03,
-      "p50_s": 0.041,
-      "p95_s": 0.07,
-      "max_s": 0.07,
-      "size_kb": 70.4,
+      "cold_s": 0.043,
+      "p50_s": 0.037,
+      "p95_s": 0.058,
+      "max_s": 0.058,
+      "size_kb": 70.9,
       "status": 200
     },
     {
       "sprint": 2,
       "events": 100,
-      "cold_s": 0.078,
-      "p50_s": 0.037,
-      "p95_s": 0.046,
-      "max_s": 0.046,
-      "size_kb": 70.8,
+      "cold_s": 0.038,
+      "p50_s": 0.031,
+      "p95_s": 0.05,
+      "max_s": 0.05,
+      "size_kb": 71.4,
       "status": 200
     },
     {
       "sprint": 3,
       "events": 100,
-      "cold_s": 0.057,
-      "p50_s": 0.036,
-      "p95_s": 0.049,
-      "max_s": 0.049,
-      "size_kb": 70.6,
+      "cold_s": 0.066,
+      "p50_s": 0.03,
+      "p95_s": 0.044,
+      "max_s": 0.044,
+      "size_kb": 71.0,
       "status": 200
     },
     {
       "sprint": 4,
       "events": 100,
-      "cold_s": 0.024,
-      "p50_s": 0.031,
-      "p95_s": 0.043,
-      "max_s": 0.043,
-      "size_kb": 70.8,
+      "cold_s": 0.03,
+      "p50_s": 0.039,
+      "p95_s": 0.053,
+      "max_s": 0.053,
+      "size_kb": 71.2,
       "status": 200
     }
   ],
@@ -237,7 +237,7 @@
     {
       "id": "TRL-02",
       "group": "TRL",
-      "name": "Router frontend không còn route integration / ConnectTrelloPage",
+      "name": "Frontend không còn tham chiếu ConnectTrelloPage / API tích hợp Trello",
       "expected": "0 file tham chiếu",
       "actual": "0 file: -",
       "result": "PASS"
@@ -255,7 +255,7 @@
       "group": "PDF",
       "name": "G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (500 sự kiện), 11 lần/sprint",
       "expected": "Mọi lần HTTP 200, file %PDF hợp lệ, chậm nhất < 10 s",
-      "actual": "chậm nhất 0.078s; p50 theo sprint = [0.041, 0.037, 0.036, 0.031]s",
+      "actual": "chậm nhất 0.066s; p50 theo sprint = [0.037, 0.031, 0.03, 0.039]s",
       "result": "PASS"
     },
     {
@@ -263,32 +263,32 @@
       "group": "PDF",
       "name": "PDF có phần đóng góp của đủ 6 thành viên",
       "expected": "Đủ 6 tên trong PDF",
-      "actual": "thiếu 6: ['Nguyen Van Minh Trieu (Leader)', 'Le Phuc Vuong (M1 - Platform)', 'Ha Ngoc Thien (M2 - BA)', 'Ngo Trong Phuc (M3 - Data/DB)', 'Trieu Nguyen Huynh Khang (M4 - PeerReview)', 'Nguyen Nam Anh (M5 - QA/Deploy)']",
-      "result": "FAIL"
+      "actual": "thiếu 0: -",
+      "result": "PASS"
     },
     {
       "id": "PDF-03",
       "group": "PDF",
       "name": "PDF có điểm chấm chéo khi đủ 3 người chấm (sprint 4 có 3 lượt cho thành viên 1)",
       "expected": "Có điểm dạng x.x/5",
-      "actual": "không thấy điểm x.x/5",
-      "result": "FAIL"
+      "actual": "có",
+      "result": "PASS"
     },
     {
       "id": "PDF-04",
       "group": "PDF",
       "name": "PDF có bằng chứng chính (sự kiện gốc)",
       "expected": "Có tên task trong seed (vd. '#4xx')",
-      "actual": "không thấy",
-      "result": "FAIL"
+      "actual": "có",
+      "result": "PASS"
     },
     {
       "id": "PDF-05",
       "group": "PDF",
       "name": "Tiếng Việt có dấu hiển thị đúng trong PDF (tên thành viên)",
       "expected": "Đủ 6 tên có dấu, vd. 'Trần Thị Bích'",
-      "actual": "HTTP 200; đúng 0/6; ví dụ dòng trong PDF: ''",
-      "result": "FAIL"
+      "actual": "HTTP 200; đúng 6/6; ví dụ dòng trong PDF: 'Trần Thị Bích                0.5             0.0         0.0'",
+      "result": "PASS"
     },
     {
       "id": "PDF-06",
