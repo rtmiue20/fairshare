@@ -167,8 +167,8 @@ export const contributionApi = {
 
   calculateSprintScores: async (
     sprintId: number,
-  ): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post<ApiResponse<any>>(
+  ): Promise<ApiResponse<unknown>> => {
+    const response = await apiClient.post<ApiResponse<unknown>>(
       `/contributions/sprints/${sprintId}/calculate`,
     );
     return response.data;

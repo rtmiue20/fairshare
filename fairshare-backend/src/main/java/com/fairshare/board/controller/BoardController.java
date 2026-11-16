@@ -33,14 +33,20 @@ public class BoardController {
     }
 
     @GetMapping("/team/{teamId}")
-    public ResponseEntity<ApiResponse<List<BoardDto>>> getBoardsByTeam(@PathVariable Long teamId) {
-        List<BoardDto> boards = boardService.getBoardsByTeam(teamId);
+    public ResponseEntity<ApiResponse<List<BoardDto>>> getBoardsByTeam(
+            @PathVariable Long teamId,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        List<BoardDto> boards = boardService.getBoardsByTeam(teamId, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Boards retrieved successfully", boards));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BoardDto>> getBoardById(@PathVariable Long id) {
-        BoardDto board = boardService.getBoardById(id);
+    public ResponseEntity<ApiResponse<BoardDto>> getBoardById(
+            @PathVariable Long id,
+            Authentication authentication) {
+        Long actorId = getUserId(authentication);
+        BoardDto board = boardService.getBoardById(id, actorId);
         return ResponseEntity.ok(ApiResponse.ok("Board retrieved successfully", board));
     }
 

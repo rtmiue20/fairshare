@@ -959,6 +959,14 @@ export const BoardView: React.FC = () => {
       cards: [...(col.cards || [])].sort((a, b) => a.position - b.position),
     }));
 
+  const getColDotColor = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('in progress') || n.includes('đang làm')) return 'bg-cyan-400 shadow-[0_0_8px_#38bdf8]';
+    if (n.includes('review') || n.includes('đang duyệt')) return 'bg-amber-400 shadow-[0_0_8px_#f59e0b]';
+    if (n.includes('done') || n.includes('hoàn thành')) return 'bg-emerald-400 shadow-[0_0_8px_#10b981]';
+    return 'bg-indigo-400 shadow-[0_0_8px_#818cf8]';
+  };
+
   if (initialized && teams.length === 0 && routeTeamId === 0 && queryTeamId === 0) {
     return <NoProjectState />;
   }
@@ -990,10 +998,10 @@ export const BoardView: React.FC = () => {
       </div>
 
       {/* Board Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 rounded-2xl bg-[#0f1015] border border-zinc-800/80 shadow-sm relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 rounded-2xl bg-slate-900/60 dark:bg-[#0c1424]/80 backdrop-blur-xl border border-white/10 dark:border-cyan-500/15 shadow-2xl relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-cyan-400/40 before:to-transparent">
         <div className="space-y-1.5 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.2)]">
               <Kanban size={18} />
             </div>
             <h1 className="text-xl font-bold text-white tracking-tight">{board.name}</h1>
@@ -1123,15 +1131,15 @@ export const BoardView: React.FC = () => {
           {sortedColumns.map((column, colIdx) => (
             <div
               key={column.id}
-              className="flex flex-col rounded-xl bg-[#121318] border border-zinc-800/80 p-4 space-y-3 min-h-[500px]"
+              className="flex flex-col rounded-2xl bg-slate-900/60 dark:bg-[#0c1424]/70 backdrop-blur-xl border border-white/10 dark:border-cyan-500/15 p-4 space-y-3 min-h-[500px] shadow-xl shadow-black/25 hover:border-white/15 transition-all duration-300"
             >
               {/* Column Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
+              <div className="flex items-center justify-between pb-2 border-b border-white/10 dark:border-white/[0.08]">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                  <span className={`w-2 h-2 rounded-full ${getColDotColor(column.name)}`} />
                   <h3 className="text-sm font-semibold text-zinc-200">{column.name}</h3>
                 </div>
-                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400">
+                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-zinc-800/80 border border-white/5 text-zinc-400">
                   {column.cards.length}
                 </span>
               </div>
@@ -1142,11 +1150,12 @@ export const BoardView: React.FC = () => {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`space-y-3 flex-1 overflow-y-auto min-h-[160px] p-1 rounded-lg transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-950/25 ring-1 ring-indigo-500/30' : ''
-                      }`}
+                    className={`space-y-3 flex-1 overflow-y-auto min-h-[160px] p-1 rounded-lg transition-colors ${
+                      snapshot.isDraggingOver ? 'bg-cyan-950/20 ring-1 ring-cyan-500/30' : ''
+                    }`}
                   >
                     {column.cards.length === 0 && !snapshot.isDraggingOver ? (
-                      <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-zinc-800/80 rounded-lg text-zinc-500 text-xs">
+                      <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-zinc-800/80 rounded-xl text-zinc-500 text-xs">
                         <span>Chưa có thẻ nào (Kéo thả thẻ vào đây)</span>
                       </div>
                     ) : (
@@ -1170,14 +1179,14 @@ export const BoardView: React.FC = () => {
                                 ref={dragProvided.innerRef}
                                 {...dragProvided.draggableProps}
                                 {...dragProvided.dragHandleProps}
-                                className={`p-3.5 rounded-lg bg-[#181920] border transition-all space-y-2.5 shadow-sm group select-none ${
+                                className={`p-3.5 rounded-xl bg-slate-800/60 dark:bg-[#121c32]/75 backdrop-blur-md border transition-all duration-200 space-y-2.5 shadow-sm group select-none ${
                                   !canMoveCard
-                                    ? 'cursor-pointer hover:border-zinc-700'
-                                    : 'cursor-grab active:cursor-grabbing'
+                                    ? 'cursor-pointer hover:border-cyan-500/30'
+                                    : 'cursor-grab active:cursor-grabbing hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10'
                                 } ${
                                   dragSnapshot.isDragging
-                                    ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-500/40 bg-[#1c1e28] rotate-1 scale-[1.02]'
-                                    : 'border-zinc-800/80 hover:border-zinc-700'
+                                    ? 'border-cyan-400 shadow-2xl ring-2 ring-cyan-500/40 bg-[#16233f] rotate-1 scale-[1.02]'
+                                    : 'border-white/10 dark:border-white/[0.08]'
                                 }`}
                                 onClick={() => handleOpenEditCard(card)}
                               >
@@ -1186,7 +1195,7 @@ export const BoardView: React.FC = () => {
                                     {canMoveCard ? (
                                       <GripVertical
                                         size={14}
-                                        className="text-zinc-600 group-hover:text-zinc-400 mt-0.5 flex-shrink-0 transition-colors"
+                                        className="text-zinc-600 group-hover:text-cyan-400 mt-0.5 flex-shrink-0 transition-colors"
                                       />
                                     ) : (
                                       <span
@@ -1196,14 +1205,14 @@ export const BoardView: React.FC = () => {
                                         <Lock size={13} className="text-zinc-500" />
                                       </span>
                                     )}
-                                    <h4 className="text-xs font-medium text-zinc-100 group-hover:text-indigo-300 transition-colors line-clamp-2">
+                                    <h4 className="text-xs font-medium text-zinc-100 group-hover:text-cyan-300 transition-colors line-clamp-2">
                                       {card.title}
                                     </h4>
                                   </div>
                                   {card.storyPoints !== undefined && (
                                     <span
                                       title="Story Points"
-                                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-300 border border-indigo-500/20 whitespace-nowrap flex-shrink-0"
+                                      className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 whitespace-nowrap flex-shrink-0 shadow-[0_0_6px_rgba(56,189,248,0.15)]"
                                     >
                                       {card.storyPoints} SP
                                     </span>
@@ -1220,13 +1229,13 @@ export const BoardView: React.FC = () => {
                                 {card.dueDate && (
                                   <div className="pl-5">
                                     <div
-                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded w-fit ${
+                                      className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded-full w-fit ${
                                         dueInfo.isOverdue
-                                          ? 'bg-red-950/40 text-red-400 border border-red-800/30'
+                                          ? 'bg-rose-950/40 text-rose-400 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.15)]'
                                           : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/30'
                                       }`}
                                     >
-                                      <Clock size={11} className={dueInfo.isOverdue ? 'text-red-400' : 'text-zinc-400'} />
+                                      <Clock size={11} className={dueInfo.isOverdue ? 'text-rose-400' : 'text-zinc-400'} />
                                       <span>{dueInfo.text}</span>
                                       {dueInfo.isOverdue && <span className="font-semibold">(Quá hạn)</span>}
                                     </div>
@@ -1316,9 +1325,9 @@ export const BoardView: React.FC = () => {
       {/* Modal: Card Detail & Quick Edit (2-Column Trello Style with Movement & Activity History) */}
       {editingCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-2 sm:p-4 md:p-6 overflow-y-auto">
-          <div className="bg-[#121318] border border-zinc-800 rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto flex flex-col max-h-[90vh]">
+          <div className="bg-slate-900/90 dark:bg-[#0c1424]/95 backdrop-blur-2xl border border-white/10 dark:border-cyan-500/20 rounded-2xl max-w-5xl w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto flex flex-col max-h-[90vh]">
             {/* Top Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-[#16171e]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 dark:border-white/[0.08] bg-slate-800/50 dark:bg-[#0f192d]/60">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                   <Edit3 size={16} />

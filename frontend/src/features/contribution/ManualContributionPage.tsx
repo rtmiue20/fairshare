@@ -581,7 +581,7 @@ export const ManualContributionPage: React.FC = () => {
       {/* ── 4 TOP METRIC CARDS (Dynamic from Database) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total transactions */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-xs font-medium">
             <span>Total transactions</span>
             <span className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
@@ -600,7 +600,7 @@ export const ManualContributionPage: React.FC = () => {
         </div>
 
         {/* Card 2: Total points received */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-xs font-medium">
             <span>Total points received</span>
             <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600">
@@ -619,7 +619,7 @@ export const ManualContributionPage: React.FC = () => {
         </div>
 
         {/* Card 3: Total points pending */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-xs font-medium">
             <span>Total points pending</span>
             <span className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-500">
@@ -638,7 +638,7 @@ export const ManualContributionPage: React.FC = () => {
         </div>
 
         {/* Card 4: Net valid contribution */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 text-xs font-medium">
             <span>Net valid points</span>
             <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600">
@@ -660,7 +660,7 @@ export const ManualContributionPage: React.FC = () => {
       {/* ── 2 ANALYTICS CHARTS + FLOATING PREVIEW CARD (Dynamic from DB) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 relative">
         {/* Left Chart: Overall points approved */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm transition-all duration-200 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
               Overall points approved (Tích lũy SP)
@@ -711,7 +711,7 @@ export const ManualContributionPage: React.FC = () => {
         </div>
 
         {/* Right Chart: Overall points pending */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm flex flex-col justify-between relative">
+        <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm transition-all duration-200 flex flex-col justify-between relative">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
               Overall points pending (Chờ thẩm định)
@@ -846,7 +846,7 @@ export const ManualContributionPage: React.FC = () => {
       </div>
 
       {/* ── BOTTOM SECTION: LEDGER DATA TABLE (Image 1 Style) ── */}
-      <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-sm space-y-4">
+      <div className="p-5 rounded-2xl bg-white dark:bg-[#0c1424]/80 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/25 shadow-sm space-y-4 transition-all duration-200">
         {/* Search & Filter Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Search box */}

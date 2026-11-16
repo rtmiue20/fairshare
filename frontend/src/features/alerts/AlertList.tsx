@@ -223,15 +223,17 @@ export const AlertList: React.FC = () => {
     textColor: isLight ? '#0f172a' : '#f8fafc',
     subTextColor: isLight ? '#64748b' : '#94a3b8',
     headingColor: isLight ? '#0f172a' : '#ffffff',
-    cardBg: isLight ? '#ffffff' : '#121318',
-    cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-    cardShadow: isLight ? '0 4px 20px rgba(0, 0, 0, 0.03)' : '0 4px 24px rgba(0, 0, 0, 0.25)',
+    cardBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.78)',
+    cardBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.09)',
+    cardShadow: isLight
+      ? '0 10px 30px rgba(0, 0, 0, 0.04)'
+      : '0 16px 40px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.06)',
     cardRadius: '20px',
-    rowBg: isLight ? '#fbfcfe' : 'rgba(255, 255, 255, 0.02)',
-    rowBorder: isLight ? '1px solid rgba(0, 0, 0, 0.06)' : '1px solid rgba(255, 255, 255, 0.06)',
+    rowBg: isLight ? '#fbfcfe' : 'rgba(15, 23, 42, 0.65)',
+    rowBorder: isLight ? '1px solid rgba(0, 0, 0, 0.06)' : '1px solid rgba(255, 255, 255, 0.07)',
     activeTabBg: '#4f46e5',
-    inactiveTabBg: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)',
-    sliderTrackBg: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
+    inactiveTabBg: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.05)',
+    sliderTrackBg: isLight ? '#e2e8f0' : 'rgba(56, 189, 248, 0.2)',
   };
 
   return (

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   peerReviewApi,
@@ -103,25 +103,25 @@ export const ReviewRoundPage: React.FC = () => {
   const theme = useMemo(() => {
     return {
       isLight,
-      pageColor: isLight ? '#f8fafc' : '#0b0c10',
+      pageColor: isLight ? '#f8fafc' : '#07090e',
       textColor: isLight ? '#0f172a' : '#f8fafc',
       headingColor: isLight ? '#0f172a' : '#ffffff',
       subTextColor: isLight ? '#64748b' : '#94a3b8',
-      cardBg: isLight ? '#ffffff' : '#14151b',
-      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 10px 30px rgba(0, 0, 0, 0.35)',
-      cardRadius: '22px',
-      inputBg: isLight ? '#f8fafc' : '#0c0d12',
-      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
+      cardBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.78)',
+      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.09)',
+      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 16px 40px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.06)',
+      cardRadius: '20px',
+      inputBg: isLight ? '#f8fafc' : 'rgba(18, 28, 49, 0.8)',
+      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
       inputColor: isLight ? '#0f172a' : '#f8fafc',
       pillBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
       pillBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
       pillText: isLight ? '#334155' : '#cbd5e1',
-      reviewCardBg: isLight ? '#ffffff' : '#14151b',
-      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(255, 255, 255, 0.08)',
-      modalBg: isLight ? '#ffffff' : '#14151b',
-      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
-      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 25px 50px rgba(0, 0, 0, 0.6)',
+      reviewCardBg: isLight ? '#ffffff' : 'rgba(14, 23, 42, 0.75)',
+      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(56, 189, 248, 0.14)',
+      modalBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.96)',
+      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(56, 189, 248, 0.2)',
+      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 25px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.1)',
       filterBadgeBg: (active: boolean) =>
         active ? '#6366f1' : isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
       filterBadgeColor: (active: boolean) =>

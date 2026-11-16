@@ -15,10 +15,12 @@ export const TimelineScrubber: React.FC<TimelineScrubberProps> = ({
 }) => {
   return (
     <aside
-      className="w-64 h-full flex flex-col justify-between p-4 z-20 backdrop-blur-xl border-r select-none transition-all"
+      className="w-64 h-full flex flex-col justify-between p-4 z-20 backdrop-blur-xl border-r select-none transition-all overflow-y-auto overscroll-contain"
       style={{
         background: 'rgba(7, 11, 20, 0.85)',
         borderColor: 'rgba(255, 255, 255, 0.08)',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(255, 255, 255, 0.15) transparent',
       }}
     >
       {/* Top Header */}

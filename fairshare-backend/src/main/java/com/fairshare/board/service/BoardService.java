@@ -83,8 +83,16 @@ public class BoardService {
 
     @Transactional(readOnly = true)
     public List<BoardDto> getBoardsByTeam(Long teamId) {
+        return getBoardsByTeam(teamId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BoardDto> getBoardsByTeam(Long teamId, Long actorUserId) {
         if (!teamRepository.existsById(teamId)) {
             throw new ResourceNotFoundException("Team not found: " + teamId);
+        }
+        if (actorUserId != null) {
+            checkTeamMembership(teamId, actorUserId);
         }
         return boardRepository.findByTeamIdOrderByIdAsc(teamId).stream()
                 .map(this::mapToDto)
@@ -93,8 +101,16 @@ public class BoardService {
 
     @Transactional(readOnly = true)
     public BoardDto getBoardById(Long id) {
+        return getBoardById(id, null);
+    }
+
+    @Transactional(readOnly = true)
+    public BoardDto getBoardById(Long id, Long actorUserId) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Board not found: " + id));
+        if (actorUserId != null) {
+            checkTeamMembership(board.getTeam().getId(), actorUserId);
+        }
         return mapToDto(board);
     }
 
@@ -534,6 +550,7 @@ public class BoardService {
 
         boolean wasDone = isDoneColumn(fromColName);
         boolean isDone = isDoneColumn(toColName);
+        boolean wasReview = isReviewColumn(fromColName);
         boolean isReview = isReviewColumn(toColName);
 
         checkCardPermission(card, actorUserId, isReview);
@@ -614,28 +631,50 @@ public class BoardService {
             }
         }
         // 3. Khi một thành viên khác (không phải người phụ trách) review hoặc kéo card
-        // qua cột Review
-        else if (isReview && actor != null && assignee != null && !actor.getId().equals(assignee.getId())) {
-            activityService.logActivity(
-                    card.getBoard().getTeam(),
-                    actor,
-                    ActivitySource.BOARD,
-                    "REVIEW_CARD",
-                    String.format("Member '%s' reviewed card '%s' (Assignee: '%s', From: '%s' -> To: '%s')",
-                            actor.getFullName(), card.getTitle(), assignee.getFullName(), fromColName, toColName),
-                    now,
-                    activeSprint,
-                    card.getStoryPoints(),
-                    card.getDifficultyLevel(),
-                    null,
-                    0.0,
-                    false,
-                    false,
-                    true // isReviewForOthers = true
-            );
+        // qua cột Review (DEF-38: Mỗi cặp (thẻ, người review) chỉ tính 1 lần duy nhất để chống spam điểm)
+        else if (!wasReview && isReview && actor != null && assignee != null && !actor.getId().equals(assignee.getId())) {
+            String reviewPattern = String.format("reviewed card '%s'", card.getTitle());
+            List<ActivityEvent> existingEvents = activityService.getEventsByTeam(card.getBoard().getTeam().getId());
+            boolean alreadyReviewed = existingEvents != null && existingEvents.stream()
+                    .anyMatch(e -> "REVIEW_CARD".equalsIgnoreCase(e.getEventType())
+                            && e.getUser() != null && actor.getId().equals(e.getUser().getId())
+                            && e.getDetails() != null && e.getDetails().contains(reviewPattern));
+
+            if (!alreadyReviewed) {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "REVIEW_CARD",
+                        String.format("Member '%s' reviewed card '%s' (Assignee: '%s', From: '%s' -> To: '%s')",
+                                actor.getFullName(), card.getTitle(), assignee.getFullName(), fromColName, toColName),
+                        now,
+                        activeSprint,
+                        card.getStoryPoints(),
+                        card.getDifficultyLevel(),
+                        null,
+                        0.0,
+                        false,
+                        false,
+                        true // isReviewForOthers = true
+                );
+            } else {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "CARD_MOVED",
+                        String.format("Moved card '%s' from '%s' to '%s'",
+                                card.getTitle(), fromColName, toColName),
+                        now,
+                        activeSprint,
+                        0.0,
+                        null);
+            }
         }
         // 4. Các trường hợp di chuyển thẻ thông thường
         else if (actor != null) {
+            Double movedSp = wasReview ? 0.0 : card.getStoryPoints();
             activityService.logActivity(
                     card.getBoard().getTeam(),
                     actor,
@@ -645,7 +684,7 @@ public class BoardService {
                             card.getTitle(), fromColName, toColName),
                     now,
                     activeSprint,
-                    card.getStoryPoints(),
+                    movedSp,
                     null);
         }
 
