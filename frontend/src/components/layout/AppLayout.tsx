@@ -40,8 +40,7 @@ export const AppLayout: React.FC = () => {
 
   const isFullscreenApp =
     location.pathname.startsWith('/integration') ||
-    location.pathname.startsWith('/tich-hop') ||
-    location.pathname.endsWith('/board');
+    location.pathname.startsWith('/tich-hop');
 
   return (
     <div
@@ -87,13 +86,22 @@ export const AppLayout: React.FC = () => {
       {/* Main Content Workspace */}
       <main
         id="main"
-        className="flex-1 w-full relative z-10 overflow-hidden"
-        style={isFullscreenApp ? { height: 'calc(100vh - var(--top, 64px))' } : { minHeight: 'calc(100vh - var(--top))' }}
+        className="flex-1 w-full relative z-10"
+        style={
+          isFullscreenApp
+            ? {
+                height: '100vh',
+                paddingTop: 'var(--top, 64px)',
+                boxSizing: 'border-box',
+                overflow: 'hidden',
+              }
+            : { minHeight: 'calc(100vh - var(--top))' }
+        }
       >
         <Outlet />
       </main>
 
-      {/* Modern footer (ẩn trên các trang canvas ứng dụng toàn màn hình như Tích Hợp & Kanban) */}
+      {/* Modern footer (ẩn trên các trang canvas ứng dụng toàn màn hình như Tích Hợp) */}
       {!isFullscreenApp && (
         <footer
           className="w-full border-t border-[var(--line)] py-5 px-4 text-center text-xs text-[var(--fg3)] relative z-10"

@@ -199,7 +199,13 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
       </div>
 
       {/* 2. Scrollable Body Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(255, 255, 255, 0.15) transparent',
+        }}
+      >
         {/* 2. Sentiment Rate / Contribution Score Card (Matching Video: 45% sparkline card) */}
         <div
           className="rounded-2xl p-4 border relative overflow-hidden shadow-2xl"
