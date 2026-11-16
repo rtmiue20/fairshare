@@ -598,6 +598,17 @@ export const ReportPage: React.FC = () => {
     return result;
   }, [members, searchQuery, filterStatus, sortBy]);
 
+  // Radar Chart Data for Selected Member
+  const radarData = useMemo(() => {
+    if (!selectedMember) return [];
+    return [
+      { dimension: 'D1 Sản lượng (Output)', value: Math.min(1.0, Math.max(0.1, selectedMember.d1Output)), fullMark: 1.0 },
+      { dimension: 'D2 Tin cậy (Reliability)', value: Math.min(1.0, Math.max(0.1, selectedMember.d2Reliability)), fullMark: 1.0 },
+      { dimension: 'D3 Phối hợp (Collab)', value: Math.min(1.0, Math.max(0.1, selectedMember.d3Collaboration)), fullMark: 1.0 },
+      { dimension: 'D4 Đánh giá chéo (Peer)', value: Math.min(1.0, Math.max(0.1, selectedMember.d4Peer)), fullMark: 1.0 },
+    ];
+  }, [selectedMember]);
+
   if (initialized && teams.length === 0 && !urlTeamId) {
     return <NoProjectState />;
   }
@@ -652,17 +663,6 @@ export const ReportPage: React.FC = () => {
       ],
     },
   ];
-
-  // Radar Chart Data for Selected Member
-  const radarData = useMemo(() => {
-    if (!selectedMember) return [];
-    return [
-      { dimension: 'D1 Sản lượng (Output)', value: Math.min(1.0, Math.max(0.1, selectedMember.d1Output)), fullMark: 1.0 },
-      { dimension: 'D2 Tin cậy (Reliability)', value: Math.min(1.0, Math.max(0.1, selectedMember.d2Reliability)), fullMark: 1.0 },
-      { dimension: 'D3 Phối hợp (Collab)', value: Math.min(1.0, Math.max(0.1, selectedMember.d3Collaboration)), fullMark: 1.0 },
-      { dimension: 'D4 Đánh giá chéo (Peer)', value: Math.min(1.0, Math.max(0.1, selectedMember.d4Peer)), fullMark: 1.0 },
-    ];
-  }, [selectedMember]);
 
   return (
     <div

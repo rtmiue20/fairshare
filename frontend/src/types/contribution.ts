@@ -108,7 +108,7 @@ export interface NetworkNodeDto {
   status?: string;
   color?: string;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   x?: number;
   y?: number;
   vx?: number;
@@ -125,7 +125,7 @@ export interface NetworkLinkDto {
 }
 
 export interface TierBreakdownDto {
-  rawFeatures: Record<string, any>;
+  rawFeatures: Record<string, number>;
   logFeatures: Record<string, number>;
   robustZScores: Record<string, number>;
   dimensions: Record<string, number>;
