@@ -1,31 +1,31 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { NetworkNodeDto, NetworkLinkDto } from '../../types/contribution';
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  GitBranch,
+  Orbit,
+  Filter,
+  Sparkles,
+  Plus,
+  ShieldCheck,
+  AlertTriangle,
+  Layers,
+  Award,
+} from 'lucide-react';
 
 interface CosmicNetworkCanvasProps {
   nodes: NetworkNodeDto[];
   links: NetworkLinkDto[];
   selectedNodeId: string | null;
   onSelectNode: (node: NetworkNodeDto) => void;
-  activeFilter: string; // 'ALL' | 'D1' | 'D2' | 'D3' | 'D4' | 'IMPEDIMENT'
-}
-
-interface InternalNode extends NetworkNodeDto {
-  x: number;
-  y: number;
-  targetX: number;
-  targetY: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  isDragging?: boolean;
-}
-
-interface Particle {
-  sourceId: string;
-  targetId: string;
-  progress: number;
-  speed: number;
-  color: string;
+  activeFilter: string;
+  onSelectFilter?: (filter: string) => void;
+  onOpenImpactModal?: () => void;
+  focusedUserName?: string;
+  finalPct?: number;
+  sprintName?: string;
 }
 
 interface Star {
@@ -36,156 +36,125 @@ interface Star {
   speed: number;
 }
 
+// Category definitions for Middle Column
+const CATEGORIES = [
+  { id: 'dim-d1', label: 'D1: Sản lượng (Output)', shortLabel: 'D1 Output', count: '14 SP', sub: 'Story points & Tasks', color: '#10b981', icon: Layers },
+  { id: 'dim-d2', label: 'D2: Tin cậy & Tiến độ', shortLabel: 'D2 Reliability', count: '85% Đúng hạn', sub: 'Ít rework & đúng hạn', color: '#06b6d4', icon: ShieldCheck },
+  { id: 'dim-d3', label: 'D3: Phối hợp & Review', shortLabel: 'D3 Collaboration', count: '8 Hoạt động', sub: 'Review & Hỗ trợ', color: '#8b5cf6', icon: GitBranch },
+  { id: 'dim-d4', label: 'D4: Chấm chéo (Peer)', shortLabel: 'D4 Peer Review', count: '8.4 / 10', sub: '≥3 lượt đánh giá', color: '#ec4899', icon: Award },
+  { id: 'cat-impediments', label: 'Rào cản & Khả dụng', shortLabel: 'Rào cản', count: '4 Yếu tố', sub: 'Nguyên nhân chậm trễ', color: '#f59e0b', icon: AlertTriangle },
+];
+
 export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   nodes,
   links,
   selectedNodeId,
   onSelectNode,
   activeFilter,
+  onSelectFilter,
+  onOpenImpactModal,
+  focusedUserName,
+  finalPct = 0.388,
+  sprintName,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Transform states (pan and zoom)
+  // View Mode: 'TREE' (Horizontal Fan-out as in video) or 'GALAXY' (Starburst as in frame_7)
+  const [viewMode, setViewMode] = useState<'TREE' | 'GALAXY'>('TREE');
+
+  // Active Category for fan-out (defaults to 'cat-impediments' or 'dim-d1')
+  const [activeCategoryId, setActiveCategoryId] = useState<string>('cat-impediments');
+
+  // Pan and Zoom
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
-  const draggedNodeRef = useRef<InternalNode | null>(null);
+  const mousePosRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Simulation internal nodes & particles
-  const internalNodesRef = useRef<InternalNode[]>([]);
-  const particlesRef = useRef<Particle[]>([]);
-  const starsRef = useRef<Star[]>([]);
+  // Animation Refs
   const animFrameRef = useRef<number | null>(null);
+  const timeRef = useRef<number>(0);
+  const starsRef = useRef<Star[]>([]);
 
-  // Initialize stars once
+  // Initialize Cosmic Stars
   useEffect(() => {
     const stars: Star[] = [];
-    for (let i = 0; i < 140; i++) {
+    for (let i = 0; i < 160; i++) {
       stars.push({
-        x: Math.random() * 2000 - 1000,
-        y: Math.random() * 2000 - 1000,
-        radius: Math.random() * 1.5 + 0.3,
+        x: Math.random() * 2400 - 1200,
+        y: Math.random() * 1800 - 900,
+        radius: Math.random() * 1.4 + 0.3,
         alpha: Math.random() * 0.8 + 0.2,
-        speed: Math.random() * 0.015 + 0.005,
+        speed: Math.random() * 0.02 + 0.005,
       });
     }
     starsRef.current = stars;
   }, []);
 
-  // Compute node layouts when nodes or filter change
-  useEffect(() => {
-    if (!nodes || nodes.length === 0) {
-      internalNodesRef.current = [];
+  // Filter leaf items based on active filter or active category
+  const rootNode = useMemo(() => {
+    return (
+      nodes.find((n) => n.type === 'ROOT') ||
+      nodes[0] || {
+        id: 'root-default',
+        label: focusedUserName || 'Nguyễn Hoàng Nam (Trưởng nhóm)',
+        type: 'ROOT',
+        category: 'MEMBER',
+        weight: finalPct * 100,
+        badge: `${(finalPct * 100).toFixed(1)}%`,
+        status: 'NORMAL',
+        color: '#6366f1',
+      }
+    );
+  }, [nodes, focusedUserName, finalPct]);
+
+  const getLeavesForCategory = useCallback(
+    (catId: string) => {
+      if (catId === 'cat-impediments') {
+        return nodes.filter(
+          (n) =>
+            n.type === 'IMPEDIMENT' ||
+            n.category === 'IMPEDIMENT' ||
+            n.id.startsWith('imp-') ||
+            n.id.startsWith('delay-')
+        );
+      }
+      if (catId === 'dim-d1') {
+        return nodes.filter(
+          (n) => (n.type === 'EVENT' || n.category === 'D1') && !n.id.startsWith('imp-')
+        );
+      }
+      if (catId === 'dim-d2') {
+        return nodes.filter(
+          (n) => n.category === 'D2' || n.id.startsWith('delay-') || n.label.toLowerCase().includes('trễ')
+        );
+      }
+      if (catId === 'dim-d3') {
+        return nodes.filter(
+          (n) => n.category === 'D3' || n.id.startsWith('collab-') || n.label.toLowerCase().includes('review')
+        );
+      }
+      if (catId === 'dim-d4') {
+        return nodes.filter((n) => n.category === 'D4');
+      }
+      return nodes.filter((n) => n.type === 'EVENT' || n.type === 'IMPEDIMENT');
+    },
+    [nodes]
+  );
+
+  // Handle Canvas Zooming
+  const handleZoom = (direction: 'in' | 'out' | 'reset') => {
+    if (direction === 'reset') {
+      setTransform({ x: 0, y: 0, scale: 1 });
       return;
     }
-
-    const width = containerRef.current?.clientWidth || 900;
-    const height = containerRef.current?.clientHeight || 650;
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    const rootNode = nodes.find((n) => n.type === 'ROOT') || nodes[0];
-    const dimNodes = nodes.filter((n) => n.type === 'DIMENSION' || n.type === 'CATEGORY');
-    const leafNodes = nodes.filter((n) => n.type === 'EVENT' || n.type === 'IMPEDIMENT');
-
-    const mapped: InternalNode[] = [];
-
-    // 1. Root Node (Center)
-    mapped.push({
-      ...rootNode,
-      x: centerX,
-      y: centerY,
-      targetX: centerX,
-      targetY: centerY,
-      vx: 0,
-      vy: 0,
-      radius: 36,
-    });
-
-    // 2. Dimension / Category Orbit (radius ~ 180px)
-    const dimRadius = Math.min(width, height) * 0.28;
-    const dimAngles: Record<string, number> = {
-      'dim-d1': -Math.PI / 2,             // Top: Output
-      'dim-d2': -Math.PI / 10,            // Top-Right: Reliability
-      'dim-d3': Math.PI * 0.35,           // Bottom-Right: Collaboration
-      'dim-d4': Math.PI * 0.75,           // Bottom-Left: Peer Review
-      'cat-impediments': Math.PI * 1.25,  // Top-Left: Impediments
-    };
-
-    dimNodes.forEach((dn, index) => {
-      const angle = dimAngles[dn.id] !== undefined
-        ? dimAngles[dn.id]
-        : (index / dimNodes.length) * Math.PI * 2 - Math.PI / 2;
-      const targetX = centerX + Math.cos(angle) * dimRadius;
-      const targetY = centerY + Math.sin(angle) * dimRadius;
-
-      mapped.push({
-        ...dn,
-        x: targetX,
-        y: targetY,
-        targetX,
-        targetY,
-        vx: 0,
-        vy: 0,
-        radius: 26,
-      });
-    });
-
-    // 3. Leaf Nodes Fan-out (grouped by parent link)
-    const leavesByParent: Record<string, NetworkNodeDto[]> = {};
-    leafNodes.forEach((leaf) => {
-      const parentLink = links.find((l) => l.target === leaf.id);
-      const parentId = parentLink ? parentLink.source : 'dim-d1';
-      if (!leavesByParent[parentId]) {
-        leavesByParent[parentId] = [];
-      }
-      leavesByParent[parentId].push(leaf);
-    });
-
-    Object.entries(leavesByParent).forEach(([parentId, leaves]) => {
-      const parent = mapped.find((m) => m.id === parentId) || mapped[0];
-      const baseAngle = Math.atan2(parent.y - centerY, parent.x - centerX);
-      const leafCount = leaves.length;
-      const arcSpread = Math.min(Math.PI * 0.9, 0.25 * leafCount + 0.3);
-      const leafDistance = 140;
-
-      leaves.forEach((leaf, idx) => {
-        const offset = leafCount > 1
-          ? (idx / (leafCount - 1) - 0.5) * arcSpread
-          : 0;
-        const angle = baseAngle + offset;
-        const targetX = parent.x + Math.cos(angle) * leafDistance;
-        const targetY = parent.y + Math.sin(angle) * leafDistance;
-
-        mapped.push({
-          ...leaf,
-          x: targetX,
-          y: targetY,
-          targetX,
-          targetY,
-          vx: 0,
-          vy: 0,
-          radius: leaf.type === 'IMPEDIMENT' ? 18 : 14,
-        });
-      });
-    });
-
-    internalNodesRef.current = mapped;
-
-    // Reset particles on link structure
-    const particles: Particle[] = [];
-    links.forEach((l, i) => {
-      particles.push({
-        sourceId: l.source,
-        targetId: l.target,
-        progress: (i * 0.17) % 1.0,
-        speed: 0.006 + (i % 3) * 0.002,
-        color: l.color || '#38bdf8',
-      });
-    });
-    particlesRef.current = particles;
-  }, [nodes, links]);
+    const factor = direction === 'in' ? 1.15 : 0.87;
+    setTransform((prev) => ({
+      ...prev,
+      scale: Math.max(0.4, Math.min(2.5, prev.scale * factor)),
+    }));
+  };
 
   // Main Canvas Render Loop
   useEffect(() => {
@@ -198,261 +167,436 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
     const render = () => {
       if (!isRunning) return;
+      timeRef.current += 0.018;
+      const t = timeRef.current;
 
-      const dpr = window.devicePixelRatio || 1;
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
 
-      if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-      }
-
-      ctx.save();
-      ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Deep Space Cosmic Background
+      // 1. Cosmic Background & Nebula Glow
       const bgGrad = ctx.createRadialGradient(
-        width / 2, height / 2, 50,
-        width / 2, height / 2, Math.max(width, height) * 0.8
+        centerX + transform.x,
+        centerY + transform.y,
+        100,
+        centerX + transform.x,
+        centerY + transform.y,
+        Math.max(width, height) * 0.9
       );
-      bgGrad.addColorStop(0, '#0c1322');
-      bgGrad.addColorStop(0.5, '#070b14');
-      bgGrad.addColorStop(1, '#030509');
+      bgGrad.addColorStop(0, '#0a1020');
+      bgGrad.addColorStop(0.5, '#060a14');
+      bgGrad.addColorStop(1, '#04060c');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Apply Pan & Zoom Transform
+      // Soft nebula clouds
       ctx.save();
-      ctx.translate(transform.x, transform.y);
+      ctx.translate(centerX + transform.x, centerY + transform.y);
       ctx.scale(transform.scale, transform.scale);
 
-      // 2. Ambient Stars (twinkling)
-      starsRef.current.forEach((star) => {
-        star.alpha += star.speed;
-        const currentAlpha = 0.3 + 0.7 * Math.abs(Math.sin(star.alpha));
-        ctx.fillStyle = `rgba(226, 232, 240, ${currentAlpha})`;
-        ctx.beginPath();
-        ctx.arc(star.x + width / 2, star.y + height / 2, star.radius, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // 3. Central Ambient Cosmic Aura
-      const centralAura = ctx.createRadialGradient(
-        width / 2, height / 2, 20,
-        width / 2, height / 2, 280
-      );
-      centralAura.addColorStop(0, 'rgba(99, 102, 241, 0.18)');
-      centralAura.addColorStop(0.4, 'rgba(6, 182, 212, 0.08)');
-      centralAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = centralAura;
+      const nebGrad1 = ctx.createRadialGradient(-200, -100, 20, -200, -100, 420);
+      nebGrad1.addColorStop(0, 'rgba(99, 102, 241, 0.08)');
+      nebGrad1.addColorStop(1, 'rgba(99, 102, 241, 0)');
+      ctx.fillStyle = nebGrad1;
       ctx.beginPath();
-      ctx.arc(width / 2, height / 2, 280, 0, Math.PI * 2);
+      ctx.arc(-200, -100, 420, 0, Math.PI * 2);
       ctx.fill();
 
-      const currentNodes = internalNodesRef.current;
-      const nodeMap = new Map<string, InternalNode>();
-      currentNodes.forEach((n) => nodeMap.set(n.id, n));
+      const nebGrad2 = ctx.createRadialGradient(250, 150, 20, 250, 150, 380);
+      nebGrad2.addColorStop(0, 'rgba(6, 182, 212, 0.07)');
+      nebGrad2.addColorStop(1, 'rgba(6, 182, 212, 0)');
+      ctx.fillStyle = nebGrad2;
+      ctx.beginPath();
+      ctx.arc(250, 150, 380, 0, Math.PI * 2);
+      ctx.fill();
 
-      // 4. Render Glowing Energy Filament Links
-      links.forEach((link) => {
-        const source = nodeMap.get(link.source);
-        const target = nodeMap.get(link.target);
-        if (!source || !target) return;
-
-        // Filter opacity check
-        const isSourceVisible = activeFilter === 'ALL' || source.category === activeFilter || source.type === 'ROOT';
-        const isTargetVisible = activeFilter === 'ALL' || target.category === activeFilter || target.type === 'ROOT';
-        const alpha = isSourceVisible && isTargetVisible ? 0.75 : 0.12;
-
-        const isHighlighted = selectedNodeId === source.id || selectedNodeId === target.id;
-        const strokeColor = link.color || '#38bdf8';
-
-        // Draw curved Bezier path
-        ctx.save();
+      // Twinkling Background Stars
+      starsRef.current.forEach((st) => {
+        const flicker = Math.sin(t * 2 + st.speed * 100) * 0.3 + 0.7;
+        ctx.fillStyle = `rgba(226, 232, 240, ${st.alpha * flicker})`;
         ctx.beginPath();
-        ctx.moveTo(source.x, source.y);
-
-        const midX = (source.x + target.x) / 2;
-        const midY = (source.y + target.y) / 2;
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        // Subtle curve offset
-        const normalX = -dy / (dist || 1);
-        const normalY = dx / (dist || 1);
-        const curveOffset = Math.sin((source.x + target.y) * 0.01) * 14;
-
-        const ctrlX = midX + normalX * curveOffset;
-        const ctrlY = midY + normalY * curveOffset;
-
-        ctx.quadraticCurveTo(ctrlX, ctrlY, target.x, target.y);
-
-        ctx.strokeStyle = strokeColor;
-        ctx.globalAlpha = isHighlighted ? 1.0 : alpha;
-        ctx.lineWidth = isHighlighted ? 2.5 : Math.max(1, (link.weight || 1) * 1.4);
-        ctx.shadowColor = strokeColor;
-        ctx.shadowBlur = isHighlighted ? 14 : 6;
-        ctx.stroke();
-        ctx.restore();
+        ctx.arc(st.x, st.y, st.radius, 0, Math.PI * 2);
+        ctx.fill();
       });
 
-      // 5. Render Animated Energy Pulse Particles
-      particlesRef.current.forEach((p) => {
-        const source = nodeMap.get(p.sourceId);
-        const target = nodeMap.get(p.targetId);
-        if (!source || !target) return;
+      // 2. TREE FAN-OUT MODE (Matching Video: frame_0.png)
+      if (viewMode === 'TREE') {
+        const rootX = -width * 0.32;
+        const rootY = 0;
 
-        p.progress += p.speed;
-        if (p.progress >= 1.0) p.progress = 0.0;
-
-        // Quadratic bezier position
-        const t = p.progress;
-        const midX = (source.x + target.x) / 2;
-        const midY = (source.y + target.y) / 2;
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const normalX = -dy / (dist || 1);
-        const normalY = dx / (dist || 1);
-        const curveOffset = Math.sin((source.x + target.y) * 0.01) * 14;
-        const ctrlX = midX + normalX * curveOffset;
-        const ctrlY = midY + normalY * curveOffset;
-
-        const px = (1 - t) * (1 - t) * source.x + 2 * (1 - t) * t * ctrlX + t * t * target.x;
-        const py = (1 - t) * (1 - t) * source.y + 2 * (1 - t) * t * ctrlY + t * t * target.y;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 10;
-        ctx.fill();
-        ctx.restore();
-      });
-
-      // 6. Render Nodes (Orbs with Multi-layer Glow & Badges)
-      currentNodes.forEach((node) => {
-        const isSelected = selectedNodeId === node.id;
-        const isDimOrRoot = node.type === 'ROOT' || node.type === 'DIMENSION' || node.type === 'CATEGORY';
-        const isVisible = activeFilter === 'ALL' || node.category === activeFilter || node.type === 'ROOT';
-
-        ctx.save();
-        ctx.globalAlpha = isVisible ? 1.0 : 0.25;
-
-        const baseColor = node.color || '#6366f1';
-
-        // Outer glow aura
-        const auraGrad = ctx.createRadialGradient(
-          node.x, node.y, node.radius * 0.3,
-          node.x, node.y, node.radius * (isSelected ? 2.2 : 1.6)
-        );
-        auraGrad.addColorStop(0, hexToRgba(baseColor, isSelected ? 0.6 : 0.35));
-        auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = auraGrad;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius * (isSelected ? 2.2 : 1.6), 0, Math.PI * 2);
-        ctx.fill();
-
-        // Core Solid Orb
-        const orbGrad = ctx.createRadialGradient(
-          node.x - node.radius * 0.3, node.y - node.radius * 0.3, 2,
-          node.x, node.y, node.radius
-        );
-        orbGrad.addColorStop(0, '#ffffff');
-        orbGrad.addColorStop(0.3, baseColor);
-        orbGrad.addColorStop(1, '#060a12');
-
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fillStyle = orbGrad;
-        ctx.shadowColor = baseColor;
-        ctx.shadowBlur = isSelected ? 20 : 10;
-        ctx.fill();
-
-        // Border outline
-        ctx.strokeStyle = isSelected ? '#ffffff' : hexToRgba(baseColor, 0.9);
-        ctx.lineWidth = isSelected ? 2.5 : 1.5;
-        ctx.stroke();
-
-        // Pulsing Accent Ring for Selected Node
-        if (isSelected) {
-          const time = Date.now() * 0.003;
-          const pulseRadius = node.radius + 6 + Math.sin(time) * 3;
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, pulseRadius, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-          ctx.lineWidth = 1.2;
-          ctx.setLineDash([4, 4]);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-
-        // Inner Icon / Text
-        if (node.type === 'ROOT') {
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 13px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('CORE', node.x, node.y - 1);
-        } else if (node.type === 'DIMENSION') {
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 11px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(node.category, node.x, node.y);
-        } else if (node.type === 'IMPEDIMENT') {
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 10px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('!', node.x, node.y);
-        }
-
-        // Node Label Pill below
-        ctx.save();
-        ctx.font = isDimOrRoot ? '600 12px Inter, sans-serif' : '500 10px Inter, sans-serif';
-        const labelText = node.label;
-        const textWidth = ctx.measureText(labelText).width;
-        const pillY = node.y + node.radius + (isDimOrRoot ? 14 : 10);
-
-        // Glassy label background
-        ctx.fillStyle = 'rgba(11, 15, 25, 0.85)';
-        ctx.strokeStyle = isSelected ? '#ffffff' : hexToRgba(baseColor, 0.4);
+        // --- A. Left Core Entity Orb (Member Root Node) ---
+        // Subtle outer boundary circle
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
         ctx.lineWidth = 1;
-        roundRect(ctx, node.x - textWidth / 2 - 8, pillY - 10, textWidth + 16, 20, 10);
+        ctx.beginPath();
+        ctx.arc(rootX, rootY, 150, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.beginPath();
+        ctx.arc(rootX, rootY, 95, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Animated Electric / Waveform Soundwave Rings around Orb
+        for (let ring = 0; ring < 2; ring++) {
+          const ringBaseR = 56 + ring * 16;
+          const waveAmp = 4 + ring * 2.5;
+          const waveFreq = 14;
+          const ringColor = ring === 0 ? 'rgba(56, 189, 248, 0.65)' : 'rgba(129, 140, 248, 0.45)';
+
+          ctx.strokeStyle = ringColor;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          const step = Math.PI / 60;
+          for (let a = 0; a <= Math.PI * 2 + step; a += step) {
+            const r =
+              ringBaseR +
+              Math.sin(a * waveFreq + t * (ring === 0 ? 3.2 : -2.4)) * waveAmp +
+              Math.sin(a * 6 - t * 1.5) * 2;
+            const px = rootX + Math.cos(a) * r;
+            const py = rootY + Math.sin(a) * r;
+            if (a === 0) {
+              ctx.moveTo(px, py);
+            } else {
+              ctx.lineTo(px, py);
+            }
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+
+        // 3D Glowing Core Sphere
+        const orbGrad = ctx.createRadialGradient(rootX - 12, rootY - 14, 4, rootX, rootY, 44);
+        orbGrad.addColorStop(0, '#c084fc');
+        orbGrad.addColorStop(0.35, '#818cf8');
+        orbGrad.addColorStop(0.8, '#4338ca');
+        orbGrad.addColorStop(1, '#1e1b4b');
+
+        ctx.shadowColor = 'rgba(129, 140, 248, 0.8)';
+        ctx.shadowBlur = 24;
+        ctx.fillStyle = orbGrad;
+        ctx.beginPath();
+        ctx.arc(rootX, rootY, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Inner Core highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.arc(rootX - 12, rootY - 12, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Member Label & Title above Orb
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('THÀNH VIÊN TRỌNG TÂM', rootX, rootY - 78);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px sans-serif';
+        const displayName = rootNode.label || focusedUserName || 'Nguyễn Hoàng Nam';
+        ctx.fillText(displayName, rootX, rootY - 60);
+
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(sprintName || 'Sprint 2 · Tích hợp Đa chiều', rootX, rootY - 44);
+
+        // Status pill below Orb (e.g. GAPS 12 / Đóng góp 38.8%)
+        const pillW = 120;
+        const pillH = 26;
+        const pillX = rootX - pillW / 2;
+        const pillY = rootY + 54;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        drawRoundRect(ctx, pillX, pillY, pillW, pillH, 13);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = isSelected ? '#ffffff' : '#e2e8f0';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(labelText, node.x, pillY);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(`Đóng góp: ${(finalPct * 100).toFixed(1)}%`, rootX, pillY + 17);
 
-        // Badge pill (e.g. "+0.85", "3 SP", "Trễ hạn")
-        if (node.badge) {
-          ctx.font = 'bold 9px Inter, sans-serif';
-          const badgeWidth = ctx.measureText(node.badge).width;
-          const badgeY = pillY + 16;
-          ctx.fillStyle = hexToRgba(baseColor, 0.25);
-          ctx.strokeStyle = hexToRgba(baseColor, 0.6);
-          roundRect(ctx, node.x - badgeWidth / 2 - 6, badgeY - 8, badgeWidth + 12, 16, 8);
+        // --- B. Center Column: Category Stack ---
+        const catColX = -width * 0.05;
+        const catWidth = 210;
+        const catHeight = 52;
+        const catSpacing = 72;
+        const catStartY = -((CATEGORIES.length - 1) * catSpacing) / 2;
+
+        // Connector line from Root Orb to Active Category
+        const activeIdx = CATEGORIES.findIndex((c) => c.id === activeCategoryId);
+        const safeActiveIdx = activeIdx >= 0 ? activeIdx : 0;
+        const activeCatY = catStartY + safeActiveIdx * catSpacing;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(rootX + 40, rootY);
+        ctx.lineTo(catColX - catWidth / 2, activeCatY);
+        ctx.stroke();
+
+        CATEGORIES.forEach((cat, idx) => {
+          const cy = catStartY + idx * catSpacing;
+          const cx = catColX;
+          const isActive = cat.id === activeCategoryId;
+
+          // Category Pill Box
+          const bx = cx - catWidth / 2;
+          const by = cy - catHeight / 2;
+
+          ctx.save();
+          if (isActive) {
+            // Radiant Golden/Cyan Border Glow (matching video's gold glowing border)
+            ctx.shadowColor = cat.color;
+            ctx.shadowBlur = 18;
+            ctx.strokeStyle = cat.color;
+            ctx.lineWidth = 2.2;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+          } else {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+          }
+
+          drawRoundRect(ctx, bx, by, catWidth, catHeight, 14);
           ctx.fill();
           ctx.stroke();
+          ctx.restore();
 
-          ctx.fillStyle = baseColor;
-          ctx.fillText(node.badge, node.x, badgeY);
-        }
+          // Left icon indicator dot
+          ctx.fillStyle = cat.color;
+          ctx.beginPath();
+          ctx.arc(bx + 20, cy, 6, 0, Math.PI * 2);
+          ctx.fill();
 
-        ctx.restore();
-        ctx.restore();
-      });
+          // Category Count
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 15px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(cat.count, bx + 36, cy - 3);
 
-      ctx.restore(); // Restore Pan & Zoom
-      ctx.restore(); // Restore DPR
+          // Category Subtitle
+          ctx.fillStyle = isActive ? '#cbd5e1' : '#64748b';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(cat.shortLabel, bx + 36, cy + 14);
+
+          // Right emission anchor on active category
+          if (isActive) {
+            ctx.fillStyle = cat.color;
+            ctx.shadowColor = cat.color;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(bx + catWidth, cy, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+        });
+
+        // --- C. Right Column: Fan-out Curved Bezier Rays & Leaf Nodes ---
+        const activeCategory = CATEGORIES[safeActiveIdx];
+        const leaves = getLeavesForCategory(activeCategoryId);
+        const leafColX = width * 0.26;
+        const leafWidth = 240;
+        const leafHeight = 38;
+        const leafSpacing = 48;
+        const leafStartY = -((leaves.length - 1) * leafSpacing) / 2;
+
+        const startBeamX = catColX + catWidth / 2;
+        const startBeamY = activeCatY;
+
+        leaves.forEach((leaf, idx) => {
+          const ly = leafStartY + idx * leafSpacing;
+          const lx = leafColX;
+
+          const isSelectedLeaf = leaf.id === selectedNodeId;
+          const endBeamX = lx - leafWidth / 2;
+          const endBeamY = ly;
+
+          // Elegant Bezier Path: Category -> Leaf
+          const cp1X = startBeamX + 110;
+          const cp1Y = startBeamY;
+          const cp2X = endBeamX - 80;
+          const cp2Y = endBeamY;
+
+          ctx.save();
+          if (isSelectedLeaf) {
+            ctx.strokeStyle = activeCategory.color;
+            ctx.lineWidth = 2.4;
+            ctx.shadowColor = activeCategory.color;
+            ctx.shadowBlur = 10;
+          } else {
+            ctx.strokeStyle = `${activeCategory.color}55`;
+            ctx.lineWidth = 1.3;
+          }
+
+          ctx.beginPath();
+          ctx.moveTo(startBeamX, startBeamY);
+          if (ctx.bezierCurveTo) {
+            ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endBeamX, endBeamY);
+          } else {
+            ctx.lineTo(endBeamX, endBeamY);
+          }
+          ctx.stroke();
+          ctx.restore();
+
+          // Animated particle on this bezier curve
+          const pProgress = (t * 0.85 + idx * 0.28) % 1.0;
+          const particlePos = getCubicBezierPoint(
+            startBeamX,
+            startBeamY,
+            cp1X,
+            cp1Y,
+            cp2X,
+            cp2Y,
+            endBeamX,
+            endBeamY,
+            pProgress
+          );
+
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = activeCategory.color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(particlePos.x, particlePos.y, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Leaf Capsule Card
+          const lbx = lx - leafWidth / 2;
+          const lby = ly - leafHeight / 2;
+
+          ctx.save();
+          if (isSelectedLeaf) {
+            ctx.fillStyle = 'rgba(20, 30, 52, 0.95)';
+            ctx.strokeStyle = activeCategory.color;
+            ctx.lineWidth = 1.8;
+            ctx.shadowColor = activeCategory.color;
+            ctx.shadowBlur = 12;
+          } else {
+            ctx.fillStyle = 'rgba(12, 18, 32, 0.85)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+          }
+
+          drawRoundRect(ctx, lbx, lby, leafWidth, leafHeight, 10);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
+          // Leaf Status Dot / Icon
+          const dotColor =
+            leaf.type === 'IMPEDIMENT' || leaf.status === 'WARN'
+              ? '#f59e0b'
+              : leaf.status === 'DONE'
+              ? '#10b981'
+              : '#38bdf8';
+          ctx.fillStyle = dotColor;
+          ctx.beginPath();
+          ctx.arc(lbx + 14, ly, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Leaf Label Text (Truncated)
+          ctx.fillStyle = isSelectedLeaf ? '#ffffff' : '#e2e8f0';
+          ctx.font = '11.5px sans-serif';
+          ctx.textAlign = 'left';
+          const maxTextW = leafWidth - 95;
+          const cleanLabel = leaf.label.length > 24 ? `${leaf.label.substring(0, 22)}...` : leaf.label;
+          ctx.fillText(cleanLabel, lbx + 26, ly + 4, maxTextW);
+
+          // Leaf Badge Pill (e.g. 5 SP, 1.5 ngày)
+          if (leaf.badge) {
+            const badgeW = 54;
+            const badgeH = 20;
+            const badgeX = lbx + leafWidth - badgeW - 8;
+            const badgeY = ly - badgeH / 2;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 0.8;
+            drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = dotColor;
+            ctx.font = 'bold 9.5px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(leaf.badge, badgeX + badgeW / 2, badgeY + 13.5);
+          }
+        });
+      }
+
+      // 3. GALAXY 3D CONSTELLATION MODE (Matching frame_7.png)
+      else if (viewMode === 'GALAXY') {
+        const rootRadius = 45;
+
+        // Concentric Orbit Guides
+        [160, 260, 360].forEach((r) => {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+
+        // Laser Beams radiating outward
+        const count = nodes.length;
+        nodes.forEach((n, idx) => {
+          if (n.type === 'ROOT') return;
+          const angle = (idx / (count || 1)) * Math.PI * 2 + t * 0.1;
+          const dist = 180 + (idx % 3) * 70;
+          const nx = Math.cos(angle) * dist;
+          const ny = Math.sin(angle) * dist;
+
+          // Glowing Ray Line
+          ctx.strokeStyle = `${n.color || '#38bdf8'}66`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(nx, ny);
+          ctx.stroke();
+
+          // Satellite Node
+          ctx.fillStyle = n.color || '#38bdf8';
+          ctx.shadowColor = n.color || '#38bdf8';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(nx, ny, n.type === 'DIMENSION' ? 14 : 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Label
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.label.substring(0, 14), nx, ny + 18);
+        });
+
+        // Golden Central Sun (Constitution/Root Node in frame_7)
+        const sunGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, rootRadius);
+        sunGrad.addColorStop(0, '#fef08a');
+        sunGrad.addColorStop(0.5, '#eab308');
+        sunGrad.addColorStop(1, '#854d0e');
+
+        ctx.shadowColor = '#eab308';
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = sunGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, rootRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(rootNode.label.substring(0, 18), 0, 5);
+      }
+
+      ctx.restore();
 
       animFrameRef.current = requestAnimationFrame(render);
     };
@@ -461,143 +605,345 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
     return () => {
       isRunning = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
     };
-  }, [transform, selectedNodeId, activeFilter]);
+  }, [
+    nodes,
+    links,
+    selectedNodeId,
+    activeCategoryId,
+    viewMode,
+    transform,
+    finalPct,
+    focusedUserName,
+    sprintName,
+    getLeavesForCategory,
+    rootNode,
+  ]);
 
-  // Helpers
-  const hexToRgba = (hex: string, alpha: number) => {
-    let c = hex.replace('#', '');
-    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
-    const num = parseInt(c, 16);
-    return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
-  };
-
-  const roundRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r: number
-  ) => {
-    ctx.beginPath();
-    if (typeof ctx.arcTo === 'function') {
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-    } else {
-      ctx.rect(x, y, w, h);
-    }
-    if (typeof ctx.closePath === 'function') {
-      ctx.closePath();
-    }
-  };
-
-  // Canvas Mouse Interactions (Pan, Zoom, Drag node, Click node)
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Click & Hit-Test Handler
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left - transform.x) / transform.scale;
-    const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
-    // Check if clicked on a node
-    const clickedNode = internalNodesRef.current.find((n) => {
-      const dx = n.x - mouseX;
-      const dy = n.y - mouseY;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 12;
-    });
+    // Convert screen coordinates to world coordinates
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const worldX = (mouseX - centerX - transform.x) / transform.scale;
+    const worldY = (mouseY - centerY - transform.y) / transform.scale;
 
-    if (clickedNode) {
-      draggedNodeRef.current = clickedNode;
-      clickedNode.isDragging = true;
-      onSelectNode(clickedNode);
-    } else {
+    if (viewMode === 'TREE') {
+      const width = canvas.width;
+      const rootX = -width * 0.32;
+      const rootY = 0;
+
+      // 1. Check Root Orb Click
+      const distToRoot = Math.hypot(worldX - rootX, worldY - rootY);
+      if (distToRoot <= 45) {
+        onSelectNode(rootNode);
+        return;
+      }
+
+      // 2. Check Category Column Click
+      const catColX = -width * 0.05;
+      const catWidth = 210;
+      const catHeight = 52;
+      const catSpacing = 72;
+      const catStartY = -((CATEGORIES.length - 1) * catSpacing) / 2;
+
+      for (let i = 0; i < CATEGORIES.length; i++) {
+        const cat = CATEGORIES[i];
+        const cy = catStartY + i * catSpacing;
+        const bx = catColX - catWidth / 2;
+        const by = cy - catHeight / 2;
+
+        if (worldX >= bx && worldX <= bx + catWidth && worldY >= by && worldY <= by + catHeight) {
+          setActiveCategoryId(cat.id);
+          const foundNode = nodes.find((n) => n.id === cat.id);
+          if (foundNode) onSelectNode(foundNode);
+          return;
+        }
+      }
+
+      // 3. Check Leaf Column Click
+      const leaves = getLeavesForCategory(activeCategoryId);
+      const leafColX = width * 0.26;
+      const leafWidth = 240;
+      const leafHeight = 38;
+      const leafSpacing = 48;
+      const leafStartY = -((leaves.length - 1) * leafSpacing) / 2;
+
+      for (let i = 0; i < leaves.length; i++) {
+        const leaf = leaves[i];
+        const ly = leafStartY + i * leafSpacing;
+        const lbx = leafColX - leafWidth / 2;
+        const lby = ly - leafHeight / 2;
+
+        if (worldX >= lbx && worldX <= lbx + leafWidth && worldY >= lby && worldY <= lby + leafHeight) {
+          onSelectNode(leaf);
+          return;
+        }
+      }
+    }
+  };
+
+  // Resize canvas when container size changes
+  useEffect(() => {
+    const handleResize = () => {
+      const container = containerRef.current;
+      const canvas = canvasRef.current;
+      if (!container || !canvas) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = container.clientWidth * dpr;
+      canvas.height = container.clientHeight * dpr;
+      canvas.style.width = `${container.clientWidth}px`;
+      canvas.style.height = `${container.clientHeight}px`;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Pan Mouse Handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) {
       isPanningRef.current = true;
       panStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (draggedNodeRef.current) {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = (e.clientX - rect.left - transform.x) / transform.scale;
-      const mouseY = (e.clientY - rect.top - transform.y) / transform.scale;
-      draggedNodeRef.current.x = mouseX;
-      draggedNodeRef.current.y = mouseY;
-    } else if (isPanningRef.current) {
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanningRef.current) {
       setTransform((prev) => ({
         ...prev,
         x: e.clientX - panStartRef.current.x,
         y: e.clientY - panStartRef.current.y,
       }));
     }
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      mousePosRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
   };
 
   const handleMouseUp = () => {
-    if (draggedNodeRef.current) {
-      draggedNodeRef.current.isDragging = false;
-      draggedNodeRef.current = null;
-    }
     isPanningRef.current = false;
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+  const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-    setTransform((prev) => {
-      const nextScale = Math.min(2.5, Math.max(0.4, prev.scale * zoomFactor));
-      return { ...prev, scale: nextScale };
-    });
-  };
-
-  const handleResetView = () => {
-    setTransform({ x: 0, y: 0, scale: 1 });
+    setTransform((prev) => ({
+      ...prev,
+      scale: Math.max(0.4, Math.min(2.5, prev.scale * zoomFactor)),
+    }));
   };
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden select-none"
-      style={{ background: '#070b14' }}
+      className="relative w-full h-full overflow-hidden select-none cursor-grab active:cursor-grabbing bg-[#050811]"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onWheel={handleWheel}
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full cursor-grab active:cursor-grabbing block"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
+        onClick={handleCanvasClick}
+        className="block w-full h-full"
       />
 
-      {/* Floating Canvas Controls (Reset Zoom, Pan hint) */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleResetView}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-md transition-all shadow-lg"
+      {/* Top Floating Control Bar (Exactly matching Video frame_0.png) */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-auto">
+        <div
+          className="flex items-center gap-1 p-1 rounded-2xl backdrop-blur-2xl border shadow-2xl"
           style={{
-            background: 'rgba(15, 23, 42, 0.75)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#94a3b8',
+            background: 'rgba(10, 16, 28, 0.85)',
+            borderColor: 'rgba(255, 255, 255, 0.12)',
           }}
-          title="Đặt lại góc nhìn trung tâm"
         >
-          Căn giữa (Reset View)
-        </button>
-        <span
-          className="text-[11px] px-2.5 py-1 rounded-md text-zinc-400 backdrop-blur-md hidden sm:inline-block"
-          style={{ background: 'rgba(15, 23, 42, 0.5)' }}
-        >
-          Cuộn chuột để Phóng to/Thu nhỏ · Giữ kéo để Di chuyển
-        </span>
+          {/* View Mode Toggle: Tree Fan-Out vs 3D Constellation */}
+          <button
+            type="button"
+            title="Dạng Cây Tác Động (Tree Fan-out)"
+            onClick={() => setViewMode('TREE')}
+            className={`p-2 rounded-xl transition-all ${
+              viewMode === 'TREE'
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <GitBranch className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            title="Dạng Ngân Hà 3D (3D Constellation)"
+            onClick={() => setViewMode('GALAXY')}
+            className={`p-2 rounded-xl transition-all ${
+              viewMode === 'GALAXY'
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Orbit className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-white/10 mx-1" />
+
+          {/* Zoom Controls */}
+          <button
+            type="button"
+            title="Phóng to (+)"
+            onClick={() => handleZoom('in')}
+            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Thu nhỏ (-)"
+            onClick={() => handleZoom('out')}
+            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            title="Cân bằng khung nhìn"
+            onClick={() => handleZoom('reset')}
+            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-white/10 mx-1" />
+
+          {/* Filter Pills button */}
+          <button
+            type="button"
+            title="Bộ lọc trục vector"
+            onClick={() => {
+              if (onSelectFilter) {
+                const nextFilter = activeFilter === 'ALL' ? 'IMPEDIMENT' : 'ALL';
+                onSelectFilter(nextFilter);
+              }
+            }}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-1.5 transition"
+          >
+            <Filter className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Bộ lọc</span>
+            <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] flex items-center justify-center font-bold">
+              5
+            </span>
+          </button>
+
+          {/* AI Simulation / Sparkle button */}
+          <button
+            type="button"
+            title="Mô phỏng vector AI"
+            className="p-2 rounded-xl text-purple-400 hover:bg-purple-500/10 transition"
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Action Button: + Ghi nhận rào cản (matching "+ New Simulation" in video) */}
+        {onOpenImpactModal && (
+          <button
+            type="button"
+            onClick={onOpenImpactModal}
+            className="px-3.5 py-2 rounded-2xl text-xs font-bold text-white flex items-center gap-1.5 shadow-xl transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
+              boxShadow: '0 0 16px rgba(14, 165, 233, 0.4)',
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Khai báo rào cản</span>
+          </button>
+        )}
+      </div>
+
+      {/* Top Right Subtitle Pill (matching video top bar info) */}
+      <div
+        className="absolute top-4 right-6 z-20 hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-xl border text-[11px] text-zinc-300"
+        style={{
+          background: 'rgba(10, 16, 28, 0.75)',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span>Mô hình 4 Tầng Vector Đa Chiều · <strong>MariaDB Live Sync</strong></span>
       </div>
     </div>
   );
 };
+
+// Helper: Draw Rounded Rectangle
+function drawRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  if (ctx.quadraticCurveTo) {
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  ctx.closePath();
+}
+
+// Helper: Calculate Point along Cubic Bezier Curve at progress t [0, 1]
+function getCubicBezierPoint(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  t: number
+) {
+  const u = 1 - t;
+  const tt = t * t;
+  const uu = u * u;
+  const uuu = uu * u;
+  const ttt = tt * t;
+
+  const x = uuu * x0 + 3 * uu * t * x1 + 3 * u * tt * x2 + ttt * x3;
+  const y = uuu * y0 + 3 * uu * t * y1 + 3 * u * tt * y2 + ttt * y3;
+  return { x, y };
+}

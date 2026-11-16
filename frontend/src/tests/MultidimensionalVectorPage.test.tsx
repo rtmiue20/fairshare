@@ -126,7 +126,7 @@ describe('MultidimensionalVectorPage Component Tests', () => {
           { id: 4, name: 'Sprint 4: Tích hợp Đa chiều & Bằng chứng', isCurrent: true, status: 'ACTIVE' },
         ],
       },
-    });
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
 
     render(<MultidimensionalVectorPage />);
 

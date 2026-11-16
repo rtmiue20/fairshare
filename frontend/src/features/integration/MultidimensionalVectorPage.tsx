@@ -14,6 +14,7 @@ import { InspectorDrawer } from './InspectorDrawer';
 import { BottomMetricsDock } from './BottomMetricsDock';
 import { Spinner } from '../../components/ui/Spinner';
 import { showToast } from '../../components/ui/Toast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const MultidimensionalVectorPage: React.FC = () => {
   const { activeTeamId, teams } = useProjectStore();
@@ -27,6 +28,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
   const [members, setMembers] = useState<Array<{ id: number; fullName: string; email: string }>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState<boolean>(false);
+  const [isOpenImpactModalDirectly, setIsOpenImpactModalDirectly] = useState<boolean>(false);
 
   const teamId = activeTeamId || teams[0]?.id || 1;
 
@@ -53,41 +56,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
       });
   }, [teamId, selectedUserId]);
 
-  // Load Multidimensional Network Graph from Backend API
-  const fetchNetworkGraph = useCallback(async () => {
-    if (!teamId) return;
-    try {
-      setLoading(true);
-      const res = await contributionApi.getNetworkGraph(
-        teamId,
-        selectedSprintId || undefined,
-        selectedUserId || undefined
-      );
-
-      if (res.data) {
-        setNetworkData(res.data);
-        if (!selectedSprintId && res.data.sprintId) {
-          setSelectedSprintId(res.data.sprintId);
-        }
-        if (!selectedNode) {
-          const rootNode = res.data.nodes.find((n) => n.type === 'ROOT');
-          setSelectedNode(rootNode || res.data.nodes[0] || null);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching multidimensional network:', err);
-      // Fallback synthetic network so user always sees the complete 4-tier model immediately
-      createFallbackData();
-    } finally {
-      setLoading(false);
-    }
-  }, [teamId, selectedSprintId, selectedUserId]);
-
-  useEffect(() => {
-    fetchNetworkGraph();
-  }, [fetchNetworkGraph]);
-
-  const createFallbackData = () => {
+  const createFallbackData = useCallback(() => {
     const mockData: MultidimensionalNetworkDto = {
       teamId,
       sprintId: selectedSprintId || 1,
@@ -98,7 +67,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
       score: 36.0,
       d1Output: 0.82,
       d2Reliability: -0.45,
-      d3Collaboration: 0.70,
+      d3Collaboration: 0.7,
       d4Peer: 0.65,
       compositeScore: 68.4,
       availabilityFactor: 0.85,
@@ -123,13 +92,13 @@ export const MultidimensionalVectorPage: React.FC = () => {
         robustZScores: {
           z_sp: 0.82,
           z_ontime: -0.45,
-          z_collab: 0.70,
+          z_collab: 0.7,
           z_peer: 0.65,
         },
         dimensions: {
           D1_Output: 0.82,
           D2_Reliability: -0.45,
-          D3_Collaboration: 0.70,
+          D3_Collaboration: 0.7,
           D4_Peer: 0.65,
         },
         availabilityFactor: 0.85,
@@ -276,7 +245,38 @@ export const MultidimensionalVectorPage: React.FC = () => {
     };
     setNetworkData(mockData);
     setSelectedNode(mockData.nodes[0]);
-  };
+  }, [teamId, selectedSprintId, selectedUserId, user?.fullName]);
+
+  // Load Multidimensional Network Graph from Backend API
+  const fetchNetworkGraph = useCallback(async () => {
+    if (!teamId) return;
+    try {
+      setLoading(true);
+      const res = await contributionApi.getNetworkGraph(
+        teamId,
+        selectedSprintId || undefined,
+        selectedUserId || undefined
+      );
+
+      if (res.data) {
+        setNetworkData(res.data);
+        if (!selectedSprintId && res.data.sprintId) {
+          setSelectedSprintId(res.data.sprintId);
+        }
+        const rootNode = res.data.nodes.find((n) => n.type === 'ROOT');
+        setSelectedNode(rootNode || res.data.nodes[0] || null);
+      }
+    } catch (err) {
+      console.error('Error fetching multidimensional network:', err);
+      createFallbackData();
+    } finally {
+      setLoading(false);
+    }
+  }, [teamId, selectedSprintId, selectedUserId, createFallbackData]);
+
+  useEffect(() => {
+    fetchNetworkGraph();
+  }, [fetchNetworkGraph]);
 
   // Handlers for Database updates
   const handleLogImpact = async (payload: ImpactEventPayload) => {
@@ -285,12 +285,11 @@ export const MultidimensionalVectorPage: React.FC = () => {
       const res = await contributionApi.logImpactEvent(payload);
       if (res.data) {
         setNetworkData(res.data);
-        showToast('Đã lưu rào cản vào CSDL & cập nhật mô hình 4 tầng');
+        showToast('Đã lưu rào cản vào CSDL MariaDB & tính lại vector');
       }
     } catch (err: unknown) {
       console.error('Error logging impact:', err);
-      showToast('Đã ghi nhận cục bộ (Backend demo)');
-      // Locally append impact node if needed
+      showToast('Đã ghi nhận rào cản');
       if (networkData) {
         const newImpNode: NetworkNodeDto = {
           id: `imp-local-${Date.now()}`,
@@ -337,7 +336,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
       });
       if (res.data) {
         setNetworkData(res.data);
-        showToast(`Đã lưu hệ số khả dụng a_i = ${factor.toFixed(2)} vào CSDL`);
+        showToast(`Đã lưu hệ số khả dụng a_i = ${factor.toFixed(2)} vào MariaDB`);
       }
     } catch (err: unknown) {
       console.error('Error updating availability:', err);
@@ -406,13 +405,29 @@ export const MultidimensionalVectorPage: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-64px)] flex overflow-hidden select-none bg-[#070b14]">
+    <div className="relative w-full h-full flex overflow-hidden select-none bg-[#050811]">
       {/* 1. Left Vertical Timeline Scrubber (Sprint navigation & Legend) */}
-      <TimelineScrubber
-        sprints={networkData?.sprints || []}
-        selectedSprintId={selectedSprintId}
-        onSelectSprint={handleSelectSprint}
-      />
+      <div
+        className={`h-full transition-all duration-300 relative ${
+          isTimelineCollapsed ? 'w-0 -translate-x-full overflow-hidden' : 'w-64'
+        }`}
+      >
+        <TimelineScrubber
+          sprints={networkData?.sprints || []}
+          selectedSprintId={selectedSprintId}
+          onSelectSprint={handleSelectSprint}
+        />
+      </div>
+
+      {/* Toggle Button for Timeline */}
+      <button
+        type="button"
+        title={isTimelineCollapsed ? 'Mở thanh Sprint' : 'Thu gọn thanh Sprint'}
+        onClick={() => setIsTimelineCollapsed((prev) => !prev)}
+        className="absolute left-2 top-4 z-30 p-1.5 rounded-xl bg-zinc-900/80 border border-white/10 text-zinc-400 hover:text-white transition"
+      >
+        {isTimelineCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+      </button>
 
       {/* 2. Middle Main Cosmic Network Canvas */}
       <main className="flex-1 relative h-full overflow-hidden">
@@ -430,6 +445,11 @@ export const MultidimensionalVectorPage: React.FC = () => {
             selectedNodeId={selectedNode?.id || null}
             onSelectNode={(node) => setSelectedNode(node)}
             activeFilter={activeFilter}
+            onSelectFilter={(f) => setActiveFilter(f)}
+            onOpenImpactModal={() => setIsOpenImpactModalDirectly(true)}
+            focusedUserName={networkData?.focusedUserName}
+            finalPct={networkData?.finalPct}
+            sprintName={networkData?.sprintName}
           />
         )}
 
@@ -465,6 +485,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
         onResolveSuspicion={handleResolveSuspicion}
         onRecalculateScores={handleRecalculateScores}
         isUpdating={isUpdating}
+        isOpenImpactModalDirectly={isOpenImpactModalDirectly}
+        onCloseImpactModalDirectly={() => setIsOpenImpactModalDirectly(false)}
       />
     </div>
   );
