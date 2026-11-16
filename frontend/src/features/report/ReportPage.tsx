@@ -666,7 +666,6 @@ export const ReportPage: React.FC = () => {
     },
   ];
 
-
   return (
     <div
       className="page pad"
