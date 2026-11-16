@@ -31,7 +31,7 @@
 - Pilot UAT `uat-pilot.py` **20/24** (15/11: 14/24). 4 ca còn FAIL (UAT-SEC-03..06) đều thuộc DEF-31, 32. Minh chứng: `uat/uat-pilot-2026-11-16.txt`, `uat/uat-pilot-result.json`.
 - Retest Sprint 6 `retest-sprint6.py` **2/9** (script mới cho các lỗi chưa có ca tự động). Minh chứng: `evidence/retest-2026-11-16.txt`, `retest-result-2026-11-16.json`.
 - Unit test: backend `mvn test` trong Docker **233 test, 0 lỗi, 0 skip**; frontend Vitest **20 file, 86/86** (Node 20 như CI). Minh chứng: `evidence/backend-unit-docker-2026-11-16.txt`, `frontend-unit-2026-11-16.txt`.
-- **Đóng 8 lỗi:** DEF-27 (unit test), DEF-33, 34, 35, 36, 37 (pilot UAT), DEF-38 (RT-38a, b). Giữ **Open**: DEF-19, 28, 31, 32, 39 (chưa có bản sửa trên `master`).
+- **Đóng 7 lỗi:** DEF-27 (unit test), DEF-33, 34, 35, 36, 37 (pilot UAT), DEF-38 (RT-38a, b). Giữ **Open**: DEF-19, 28, 31, 32, 39 (chưa có bản sửa trên `master`).
 - **Lỗi mới:** **DEF-40 (High, M0)**: migration V23 chèn tài khoản demo có mật khẩu công khai và ghi đè dữ liệu nhóm id 1 ở mọi CSDL. **DEF-41 (High, M1 + M3)**: người phụ trách kéo thẻ của mình qua lại giữa các cột để tự nâng tỷ lệ đóng góp (50% → 91,67%). DEF-42 (Low, M1): đổi tiêu đề thẻ thì vượt qua được bản sửa DEF-38.
 - **Script WP5:** `regression-sprint5.py` sửa TRL-02 (route `integration` nay dùng cho trang `MultidimensionalVectorPage`, không còn liên quan Trello, nên chỉ tìm tham chiếu `ConnectTrelloPage`/API Trello) và đọc `pdftotext` bằng UTF-8 trên Windows. `.gitignore` thêm `/uploads/` (một phần DEF-28).
 - Sau khi chạy test, môi trường UAT đã reset và tạo lại bằng `uat-seed.py` (nhóm A nay là **id 2**, vì V23 chiếm id 1). Minh chứng: `uat/uat-seed-2026-11-16.txt`.
