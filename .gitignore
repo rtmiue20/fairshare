@@ -24,5 +24,6 @@ fairshare-backend/uploads/*
 
 # Tài khoản UAT (scripts/uat-seed.py) – không commit
 .uat-credentials.local
+.demo-credentials.local
 # Video demo (lớn, lưu ngoài Git)
 docs/qa/evidence/demo/*.avi
