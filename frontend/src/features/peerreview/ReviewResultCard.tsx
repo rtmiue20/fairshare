@@ -18,8 +18,8 @@ export const ReviewResultCard: React.FC<ReviewResultCardProps> = ({ results }) =
               justifyContent: 'space-between',
               alignItems: 'center',
               padding: '12px 16px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              backgroundColor: '#0c0d12',
+              border: '1px solid var(--line)',
+              backgroundColor: 'var(--surface2, #1f1f23)',
               borderRadius: '8px',
             }}
           >

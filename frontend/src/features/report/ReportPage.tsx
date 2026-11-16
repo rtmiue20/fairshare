@@ -618,19 +618,19 @@ export const ReportPage: React.FC = () => {
     textColor: isLight ? '#0f172a' : '#f8fafc',
     subTextColor: isLight ? '#64748b' : '#94a3b8',
     headingColor: isLight ? '#0f172a' : '#ffffff',
-    panelBg: isLight ? '#ffffff' : 'rgba(12, 19, 34, 0.82)',
-    panelBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.09)',
+    panelBg: isLight ? '#ffffff' : 'rgba(24, 24, 27, 0.75)',
+    panelBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
     panelShadow: isLight
       ? '0 20px 48px -10px rgba(0,0,0,0.06)'
-      : '0 20px 50px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.06)',
-    sidebarBg: isLight ? '#fcfcfd' : 'rgba(10, 15, 28, 0.75)',
-    sidebarBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.07)',
-    itemHoverBg: isLight ? '#f1f5f9' : 'rgba(56, 189, 248, 0.08)',
+      : '0 4px 16px rgba(0, 0, 0, 0.25)',
+    sidebarBg: isLight ? '#fcfcfd' : 'rgba(24, 24, 27, 0.75)',
+    sidebarBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.08)',
+    itemHoverBg: isLight ? '#f1f5f9' : '#27272a',
     activePillBg: '#4f46e5',
     activePillText: '#ffffff',
-    tableBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.07)',
-    tableRowBorder: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.05)',
-    tableHeaderBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+    tableBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.08)',
+    tableRowBorder: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.06)',
+    tableHeaderBg: isLight ? '#f8fafc' : '#27272a',
     paperBg: '#ffffff',
     paperColor: '#1e293b',
     paperBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -727,7 +727,7 @@ export const ReportPage: React.FC = () => {
                 style={{
                   padding: '8px 12px',
                   borderRadius: '10px',
-                  backgroundColor: isLight ? '#ffffff' : 'rgba(18, 19, 26, 0.9)',
+                  backgroundColor: isLight ? '#ffffff' : '#27272a',
                   color: theme.textColor,
                   border: theme.panelBorder,
                   fontSize: '13px',
@@ -820,7 +820,7 @@ export const ReportPage: React.FC = () => {
           marginBottom: '20px',
         }}
       >
-        <div style={{ backgroundColor: isLight ? '#fff' : 'rgba(18, 19, 26, 0.75)', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Giai đoạn báo cáo
           </div>
@@ -832,7 +832,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: isLight ? '#fff' : 'rgba(18, 19, 26, 0.75)', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Tổng nhiệm vụ &amp; Hoạt động
           </div>
@@ -844,7 +844,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: isLight ? '#fff' : 'rgba(18, 19, 26, 0.75)', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Độ phân bổ đóng góp (Gini)
           </div>
@@ -856,7 +856,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: isLight ? '#fff' : 'rgba(18, 19, 26, 0.75)', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Chuẩn mực pháp lý
           </div>
@@ -1139,7 +1139,7 @@ export const ReportPage: React.FC = () => {
                       top: 'calc(100% + 8px)',
                       left: 0,
                       width: '320px',
-                      backgroundColor: isLight ? '#ffffff' : '#14151f',
+                      backgroundColor: isLight ? '#ffffff' : '#1f1f23',
                       border: theme.panelBorder,
                       borderRadius: '16px',
                       padding: '16px',
@@ -1265,7 +1265,7 @@ export const ReportPage: React.FC = () => {
 
             {/* Right Controls: Search, Export Button */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: isLight ? '#fff' : 'rgba(255,255,255,0.06)', padding: '6px 12px', borderRadius: '8px', border: theme.tableBorder, width: '220px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: isLight ? '#fff' : '#27272a', padding: '6px 12px', borderRadius: '8px', border: theme.tableBorder, width: '220px' }}>
                 <Search size={14} color={theme.subTextColor} />
                 <input
                   type="text"

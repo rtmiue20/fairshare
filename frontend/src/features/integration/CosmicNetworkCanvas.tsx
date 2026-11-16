@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { NetworkNodeDto, NetworkLinkDto } from '../../types/contribution';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { NetworkNodeDto, NetworkLinkDto, NeuronEventItem } from '../../types/contribution';
 import {
   ZoomIn,
   ZoomOut,
@@ -12,9 +12,17 @@ import {
   Send,
   X,
   ArrowUpDown,
+  ChevronLeft,
+  Play,
+  Pause,
+  Layers,
+  Shield,
+  Users,
+  Star,
+  AlertTriangle,
 } from 'lucide-react';
 
-interface CosmicNetworkCanvasProps {
+export interface CosmicNetworkCanvasProps {
   nodes: NetworkNodeDto[];
   links: NetworkLinkDto[];
   selectedNodeId: string | null;
@@ -36,9 +44,13 @@ interface CosmicNetworkCanvasProps {
   members?: Array<{ id: number; fullName: string; email: string }>;
   selectedUserId?: number | null;
   onSelectUser?: (userId: number) => void;
+  selectedEvent?: NeuronEventItem | null;
+  onSelectEvent?: (event: NeuronEventItem | null) => void;
+  cutDay?: number;
+  onCutDayChange?: (day: number) => void;
 }
 
-interface Star {
+interface StarBg {
   x: number;
   y: number;
   radius: number;
@@ -66,9 +78,16 @@ interface ConstellationHub {
   }>;
 }
 
+const DETAIL_AXES = [
+  { id: 'D1' as const, name: 'D1 · Sản lượng', short: 'Sản lượng', sub: 'SP · Tasks · Thẻ', color: '#34d399', icon: 'layers' },
+  { id: 'D2' as const, name: 'D2 · Tin cậy', short: 'Tin cậy', sub: 'Đúng hạn · Rework', color: '#22d3ee', icon: 'shield' },
+  { id: 'D3' as const, name: 'D3 · Phối hợp', short: 'Phối hợp', sub: 'Review · @mention', color: '#a78bfa', icon: 'users' },
+  { id: 'D4' as const, name: 'D4 · Chấm chéo', short: 'Chấm chéo', sub: 'Đồng cấp · ẩn danh', color: '#f472b6', icon: 'star' },
+  { id: 'IMP' as const, name: 'Rào cản / Khả dụng', short: 'Rào cản', sub: 'Impediment · a_i', color: '#fbbf24', icon: 'alert' },
+];
+
 export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   nodes,
-  selectedNodeId,
   onSelectNode,
   activeFilter,
   onSelectFilter,
@@ -86,626 +105,614 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     { id: 5, name: 'Sprint 5', isCurrent: false, status: 'PLANNED' },
   ],
   selectedSprintId = 3,
-  onSelectSprint: _onSelectSprint,
+  onSelectSprint,
   compositeScore = 99.1,
   distanceToCenter = 2.52,
   availabilityFactor = 1.0,
   members = [
-    { id: 1, fullName: 'Minh Trieu', email: 'trieu@kingsha.com' },
-    { id: 2, fullName: 'Ngọc Anh', email: 'anh@kingsha.com' },
-    { id: 3, fullName: 'Quốc Bảo', email: 'bao@kingsha.com' },
-    { id: 4, fullName: 'Thu Hà', email: 'ha@kingsha.com' },
-    { id: 5, fullName: 'Đức Long', email: 'long@kingsha.com' },
+    { id: 109, fullName: 'Nguyễn Hoàng Nam', email: 'nam@educonnect.vn' },
+    { id: 110, fullName: 'Trần Thu Trang', email: 'trang@educonnect.vn' },
+    { id: 111, fullName: 'Lê Quốc Bảo', email: 'bao@educonnect.vn' },
+    { id: 112, fullName: 'Phạm Minh Đức', email: 'duc@educonnect.vn' },
+    { id: 113, fullName: 'Đặng Thảo Vy', email: 'vy@educonnect.vn' },
   ],
-  selectedUserId = 1,
+  selectedUserId = 110,
   onSelectUser,
+  selectedEvent,
+  onSelectEvent,
+  cutDay: propCutDay,
+  onCutDayChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const detailAreaRef = useRef<HTMLDivElement | null>(null);
 
-  // Pan and Zoom Transform
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const isDraggingRef = useRef(false);
-  const dragStartRef = useRef({ x: 0, y: 0, camX: 0, camY: 0 });
+  // Pan and Zoom Transform for Overview Canvas
+  const [transform, setTransform] = useState({ scale: 1.0, x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
 
-  // AI & Filter popup toggles
-  const [showAiCard, setShowAiCard] = useState(false);
+  // Floating Controls UI state
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showAiCard, setShowAiCard] = useState(false);
   const [questionInput, setQuestionInput] = useState('');
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
 
-  // Animation Refs
-  const animFrameRef = useRef<number | null>(null);
-  const timeRef = useRef<number>(0);
-  const starsRef = useRef<Star[]>([]);
+  // Detail View State
+  const [selectedAxis, setSelectedAxis] = useState<'D1' | 'D2' | 'D3' | 'D4' | 'IMP'>('D1');
+  const [internalCutDay, setInternalCutDay] = useState<number>(5);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [itemFocus, setItemFocus] = useState<number>(0);
+  const [stageDimensions, setStageDimensions] = useState({ width: 900, height: 650 });
 
-  // Initialize Cosmic Twinkling Stars
+  const cutDay = propCutDay !== undefined ? propCutDay : internalCutDay;
+  const setCutDay = useCallback(
+    (day: number) => {
+      setInternalCutDay(day);
+      onCutDayChange?.(day);
+    },
+    [onCutDayChange]
+  );
+
+  // Resize Observer for Stage Dimensions
   useEffect(() => {
-    const stars: Star[] = [];
-    for (let i = 0; i < 200; i++) {
-      stars.push({
-        x: Math.random() * 3000 - 1500,
-        y: Math.random() * 2000 - 1000,
-        radius: Math.random() * 1.5 + 0.3,
-        alpha: Math.random() * 0.75 + 0.25,
-        speed: Math.random() * 0.03 + 0.008,
-        phase: Math.random() * Math.PI * 2,
-      });
-    }
-    starsRef.current = stars;
+    const el = detailAreaRef.current || containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setStageDimensions({
+          width: entry.contentRect.width || 900,
+          height: entry.contentRect.height || 650,
+        });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  // Hub definitions mapped to project 4-tier model & members (Constellation layout)
+  // Auto-play timer for sprint replay simulation
+  useEffect(() => {
+    if (!isPlaying) return;
+    const timer = setInterval(() => {
+      setInternalCutDay((prev) => {
+        const next = prev >= 14 ? 14 : prev + 1;
+        if (next >= 14) setIsPlaying(false);
+        onCutDayChange?.(next);
+        return next;
+      });
+    }, 850);
+    return () => clearInterval(timer);
+  }, [isPlaying, onCutDayChange]);
+
+  // Helper Initials for central Orb
+  const initials = useMemo(() => {
+    if (!focusedUserName) return 'FS';
+    const parts = focusedUserName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase();
+  }, [focusedUserName]);
+
+  // Generate Realistic Deterministic Events for the selected member
+  const memberEvents = useMemo<NeuronEventItem[]>(() => {
+    const nameLower = (focusedUserName || '').toLowerCase();
+    const isFrontend = nameLower.includes('trang') || selectedUserId === 110;
+    const isLeader = nameLower.includes('nam') || selectedUserId === 109;
+    const isBackend = nameLower.includes('bảo') || selectedUserId === 111;
+    const isQA = nameLower.includes('vy') || selectedUserId === 113;
+
+    const mid = String(selectedUserId || 110);
+    const list: NeuronEventItem[] = [];
+
+    // D1: Output / Sản lượng
+    if (isFrontend) {
+      list.push(
+        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Giao diện Chấm chéo', src: 'Trello', day: 2, time: '10:15', impact: 5.0, dp: 1.4, evid: 'Trello · thẻ #104 · Doing → Done · 5 SP · UI Chấm chéo ẩn danh', meta: { sp: 5 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'doc', title: 'Chỉnh sửa · SRS v2.1 (Mục 4 UI Kit)', src: 'Google Docs', day: 3, time: '14:20', impact: 2.5, dp: 0.8, evid: 'Google Docs · revision r48 · +850 từ · Đặc tả Figma Token', meta: { words: 850 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Tích hợp API Axios', src: 'Trello', day: 4, time: '16:45', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #108 · Doing → Done · 3 SP · Interceptor JWT', meta: { sp: 3 } },
+        { id: `${mid}-d1-4`, mid, axis: 'D1', kind: 'check', title: 'Check item · Responsive Mobile TopNav', src: 'Trello', day: 5, time: '09:30', impact: 1.0, dp: 0.3, evid: 'Trello · checklist 5/5 hoàn thành', meta: {} },
+        { id: `${mid}-d1-5`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Form Khai Báo Thủ Công', src: 'Trello', day: 7, time: '11:00', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #112 · Doing → Done · 3 SP · Upload ảnh minh chứng', meta: { sp: 3 } }
+      );
+    } else if (isLeader) {
+      list.push(
+        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Kiến trúc Spring Boot 3', src: 'Trello', day: 1, time: '11:00', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #92 · Doing → Done · 5 SP · Clean Architecture', meta: { sp: 5 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Cấu hình Docker Compose', src: 'Trello', day: 3, time: '15:30', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #96 · Doing → Done · 3 SP · Multi-stage build', meta: { sp: 3 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Tối ưu Stored Procedure', src: 'Trello', day: 5, time: '17:00', impact: 5.0, dp: 1.5, evid: 'Trello · thẻ #101 · Doing → Done · 5 SP · Giảm latency còn 0.35ms', meta: { sp: 5 } }
+      );
+    } else if (isBackend) {
+      list.push(
+        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · RESTful API Swagger', src: 'Trello', day: 2, time: '14:00', impact: 3.0, dp: 0.9, evid: 'Trello · thẻ #105 · Doing → Done · 3 SP · OpenApi 3.0', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Migration Flyway V21-V23', src: 'Trello', day: 4, time: '10:30', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #109 · Doing → Done · 3 SP · Versioned migrations', meta: { sp: 3 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Scoring Engine 4 Tầng', src: 'Trello', day: 6, time: '16:15', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #115 · Doing → Done · 5 SP · Robust z-score', meta: { sp: 5 } }
+      );
+    } else if (isQA) {
+      list.push(
+        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Kịch bản UAT Scenarios', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #102 · Doing → Done · 3 SP · Test matrix M2', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Đóng Defect DEF-16/17/22', src: 'Trello', day: 4, time: '15:10', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #110 · Doing → Done · 3 SP · Defect verification', meta: { sp: 3 } }
+      );
+    } else {
+      list.push(
+        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Nhiệm vụ Sprint', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · hoàn thành thẻ đúng tiến độ', meta: { sp: 3 } }
+      );
+    }
+
+    // D2: Reliability / Tin cậy & Đúng hạn
+    list.push(
+      { id: `${mid}-d2-1`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Thẻ chính Sprint', src: 'Trello', day: 2, time: '18:00', impact: 1.0, dp: 0.4, evid: 'Trello · hoàn thành trước due date 12 giờ', meta: {} },
+      { id: `${mid}-d2-2`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Tài liệu kỹ thuật', src: 'Google Docs', day: 4, time: '17:30', impact: 1.0, dp: 0.4, evid: 'Google Docs · bàn giao đúng hạn mốc tuần 2', meta: {} }
+    );
+    if (isBackend) {
+      list.push(
+        { id: `${mid}-d2-3`, mid, axis: 'D2', kind: 'rework', title: 'Rework · Thẻ kéo lại Review → Doing', src: 'Trello', day: 3, time: '16:00', impact: -1.5, dp: -0.8, evid: 'Trello · Phát hiện lỗi validation DTO · Trừ điểm tin cậy D2', meta: {} }
+      );
+    }
+
+    // D3: Collaboration / Phối hợp
+    list.push(
+      { id: `${mid}-d3-1`, mid, axis: 'D3', kind: 'review', title: 'Review chéo PR @Nguyễn Hoàng Nam · Module Vector', src: 'GitHub', day: 2, time: '13:40', impact: 1.2, dp: 0.6, evid: 'GitHub PR #89 · để lại 4 inline comments & Approve', meta: { peer: 'nam' } },
+      { id: `${mid}-d3-2`, mid, axis: 'D3', kind: 'comment', title: 'Phản hồi bình luận trong SRS v2.1', src: 'Google Docs', day: 3, time: '15:15', impact: 0.6, dp: 0.3, evid: 'Google Docs · resolve 3 trao đổi về kiến trúc', meta: { peer: 'trang' } },
+      { id: `${mid}-d3-3`, mid, axis: 'D3', kind: 'help', title: 'Hỗ trợ đồng đội · Ghép cặp fix CORS & Auth', src: 'Trello', day: 5, time: '10:00', impact: 1.5, dp: 0.7, evid: 'Trello · được thêm vào thẻ đồng giải quyết blockers', meta: { peer: 'bao' } }
+    );
+
+    // D4: Peer Review / Chấm chéo
+    list.push(
+      { id: `${mid}-d4-1`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #1 · 4.8 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:00', impact: 1.8, dp: 0.9, evid: 'Chấm chéo ẩn danh · Tiêu chí: Đúng hạn 5/5, Chất lượng 4.8/5, Hỗ trợ 4.8/5', meta: { rt: 4.8 } },
+      { id: `${mid}-d4-2`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #2 · 5.0 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:30', impact: 2.4, dp: 1.2, evid: 'Chấm chéo ẩn danh · Đồng đội đánh giá xuất sắc về tinh thần trách nhiệm', meta: { rt: 5.0 } }
+    );
+
+    // IMP: Impediments / Rào cản & Khả dụng
+    if (isBackend) {
+      list.push({
+        id: `${mid}-imp-1`,
+        mid,
+        axis: 'IMP',
+        kind: 'imp',
+        title: 'Trùng lịch thi học phần (a_i = 0.90 bù hợp lệ)',
+        src: 'Khai báo',
+        day: 3,
+        time: '08:00',
+        impact: 2.0,
+        dp: 2.4,
+        evid: 'Khai báo thủ công · 2 ngày vắng do thi học kỳ · Leader đã phê duyệt · Bù D\' = D * (1 + 0.5(1 - a_i))',
+        meta: { days: 2 },
+      });
+    } else {
+      list.push({
+        id: `${mid}-imp-1`,
+        mid,
+        axis: 'IMP',
+        kind: 'imp',
+        title: 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
+        src: 'Khai báo',
+        day: 1,
+        time: '09:00',
+        impact: 0.0,
+        dp: 0.0,
+        evid: 'Thành viên tham gia đầy đủ 100% các buổi sprint, không yêu cầu bù khả dụng',
+        meta: { days: 0 },
+      });
+    }
+
+    return list;
+  }, [focusedUserName, selectedUserId]);
+
+  // Filter events up to cutDay
+  const activeEvents = useMemo(() => {
+    return memberEvents.filter((ev) => ev.day <= cutDay);
+  }, [memberEvents, cutDay]);
+
+  // Events of currently selected axis
+  const axisEvents = useMemo(() => {
+    return activeEvents.filter((ev) => ev.axis === selectedAxis);
+  }, [activeEvents, selectedAxis]);
+
+  // Hub definitions mapped to project 4-tier model (Constellation layout)
   const constellationHubs = useMemo<ConstellationHub[]>(() => {
+    const nameLower = (focusedUserName || '').toLowerCase();
+    const isFrontend = nameLower.includes('trang') || selectedUserId === 110;
+    const isLeader = nameLower.includes('nam') || selectedUserId === 109;
+    const isBackend = nameLower.includes('bảo') || selectedUserId === 111;
+    const isQA = nameLower.includes('vy') || selectedUserId === 113;
+
+    const pctVal = Math.round((finalPct || 0.22) * 100);
+
+    const d1TaskCount = isLeader ? 10 : isFrontend ? 7 : isQA ? 8 : isBackend ? 6 : 5;
+    const d1SpCount = isLeader ? '18.0 SP' : isFrontend ? '12.5 SP' : isQA ? '10.0 SP' : isBackend ? '11.0 SP' : '9.5 SP';
+    const d1ManualCount = isLeader ? '+5.0 SP' : isFrontend ? '+3.0 SP' : isBackend ? '+2.5 SP' : '+2.0 SP';
+    const d2OnTimePct = isLeader ? 95 : isFrontend ? 88 : isQA ? 92 : isBackend ? 82 : 90;
+    const d2Latency = isBackend ? '0.5 ngày' : '0.2 ngày';
+    const d2Rework = isBackend ? 'Rework 8%' : 'Rework 0%';
+    const d3Reviews = isLeader ? '12 Lượt' : isFrontend ? '5 Lượt' : isQA ? '8 Lượt' : '4 Lượt';
+    const d3Comments = isLeader ? '28 Thảo luận' : isFrontend ? '16 Thảo luận' : isQA ? '22 Thảo luận' : '12 Thảo luận';
+    const d4PeerScore = isLeader ? '9.6 / 10' : isFrontend ? '8.8 / 10' : isQA ? '9.0 / 10' : '8.5 / 10';
+    const d4ReviewCount = '4/4 Lượt';
+
     return [
       {
-        id: 'hub-gov',
-        label: 'Government affairs',
+        id: 'hub-d1-tasks',
+        label: 'Thẻ hoàn thành (Tasks)',
         category: 'D1',
-        percentage: 31,
-        badge: '31%',
-        color: '#c084fc', // purple
+        percentage: Math.min(100, Math.round(pctVal * 1.5)),
+        badge: `${d1TaskCount} Thẻ`,
+        color: '#10b981',
         angle: -2.35,
         distance: 280,
-        satellites: [
-          { id: 'sat-1', label: 'SRS Doc', count: 39, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
-          { id: 'sat-2', label: 'Auth flow', count: 11, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
-          { id: 'sat-3', label: 'Policy task', count: 27, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
-        ],
+        satellites: isFrontend
+          ? [
+              { id: 'sat-1', label: 'Giao diện Chấm chéo', count: 5, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Tích hợp API Axios', count: 4, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Form khai báo thủ công', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ]
+          : [
+              { id: 'sat-1', label: 'Kiến trúc Spring Boot 3', count: 8, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+              { id: 'sat-2', label: 'Cấu hình Docker Compose', count: 5, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+              { id: 'sat-3', label: 'Tối ưu Stored Procedure', count: 5, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+            ],
       },
       {
-        id: 'hub-energy',
-        label: 'Energy, transport an...',
+        id: 'hub-d1-sp',
+        label: 'Story Points & Trọng số',
         category: 'D1',
         percentage: 38,
-        badge: '38%',
-        color: '#f472b6', // pink
-        angle: -2.9,
-        distance: 290,
-        satellites: [
-          { id: 'sat-4', label: 'API Gateway', count: 19, color: '#34d399', angleOffset: -0.3, distOffset: 65 },
-          { id: 'sat-5', label: 'Worker queue', count: 16, color: '#c084fc', angleOffset: 0.35, distOffset: 75 },
-        ],
-      },
-      {
-        id: 'hub-env',
-        label: 'Environment and na...',
-        category: 'D2',
-        percentage: 17,
-        badge: '17%',
-        color: '#f472b6',
-        angle: -1.45,
-        distance: 270,
-        satellites: [
-          { id: 'sat-6', label: 'MariaDB Pool', count: 20, color: '#38bdf8', angleOffset: -0.35, distOffset: 65 },
-          { id: 'sat-7', label: 'Redis Cache', count: 15, color: '#a78bfa', angleOffset: 0.3, distOffset: 60 },
-          { id: 'sat-8', label: 'Vite config', count: 18, color: '#34d399', angleOffset: 0.7, distOffset: 75 },
-        ],
-      },
-      {
-        id: 'hub-sport',
-        label: 'Sport',
-        category: 'D3',
-        percentage: 24,
-        badge: '24%',
-        color: '#f472b6',
-        angle: -0.92,
+        badge: d1SpCount,
+        color: '#34d399',
+        angle: -1.82,
         distance: 310,
         satellites: [
-          { id: 'sat-9', label: 'Code Review', count: 6, color: '#fbbf24', angleOffset: 0.2, distOffset: 60 },
-          { id: 'sat-10', label: 'Doc collab', count: 34, color: '#34d399', angleOffset: 0.5, distOffset: 70 },
+          { id: 'sat-4', label: 'Độ khó TB Level 2.2', count: 8, color: '#38bdf8', angleOffset: -0.2, distOffset: 60 },
+          { id: 'sat-5', label: 'Tối đa 5 SP/card', count: 5, color: '#f59e0b', angleOffset: 0.35, distOffset: 70 },
         ],
       },
       {
-        id: 'hub-economy',
-        label: 'Economy and Busin...',
+        id: 'hub-d1-manual',
+        label: 'Đóng góp ngoài Board',
         category: 'D1',
-        percentage: 15,
-        badge: '15%',
-        color: '#f472b6',
-        angle: -0.48,
+        percentage: 24,
+        badge: d1ManualCount,
+        color: '#059669',
+        angle: -1.25,
+        distance: 350,
+        satellites: [
+          { id: 'sat-6', label: 'SRS v2.1 (+1.2k từ)', count: 4, color: '#34d399', angleOffset: -0.25, distOffset: 65 },
+          { id: 'sat-7', label: 'Slide thuyết trình Sprint 2', count: 3, color: '#38bdf8', angleOffset: 0.3, distOffset: 75 },
+        ],
+      },
+      {
+        id: 'hub-d2-ontime',
+        label: 'Tỷ lệ đúng hạn bàn giao',
+        category: 'D2',
+        percentage: d2OnTimePct,
+        badge: `${d2OnTimePct}% Đúng hạn`,
+        color: '#06b6d4',
+        angle: -0.68,
+        distance: 340,
+        satellites: [
+          { id: 'sat-8', label: 'Thẻ hoàn thành trước Due', count: 12, color: '#22d3ee', angleOffset: -0.25, distOffset: 60 },
+          { id: 'sat-9', label: 'Cam kết mốc Milestone', count: 4, color: '#34d399', angleOffset: 0.3, distOffset: 70 },
+        ],
+      },
+      {
+        id: 'hub-d2-latency',
+        label: 'Độ trễ trung vị (Lead Time)',
+        category: 'D2',
+        percentage: 16,
+        badge: d2Latency,
+        color: '#22d3ee',
+        angle: -0.15,
         distance: 360,
         satellites: [
-          { id: 'sat-11', label: 'Scoring engine', count: 7, color: '#38bdf8', angleOffset: -0.25, distOffset: 60 },
-          { id: 'sat-12', label: 'Robust MAD', count: 12, color: '#c084fc', angleOffset: 0.25, distOffset: 65 },
-          { id: 'sat-13', label: 'Z-score trim', count: 15, color: '#34d399', angleOffset: 0.6, distOffset: 70 },
+          { id: 'sat-10', label: 'Thời gian Doing → Done', count: 6, color: '#38bdf8', angleOffset: -0.3, distOffset: 65 },
+          { id: 'sat-11', label: 'Thời gian giải quyết blocker', count: 3, color: '#f59e0b', angleOffset: 0.25, distOffset: 65 },
         ],
       },
       {
-        id: 'hub-security',
-        label: 'Security and safety',
+        id: 'hub-d2-rework',
+        label: 'Kiểm thử & Rework',
         category: 'D2',
-        percentage: 23,
-        badge: '23%',
-        color: '#c084fc',
-        angle: -0.15,
-        distance: 400,
+        percentage: isBackend ? 18 : 6,
+        badge: d2Rework,
+        color: '#0891b2',
+        angle: 0.42,
+        distance: 320,
         satellites: [
-          { id: 'sat-14', label: 'JWT Token', count: 19, color: '#34d399', angleOffset: -0.28, distOffset: 65 },
-          { id: 'sat-15', label: 'CORS header', count: 24, color: '#f472b6', angleOffset: 0.32, distOffset: 70 },
+          { id: 'sat-12', label: 'Card mở lại sau Review', count: isBackend ? 2 : 0, color: '#f87171', angleOffset: -0.2, distOffset: 60 },
+          { id: 'sat-13', label: 'Defect Log đã fix xong', count: 4, color: '#34d399', angleOffset: 0.3, distOffset: 70 },
         ],
       },
       {
-        id: 'hub-health',
-        label: 'Healthcare',
-        category: 'D2',
-        percentage: 13,
-        badge: '13%',
-        color: '#f472b6',
-        angle: 0.35,
-        distance: 270,
-        satellites: [
-          { id: 'sat-16', label: 'Health check', count: 8, color: '#c084fc', angleOffset: -0.3, distOffset: 55 },
-          { id: 'sat-17', label: 'Log rotation', count: 18, color: '#38bdf8', angleOffset: 0.4, distOffset: 60 },
-        ],
-      },
-      {
-        id: 'hub-education',
-        label: 'Education',
+        id: 'hub-d3-reviews',
+        label: 'Review chéo đồng đội',
         category: 'D3',
-        percentage: 25,
-        badge: '25%',
-        color: '#f472b6',
-        angle: 0.75,
+        percentage: 32,
+        badge: d3Reviews,
+        color: '#8b5cf6',
+        angle: 1.05,
         distance: 330,
         satellites: [
-          { id: 'sat-18', label: 'Peer feedback', count: 12, color: '#38bdf8', angleOffset: -0.25, distOffset: 55 },
-          { id: 'sat-19', label: 'Rubric scoring', count: 7, color: '#34d399', angleOffset: 0.3, distOffset: 60 },
+          { id: 'sat-14', label: 'PR Review Approve', count: 6, color: '#c084fc', angleOffset: -0.25, distOffset: 65 },
+          { id: 'sat-15', label: 'Góp ý tài liệu Google Docs', count: 5, color: '#38bdf8', angleOffset: 0.3, distOffset: 75 },
         ],
       },
       {
-        id: 'hub-family',
-        label: 'Family and commun...',
-        category: 'D4',
-        percentage: 33,
-        badge: '33%',
-        color: '#f472b6',
-        angle: 1.15,
-        distance: 390,
-        satellites: [
-          { id: 'sat-20', label: 'Anonymous vote', count: 11, color: '#34d399', angleOffset: -0.2, distOffset: 60 },
-          { id: 'sat-21', label: 'Impediment a_i', count: 27, color: '#fbbf24', angleOffset: 0.35, distOffset: 70 },
-        ],
-      },
-      {
-        id: 'hub-justice',
-        label: 'Justice and Judiciary',
-        category: 'D2',
-        percentage: 12,
-        badge: '12%',
-        color: '#f472b6',
+        id: 'hub-d3-collab',
+        label: 'Thảo luận & Hỗ trợ (@Mentions)',
+        category: 'D3',
+        percentage: 45,
+        badge: d3Comments,
+        color: '#a78bfa',
         angle: 1.62,
+        distance: 290,
+        satellites: [
+          { id: 'sat-16', label: 'Comment mang tính xây dựng', count: 18, color: '#a78bfa', angleOffset: -0.25, distOffset: 65 },
+          { id: 'sat-17', label: 'Được gán đồng thực hiện', count: 4, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
+        ],
+      },
+      {
+        id: 'hub-d4-peer',
+        label: 'Điểm chấm chéo ẩn danh',
+        category: 'D4',
+        percentage: Math.round(((compositeScore || 33.1) / 100) * 100),
+        badge: d4PeerScore,
+        color: '#ec4899',
+        angle: 2.18,
+        distance: 320,
+        satellites: [
+          { id: 'sat-18', label: 'Chất lượng đóng góp: 4.8/5', count: 4, color: '#f472b6', angleOffset: -0.25, distOffset: 65 },
+          { id: 'sat-19', label: 'Trách nhiệm & Thái độ: 5.0/5', count: 4, color: '#ec4899', angleOffset: 0.25, distOffset: 70 },
+        ],
+      },
+      {
+        id: 'hub-d4-valid',
+        label: 'Lượt chấm hợp lệ (≥3)',
+        category: 'D4',
+        percentage: 100,
+        badge: d4ReviewCount,
+        color: '#f472b6',
+        angle: 2.65,
+        distance: 350,
+        satellites: [
+          { id: 'sat-20', label: 'Ẩn danh danh tính 100%', count: 4, color: '#f472b6', angleOffset: -0.2, distOffset: 65 },
+          { id: 'sat-21', label: 'Đủ điều kiện tính điểm D4', count: 1, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
+        ],
+      },
+      {
+        id: 'hub-impediments',
+        label: 'Rào cản ngoại cảnh & Khả dụng',
+        category: 'IMPEDIMENT',
+        percentage: isBackend ? 20 : 0,
+        badge: isBackend ? '1 Rào cản (a_i=0.90)' : 'Khả dụng 100% (a_i=1.0)',
+        color: '#f59e0b',
+        angle: 3.14,
         distance: 270,
         satellites: [
-          { id: 'sat-22', label: 'Anti-fraud test', count: 36, color: '#c084fc', angleOffset: -0.3, distOffset: 60 },
-          { id: 'sat-23', label: 'Mahalanobis dist', count: 13, color: '#38bdf8', angleOffset: 0.3, distOffset: 65 },
-        ],
-      },
-      {
-        id: 'hub-culture',
-        label: 'Culture and media',
-        category: 'D3',
-        percentage: 22,
-        badge: '22%',
-        color: '#f472b6',
-        angle: 2.35,
-        distance: 280,
-        satellites: [
-          { id: 'sat-24', label: 'UI Mockups', count: 20, color: '#38bdf8', angleOffset: -0.35, distOffset: 60 },
-          { id: 'sat-25', label: 'Canvas shader', count: 18, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
+          { id: 'sat-22', label: isBackend ? 'Trùng lịch thi học phần' : 'Không có rào cản', count: isBackend ? 1 : 0, color: '#fbbf24', angleOffset: -0.25, distOffset: 65 },
+          { id: 'sat-23', label: "Kích hoạt bù D' = D*(1+0.5(1-a_i))", count: isBackend ? 1 : 0, color: '#10b981', angleOffset: 0.3, distOffset: 75 },
         ],
       },
     ];
-  }, []);
+  }, [focusedUserName, finalPct, compositeScore, selectedUserId]);
 
-  // Filter hubs according to activeFilter
   const filteredHubs = useMemo(() => {
     if (activeFilter === 'ALL') return constellationHubs;
     return constellationHubs.filter((h) => h.category === activeFilter);
-  }, [constellationHubs, activeFilter]);
+  }, [activeFilter, constellationHubs]);
 
-  // Handle Canvas Zoom
-  const handleZoom = (dir: 'in' | 'out' | 'fit') => {
-    if (dir === 'fit') {
-      setTransform({ x: 0, y: 0, scale: 1 });
-      return;
+  // Background star field
+  const starField = useMemo<StarBg[]>(() => {
+    const list: StarBg[] = [];
+    for (let i = 0; i < 180; i++) {
+      list.push({
+        x: Math.random(),
+        y: Math.random(),
+        radius: Math.random() * 1.5 + 0.3,
+        alpha: Math.random() * 0.7 + 0.2,
+        speed: Math.random() * 0.0008 + 0.0002,
+        phase: Math.random() * Math.PI * 2,
+      });
     }
-    const factor = dir === 'in' ? 1.2 : 0.83;
-    setTransform((prev) => ({
-      ...prev,
-      scale: Math.max(0.4, Math.min(2.8, prev.scale * factor)),
-    }));
-  };
+    return list;
+  }, []);
 
-  // Helper: Draw round rectangle
-  const drawRoundRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r: number
-  ) => {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  };
-
-  // Main Canvas Render Loop
+  // Main Canvas Render Loop (Constellation in Overview mode)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    let animFrame: number;
     let isRunning = true;
 
-    const render = () => {
+    const render = (time: number) => {
       if (!isRunning) return;
-      timeRef.current += 0.015;
-      const t = timeRef.current;
+      const t = time / 1000;
+      const width = canvas.width;
+      const height = canvas.height;
 
-      const dpr = window.devicePixelRatio || 1;
-      const width = canvas.width / dpr;
-      const height = canvas.height / dpr;
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      ctx.save();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      // Deep space cosmic gradient background matching Image 1
-      const bgGrad = ctx.createRadialGradient(
-        centerX + transform.x,
-        centerY + transform.y,
-        120,
-        centerX + transform.x,
-        centerY + transform.y,
-        Math.max(width, height) * 0.9
-      );
-      bgGrad.addColorStop(0, '#0c222c'); // deep dark cyan/teal core
-      bgGrad.addColorStop(0.35, '#07161e');
-      bgGrad.addColorStop(0.7, '#040d13');
+      // Deep space background gradient
+      const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 20, width / 2, height / 2, Math.max(width, height) * 0.7);
+      bgGrad.addColorStop(0, '#0a232f');
+      bgGrad.addColorStop(0.4, '#05141c');
       bgGrad.addColorStop(1, '#020609');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Soft ambient celestial glow nebulae
-      const neb1 = ctx.createRadialGradient(
-        centerX - 120 + transform.x,
-        centerY - 80 + transform.y,
-        30,
-        centerX - 120 + transform.x,
-        centerY - 80 + transform.y,
-        480
-      );
-      neb1.addColorStop(0, 'rgba(34, 211, 238, 0.08)');
-      neb1.addColorStop(1, 'rgba(34, 211, 238, 0)');
-      ctx.fillStyle = neb1;
-      ctx.fillRect(0, 0, width, height);
-
-      // World Space Transformation
-      ctx.save();
-      ctx.translate(centerX + transform.x, centerY + transform.y);
-      ctx.scale(transform.scale, transform.scale);
-
-      // 1. Twinkling Background Stardust
-      starsRef.current.forEach((st) => {
-        const flicker = Math.sin(t * 1.5 + st.phase) * 0.35 + 0.65;
-        ctx.fillStyle = `rgba(190, 240, 255, ${st.alpha * flicker})`;
+      // Starfield
+      starField.forEach((star) => {
+        const sx = star.x * width;
+        const sy = (star.y * height + t * star.speed * 200) % height;
+        const curAlpha = star.alpha * (0.6 + 0.4 * Math.sin(t * 1.8 + star.phase));
+        ctx.fillStyle = `rgba(180, 230, 255, ${curAlpha})`;
         ctx.beginPath();
-        ctx.arc(st.x, st.y, st.radius, 0, Math.PI * 2);
+        ctx.arc(sx, sy, star.radius, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // 2. Inter-hub Constellation Curved Mesh Lines (Collaboration Network)
-      ctx.save();
-      ctx.setLineDash([3, 7]);
-      ctx.strokeStyle = 'rgba(167, 139, 250, 0.16)';
-      ctx.lineWidth = 1.1;
-      for (let i = 0; i < filteredHubs.length; i++) {
-        const h1 = filteredHubs[i];
-        const h2 = filteredHubs[(i + 1) % filteredHubs.length];
-        const x1 = Math.cos(h1.angle) * h1.distance;
-        const y1 = Math.sin(h1.angle) * h1.distance;
-        const x2 = Math.cos(h2.angle) * h2.distance;
-        const y2 = Math.sin(h2.angle) * h2.distance;
-        const midX = (x1 + x2) * 0.48;
-        const midY = (y1 + y2) * 0.48;
-
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.quadraticCurveTo(midX, midY, x2, y2);
-        ctx.stroke();
+      // If in Detail Mode, the background canvas is dimmed and blurred; detailed DOM renders in foreground
+      if (viewMode === 'detail') {
+        animFrame = requestAnimationFrame(render);
+        return;
       }
-      ctx.setLineDash([]);
-      ctx.restore();
 
-      // 3. Volumetric Radiant Light Beams (Center Core -> Every Major Hub)
-      filteredHubs.forEach((hub, hIdx) => {
+      ctx.save();
+      ctx.translate(width / 2 + transform.x, height / 2 + transform.y);
+      ctx.scale(transform.scale, transform.scale);
+
+      // Orbital Concentric Rings
+      [220, 280, 340, 400].forEach((r, idx) => {
+        ctx.strokeStyle = idx % 2 === 0 ? 'rgba(70, 180, 210, 0.12)' : 'rgba(70, 180, 210, 0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      // Beams from Center Core to Hubs
+      filteredHubs.forEach((hub) => {
         const hx = Math.cos(hub.angle) * hub.distance;
         const hy = Math.sin(hub.angle) * hub.distance;
-        const beamL = Math.hypot(hx, hy);
-        const nx = -hy / beamL;
-        const ny = hx / beamL;
-        const baseW = 18; // wide near core
-        const endW = 4; // tapered near hub
 
-        // Radiant Volumetric Light Shaft (Polygon Beam)
-        const beamGrad = ctx.createLinearGradient(0, 0, hx, hy);
-        beamGrad.addColorStop(0, 'rgba(255, 226, 170, 0.75)');
-        beamGrad.addColorStop(0.35, 'rgba(245, 194, 100, 0.45)');
-        beamGrad.addColorStop(0.8, 'rgba(244, 114, 182, 0.25)');
-        beamGrad.addColorStop(1, 'rgba(167, 139, 250, 0)');
+        // Gradient beam
+        const grad = ctx.createLinearGradient(0, 0, hx, hy);
+        grad.addColorStop(0, 'rgba(245, 194, 100, 0.75)');
+        grad.addColorStop(1, `${hub.color}88`);
 
-        ctx.save();
-        ctx.fillStyle = beamGrad;
-        ctx.beginPath();
-        ctx.moveTo(nx * (baseW / 2), ny * (baseW / 2));
-        ctx.lineTo(hx + nx * (endW / 2), hy + ny * (endW / 2));
-        ctx.lineTo(hx - nx * (endW / 2), hy - ny * (endW / 2));
-        ctx.lineTo(-nx * (baseW / 2), -ny * (baseW / 2));
-        ctx.closePath();
-        ctx.fill();
-
-        // Central High-Intensity Laser Core Line
-        ctx.strokeStyle = 'rgba(255, 235, 180, 0.85)';
+        ctx.strokeStyle = grad;
         ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(hx, hy);
         ctx.stroke();
 
-        // Animated Energy Particle Packets traveling along the beam
-        for (let p = 0; p < 2; p++) {
-          const u = (t * 0.12 + p * 0.5 + hIdx * 0.15) % 1;
-          const px = hx * u;
-          const py = hy * u;
-          const pSize = 3.5 * (1 - u * 0.3);
+        // Traveling pulse particle along beam
+        const pulseProgress = (t * 0.4 + hub.angle) % 1;
+        const px = hx * pulseProgress;
+        const py = hy * pulseProgress;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.fill();
 
-          const sparkGrad = ctx.createRadialGradient(px, py, 0, px, py, pSize * 2.5);
-          sparkGrad.addColorStop(0, '#ffffff');
-          sparkGrad.addColorStop(0.4, 'rgba(255, 230, 160, 0.9)');
-          sparkGrad.addColorStop(1, 'rgba(255, 200, 100, 0)');
-
-          ctx.fillStyle = sparkGrad;
-          ctx.beginPath();
-          ctx.arc(px, py, pSize * 2.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      });
-
-      // 4. Satellite Leaf Nodes Clustered Around Each Hub
-      filteredHubs.forEach((hub) => {
-        const hx = Math.cos(hub.angle) * hub.distance;
-        const hy = Math.sin(hub.angle) * hub.distance;
-
+        // Lines from Hub to its Satellites
         hub.satellites.forEach((sat) => {
           const satAngle = hub.angle + sat.angleOffset;
           const satDist = hub.distance + sat.distOffset;
           const sx = Math.cos(satAngle) * satDist;
           const sy = Math.sin(satAngle) * satDist;
 
-          // Connector line from Hub to Satellite
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-          ctx.lineWidth = 1.0;
+          ctx.strokeStyle = 'rgba(120, 210, 235, 0.35)';
+          ctx.lineWidth = 0.9;
           ctx.beginPath();
           ctx.moveTo(hx, hy);
           ctx.lineTo(sx, sy);
           ctx.stroke();
 
-          // Satellite Glowing Aura
-          const satGlow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 18);
-          satGlow.addColorStop(0, `${sat.color}88`);
-          satGlow.addColorStop(1, `${sat.color}00`);
-          ctx.fillStyle = satGlow;
+          // Satellite Node
+          ctx.fillStyle = sat.color;
           ctx.beginPath();
-          ctx.arc(sx, sy, 18, 0, Math.PI * 2);
+          ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Satellite Node Sphere
-          const satSphere = ctx.createRadialGradient(sx - 2, sy - 2, 1, sx, sy, 7);
-          satSphere.addColorStop(0, '#ffffff');
-          satSphere.addColorStop(0.4, sat.color);
-          satSphere.addColorStop(1, `${sat.color}cc`);
-          ctx.fillStyle = satSphere;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 6.5, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Number Badge Pill next to satellite (e.g. 11, 39, 27)
-          const badgeText = String(sat.count);
-          ctx.font = 'bold 9px monospace';
-          const textW = ctx.measureText(badgeText).width;
-          const bw = textW + 10;
-          const bh = 14;
-          const bx = sx + 9;
-          const by = sy - 7;
-
-          ctx.fillStyle = 'rgba(6, 20, 28, 0.88)';
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.lineWidth = 0.8;
-          drawRoundRect(ctx, bx, by, bw, bh, 4);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.fillStyle = '#ffffff';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(badgeText, bx + bw / 2, by + bh / 2 + 0.5);
+          // Satellite Label
+          ctx.fillStyle = 'rgba(215, 238, 245, 0.85)';
+          ctx.font = '9.5px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${sat.label} (${sat.count})`, sx + 8, sy + 3);
         });
-      });
 
-      // 5. Major Constellation Hubs (Planetary 3D Shaded Orbs)
-      filteredHubs.forEach((hub) => {
-        const hx = Math.cos(hub.angle) * hub.distance;
-        const hy = Math.sin(hub.angle) * hub.distance;
-        const hr = 24; // hub radius
-        const isSelected = selectedNodeId && (hub.id.includes(selectedNodeId) || hub.category === selectedNodeId);
-
-        // Outer Aura Glow
-        const auraGrad = ctx.createRadialGradient(hx, hy, hr * 0.4, hx, hy, hr * (isSelected ? 3.4 : 2.8));
-        auraGrad.addColorStop(0, `${hub.color}${isSelected ? '88' : '55'}`);
-        auraGrad.addColorStop(1, `${hub.color}00`);
-        ctx.fillStyle = auraGrad;
+        // Hub Circle Body
+        const hubR = 20;
+        const hubGlow = ctx.createRadialGradient(hx, hy, 0, hx, hy, hubR * 2.2);
+        hubGlow.addColorStop(0, `${hub.color}aa`);
+        hubGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = hubGlow;
         ctx.beginPath();
-        ctx.arc(hx, hy, hr * (isSelected ? 3.4 : 2.8), 0, Math.PI * 2);
+        ctx.arc(hx, hy, hubR * 2.2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Solid Outer Ring
-        ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(215, 195, 255, 0.75)';
-        ctx.lineWidth = isSelected ? 2.4 : 1.6;
+        ctx.fillStyle = '#081a24';
         ctx.beginPath();
-        ctx.arc(hx, hy, hr + 7, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Rotating Dashed Outer Orbit Ring
-        ctx.save();
-        ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(215, 195, 255, 0.4)';
-        ctx.lineWidth = 1.0;
-        ctx.setLineDash([3, 5]);
-        ctx.lineDashOffset = -t * 12;
-        ctx.beginPath();
-        ctx.arc(hx, hy, hr + 13, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-
-        // 3D Shaded Sphere Orb (Specular highlight top-left, rich mid-tone, dark shade bottom-right)
-        const sphereGrad = ctx.createRadialGradient(
-          hx - hr * 0.35,
-          hy - hr * 0.35,
-          1,
-          hx,
-          hy,
-          hr * 1.05
-        );
-        sphereGrad.addColorStop(0, '#ffffff');
-        sphereGrad.addColorStop(0.3, hub.color);
-        sphereGrad.addColorStop(0.85, '#6b21a8');
-        sphereGrad.addColorStop(1, '#2e1065');
-
-        ctx.fillStyle = sphereGrad;
-        ctx.beginPath();
-        ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+        ctx.arc(hx, hy, hubR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Percentage Badge Floating Under Hub (e.g. 31%, 38%)
-        const badgeW = 34;
-        const badgeH = 16;
-        const badgeX = hx - badgeW / 2;
-        const badgeY = hy + hr + 4;
-
-        ctx.fillStyle = 'rgba(8, 22, 32, 0.88)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 0.8;
-        drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 5);
-        ctx.fill();
+        ctx.strokeStyle = hub.color;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
 
-        ctx.fillStyle = '#e2e8f0';
+        // Hub Badge inside
+        ctx.fillStyle = '#fff';
         ctx.font = 'bold 9.5px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(hub.badge, hx, badgeY + badgeH / 2 + 0.5);
+        ctx.fillText(hub.badge, hx, hy);
 
-        // Hub Title Text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '600 12px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(hub.label, hx + hr + 8, hy + 4);
+        // Hub label text outside
+        ctx.fillStyle = '#e2f4f8';
+        ctx.font = '500 11px sans-serif';
+        ctx.fillText(hub.label, hx, hy + hubR + 13);
       });
 
-      // 6. Central Radiant Core ("Constitution" / "FairShare Core")
+      // Center Core Orb (Focused Member)
       const coreR = 48;
-
-      // Volumetric Core Radial Glow
-      const coreAura = ctx.createRadialGradient(0, 0, coreR * 0.5, 0, 0, coreR * 3.6);
-      coreAura.addColorStop(0, 'rgba(255, 214, 130, 0.6)');
-      coreAura.addColorStop(0.4, 'rgba(245, 180, 80, 0.2)');
-      coreAura.addColorStop(1, 'rgba(245, 180, 80, 0)');
-      ctx.fillStyle = coreAura;
+      const coreGlow = ctx.createRadialGradient(0, 0, coreR * 0.4, 0, 0, coreR * 3.2);
+      coreGlow.addColorStop(0, 'rgba(245, 194, 100, 0.9)');
+      coreGlow.addColorStop(0.5, 'rgba(245, 160, 50, 0.35)');
+      coreGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = coreGlow;
       ctx.beginPath();
-      ctx.arc(0, 0, coreR * 3.6, 0, Math.PI * 2);
+      ctx.arc(0, 0, coreR * 3.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Rotating 56 Fiery Solar Flare Spikes
+      // Rotating Spikes around Core
       ctx.save();
-      ctx.rotate(t * 0.08);
-      for (let i = 0; i < 56; i++) {
-        const spikeAng = (i / 56) * Math.PI * 2;
-        const wave = Math.sin(i * 2.3 + t * 0.5) * Math.sin(i * 0.8 - t * 0.7);
-        const spikeLen = coreR * (1.25 + 0.35 * wave);
-
-        ctx.strokeStyle = 'rgba(255, 218, 140, 0.7)';
-        ctx.lineWidth = 1.3;
+      ctx.rotate(t * 0.12);
+      const spikesCount = 64;
+      for (let i = 0; i < spikesCount; i++) {
+        const sa = (i / spikesCount) * Math.PI * 2;
+        const sl = coreR * (1.18 + 0.22 * Math.sin(i * 3.5 + t * 2));
+        ctx.strokeStyle = 'rgba(255, 220, 140, 0.7)';
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.moveTo(Math.cos(spikeAng) * (coreR * 1.02), Math.sin(spikeAng) * (coreR * 1.02));
-        ctx.lineTo(Math.cos(spikeAng) * spikeLen, Math.sin(spikeAng) * spikeLen);
+        ctx.moveTo(Math.cos(sa) * coreR * 1.02, Math.sin(sa) * coreR * 1.02);
+        ctx.lineTo(Math.cos(sa) * sl, Math.sin(sa) * sl);
         ctx.stroke();
       }
       ctx.restore();
 
-      // 3D Shaded Sun Core Orb
-      const sunGrad = ctx.createRadialGradient(
-        -coreR * 0.35,
-        -coreR * 0.35,
-        2,
-        0,
-        0,
-        coreR
-      );
-      sunGrad.addColorStop(0, '#fffdf0');
-      sunGrad.addColorStop(0.35, '#f7c768');
-      sunGrad.addColorStop(0.8, '#b9701f');
-      sunGrad.addColorStop(1, '#5b320d');
-
-      ctx.fillStyle = sunGrad;
+      // Core Spherical Gradient
+      const coreGrad = ctx.createRadialGradient(-coreR * 0.3, -coreR * 0.3, 2, 0, 0, coreR);
+      coreGrad.addColorStop(0, '#fff6db');
+      coreGrad.addColorStop(0.35, '#f5c264');
+      coreGrad.addColorStop(0.8, '#b87020');
+      coreGrad.addColorStop(1, '#5a2e06');
+      ctx.fillStyle = coreGrad;
       ctx.beginPath();
       ctx.arc(0, 0, coreR, 0, Math.PI * 2);
       ctx.fill();
 
-      // Outer golden corona rim
       ctx.strokeStyle = 'rgba(255, 235, 180, 0.85)';
       ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.arc(0, 0, coreR + 3, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Central Constitution Core Title
+      // Core Titles
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 15px sans-serif';
+      ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(focusedUserName ? `${focusedUserName}` : 'Constitution', 0, coreR + 24);
+      ctx.fillText(focusedUserName || 'Thành viên', 0, coreR + 24);
 
-      // Subtitle pill under core
-      const coreSubW = 160;
-      const coreSubH = 18;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-      drawRoundRect(ctx, -coreSubW / 2, coreR + 34, coreSubW, coreSubH, 5);
-      ctx.fill();
+      ctx.fillStyle = '#e5c479';
+      ctx.font = '11px monospace';
+      ctx.fillText(sprintName ? sprintName.split(':')[0] : 'FairShare Core · Sprint 3', 0, coreR + 42);
 
-      ctx.fillStyle = '#fce7b8';
-      ctx.font = '500 10.5px sans-serif';
-      ctx.fillText(sprintName ? sprintName.split(':')[0] : 'FairShare Core · Sprint 3', 0, coreR + 44);
+      ctx.restore();
 
-      ctx.restore(); // end world scale/translate
-
-      // 7. Left Vertical Timeline Rail & Audio Soundwave Edge (Overlay on Canvas)
+      // Left Vertical Timeline Rail & Audio Soundwave Edge
       const railX = 48;
       const waveStartX = 18;
 
-      // Subtle Vertical Audio Soundwave / Frequency Texture along the left border
       ctx.save();
       ctx.strokeStyle = 'rgba(120, 200, 220, 0.22)';
       ctx.lineWidth = 1.0;
@@ -722,11 +729,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       // Vertical Sprint Years / Sprint Capsules
       const railItems = sprints && sprints.length > 0
-        ? sprints.map((s) => ({
-            id: s.id,
-            label: s.name.split(':')[0].trim(),
-            isCurrent: s.id === selectedSprintId || s.isCurrent,
-          }))
+        ? sprints.map((s) => {
+            const shortMatch = s.name.match(/Sprint\s*\d+/i);
+            const shortLabel = shortMatch ? shortMatch[0] : s.name.split(/[-:–]/)[0].trim();
+            return {
+              id: s.id,
+              label: shortLabel,
+              isCurrent: s.id === selectedSprintId || s.isCurrent,
+            };
+          })
         : [
             { id: 1, label: 'Sprint 1', isCurrent: false },
             { id: 2, label: 'Sprint 2', isCurrent: false },
@@ -742,33 +753,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         const sy = railStartY + idx * railSpacing;
 
         if (sp.isCurrent) {
-          // Highlighted Illuminated Rounded Capsule (like 2020 in Image 1)
-          const capW = 68;
-          const capH = 34;
-          const capX = railX - 10;
+          const capW = 76;
+          const capH = 30;
+          const capX = railX - 8;
           const capY = sy - capH / 2;
 
           ctx.fillStyle = 'rgba(15, 30, 40, 0.9)';
           ctx.strokeStyle = 'rgba(245, 194, 100, 0.8)';
           ctx.lineWidth = 1.8;
-          drawRoundRect(ctx, capX, capY, capW, capH, 17);
+          ctx.beginPath();
+          ctx.roundRect(capX, capY, capW, capH, 15);
           ctx.fill();
           ctx.stroke();
 
-          // Golden glow
-          ctx.shadowColor = 'rgba(245, 194, 100, 0.6)';
-          ctx.shadowBlur = 12;
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-
-          // Capsule text
           ctx.fillStyle = '#ffdf99';
           ctx.font = 'bold 12px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(sp.label, capX + capW / 2, sy);
 
-          // Connector line from active capsule toward constellation
           ctx.strokeStyle = 'rgba(245, 194, 100, 0.45)';
           ctx.lineWidth = 1.2;
           ctx.beginPath();
@@ -776,7 +779,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           ctx.lineTo(capX + capW + 22, sy);
           ctx.stroke();
         } else {
-          // Normal Sprint Year Label
           ctx.fillStyle = 'rgba(157, 181, 189, 0.45)';
           ctx.font = '500 11.5px monospace';
           ctx.textAlign = 'left';
@@ -786,63 +788,98 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       });
       ctx.restore();
 
-      ctx.restore(); // end frame restore
-
-      animFrameRef.current = requestAnimationFrame(render);
+      animFrame = requestAnimationFrame(render);
     };
 
-    animFrameRef.current = requestAnimationFrame(render);
+    animFrame = requestAnimationFrame(render);
     return () => {
       isRunning = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(animFrame);
     };
-  }, [transform, filteredHubs]);
+  }, [transform, filteredHubs, starField, viewMode, focusedUserName, sprintName, sprints, selectedSprintId]);
 
-  // Pan canvas on drag
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    isDraggingRef.current = true;
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      camX: transform.x,
-      camY: transform.y,
+  // Handle Resize for canvas
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
     };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Pan Canvas
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (viewMode === 'detail') return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
+    if (!isDragging || viewMode === 'detail') return;
     setTransform((prev) => ({
       ...prev,
-      x: dragStartRef.current.camX + dx,
-      y: dragStartRef.current.camY + dy,
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
     }));
   };
 
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-  };
+  const handleMouseUp = () => setIsDragging(false);
 
-  // Wheel zoom
+  // Zoom Canvas
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    if (viewMode === 'detail') return;
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.08 : 0.92;
+    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
     setTransform((prev) => ({
       ...prev,
-      scale: Math.max(0.4, Math.min(2.8, prev.scale * factor)),
+      scale: Math.max(0.4, Math.min(2.5, prev.scale * zoomFactor)),
     }));
   };
 
-  // Canvas click to select node or switch to detail
+  const handleZoom = (type: 'in' | 'out' | 'fit') => {
+    if (type === 'in') setTransform((prev) => ({ ...prev, scale: Math.min(2.5, prev.scale * 1.2) }));
+    if (type === 'out') setTransform((prev) => ({ ...prev, scale: Math.max(0.4, prev.scale / 1.2) }));
+    if (type === 'fit') setTransform({ scale: 1.0, x: 0, y: 0 });
+  };
+
+  // Canvas Click: Hit check on hubs or center orb to transition to detail
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || viewMode === 'detail') return;
     const rect = canvas.getBoundingClientRect();
+
+    // Check hit on sprint rail
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    if (screenX >= 20 && screenX <= 130 && onSelectSprint && sprints && sprints.length > 0) {
+      const railStartY = rect.height * 0.12;
+      const railSpacing = (rect.height * 0.68) / Math.max(1, sprints.length - 1);
+      const clickedIdx = Math.round((screenY - railStartY) / railSpacing);
+      if (
+        clickedIdx >= 0 &&
+        clickedIdx < sprints.length &&
+        Math.abs(screenY - (railStartY + clickedIdx * railSpacing)) < 24
+      ) {
+        onSelectSprint(sprints[clickedIdx].id);
+        return;
+      }
+    }
+
     const px = e.clientX - rect.left - rect.width / 2 - transform.x;
     const py = e.clientY - rect.top - rect.height / 2 - transform.y;
     const scaledX = px / transform.scale;
     const scaledY = py / transform.scale;
+
+    // Check hit on center core orb -> zoom into detail
+    if (Math.hypot(scaledX, scaledY) < 55) {
+      onSwitchViewMode?.('detail');
+      return;
+    }
 
     // Check hit on any hub
     for (const hub of filteredHubs) {
@@ -853,38 +890,70 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         if (matched) {
           onSelectNode(matched);
         }
-        if (onSwitchViewMode) {
-          onSwitchViewMode('detail');
+        if (hub.category.startsWith('D')) {
+          setSelectedAxis(hub.category as 'D1' | 'D2' | 'D3' | 'D4');
+        } else if (hub.category === 'IMPEDIMENT') {
+          setSelectedAxis('IMP');
         }
+        onSwitchViewMode?.('detail');
         return;
       }
     }
   };
 
+  // AI Ask Submit
   const handleAskSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!questionInput.trim()) return;
     const q = questionInput.toLowerCase();
+    const currentName = focusedUserName || 'Thành viên';
+    const pctStr = `${((finalPct || 0.22) * 100).toFixed(1)}%`;
+    const scoreStr = `${(compositeScore || 33.1).toFixed(1)}/100`;
+
     if (q.includes('ai') || q.includes('hoạt động') || q.includes('chậm') || q.includes('ít')) {
-      setAiAnswer('Quốc Bảo có 3 ngày chưa ghi nhận sự kiện hoạt động mới. Đóng góp hiện tại p = 5.0%.');
-    } else if (q.includes('cao nhất') || q.includes('nhiều nhất') || q.includes('top')) {
-      setAiAnswer('Minh Trieu đang dẫn đầu với p = 35.0% (C_i = 99.1), theo sau là Ngọc Anh 28.0%.');
-    } else if (q.includes('rào cản') || q.includes('bù')) {
-      setAiAnswer('Đã ghi nhận 1 rào cản hợp lệ: Trùng lịch thi (2 ngày). Hệ số bù khả dụng a_i = 1.00 kích hoạt.');
+      setAiAnswer('Lê Quốc Bảo (Backend) có 2 ngày bị chậm tiến độ do trùng lịch thi học phần. Hệ thống đã kích hoạt hệ số bù khả dụng a_i = 0.90 để bảo vệ quyền lợi thành viên.');
+    } else if (q.includes('cao nhất') || q.includes('nhiều nhất') || q.includes('top') || q.includes('dẫn đầu')) {
+      setAiAnswer('Nguyễn Hoàng Nam (Trưởng nhóm) đang dẫn đầu với p = 39.0% (C_i = 65.6), theo sau là Trần Thu Trang 22.0% (C_i = 33.1).');
+    } else if (q.includes('rào cản') || q.includes('bù') || q.includes('khả dụng')) {
+      setAiAnswer(`Thành viên ${currentName} có hệ số khả dụng a_i = ${(availabilityFactor * 100).toFixed(0)}%. Đã kích hoạt công thức bù một phần D' = D * (1 + 0.5(1 - a_i)).`);
     } else {
-      setAiAnswer(`Đóng góp Sprint 3: Minh Trieu 35.0% · Ngọc Anh 28.0% · Thu Hà 22.0%. Khoảng tin cậy [32.93%, 34.67%].`);
+      setAiAnswer(`Đóng góp Sprint hiện tại: ${currentName} đạt tỷ lệ p_i = ${pctStr} (Điểm tổng hợp C_i = ${scoreStr}), khoảng cách Mahalanobis tới tâm nhóm δ_i = ${(distanceToCenter || 2.20).toFixed(2)}.`);
     }
     setQuestionInput('');
   };
 
+  // ==========================================
+  // Layout Calculations for Detail Neuron View
+  // ==========================================
+  const w = stageDimensions.width;
+  const h = stageDimensions.height;
+  const ox = Math.min(130, Math.max(90, w * 0.14));
+  const oy = h * 0.48;
+  const ch = Math.max(52, Math.min(72, (h - 200) / 5 - 12));
+  const gap = Math.max(8, Math.min(18, (h - 200 - ch * 5) / 4));
+  const catL = ox + 115;
+  const catW = Math.max(150, Math.min(185, w * 0.22));
+  const xL = catL + catW + Math.max(48, Math.min(100, w * 0.08));
+  const itemW = Math.max(220, Math.min(340, w - xL - 28));
+  const curve = Math.max(24, Math.min(54, w * 0.055));
+
+  const totalCatH = ch * 5 + gap * 4;
+  const catYPositions = useMemo(() => {
+    return DETAIL_AXES.map((_, i) => oy - totalCatH / 2 + i * (ch + gap) + ch / 2);
+  }, [oy, totalCatH, ch, gap]);
+
+  const activeCatIndex = DETAIL_AXES.findIndex((a) => a.id === selectedAxis);
+  const activeCatY = catYPositions[activeCatIndex >= 0 ? activeCatIndex : 0] || oy;
+  const activeAxisMeta = DETAIL_AXES[activeCatIndex >= 0 ? activeCatIndex : 0];
+
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden select-none bg-[#020609]">
-      {/* 1. Full Screen Interactive Cosmic Canvas */}
+      {/* 1. Full Screen Canvas (Constellation in Overview mode / Dimmed galaxy background in Detail mode) */}
       <canvas
         ref={canvasRef}
-        width={1920}
-        height={1080}
-        className="w-full h-full block cursor-grab active:cursor-grabbing"
+        className={`w-full h-full block transition-all duration-700 ${
+          viewMode === 'detail' ? 'opacity-20 filter blur-sm scale-110 pointer-events-none' : 'opacity-100 cursor-grab active:cursor-grabbing'
+        }`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -894,7 +963,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* 2. Top-Center Floating Toolbar Pill */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 p-1.5 rounded-2xl bg-[#08161e]/85 backdrop-blur-xl border border-cyan-500/25 shadow-2xl text-slate-300">
-        {/* View Mode Switcher */}
         <button
           type="button"
           title="Sơ đồ tổng quan (Overview Galaxy)"
@@ -923,7 +991,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
         <div className="w-[1px] h-5 bg-cyan-500/25 mx-1" />
 
-        {/* Zoom Controls */}
         <button
           type="button"
           title="Phóng to (+)"
@@ -953,7 +1020,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
         <div className="w-[1px] h-5 bg-cyan-500/25 mx-1" />
 
-        {/* Filter Toggle */}
         <button
           type="button"
           title="Bộ lọc trục tác động"
@@ -970,7 +1036,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           </span>
         </button>
 
-        {/* Ordering Icon */}
         <button
           type="button"
           title="Sắp xếp phân cấp"
@@ -983,7 +1048,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           <ArrowUpDown className="w-4 h-4" />
         </button>
 
-        {/* AI Analysis Toggle */}
         <button
           type="button"
           title="AI Nhận xét nhóm"
@@ -1010,7 +1074,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         </button>
       </div>
 
-      {/* Filter Dropdown (When Filter button is clicked) */}
+      {/* Filter Dropdown */}
       {showFilterMenu && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-[#071720]/95 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 max-w-md">
           {['ALL', 'D1', 'D2', 'D3', 'D4', 'IMPEDIMENT'].map((cat) => (
@@ -1056,140 +1120,501 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </button>
           </div>
           <div className="p-2.5 rounded-xl bg-purple-500/10 border-l-2 border-purple-400 leading-relaxed text-[11.5px]">
-            Phân bố đóng góp đồng đều: cao nhất <b>Minh Trieu 35.0%</b>, thấp nhất <b>Quốc Bảo 5.0%</b> (kỳ vọng đều là 20%).
+            Phân bố đóng góp đồng bộ theo đồ án EduConnect: <b>{focusedUserName}</b> đạt tỷ lệ đóng góp <b>{((finalPct || 0.22) * 100).toFixed(1)}%</b> (Điểm chuẩn hóa C_i = {(compositeScore || 33.1).toFixed(1)}/100).
           </div>
           <div className="p-2.5 rounded-xl bg-amber-500/10 border-l-2 border-amber-400 leading-relaxed text-[11.5px]">
-            Đã kích hoạt bù khả dụng cho <b>Minh Trieu</b> với hệ số a_i = 1.00 nhờ rào cản trùng lịch thi.
+            Hệ số khả dụng a_i = <b>{(availabilityFactor * 100).toFixed(0)}%</b>. Đã kích hoạt bảo vệ quyền lợi thành viên theo Mô hình 4 tầng.
           </div>
         </div>
       )}
 
-      {/* 3. Bottom-Left Floating Legend Card (Matching Image 1) */}
-      <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-[#06151f]/85 backdrop-blur-xl border border-cyan-500/25 shadow-2xl text-[11px] text-slate-300 w-64 space-y-2.5">
-        <h4 className="font-bold text-[10px] tracking-wider text-slate-400 uppercase">
-          LEGEND
-        </h4>
-
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
-            <span className="text-slate-200">Constitution / Core</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#c084fc]" />
-            <span>Entities (D1: Sản lượng)</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-pink-400 shadow-[0_0_8px_#f472b6]" />
-            <span>Legislation (D2: Tin cậy)</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-            <span>Services (D3: Phối hợp)</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-            <span>Regulations (D4: Chấm chéo)</span>
-          </div>
-        </div>
-
-        <div className="w-full h-[1px] bg-cyan-500/20 my-2" />
-
-        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
-          <span>🏛 GAPS <b className="text-cyan-300">32%</b></span>
-          <span>↻ Updates <b className="text-emerald-300">56%</b></span>
-        </div>
-      </div>
-
-      {/* 4. Bottom-Right Floating KPI & Ask AI Dock (Matching Image 1) */}
-      <div className="absolute bottom-6 right-6 z-30 pointer-events-auto w-[460px] max-w-[92vw] flex flex-col rounded-3xl bg-[#091b24]/90 backdrop-blur-2xl border-t-2 border-t-cyan-400 border border-cyan-500/30 shadow-[0_0_35px_rgba(6,182,212,0.15)] overflow-hidden">
-        {/* Top 4 KPI Metrics Bar */}
-        <div className="grid grid-cols-4 divide-x divide-cyan-500/20 px-4 py-3 bg-cyan-950/20 text-center">
-          <div>
-            <span className="text-[10px] text-slate-400 block">Đóng góp p_i</span>
-            <strong className="text-sm font-extrabold text-cyan-300 flex items-center justify-center gap-0.5">
-              ↗ {(finalPct * 100).toFixed(1)}%
-            </strong>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">Điểm C_i</span>
-            <strong className="text-sm font-extrabold text-white flex items-center justify-center gap-0.5">
-              ◎ {compositeScore.toFixed(1)}
-            </strong>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">Khoảng cách δ_i</span>
-            <strong className="text-sm font-extrabold text-emerald-400 flex items-center justify-center gap-0.5">
-              👥 {distanceToCenter.toFixed(2)}
-            </strong>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 block">Khả dụng a_i</span>
-            <strong className="text-sm font-extrabold text-amber-300 flex items-center justify-center gap-0.5">
-              👍 {(availabilityFactor * 100).toFixed(0)}%
-            </strong>
-          </div>
-        </div>
-
-        {/* AI Answer Bubble if any */}
-        {aiAnswer && (
-          <div className="px-4 py-2.5 mx-3 mt-2 rounded-xl bg-cyan-950/60 border border-cyan-400/30 text-xs text-cyan-100 flex items-start justify-between gap-2">
-            <span>{aiAnswer}</span>
-            <button type="button" onClick={() => setAiAnswer(null)} className="text-slate-400 hover:text-white shrink-0">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Center: Search / Ask a Question Input */}
-        <form onSubmit={handleAskSubmit} className="px-3 py-2 flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 bg-white/95 rounded-2xl px-3 py-2 text-slate-900 shadow-inner">
-            <input
-              type="text"
-              value={questionInput}
-              onChange={(e) => setQuestionInput(e.target.value)}
-              placeholder="Ask a question... (vd: Ai đang đóng góp cao nhất?)"
-              className="w-full bg-transparent text-xs font-medium focus:outline-none placeholder-slate-500"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 text-white flex items-center justify-center shadow-lg transition"
-          >
-            <Send className="w-4 h-4 -rotate-45" />
-          </button>
-        </form>
-
-        {/* Bottom Actions Row */}
-        <div className="px-4 py-2.5 bg-black/30 border-t border-cyan-500/20 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <select
-              aria-label="Chọn thành viên quan sát"
-              value={selectedUserId || ''}
-              onChange={(e) => onSelectUser?.(Number(e.target.value))}
-              className="bg-transparent text-cyan-300 font-bold focus:outline-none cursor-pointer text-xs"
+      {/* ========================================================
+          DETAIL NEURON STAGE (Active when viewMode === 'detail')
+          ======================================================== */}
+      {viewMode === 'detail' && (
+        <div
+          ref={detailAreaRef}
+          className="absolute inset-0 pointer-events-auto z-20 overflow-hidden text-slate-100"
+          onWheel={(e) => {
+            if (axisEvents.length <= 5) return;
+            setItemFocus((prev) => Math.max(0, Math.min(axisEvents.length - 1, prev + (e.deltaY > 0 ? 1 : -1))));
+          }}
+        >
+          {/* Top-Left Breadcrumbs */}
+          <div className="absolute top-4 left-6 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#081720]/80 backdrop-blur-md border border-cyan-500/25 text-xs text-slate-300 shadow-lg">
+            <button
+              type="button"
+              onClick={() => onSwitchViewMode?.('overview')}
+              className="flex items-center gap-1 text-cyan-400 hover:text-white font-semibold transition"
             >
-              {members.map((m) => (
-                <option key={m.id} value={m.id} className="bg-slate-900 text-white">
-                  👤 {m.fullName}
-                </option>
-              ))}
-            </select>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-              +3
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Tổng quan</span>
+            </button>
+            <span className="text-slate-500">/</span>
+            <strong className="text-slate-200">{focusedUserName}</strong>
+            <span className="text-slate-500">/</span>
+            <span style={{ color: activeAxisMeta.color }} className="font-semibold">
+              {activeAxisMeta.name}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onSwitchViewMode?.('detail')}
-            className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white transition"
+          {/* SVG Connector Beams (Orb -> Categories -> Events) */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+            <defs>
+              <radialGradient id="orbGlowGrad" cx="35%" cy="32%">
+                <stop offset="0%" stopColor="#efe6ff" />
+                <stop offset="45%" stopColor="#8f70f2" />
+                <stop offset="100%" stopColor="#251660" />
+              </radialGradient>
+            </defs>
+
+            {/* 1. Curved lines from Orb to 5 Category Cards */}
+            {DETAIL_AXES.map((axis, idx) => {
+              const x1 = ox + 76;
+              const y1 = oy - 28;
+              const x2 = catL;
+              const y2 = catYPositions[idx];
+              const d = `M ${x1} ${y1} C ${x1 + 65} ${y1}, ${x2 - 65} ${y2}, ${x2} ${y2}`;
+              const isSelected = axis.id === selectedAxis;
+
+              return (
+                <g key={axis.id}>
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={isSelected ? '#f5c264' : '#7fdcef'}
+                    strokeWidth={isSelected ? 5 : 2.5}
+                    style={{ opacity: isSelected ? 0.35 : 0.08 }}
+                  />
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={isSelected ? '#f5d58a' : '#7fdcef'}
+                    strokeWidth={isSelected ? 1.8 : 1.1}
+                    style={{ opacity: isSelected ? 0.95 : 0.35 }}
+                  />
+                </g>
+              );
+            })}
+
+            {/* 2. Radiant Fiber Lines from Active Category to Event Cards */}
+            {axisEvents.map((ev, idx) => {
+              const dIdx = idx - itemFocus;
+              const ad = Math.abs(dIdx);
+              if (ad > 5) return null;
+
+              const step = Math.max(50, Math.min(64, h / 12));
+              const ey = oy + dIdx * step;
+              const ex = xL + curve * (1 - Math.pow(Math.min(1, ad / 5), 2)) + 6;
+              const sx = catL + catW;
+              const sy = activeCatY;
+              const mx = (sx + ex) / 2;
+              const d = `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ey}, ${ex} ${ey}`;
+              const isEventSelected = selectedEvent?.id === ev.id;
+              const opacity = Math.max(0.1, 1 - Math.pow(ad / 5, 2));
+
+              return (
+                <g key={ev.id}>
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={activeAxisMeta.color}
+                    strokeWidth={isEventSelected ? 5 : 3}
+                    style={{ opacity: opacity * 0.2 }}
+                  />
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={isEventSelected ? '#ffe2a0' : activeAxisMeta.color}
+                    strokeWidth={isEventSelected ? 2.0 : 1.2}
+                    style={{ opacity: opacity * (isEventSelected ? 1 : 0.7) }}
+                  />
+                  {isEventSelected && (
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="#ffe2a0"
+                      strokeWidth={2}
+                      className="neuron-flow-anim"
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Central Pulsating Orb Component */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-center"
+            style={{ left: `${ox}px`, top: `${oy - 28}px` }}
           >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>RI Analysis / Chi tiết</span>
-          </button>
+            <div className="relative w-44 h-44 mx-auto flex items-center justify-center">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 200 200">
+                {/* Spikes corona */}
+                <g className="neuron-spikes-anim" stroke="#b79cff" strokeOpacity="0.75" strokeWidth="1">
+                  {Array.from({ length: 80 }).map((_, i) => {
+                    const angle = (i / 80) * Math.PI * 2;
+                    const len = 64 + (Math.sin(i * 1.7) + 2) * 6;
+                    return (
+                      <line
+                        key={i}
+                        x1={100 + Math.cos(angle) * 54}
+                        y1={100 + Math.sin(angle) * 54}
+                        x2={100 + Math.cos(angle) * len}
+                        y2={100 + Math.sin(angle) * len}
+                      />
+                    );
+                  })}
+                </g>
+                {/* Dashed outer orbit ring */}
+                <circle
+                  className="neuron-ring-anim"
+                  cx="100"
+                  cy="100"
+                  r="74"
+                  fill="none"
+                  stroke="#b79cff"
+                  strokeOpacity="0.4"
+                  strokeDasharray="2 7"
+                />
+                {/* Glowing Core Sphere */}
+                <circle cx="100" cy="100" r="48" fill="url(#orbGlowGrad)" />
+                <circle cx="100" cy="100" r="48" fill="none" stroke="#e1d6ff" strokeOpacity="0.5" />
+                <text
+                  x="100"
+                  y="107"
+                  textAnchor="middle"
+                  fontFamily="sans-serif"
+                  fontWeight="bold"
+                  fontSize="22"
+                  fill="#ffffff"
+                  fillOpacity="0.95"
+                >
+                  {initials}
+                </text>
+              </svg>
+            </div>
+
+            {/* Orb Member Labels */}
+            <div className="mt-2 text-center w-56 -ml-6">
+              <h3 className="text-sm font-bold text-slate-100">
+                EduConnect <br />
+                <span className="text-amber-300 font-extrabold">{focusedUserName}</span>
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Frontend Dev · Nhóm 1</p>
+
+              <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-white/5 border border-cyan-500/25 text-[11px] font-mono text-cyan-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span>p = {((finalPct || 0.22) * 100).toFixed(1)}% · C_i = {(compositeScore || 33.1).toFixed(1)}</span>
+              </div>
+
+              {/* Member Selector Dropdown */}
+              <div className="mt-2.5">
+                <select
+                  aria-label="Chọn thành viên quan sát"
+                  value={selectedUserId || 110}
+                  onChange={(e) => onSelectUser?.(Number(e.target.value))}
+                  className="text-xs bg-slate-900/90 border border-cyan-500/30 rounded-xl px-2.5 py-1 text-slate-200 focus:outline-none cursor-pointer"
+                >
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                      👤 {m.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Middle: 5 Category Hub Cards */}
+          <div className="absolute inset-0 pointer-events-none">
+            {DETAIL_AXES.map((axis, idx) => {
+              const isSelected = axis.id === selectedAxis;
+              const count = activeEvents.filter((e) => e.axis === axis.id).length;
+              const topY = catYPositions[idx] - ch / 2;
+
+              return (
+                <button
+                  key={axis.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAxis(axis.id);
+                    setItemFocus(0);
+                  }}
+                  className={`absolute pointer-events-auto flex flex-col justify-center px-3.5 rounded-2xl border transition-all text-left ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-amber-500/20 to-slate-900/90 border-amber-400 shadow-[0_0_24px_rgba(245,194,100,0.3)] ring-1 ring-amber-400/50'
+                      : 'bg-[#091b24]/85 border-cyan-500/20 hover:border-cyan-400/50 shadow-md'
+                  }`}
+                  style={{
+                    left: `${catL}px`,
+                    top: `${topY}px`,
+                    width: `${catW}px`,
+                    height: `${ch}px`,
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: axis.color }}>
+                      {axis.id === 'D1' && <Layers className="w-4 h-4" />}
+                      {axis.id === 'D2' && <Shield className="w-4 h-4" />}
+                      {axis.id === 'D3' && <Users className="w-4 h-4" />}
+                      {axis.id === 'D4' && <Star className="w-4 h-4" />}
+                      {axis.id === 'IMP' && <AlertTriangle className="w-4 h-4" />}
+                    </span>
+                    <strong className="text-xl font-bold font-mono text-white leading-none">{count}</strong>
+                  </div>
+                  <span className="text-[11px] text-slate-300 mt-1 truncate">{axis.short} · {axis.sub}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right of Middle: Vertical Fan-Out Event Cards */}
+          <div className="absolute inset-0 pointer-events-none">
+            {axisEvents.length === 0 ? (
+              <div
+                className="absolute p-4 rounded-2xl border border-dashed border-cyan-500/30 text-xs text-slate-400 text-center"
+                style={{ left: `${xL}px`, top: `${oy - 40}px`, width: `${itemW}px` }}
+              >
+                Chưa có sự kiện nào ở trục <b>{activeAxisMeta.short}</b> trong khoảng này.
+                {selectedAxis === 'IMP' && <div className="mt-1 text-cyan-300">Bấm <b>+ Khai báo rào cản</b> để ghi nhận lý do vắng/trễ.</div>}
+              </div>
+            ) : (
+              axisEvents.map((ev, idx) => {
+                const dIdx = idx - itemFocus;
+                const ad = Math.abs(dIdx);
+                if (ad > 5) return null;
+
+                const step = Math.max(50, Math.min(64, h / 12));
+                const itemY = oy + dIdx * step - 24;
+                const itemX = xL + curve * (1 - Math.pow(Math.min(1, ad / 5), 2));
+                const opacity = Math.max(0.12, 1 - Math.pow(ad / 5, 2));
+                const scale = 1 - Math.min(ad, 5) * 0.04;
+                const isSelected = selectedEvent?.id === ev.id;
+
+                return (
+                  <div
+                    key={ev.id}
+                    onClick={() => onSelectEvent?.(isSelected ? null : ev)}
+                    className={`absolute pointer-events-auto flex items-center gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-400/15 border-amber-400 shadow-[0_0_18px_rgba(245,194,100,0.35)]'
+                        : 'bg-[#091822]/85 border-cyan-500/25 hover:border-cyan-400/60'
+                    }`}
+                    style={{
+                      left: `${itemX}px`,
+                      top: `${itemY}px`,
+                      width: `${itemW}px`,
+                      opacity,
+                      transform: `scale(${scale})`,
+                      transformOrigin: 'left center',
+                    }}
+                  >
+                    {/* Glowing status dot */}
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: ev.axis === 'IMP' ? '#fbbf24' : ev.impact < 0 ? '#f87171' : activeAxisMeta.color,
+                        boxShadow: `0 0 8px ${ev.axis === 'IMP' ? '#fbbf24' : ev.impact < 0 ? '#f87171' : activeAxisMeta.color}`,
+                      }}
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <strong className="block text-xs font-semibold text-slate-100 truncate">{ev.title}</strong>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 font-mono">
+                        <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-300">{ev.src}</span>
+                        <span>Ngày {ev.day}</span>
+                        <span
+                          className="font-bold"
+                          style={{
+                            color: ev.axis === 'IMP' ? '#fbbf24' : (ev.dp || 0) < 0 ? '#f87171' : '#34d399',
+                          }}
+                        >
+                          {ev.axis === 'IMP' ? `+${ev.impact}ng` : `${(ev.dp || 0) >= 0 ? '+' : ''}${(ev.dp || 0).toFixed(1)}pp`}
+                        </span>
+
+                        {/* 3-bar impact meter */}
+                        <div className="flex items-center gap-0.5 ml-auto">
+                          {[1, 2, 3].map((lvl) => (
+                            <i
+                              key={lvl}
+                              className="w-2.5 h-1 rounded-sm"
+                              style={{
+                                backgroundColor:
+                                  lvl <= (ev.axis === 'IMP' ? 2 : Math.min(3, Math.ceil(Math.abs(ev.dp || 1))))
+                                    ? activeAxisMeta.color
+                                    : 'rgba(255,255,255,0.15)',
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Bottom Sprint Replay Playbar */}
+          <div className="absolute bottom-5 left-6 right-6 z-30 pointer-events-auto flex items-center gap-4 px-4 py-3 rounded-2xl bg-[#081824]/90 backdrop-blur-xl border border-cyan-500/30 shadow-2xl">
+            <button
+              type="button"
+              aria-label={isPlaying ? 'Tạm dừng phát lại' : 'Bắt đầu phát lại sprint'}
+              onClick={() => setIsPlaying((prev) => !prev)}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white shadow-[0_0_15px_rgba(244,114,182,0.4)] transition shrink-0"
+            >
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+            </button>
+
+            <div className="flex-1 space-y-1">
+              <input
+                type="range"
+                min={1}
+                max={14}
+                value={cutDay}
+                onChange={(e) => setCutDay(Number(e.target.value))}
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-700 accent-pink-500"
+              />
+              <div className="flex justify-between text-[11px] font-mono text-slate-400">
+                <span>Phát lại sprint · Ngày {cutDay}/14 (16/11/2026)</span>
+                <span className="text-cyan-300 font-semibold">{activeEvents.length} sự kiện ghi nhận đến thời điểm này</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 3. Bottom-Left Floating Legend Card (Overview Mode) */}
+      {viewMode === 'overview' && (
+        <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-[#06151f]/85 backdrop-blur-xl border border-cyan-500/25 shadow-2xl text-[11px] text-slate-300 w-64 space-y-2.5">
+          <h4 className="font-bold text-[10px] tracking-wider text-slate-400 uppercase">
+            CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
+          </h4>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
+              <span className="text-slate-200">Thành viên trọng tâm (Hạt nhân)</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <span>D1: Sản lượng (Thẻ xong & SP)</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+              <span>D2: Tin cậy & Đúng hạn (Rework)</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#a78bfa]" />
+              <span>D3: Phối hợp (Review PR & @mentions)</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-pink-400 shadow-[0_0_8px_#f472b6]" />
+              <span>D4: Chấm chéo đồng đội (≥ 3 lượt)</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
+              <span>Rào cản & Khả dụng (Bù điểm D')</span>
+            </div>
+          </div>
+
+          <div className="w-full h-[1px] bg-cyan-500/20 my-2" />
+
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+            <span>⚙ Chuẩn hóa: <b className="text-cyan-300">ln(1+x) · MAD</b></span>
+            <span>📊 Khoảng tin cậy: <b className="text-emerald-300">95% CI</b></span>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Bottom-Right Floating KPI & Ask AI Dock (Overview Mode) */}
+      {viewMode === 'overview' && (
+        <div className="absolute bottom-6 right-6 z-30 pointer-events-auto w-[460px] max-w-[92vw] flex flex-col rounded-3xl bg-[#091b24]/90 backdrop-blur-2xl border-t-2 border-t-cyan-400 border border-cyan-500/30 shadow-[0_0_35px_rgba(6,182,212,0.15)] overflow-hidden">
+          <div className="grid grid-cols-4 divide-x divide-cyan-500/20 px-4 py-3 bg-cyan-950/20 text-center">
+            <div>
+              <span className="text-[10px] text-slate-400 block">Đóng góp p_i</span>
+              <strong className="text-sm font-extrabold text-cyan-300 flex items-center justify-center gap-0.5">
+                ↗ {((finalPct || 0.22) * 100).toFixed(1)}%
+              </strong>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 block">Điểm C_i</span>
+              <strong className="text-sm font-extrabold text-white flex items-center justify-center gap-0.5">
+                ◎ {(compositeScore || 33.1).toFixed(1)}
+              </strong>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 block">Khoảng cách δ_i</span>
+              <strong className="text-sm font-extrabold text-emerald-400 flex items-center justify-center gap-0.5">
+                👥 {(distanceToCenter || 2.2).toFixed(2)}
+              </strong>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 block">Khả dụng a_i</span>
+              <strong className="text-sm font-extrabold text-amber-300 flex items-center justify-center gap-0.5">
+                👍 {((availabilityFactor || 1.0) * 100).toFixed(0)}%
+              </strong>
+            </div>
+          </div>
+
+          {aiAnswer && (
+            <div className="px-4 py-2.5 mx-3 mt-2 rounded-xl bg-cyan-950/60 border border-cyan-400/30 text-xs text-cyan-100 flex items-start justify-between gap-2">
+              <span>{aiAnswer}</span>
+              <button type="button" onClick={() => setAiAnswer(null)} className="text-slate-400 hover:text-white shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleAskSubmit} className="px-3 py-2 flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 bg-white/95 rounded-2xl px-3 py-2 text-slate-900 shadow-inner">
+              <input
+                type="text"
+                value={questionInput}
+                onChange={(e) => setQuestionInput(e.target.value)}
+                placeholder="Ask a question... (vd: Ai đang đóng góp cao nhất?)"
+                className="w-full bg-transparent text-xs font-medium focus:outline-none placeholder-slate-500"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 text-white flex items-center justify-center shadow-lg transition"
+            >
+              <Send className="w-4 h-4 -rotate-45" />
+            </button>
+          </form>
+
+          <div className="px-4 py-2.5 bg-black/30 border-t border-cyan-500/20 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <select
+                aria-label="Chọn thành viên quan sát"
+                value={selectedUserId || ''}
+                onChange={(e) => onSelectUser?.(Number(e.target.value))}
+                className="bg-transparent text-cyan-300 font-bold focus:outline-none cursor-pointer text-xs"
+              >
+                {members.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                    👤 {m.fullName}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                +3
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSwitchViewMode?.('detail')}
+              className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 transition"
+            >
+              <Sparkles className="w-3 h-3 text-cyan-400" />
+              <span>Chi tiết neuron →</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

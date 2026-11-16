@@ -263,7 +263,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
   return (
     <div
       data-testid="manual-contribution-form-container"
-      className="flex flex-col gap-4 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+      className="flex flex-col gap-4 bg-white dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100"
     >
       {/* ── MODAL HEADER (Matching Image 3) ── */}
       <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
@@ -343,7 +343,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
                   className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between ${
                     isSelected
                       ? 'border-blue-600 bg-blue-50/40 dark:bg-blue-950/20 shadow-xs'
-                      : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1f1f23] hover:border-zinc-300 dark:hover:border-zinc-700'
                   }`}
                 >
                   {/* Selected checkmark indicator (Matching Image 3) */}
@@ -391,7 +391,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
               className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between ${
                 selectedCardId === 'custom'
                   ? 'border-blue-600 bg-blue-50/40 dark:bg-blue-950/20 shadow-xs'
-                  : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-850 hover:border-zinc-300 dark:hover:border-zinc-700'
+                  : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1f1f23] hover:border-zinc-300 dark:hover:border-zinc-700'
               }`}
             >
               {selectedCardId === 'custom' && (
@@ -434,7 +434,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
                 setSelectedCardId('custom');
               }}
               placeholder="Ví dụ: Card #1 (Update UI) hoặc Card #2..."
-              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none transition focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900"
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#1f1f23] px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none transition focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900"
             />
           </div>
         </div>
@@ -461,7 +461,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
                   }
                 }}
                 placeholder="https://docs.google.com/document/d/... hoặc https://figma.com/file/..."
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 pl-9 pr-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none transition focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#1f1f23] pl-9 pr-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none transition focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900"
               />
             </div>
 
@@ -497,7 +497,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
             <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-1.5">
               Hoặc tải ảnh chụp minh chứng trực tiếp
             </label>
-            <label className="flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-700 hover:border-blue-500 dark:hover:border-blue-500 bg-zinc-50 dark:bg-zinc-850 hover:bg-blue-50/20 transition cursor-pointer text-center">
+            <label className="flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-700 hover:border-blue-500 dark:hover:border-blue-500 bg-zinc-50 dark:bg-[#1f1f23] hover:bg-blue-50/20 transition cursor-pointer text-center">
               {isUploading ? (
                 <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
               ) : (
@@ -571,7 +571,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
                 step="0.5"
                 value={storyPoints}
                 onChange={(e) => setStoryPoints(e.target.value)}
-                className="w-28 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 font-mono outline-none transition focus:border-blue-600"
+                className="w-28 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#1f1f23] px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 font-mono outline-none transition focus:border-blue-600"
               />
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[1, 2, 3, 5, 8, 13].map((pts) => (
@@ -593,7 +593,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
           </div>
 
           {/* Tóm tắt thông tin khai báo */}
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-850/70 border border-zinc-200 dark:border-zinc-800 space-y-2 text-xs">
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-[#1f1f23]/70 border border-zinc-200 dark:border-zinc-800 space-y-2 text-xs">
             <h4 className="font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
               <Sparkles size={14} className="text-amber-500" />
               <span>Tóm tắt minh chứng gửi thẩm định:</span>

@@ -236,7 +236,7 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
               <tr
                 key={`${sourceType}-${sourceId}-${index}`}
                 style={{ borderTop: '1px solid var(--line)', transition: 'background 0.12s' }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--surface2)')}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--surface3, rgba(255, 255, 255, 0.04))')}
                 onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
               >
                 {/* Nguồn */}
