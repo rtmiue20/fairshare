@@ -249,6 +249,17 @@ public class TeamService {
         if (request.getDescription() != null) {
             team.setDescription(request.getDescription().trim());
         }
+        if (request.getLecturer() != null) {
+            String lecturer = request.getLecturer().trim();
+            team.setLecturer(lecturer.isEmpty() ? null : lecturer);
+        }
+        if (request.getSprintCount() != null) {
+            int sprintCount = request.getSprintCount();
+            if (sprintCount < 1 || sprintCount > 12) {
+                throw new BusinessException("Số sprint phải nằm trong khoảng 1 - 12");
+            }
+            team.setSprintCount(sprintCount);
+        }
         Team saved = teamRepository.save(team);
         return getTeamDetail(saved.getId(), userId);
     }
@@ -271,6 +282,8 @@ public class TeamService {
                 .courseName(team.getCourseName())
                 .description(team.getDescription())
                 .inviteCode(team.getInviteCode())
+                .lecturer(team.getLecturer())
+                .sprintCount(team.getSprintCount())
                 .currentRole(role)
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())

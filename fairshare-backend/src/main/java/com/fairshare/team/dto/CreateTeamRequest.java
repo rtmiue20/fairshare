@@ -17,4 +17,8 @@ public class CreateTeamRequest {
     private String courseName;
 
     private String description;
+
+    private String lecturer;
+
+    private Integer sprintCount;
 }
