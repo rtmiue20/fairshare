@@ -518,17 +518,14 @@ DELIMITER ;
 -- 2. Chuẩn hóa Users, Teams, Team Members & Consents cho cả 3 Dự án
 -- -----------------------------------------------------------------------------
 
--- Giữ nguyên tài khoản chính (id=1) và chuẩn hóa tên hiển thị; đảm bảo 109..113 đầy đủ
-UPDATE users
-SET full_name = 'Minh Triều (Product Owner)'
-WHERE id = 1;
-
+-- Giữ nguyên tài khoản chính (id=1) và chuẩn hóa tên hiển thị; đảm bảo 1, 109..113 đầy đủ
 INSERT INTO users (id, email, password, full_name, created_at, updated_at) VALUES
-(109, 'demo@fairshare.io', '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Nguyễn Hoàng Nam (Trưởng nhóm)', NOW(), NOW()),
-(110, 'trang.tran@edu.vn', '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Trần Thu Trang (Frontend Dev)', NOW(), NOW()),
-(111, 'bao.le@edu.vn', '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Lê Quốc Bảo (Backend Dev)', NOW(), NOW()),
-(112, 'duc.pham@edu.vn', '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Phạm Minh Đức (DevOps)', NOW(), NOW()),
-(113, 'vy.dang@edu.vn', '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Đặng Thảo Vy (QA Engineer)', NOW(), NOW())
+(1,   'minhtrieu.po@fairshare.io', '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Minh Triều (Product Owner)', NOW(), NOW()),
+(109, 'demo@fairshare.io',         '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Nguyễn Hoàng Nam (Trưởng nhóm)', NOW(), NOW()),
+(110, 'trang.tran@edu.vn',         '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Trần Thu Trang (Frontend Dev)', NOW(), NOW()),
+(111, 'bao.le@edu.vn',             '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Lê Quốc Bảo (Backend Dev)', NOW(), NOW()),
+(112, 'duc.pham@edu.vn',           '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Phạm Minh Đức (DevOps)', NOW(), NOW()),
+(113, 'vy.dang@edu.vn',            '$2a$10$T7WhM/EqhnzJ2JfyKpL9seY7wdE0zpLAPsyWJtCAmatzHRd0Gjgx2', 'Đặng Thảo Vy (QA Engineer)', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name);
 
@@ -603,6 +600,25 @@ ON DUPLICATE KEY UPDATE
     team_id     = VALUES(team_id),
     name        = VALUES(name),
     description = VALUES(description);
+
+INSERT INTO board_columns (id, board_id, name, position, created_at, updated_at) VALUES
+(1,  1, 'To Do',       0, NOW(), NOW()),
+(2,  1, 'In Progress', 1, NOW(), NOW()),
+(3,  1, 'Review',      2, NOW(), NOW()),
+(4,  1, 'Done',        3, NOW(), NOW()),
+(5,  2, 'To Do',       0, NOW(), NOW()),
+(6,  2, 'In Progress', 1, NOW(), NOW()),
+(7,  2, 'Review',      2, NOW(), NOW()),
+(8,  2, 'Done',        3, NOW(), NOW()),
+(9,  3, 'To Do',       1, NOW(), NOW()),
+(10, 3, 'In Progress', 2, NOW(), NOW()),
+(11, 3, 'Review',      3, NOW(), NOW()),
+(12, 3, 'Done',        4, NOW(), NOW()),
+(13, 3, 'Backlog',     0, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    board_id = VALUES(board_id),
+    name     = VALUES(name),
+    position = VALUES(position);
 
 -- Cards Team 1 (bổ sung thẻ cho Minh Triều id=1 và đồng bộ toàn team)
 INSERT INTO cards (id, board_id, column_id, title, description, assignee_id, story_points, difficulty_level, position, due_date, created_at, updated_at) VALUES
@@ -794,7 +810,7 @@ FROM (
     UNION ALL SELECT 3, 6, 111, 'BOARD', 'SUPPORT_MENTION', 'Hỗ trợ import file CSV kiểm định lô thuốc từ Cục Quản lý Dược',  '2026-11-10 10:00:00', 1.50, 1.5, 2, 0.0, 1, 0, 1, 0
 
     UNION ALL SELECT 3, 6, 113, 'BOARD', 'CARD_COMPLETED',  'Hoàn thiện bộ test UAT phân hệ Kho thuốc & Cảnh báo cận hạn',  '2026-11-08 17:00:00', 3.50, 3.5, 2, 0.0, 1, 0, 0, 0
-    UNION ALL SELECT 3, 6, 113, 'DOCS',  'DOC_EDIT',        'Cập nhật ma trận truy xuất yêu cầu RTM chuẩn kiểm định Y tế',    '2026-11-09 13:00:00', 2.50, 2.5, 2, 0.0, 1, 0, 0, 0
+    UNION ALL SELECT 3, 6, 113, 'GOOGLE_DOCS', 'DOC_EDIT',   'Cập nhật ma trận truy xuất yêu cầu RTM chuẩn kiểm định Y tế',    '2026-11-09 13:00:00', 2.50, 2.5, 2, 0.0, 1, 0, 0, 0
     UNION ALL SELECT 3, 6, 113, 'BOARD', 'REVIEW_CARD',     'Kiểm thử kỹ luồng ẩn danh bệnh án và phân quyền bác sĩ',        '2026-11-09 17:30:00', 2.00, 2.0, 2, 0.0, 1, 0, 0, 1
     UNION ALL SELECT 3, 6, 113, 'BOARD', 'COMMENT_HELPFUL', 'Báo cáo kịp thời 3 lỗi làm tròn liều lượng nhi khoa ở UI',      '2026-11-10 12:00:00', 2.00, 2.0, 2, 0.0, 1, 1, 0, 0
     UNION ALL SELECT 3, 6, 113, 'BOARD', 'CARD_MOVED',      'Đóng toàn bộ test case Sprint 6 đạt 100% pass rate',             '2026-11-10 16:00:00', 1.00, 1.0, 1, 0.0, 1, 0, 0, 0
@@ -823,7 +839,7 @@ FROM (
     UNION ALL SELECT 3, 7, 111, 'BOARD', 'SUPPORT_MENTION', 'Phối hợp Thảo Vy tạo 20 bộ dữ liệu kê đơn giả lập test UAT',    '2026-11-16 17:00:00', 1.50, 1.5, 2, 0.0, 1, 0, 1, 0
 
     UNION ALL SELECT 3, 7, 113, 'BOARD', 'CARD_COMPLETED',  'Kiểm thử hộp đen API Đơn thuốc & Xuất PDF chuẩn Bộ Y tế',     '2026-11-15 16:00:00', 4.00, 4.0, 2, 0.0, 1, 0, 0, 0
-    UNION ALL SELECT 3, 7, 113, 'DOCS',  'DOC_EDIT',        'Hoàn thiện báo cáo thẩm định phần mềm y tế KINGSHA v2.0',      '2026-11-15 19:00:00', 2.50, 2.5, 2, 0.0, 1, 0, 0, 0
+    UNION ALL SELECT 3, 7, 113, 'GOOGLE_DOCS', 'DOC_EDIT',   'Hoàn thiện báo cáo thẩm định phần mềm y tế KINGSHA v2.0',      '2026-11-15 19:00:00', 2.50, 2.5, 2, 0.0, 1, 0, 0, 0
     UNION ALL SELECT 3, 7, 113, 'BOARD', 'REVIEW_CARD',     'Kiểm thử chéo 40 tình huống tương tác thuốc nguy hiểm',        '2026-11-16 10:00:00', 2.00, 2.0, 2, 0.0, 1, 0, 0, 1
     UNION ALL SELECT 3, 7, 113, 'BOARD', 'COMMENT_HELPFUL', 'Ghi chú tối ưu font và mã vạch trên biểu mẫu PDF đơn thuốc',   '2026-11-16 14:00:00', 2.00, 2.0, 2, 0.0, 1, 1, 0, 0
     UNION ALL SELECT 3, 7, 113, 'BOARD', 'SUPPORT_MENTION', 'Hỗ trợ kiểm tra bảo mật phân quyền không rò rỉ ID bệnh nhân',   '2026-11-16 18:00:00', 1.50, 1.5, 2, 0.0, 1, 0, 1, 0
