@@ -44,6 +44,7 @@ import { ManualContributionItem } from '../../types/contribution';
 import { showToast } from '../../components/ui/Toast';
 import { NoProjectState } from '../team/NoProjectState';
 import { ManualContributionForm } from '../dashboard/ManualContributionForm';
+import { useNotificationStore } from '../../store/notificationStore';
 
 interface SprintOption {
   id: number;
@@ -351,6 +352,19 @@ export const ManualContributionPage: React.FC = () => {
     try {
       await contributionApi.reviewManualContribution(item.id, currentUserId, 'APPROVE');
       showToast.success(`Đã phê duyệt minh chứng "${item.taskName}" (+${item.storyPoints} SP) thành công!`);
+      useNotificationStore.getState().addNotification({
+        type: 'success',
+        title: 'Phê duyệt minh chứng',
+        message: `Minh chứng "${item.taskName}" (+${item.storyPoints} SP) đã được duyệt và cộng vào điểm đóng góp.`,
+        authorName: 'Trưởng nhóm',
+        avatarText: 'TN',
+        avatarBg: 'linear-gradient(135deg, #10b981, #059669)',
+        actionPrimary: {
+          label: 'Xem đóng góp',
+          link: '/contributions/manual',
+        },
+        triggerToast: false,
+      });
       loadContributions();
       if (selectedItem?.id === item.id) {
         setSelectedItem({ ...selectedItem, status: 'APPROVED' });
@@ -1140,6 +1154,19 @@ export const ManualContributionPage: React.FC = () => {
               onCancel={() => setIsCreateModalOpen(false)}
               onSuccess={(newItem) => {
                 showToast.success(`Đã lưu đóng góp "${newItem.taskName}" vào DB!`);
+                useNotificationStore.getState().addNotification({
+                  type: 'info',
+                  title: 'Khai báo đóng góp mới',
+                  message: `Đóng góp "${newItem.taskName}" (+${newItem.storyPoints} SP) đã được gửi duyệt.`,
+                  authorName: 'Đóng góp',
+                  avatarText: 'DG',
+                  avatarBg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                  actionPrimary: {
+                    label: 'Xem đóng góp',
+                    link: '/contributions/manual',
+                  },
+                  triggerToast: false,
+                });
                 setIsCreateModalOpen(false);
                 loadContributions();
               }}

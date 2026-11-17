@@ -916,6 +916,18 @@ export const AlertList: React.FC = () => {
     } catch {
       showToast(`Đã gửi thông báo nhắc nhở đến ${userName}`);
     }
+    addNotification({
+      type: 'warning',
+      title: 'Đã gửi lời nhắc tiến độ',
+      message: `Lời nhắc Inactivity đã được chuyển tới thành viên ${userName}.`,
+      authorName: 'Hệ thống Cảnh báo',
+      avatarText: 'CB',
+      avatarBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      actionPrimary: {
+        label: 'Xem cảnh báo',
+      },
+      triggerToast: false,
+    });
   };
 
   const errorCount = useMemo(() => alerts.filter((a) => a.level === 'error').length, [alerts]);
