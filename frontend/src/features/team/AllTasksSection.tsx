@@ -20,6 +20,8 @@ import { CreateTaskModal, CreateTaskSavePayload } from './CreateTaskModal';
 import { TaskDetailModal, parseChecklistFromDescription } from './TaskDetailModal';
 import { CustomToolsPopup, ColumnItem } from './CustomToolsPopup';
 import { boardApi } from '../../api/board.api';
+import { getMemberAvatarGradient, getMemberInitials } from '../../utils/format';
+import { useNotificationStore } from '../../store/notificationStore';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'completed' | string;
 
@@ -410,13 +412,22 @@ export const AllTasksSection: React.FC<{
               if (c.cards && c.cards.length > 0) {
                 c.cards.forEach((card) => {
                   const { items: subItems } = parseChecklistFromDescription(card.description);
+                  const colLower = c.name.toLowerCase();
+                  const defaultColProgress =
+                    colLower.includes('done') || colLower.includes('complete') || colLower.includes('hoàn thành')
+                      ? 100
+                      : colLower.includes('review') || colLower.includes('đánh giá')
+                      ? 75
+                      : colLower.includes('progress') || colLower.includes('đang')
+                      ? Math.max(25, Math.min(80, Math.round((card.storyPoints || 2) * 15)))
+                      : 0;
                   const progressVal = subItems.length > 0
                     ? Math.round((subItems.filter((x) => x.completed).length / subItems.length) * 100)
-                    : (card.storyPoints ? Math.min(100, Math.round(card.storyPoints * 20)) : 25);
+                    : defaultColProgress;
 
                   loadedTasks.push({
                     id: String(card.id),
-                    projectTag: `${projectName} Dashboard`,
+                    projectTag: `${projectName} · ${c.name}`,
                     title: card.title,
                     description: card.description,
                     dueDate: formatDbDate(card.dueDate),
@@ -431,8 +442,8 @@ export const AllTasksSection: React.FC<{
                       ? [
                           {
                             name: card.assigneeName,
-                            avatarText: card.assigneeName.slice(0, 2).toUpperCase(),
-                            bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                            avatarText: getMemberInitials(card.assigneeName),
+                            bg: getMemberAvatarGradient(card.assigneeName),
                           },
                         ]
                       : [],
@@ -579,10 +590,19 @@ export const AllTasksSection: React.FC<{
     }
 
     const toColName   = columns.find((c) => c.id === targetColId)?.title  || targetColId;
+    const toColLower  = toColName.toLowerCase();
+    const nextProgress =
+      toColLower.includes('done') || toColLower.includes('complete') || toColLower.includes('hoàn thành')
+        ? 100
+        : toColLower.includes('review') || toColLower.includes('đánh giá')
+        ? 75
+        : toColLower.includes('progress') || toColLower.includes('đang')
+        ? Math.max(task.progress > 0 && task.progress < 100 ? task.progress : 40, 25)
+        : 0;
 
     // Optimistic update — move card locally first
     setTasks((prev) =>
-      prev.map((t) => t.id === draggingTaskId ? { ...t, status: targetColId } : t)
+      prev.map((t) => t.id === draggingTaskId ? { ...t, status: targetColId, progress: nextProgress } : t)
     );
 
     // Call API if both IDs are real DB numbers
@@ -591,19 +611,37 @@ export const AllTasksSection: React.FC<{
     if (!isNaN(cardIdNum) && cardIdNum > 0 && !isNaN(targetColNum) && targetColNum > 0) {
       try {
         await boardApi.moveCard(cardIdNum, { targetColumnId: targetColNum });
+        window.dispatchEvent(new CustomEvent('fairshare:board-updated'));
         showToast.success(
           `Đã di chuyển "${task.title}" sang "${toColName}" và lưu vào DB!`,
           'DB Synced'
         );
+
+        if (toColLower.includes('done') || toColLower.includes('complete') || toColLower.includes('hoàn thành')) {
+          useNotificationStore.getState().addNotification({
+            type: 'success',
+            title: 'Hoàn thành task',
+            message: `Task "${task.title}" đã được hoàn thành và cập nhật tiến độ 100%.`,
+            authorName: task.assignees?.[0]?.name || 'Thành viên nhóm',
+            avatarText: task.assignees?.[0]?.name?.substring(0, 2).toUpperCase() || 'TK',
+            avatarBg: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            actionPrimary: {
+              label: 'Xem task',
+              link: '/teams',
+            },
+            triggerToast: false,
+          });
+        }
       } catch (e) {
         console.warn('moveCard error:', e);
         // Revert on failure
         setTasks((prev) =>
-          prev.map((t) => t.id === draggingTaskId ? { ...t, status: task.status } : t)
+          prev.map((t) => t.id === draggingTaskId ? { ...t, status: task.status, progress: task.progress } : t)
         );
         showToast.error('Không thể di chuyển task, kiểm tra kết nối.', 'Lỗi');
       }
     } else {
+      window.dispatchEvent(new CustomEvent('fairshare:board-updated'));
       showToast.success(`Đã di chuyển "${task.title}" sang "${toColName}"`, 'All Task');
     }
 
@@ -774,11 +812,26 @@ export const AllTasksSection: React.FC<{
           assignees: taskData.assignees?.length
             ? taskData.assignees
             : createdCard.assigneeName
-            ? [{ name: createdCard.assigneeName, avatarText: createdCard.assigneeName.slice(0, 2).toUpperCase(), bg: '#e0f2fe' }]
+            ? [{ name: createdCard.assigneeName, avatarText: getMemberInitials(createdCard.assigneeName), bg: getMemberAvatarGradient(createdCard.assigneeName) }]
             : [],
         };
         setTasks((prev) => [newTask, ...prev]);
+        window.dispatchEvent(new CustomEvent('fairshare:board-updated'));
         showToast.success(`Đã tạo và lưu công việc "${newTask.title}" vào DB!`, 'Database Saved');
+
+        useNotificationStore.getState().addNotification({
+          type: 'info',
+          title: 'Công việc mới được tạo',
+          message: `Nhiệm vụ "${newTask.title}" đã được thêm vào bảng task dự án.`,
+          authorName: 'Bảng Task',
+          avatarText: 'TK',
+          avatarBg: 'linear-gradient(135deg, #0284c7, #0369a1)',
+          actionPrimary: {
+            label: 'Xem task',
+            link: '/teams',
+          },
+          triggerToast: false,
+        });
         return;
       } catch (e) {
         console.warn('API createCard error:', e);
@@ -1279,6 +1332,7 @@ export const AllTasksSection: React.FC<{
         onTaskUpdated={(updated) => {
           setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
           setSelectedTask(updated);
+          window.dispatchEvent(new CustomEvent('fairshare:board-updated'));
         }}
       />
     </div>

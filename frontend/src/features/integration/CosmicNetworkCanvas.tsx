@@ -225,7 +225,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     return (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase();
   }, [focusedUserName]);
 
-  // Generate Realistic Deterministic Events for the selected member
+  // Generate Realistic Deterministic Events + Real DB Nodes for the selected member
   const memberEvents = useMemo<NeuronEventItem[]>(() => {
     const nameLower = (focusedUserName || '').toLowerCase();
     const isFrontend = nameLower.includes('trang') || selectedUserId === 110;
@@ -236,97 +236,134 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     const mid = String(selectedUserId || 110);
     const list: NeuronEventItem[] = [];
 
+    // 0. Nạp các nút sự kiện & rào cản thực tế trả về từ CSDL MariaDB (/api/contributions/network-graph)
+    const dbEventNodes = (nodes || []).filter(
+      (n) => (n.type === 'EVENT' || n.type === 'IMPEDIMENT') && !n.id.includes('synthetic')
+    );
+    dbEventNodes.forEach((n, idx) => {
+      const axis: NeuronEventItem['axis'] =
+        n.type === 'IMPEDIMENT' || n.category === 'IMPEDIMENT'
+          ? 'IMP'
+          : n.category === 'D1' || n.category === 'D2' || n.category === 'D3' || n.category === 'D4'
+          ? n.category
+          : 'D1';
+      const src = n.id.startsWith('manual-')
+        ? 'Khai báo'
+        : axis === 'IMP'
+        ? 'Rào cản DB'
+        : axis === 'D4'
+        ? 'Chấm chéo'
+        : 'Board / Git';
+      const weightVal = typeof n.weight === 'number' ? n.weight : 1.5;
+      list.push({
+        id: `db-${n.id}`,
+        mid,
+        axis,
+        kind: axis === 'IMP' ? 'imp' : axis === 'D3' ? 'review' : 'card',
+        title: n.label,
+        src,
+        day: (idx % 5) + 1,
+        time: 'DB Sync',
+        impact: n.status === 'WARN' ? -Math.abs(weightVal) : weightVal,
+        dp: n.status === 'WARN' && axis !== 'IMP' ? -0.6 : Number((weightVal * 0.35).toFixed(1)),
+        evid: n.description || `${src} · ${n.badge || 'Sự kiện đã lưu trong MariaDB'}`,
+        meta: { sp: weightVal },
+      });
+    });
+
+    const hasTitle = (title: string) =>
+      list.some((item) => item.title.toLowerCase().includes(title.slice(0, 18).toLowerCase()));
+
+    const pushIfNew = (item: NeuronEventItem) => {
+      if (!hasTitle(item.title)) {
+        list.push(item);
+      }
+    };
+
     // D1: Output / Sản lượng
     if (isFrontend) {
-      list.push(
-        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Giao diện Chấm chéo', src: 'Trello', day: 2, time: '10:15', impact: 5.0, dp: 1.4, evid: 'Trello · thẻ #104 · Doing → Done · 5 SP · UI Chấm chéo ẩn danh', meta: { sp: 5 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'doc', title: 'Chỉnh sửa · SRS v2.1 (Mục 4 UI Kit)', src: 'Google Docs', day: 3, time: '14:20', impact: 2.5, dp: 0.8, evid: 'Google Docs · revision r48 · +850 từ · Đặc tả Figma Token', meta: { words: 850 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Tích hợp API Axios', src: 'Trello', day: 4, time: '16:45', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #108 · Doing → Done · 3 SP · Interceptor JWT', meta: { sp: 3 } },
-        { id: `${mid}-d1-4`, mid, axis: 'D1', kind: 'check', title: 'Check item · Responsive Mobile TopNav', src: 'Trello', day: 5, time: '09:30', impact: 1.0, dp: 0.3, evid: 'Trello · checklist 5/5 hoàn thành', meta: {} },
-        { id: `${mid}-d1-5`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Form Khai Báo Thủ Công', src: 'Trello', day: 7, time: '11:00', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #112 · Doing → Done · 3 SP · Upload ảnh minh chứng', meta: { sp: 3 } }
-      );
+      [
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Giao diện Chấm chéo', src: 'Trello', day: 2, time: '10:15', impact: 5.0, dp: 1.4, evid: 'Trello · thẻ #104 · Doing → Done · 5 SP · UI Chấm chéo ẩn danh', meta: { sp: 5 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'doc' as const, title: 'Chỉnh sửa · SRS v2.1 (Mục 4 UI Kit)', src: 'Google Docs', day: 3, time: '14:20', impact: 2.5, dp: 0.8, evid: 'Google Docs · revision r48 · +850 từ · Đặc tả Figma Token', meta: { words: 850 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tích hợp API Axios', src: 'Trello', day: 4, time: '16:45', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #108 · Doing → Done · 3 SP · Interceptor JWT', meta: { sp: 3 } },
+        { id: `${mid}-d1-4`, mid, axis: 'D1' as const, kind: 'check' as const, title: 'Check item · Responsive Mobile TopNav', src: 'Trello', day: 5, time: '09:30', impact: 1.0, dp: 0.3, evid: 'Trello · checklist 5/5 hoàn thành', meta: {} },
+        { id: `${mid}-d1-5`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Form Khai Báo Thủ Công', src: 'Trello', day: 7, time: '11:00', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #112 · Doing → Done · 3 SP · Upload ảnh minh chứng', meta: { sp: 3 } },
+      ].forEach(pushIfNew);
     } else if (isLeader) {
-      list.push(
-        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Kiến trúc Spring Boot 3', src: 'Trello', day: 1, time: '11:00', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #92 · Doing → Done · 5 SP · Clean Architecture', meta: { sp: 5 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Cấu hình Docker Compose', src: 'Trello', day: 3, time: '15:30', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #96 · Doing → Done · 3 SP · Multi-stage build', meta: { sp: 3 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Tối ưu Stored Procedure', src: 'Trello', day: 5, time: '17:00', impact: 5.0, dp: 1.5, evid: 'Trello · thẻ #101 · Doing → Done · 5 SP · Giảm latency còn 0.35ms', meta: { sp: 5 } }
-      );
+      [
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kiến trúc Spring Boot 3', src: 'Trello', day: 1, time: '11:00', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #92 · Doing → Done · 5 SP · Clean Architecture', meta: { sp: 5 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Cấu hình Docker Compose', src: 'Trello', day: 3, time: '15:30', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #96 · Doing → Done · 3 SP · Multi-stage build', meta: { sp: 3 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tối ưu Stored Procedure', src: 'Trello', day: 5, time: '17:00', impact: 5.0, dp: 1.5, evid: 'Trello · thẻ #101 · Doing → Done · 5 SP · Giảm latency còn 0.35ms', meta: { sp: 5 } },
+      ].forEach(pushIfNew);
     } else if (isBackend) {
-      list.push(
-        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · RESTful API Swagger', src: 'Trello', day: 2, time: '14:00', impact: 3.0, dp: 0.9, evid: 'Trello · thẻ #105 · Doing → Done · 3 SP · OpenApi 3.0', meta: { sp: 3 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Migration Flyway V21-V23', src: 'Trello', day: 4, time: '10:30', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #109 · Doing → Done · 3 SP · Versioned migrations', meta: { sp: 3 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Scoring Engine 4 Tầng', src: 'Trello', day: 6, time: '16:15', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #115 · Doing → Done · 5 SP · Robust z-score', meta: { sp: 5 } }
-      );
+      [
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · RESTful API Swagger', src: 'Trello', day: 2, time: '14:00', impact: 3.0, dp: 0.9, evid: 'Trello · thẻ #105 · Doing → Done · 3 SP · OpenApi 3.0', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Migration Flyway V21-V23', src: 'Trello', day: 4, time: '10:30', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #109 · Doing → Done · 3 SP · Versioned migrations', meta: { sp: 3 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Scoring Engine 4 Tầng', src: 'Trello', day: 6, time: '16:15', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #115 · Doing → Done · 5 SP · Robust z-score', meta: { sp: 5 } },
+      ].forEach(pushIfNew);
     } else if (isQA) {
-      list.push(
-        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Kịch bản UAT Scenarios', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #102 · Doing → Done · 3 SP · Test matrix M2', meta: { sp: 3 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Đóng Defect DEF-16/17/22', src: 'Trello', day: 4, time: '15:10', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #110 · Doing → Done · 3 SP · Defect verification', meta: { sp: 3 } }
-      );
+      [
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kịch bản UAT Scenarios', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #102 · Doing → Done · 3 SP · Test matrix M2', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Đóng Defect DEF-16/17/22', src: 'Trello', day: 4, time: '15:10', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #110 · Doing → Done · 3 SP · Defect verification', meta: { sp: 3 } },
+      ].forEach(pushIfNew);
     } else {
-      list.push(
-        { id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Nhiệm vụ Sprint', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · hoàn thành thẻ đúng tiến độ', meta: { sp: 3 } }
-      );
+      pushIfNew({ id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Nhiệm vụ Sprint', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · hoàn thành thẻ đúng tiến độ', meta: { sp: 3 } });
     }
 
     // D2: Reliability / Tin cậy & Đúng hạn
-    list.push(
-      { id: `${mid}-d2-1`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Thẻ chính Sprint', src: 'Trello', day: 2, time: '18:00', impact: 1.0, dp: 0.4, evid: 'Trello · hoàn thành trước due date 12 giờ', meta: {} },
-      { id: `${mid}-d2-2`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Tài liệu kỹ thuật', src: 'Google Docs', day: 4, time: '17:30', impact: 1.0, dp: 0.4, evid: 'Google Docs · bàn giao đúng hạn mốc tuần 2', meta: {} }
-    );
+    pushIfNew({ id: `${mid}-d2-1`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Thẻ chính Sprint', src: 'Trello', day: 2, time: '18:00', impact: 1.0, dp: 0.4, evid: 'Trello · hoàn thành trước due date 12 giờ', meta: {} });
+    pushIfNew({ id: `${mid}-d2-2`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Tài liệu kỹ thuật', src: 'Google Docs', day: 4, time: '17:30', impact: 1.0, dp: 0.4, evid: 'Google Docs · bàn giao đúng hạn mốc tuần 2', meta: {} });
     if (isBackend) {
-      list.push(
-        { id: `${mid}-d2-3`, mid, axis: 'D2', kind: 'rework', title: 'Rework · Thẻ kéo lại Review → Doing', src: 'Trello', day: 3, time: '16:00', impact: -1.5, dp: -0.8, evid: 'Trello · Phát hiện lỗi validation DTO · Trừ điểm tin cậy D2', meta: {} }
-      );
+      pushIfNew({ id: `${mid}-d2-3`, mid, axis: 'D2', kind: 'rework', title: 'Rework · Thẻ kéo lại Review → Doing', src: 'Trello', day: 3, time: '16:00', impact: -1.5, dp: -0.8, evid: 'Trello · Phát hiện lỗi validation DTO · Trừ điểm tin cậy D2', meta: {} });
     }
 
     // D3: Collaboration / Phối hợp
-    list.push(
-      { id: `${mid}-d3-1`, mid, axis: 'D3', kind: 'review', title: 'Review chéo PR @Nguyễn Hoàng Nam · Module Vector', src: 'GitHub', day: 2, time: '13:40', impact: 1.2, dp: 0.6, evid: 'GitHub PR #89 · để lại 4 inline comments & Approve', meta: { peer: 'nam' } },
-      { id: `${mid}-d3-2`, mid, axis: 'D3', kind: 'comment', title: 'Phản hồi bình luận trong SRS v2.1', src: 'Google Docs', day: 3, time: '15:15', impact: 0.6, dp: 0.3, evid: 'Google Docs · resolve 3 trao đổi về kiến trúc', meta: { peer: 'trang' } },
-      { id: `${mid}-d3-3`, mid, axis: 'D3', kind: 'help', title: 'Hỗ trợ đồng đội · Ghép cặp fix CORS & Auth', src: 'Trello', day: 5, time: '10:00', impact: 1.5, dp: 0.7, evid: 'Trello · được thêm vào thẻ đồng giải quyết blockers', meta: { peer: 'bao' } }
-    );
+    pushIfNew({ id: `${mid}-d3-1`, mid, axis: 'D3', kind: 'review', title: 'Review chéo PR @Nguyễn Hoàng Nam · Module Vector', src: 'GitHub', day: 2, time: '13:40', impact: 1.2, dp: 0.6, evid: 'GitHub PR #89 · để lại 4 inline comments & Approve', meta: { peer: 'nam' } });
+    pushIfNew({ id: `${mid}-d3-2`, mid, axis: 'D3', kind: 'comment', title: 'Phản hồi bình luận trong SRS v2.1', src: 'Google Docs', day: 3, time: '15:15', impact: 0.6, dp: 0.3, evid: 'Google Docs · resolve 3 trao đổi về kiến trúc', meta: { peer: 'trang' } });
+    pushIfNew({ id: `${mid}-d3-3`, mid, axis: 'D3', kind: 'help', title: 'Hỗ trợ đồng đội · Ghép cặp fix CORS & Auth', src: 'Trello', day: 5, time: '10:00', impact: 1.5, dp: 0.7, evid: 'Trello · được thêm vào thẻ đồng giải quyết blockers', meta: { peer: 'bao' } });
 
     // D4: Peer Review / Chấm chéo
-    list.push(
-      { id: `${mid}-d4-1`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #1 · 4.8 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:00', impact: 1.8, dp: 0.9, evid: 'Chấm chéo ẩn danh · Tiêu chí: Đúng hạn 5/5, Chất lượng 4.8/5, Hỗ trợ 4.8/5', meta: { rt: 4.8 } },
-      { id: `${mid}-d4-2`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #2 · 5.0 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:30', impact: 2.4, dp: 1.2, evid: 'Chấm chéo ẩn danh · Đồng đội đánh giá xuất sắc về tinh thần trách nhiệm', meta: { rt: 5.0 } }
-    );
+    pushIfNew({ id: `${mid}-d4-1`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #1 · 4.8 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:00', impact: 1.8, dp: 0.9, evid: 'Chấm chéo ẩn danh · Tiêu chí: Đúng hạn 5/5, Chất lượng 4.8/5, Hỗ trợ 4.8/5', meta: { rt: 4.8 } });
+    pushIfNew({ id: `${mid}-d4-2`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #2 · 5.0 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:30', impact: 2.4, dp: 1.2, evid: 'Chấm chéo ẩn danh · Đồng đội đánh giá xuất sắc về tinh thần trách nhiệm', meta: { rt: 5.0 } });
 
-    // IMP: Impediments / Rào cản & Khả dụng
-    if (isBackend) {
-      list.push({
-        id: `${mid}-imp-1`,
-        mid,
-        axis: 'IMP',
-        kind: 'imp',
-        title: 'Trùng lịch thi học phần (a_i = 0.90 bù hợp lệ)',
-        src: 'Khai báo',
-        day: 3,
-        time: '08:00',
-        impact: 2.0,
-        dp: 2.4,
-        evid: 'Khai báo thủ công · 2 ngày vắng do thi học kỳ · Leader đã phê duyệt · Bù D\' = D * (1 + 0.5(1 - a_i))',
-        meta: { days: 2 },
-      });
-    } else {
-      list.push({
-        id: `${mid}-imp-1`,
-        mid,
-        axis: 'IMP',
-        kind: 'imp',
-        title: 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
-        src: 'Khai báo',
-        day: 1,
-        time: '09:00',
-        impact: 0.0,
-        dp: 0.0,
-        evid: 'Thành viên tham gia đầy đủ 100% các buổi sprint, không yêu cầu bù khả dụng',
-        meta: { days: 0 },
-      });
+    // IMP: Impediments / Rào cản & Khả dụng (nếu DB chưa có node IMP thực)
+    const hasDbImp = list.some((item) => item.axis === 'IMP');
+    if (!hasDbImp) {
+      if (isBackend) {
+        list.push({
+          id: `${mid}-imp-1`,
+          mid,
+          axis: 'IMP',
+          kind: 'imp',
+          title: 'Trùng lịch thi học phần (a_i = 0.90 bù hợp lệ)',
+          src: 'Khai báo',
+          day: 3,
+          time: '08:00',
+          impact: 2.0,
+          dp: 2.4,
+          evid: "Khai báo thủ công · 2 ngày vắng do thi học kỳ · Leader đã phê duyệt · Bù D' = D * (1 + 0.5(1 - a_i))",
+          meta: { days: 2 },
+        });
+      } else {
+        list.push({
+          id: `${mid}-imp-1`,
+          mid,
+          axis: 'IMP',
+          kind: 'imp',
+          title: 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
+          src: 'Khai báo',
+          day: 1,
+          time: '09:00',
+          impact: 0.0,
+          dp: 0.0,
+          evid: 'Thành viên tham gia đầy đủ 100% các buổi sprint, không yêu cầu bù khả dụng',
+          meta: { days: 0 },
+        });
+      }
     }
 
     return list;
-  }, [focusedUserName, selectedUserId]);
+  }, [focusedUserName, selectedUserId, nodes]);
 
   // Filter events up to cutDay
   const activeEvents = useMemo(() => {
@@ -359,27 +396,59 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     const d4PeerScore = isLeader ? '9.6 / 10' : isFrontend ? '8.8 / 10' : isQA ? '9.0 / 10' : '8.5 / 10';
     const d4ReviewCount = '4/4 Lượt';
 
+    const dbD1Nodes = (nodes || []).filter(
+      (n) => n.type === 'EVENT' && n.category === 'D1' && !n.id.includes('synthetic')
+    );
+    const dbImpNodes = (nodes || []).filter(
+      (n) => (n.type === 'IMPEDIMENT' || n.category === 'IMPEDIMENT') && n.id !== 'cat-impediments' && !n.id.includes('synthetic')
+    );
+
+    const d1Satellites = dbD1Nodes.length > 0
+      ? dbD1Nodes.slice(0, 3).map((n, i) => ({
+          id: `sat-db-d1-${i}`,
+          label: n.label.length > 30 ? `${n.label.slice(0, 27)}...` : n.label,
+          count: Math.max(1, Math.round(Number(n.weight || 1))),
+          color: ['#38bdf8', '#34d399', '#a78bfa'][i % 3],
+          angleOffset: [-0.28, 0.25, 0.6][i % 3],
+          distOffset: [70, 65, 85][i % 3],
+        }))
+      : isFrontend
+      ? [
+          { id: 'sat-1', label: 'Giao diện Chấm chéo', count: 5, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+          { id: 'sat-2', label: 'Tích hợp API Axios', count: 4, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+          { id: 'sat-3', label: 'Form khai báo thủ công', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+        ]
+      : [
+          { id: 'sat-1', label: 'Kiến trúc Spring Boot 3', count: 8, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
+          { id: 'sat-2', label: 'Cấu hình Docker Compose', count: 5, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
+          { id: 'sat-3', label: 'Tối ưu Stored Procedure', count: 5, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
+        ];
+
+    const impSatellites = dbImpNodes.length > 0
+      ? dbImpNodes.slice(0, 3).map((n, i) => ({
+          id: `sat-db-imp-${i}`,
+          label: n.label.length > 32 ? `${n.label.slice(0, 29)}...` : n.label,
+          count: Math.max(1, Math.round(Number(n.weight || 1))),
+          color: i % 2 === 0 ? '#fbbf24' : '#10b981',
+          angleOffset: [-0.25, 0.3, 0.65][i % 3],
+          distOffset: [65, 75, 85][i % 3],
+        }))
+      : [
+          { id: 'sat-22', label: isBackend ? 'Trùng lịch thi học phần' : 'Không có rào cản', count: isBackend ? 1 : 0, color: '#fbbf24', angleOffset: -0.25, distOffset: 65 },
+          { id: 'sat-23', label: "Kích hoạt bù D' = D*(1+0.5(1-a_i))", count: isBackend ? 1 : 0, color: '#10b981', angleOffset: 0.3, distOffset: 75 },
+        ];
+
     return [
       {
         id: 'hub-d1-tasks',
         label: 'Thẻ hoàn thành (Tasks)',
         category: 'D1',
         percentage: Math.min(100, Math.round(pctVal * 1.5)),
-        badge: `${d1TaskCount} Thẻ`,
+        badge: `${Math.max(d1TaskCount, dbD1Nodes.length)} Thẻ`,
         color: '#10b981',
         angle: -2.35,
         distance: 280,
-        satellites: isFrontend
-          ? [
-              { id: 'sat-1', label: 'Giao diện Chấm chéo', count: 5, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
-              { id: 'sat-2', label: 'Tích hợp API Axios', count: 4, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
-              { id: 'sat-3', label: 'Form khai báo thủ công', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
-            ]
-          : [
-              { id: 'sat-1', label: 'Kiến trúc Spring Boot 3', count: 8, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
-              { id: 'sat-2', label: 'Cấu hình Docker Compose', count: 5, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
-              { id: 'sat-3', label: 'Tối ưu Stored Procedure', count: 5, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
-            ],
+        satellites: d1Satellites,
       },
       {
         id: 'hub-d1-sp',
@@ -511,18 +580,17 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         id: 'hub-impediments',
         label: 'Rào cản ngoại cảnh & Khả dụng',
         category: 'IMPEDIMENT',
-        percentage: isBackend ? 20 : 0,
-        badge: isBackend ? '1 Rào cản (a_i=0.90)' : 'Khả dụng 100% (a_i=1.0)',
+        percentage: dbImpNodes.length > 0 ? Math.min(100, dbImpNodes.length * 25) : (isBackend ? 20 : 0),
+        badge: dbImpNodes.length > 0
+          ? `${dbImpNodes.length} Rào cản (a_i=${availabilityFactor.toFixed(2)})`
+          : (isBackend ? '1 Rào cản (a_i=0.90)' : `Khả dụng ${(availabilityFactor * 100).toFixed(0)}% (a_i=${availabilityFactor.toFixed(2)})`),
         color: '#f59e0b',
         angle: 3.14,
         distance: 270,
-        satellites: [
-          { id: 'sat-22', label: isBackend ? 'Trùng lịch thi học phần' : 'Không có rào cản', count: isBackend ? 1 : 0, color: '#fbbf24', angleOffset: -0.25, distOffset: 65 },
-          { id: 'sat-23', label: "Kích hoạt bù D' = D*(1+0.5(1-a_i))", count: isBackend ? 1 : 0, color: '#10b981', angleOffset: 0.3, distOffset: 75 },
-        ],
+        satellites: impSatellites,
       },
     ];
-  }, [focusedUserName, finalPct, compositeScore, selectedUserId]);
+  }, [focusedUserName, finalPct, compositeScore, selectedUserId, nodes, availabilityFactor]);
 
   const filteredHubs = useMemo(() => {
     if (activeFilter === 'ALL') return constellationHubs;
@@ -1465,11 +1533,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowMemberDropdown((v) => !v)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-cyan-500/40 bg-white dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800/90 transition-all text-xs text-slate-800 dark:text-slate-200 font-medium shadow-md w-full max-w-[200px] group"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold shadow-sm w-full max-w-[210px] select-none cursor-pointer ${
+                    showMemberDropdown
+                      ? 'border-cyan-500 dark:border-cyan-400 ring-2 ring-cyan-500/25 bg-white dark:bg-[#222632] text-zinc-950 dark:text-white'
+                      : 'border-slate-300 dark:border-white/20 bg-white dark:bg-[#1c1f28] hover:bg-zinc-100 dark:hover:bg-[#262a36] hover:border-slate-400 dark:hover:border-white/35 text-zinc-800 dark:text-zinc-200'
+                  }`}
                 >
                   {/* Avatar initials */}
                   <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 shadow-xs"
                     style={{ background: 'linear-gradient(135deg,#6366f1,#06b6d4)', color: '#fff' }}
                   >
                     {(members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'U')
@@ -1479,18 +1551,30 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                       .join('')
                       .toUpperCase()}
                   </span>
-                  <span className="truncate max-w-[130px] text-left">
+                  <span className="truncate max-w-[130px] text-left font-bold tracking-tight">
                     {members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'Chọn thành viên'}
                   </span>
-                  <svg className={`w-3 h-3 ml-auto shrink-0 text-cyan-500 dark:text-cyan-400 transition-transform ${showMemberDropdown ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+                  <svg className={`w-3.5 h-3.5 ml-auto shrink-0 transition-transform ${showMemberDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
 
                 {showMemberDropdown && (
-                  <div className="absolute top-full left-0 mt-1.5 z-50 w-56 rounded-2xl border border-slate-200 dark:border-cyan-500/30 bg-white dark:bg-slate-950/95 backdrop-blur-xl shadow-2xl overflow-hidden">
-                    <div className="px-3 pt-2.5 pb-1">
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-400/70">Thành viên nhóm</span>
+                  <div
+                    className="absolute top-full left-0 mt-2 z-50 w-72 rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                    style={{
+                      boxShadow:
+                        '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                    }}
+                  >
+                    <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                        Thành viên nhóm
+                      </span>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                        {members.length}
+                      </span>
                     </div>
-                    <div className="max-h-52 overflow-y-auto py-1">
+
+                    <div className="max-h-60 overflow-y-auto p-1.5 space-y-1" style={{ scrollbarWidth: 'thin' }}>
                       {members.map((m) => {
                         const isActive = (selectedUserId || 110) === m.id;
                         const roleMatch = m.fullName.match(/\(([^)]+)\)/);
@@ -1499,29 +1583,48 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                         const initials = displayName.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || 'U';
                         const colors = ['#6366f1,#8b5cf6', '#06b6d4,#0891b2', '#10b981,#059669', '#ec4899,#db2777', '#f59e0b,#d97706'];
                         const colorIdx = m.id % colors.length;
+                        const accentColor = colors[colorIdx].split(',')[0];
+
                         return (
                           <button
                             key={m.id}
                             type="button"
                             onClick={() => { onSelectUser?.(m.id); setShowMemberDropdown(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 transition-all text-left group/item ${isActive ? 'bg-cyan-500/15 text-cyan-900 dark:text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                              isActive
+                                ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-950 dark:text-white font-semibold shadow-xs'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                            }`}
                           >
                             <span
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md"
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md transition-transform group-hover:scale-105"
                               style={{ background: `linear-gradient(135deg,${colors[colorIdx]})`, color: '#fff' }}
                             >
                               {initials}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100">{displayName}</div>
-                              {role && (
-                                <div className="text-[9px] font-medium mt-0.5 truncate" style={{ color: `#${colors[colorIdx].split(',')[0].replace('#', '')}` }}>
+                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                {displayName}
+                              </div>
+                              {role ? (
+                                <span
+                                  className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.2 rounded-full border"
+                                  style={{
+                                    color: accentColor,
+                                    borderColor: `${accentColor}55`,
+                                    background: `${accentColor}20`,
+                                  }}
+                                >
                                   {role}
-                                </div>
+                                </span>
+                              ) : (
+                                <div className="text-[9px] text-slate-400 mt-0.5">Thành viên</div>
                               )}
                             </div>
                             {isActive && (
-                              <svg className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+                              <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
                             )}
                           </button>
                         );
@@ -1814,7 +1917,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowMemberDropdown2((v) => !v)}
-                      className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-zinc-300 dark:border-white/15 bg-white dark:bg-[#27272a] hover:bg-zinc-100 dark:hover:bg-[#323238] transition-all text-xs text-zinc-800 dark:text-zinc-200 font-bold shadow-sm max-w-[200px]"
+                      className={`flex items-center gap-2 px-2.5 py-1 rounded-xl border transition-all text-xs font-semibold select-none cursor-pointer max-w-[210px] shadow-sm ${
+                        showMemberDropdown2
+                          ? 'border-cyan-500 dark:border-cyan-400 ring-2 ring-cyan-500/25 bg-white dark:bg-[#222632] text-zinc-950 dark:text-white'
+                          : 'border-slate-300 dark:border-white/20 bg-white dark:bg-[#1c1f28] hover:bg-zinc-100 dark:hover:bg-[#262a36] hover:border-slate-400 dark:hover:border-white/35 text-zinc-800 dark:text-zinc-200'
+                      }`}
                     >
                       <span
                         className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 shadow-sm"
@@ -1822,9 +1929,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                       >
                         {activeInitials}
                       </span>
-                      <span className="truncate max-w-[130px]">{activeDisplayName}</span>
+                      <span className="truncate max-w-[130px] font-bold tracking-tight">{activeDisplayName}</span>
                       <svg
-                        className={`w-3 h-3 ml-1 shrink-0 transition-transform ${showMemberDropdown2 ? 'rotate-180' : ''}`}
+                        className={`w-3 h-3 ml-1 shrink-0 transition-transform ${showMemberDropdown2 ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`}
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
                       >
                         <path d="M6 9l6 6 6-6" />
@@ -1833,16 +1940,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
                     {showMemberDropdown2 && (
                       <div
-                        className="absolute bottom-full left-0 mb-2 z-[9999] w-64 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/98 dark:bg-[#18181b]/98 backdrop-blur-xl shadow-2xl"
-                        style={{ overflow: 'hidden' }}
+                        className="absolute bottom-full left-0 mb-3 z-[9999] w-72 rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150"
+                        style={{
+                          boxShadow:
+                            '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                        }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="px-3 pt-2.5 pb-1">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                        {/* Header */}
+                        <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                             Thành viên nhóm
                           </span>
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                            {members.length}
+                          </span>
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1">
+
+                        {/* Member List */}
+                        <div className="max-h-64 overflow-y-auto p-1.5 space-y-1" style={{ scrollbarWidth: 'thin' }}>
                           {members.map((m) => {
                             const isActive = (selectedUserId || 110) === m.id;
                             const roleMatch = m.fullName.match(/\(([^)]+)\)/);
@@ -1866,6 +1982,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                             ];
                             const ci = m.id % palette.length;
                             const accentColor = palette[ci].split(',')[0];
+
                             return (
                               <button
                                 key={m.id}
@@ -1874,21 +1991,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                                   onSelectUser?.(m.id);
                                   setShowMemberDropdown2(false);
                                 }}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 transition-all text-left ${
-                                  isActive ? 'bg-cyan-500/15 text-cyan-900 dark:text-white' : 'hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300'
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                                  isActive
+                                    ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-950 dark:text-white font-semibold shadow-xs'
+                                    : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                                 }`}
                               >
                                 <span
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 shadow-lg"
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md transition-transform group-hover:scale-105"
                                   style={{ background: `linear-gradient(135deg,${palette[ci]})`, color: '#fff' }}
                                 >
                                   {initials}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100">{displayName}</div>
+                                  <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                    {displayName}
+                                  </div>
                                   {role ? (
                                     <span
-                                      className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.5 rounded-full border"
+                                      className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.2 rounded-full border"
                                       style={{
                                         color: accentColor,
                                         borderColor: `${accentColor}55`,
@@ -1898,12 +2019,12 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                                       {role}
                                     </span>
                                   ) : (
-                                    <div className="text-[9px] text-zinc-500 mt-0.5">Thành viên</div>
+                                    <div className="text-[9px] text-slate-400 mt-0.5">Thành viên</div>
                                   )}
                                 </div>
                                 {isActive && (
-                                  <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                  <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <polyline points="20 6 9 17 4 12" />
                                   </svg>
                                 )}
                               </button>
