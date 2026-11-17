@@ -38,16 +38,60 @@ public class UserService {
 
     @Transactional
     public UserDto updateProfile(String email, String fullName) {
+        return updateProfile(email, UserDto.builder().fullName(fullName).build());
+    }
+
+    /**
+     * Cập nhật hồ sơ cá nhân. Trường nào null thì giữ nguyên giá trị cũ,
+     * chuỗi rỗng ("") nghĩa là xóa giá trị (trừ họ tên - không cho phép rỗng).
+     */
+    @Transactional
+    public UserDto updateProfile(String email, UserDto request) {
         if (email == null || email.isBlank()) {
             throw new BusinessException("Email is required");
         }
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + normalizedEmail));
+        if (request == null) {
+            return toDto(user);
+        }
+        String fullName = request.getFullName();
         if (fullName != null && !fullName.trim().isEmpty()) {
-            user.setFullName(fullName.trim());
+            user.setFullName(limit(fullName.trim(), 255));
+        }
+        if (request.getStudentId() != null) {
+            user.setStudentId(normalize(request.getStudentId(), 50));
+        }
+        if (request.getPhone() != null) {
+            String phone = normalize(request.getPhone(), 30);
+            if (phone != null && !phone.matches("^[0-9+()\\s.-]{6,30}$")) {
+                throw new BusinessException("Số điện thoại không hợp lệ");
+            }
+            user.setPhone(phone);
+        }
+        if (request.getMajor() != null) {
+            user.setMajor(normalize(request.getMajor(), 255));
+        }
+        if (request.getTeamRole() != null) {
+            user.setTeamRole(normalize(request.getTeamRole(), 255));
+        }
+        if (request.getBio() != null) {
+            user.setBio(normalize(request.getBio(), 1000));
+        }
+        if (request.getGithubUsername() != null) {
+            user.setGithubUsername(normalize(request.getGithubUsername(), 100));
         }
         return toDto(userRepository.save(user));
+    }
+
+    private static String normalize(String value, int max) {
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : limit(trimmed, max);
+    }
+
+    private static String limit(String value, int max) {
+        return value.length() > max ? value.substring(0, max) : value;
     }
 
     private UserDto toDto(User user) {
@@ -55,6 +99,13 @@ public class UserService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
+                .studentId(user.getStudentId())
+                .phone(user.getPhone())
+                .major(user.getMajor())
+                .teamRole(user.getTeamRole())
+                .bio(user.getBio())
+                .githubUsername(user.getGithubUsername())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }
