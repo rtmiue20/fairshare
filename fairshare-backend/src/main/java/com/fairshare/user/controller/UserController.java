@@ -32,7 +32,7 @@ public class UserController {
         if (authentication == null || authentication.getName() == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("USER_UNAUTHENTICATED", "Chưa đăng nhập"));
         }
-        UserDto updated = userService.updateProfile(authentication.getName(), request.getFullName());
+        UserDto updated = userService.updateProfile(authentication.getName(), request);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật hồ sơ thành công", updated));
     }
 

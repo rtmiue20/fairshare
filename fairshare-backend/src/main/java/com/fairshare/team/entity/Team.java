@@ -25,4 +25,10 @@ public class Team extends BaseEntity {
 
     @Column(name = "invite_code", unique = true)
     private String inviteCode;
+
+    @Column(name = "lecturer")
+    private String lecturer;
+
+    @Column(name = "sprint_count")
+    private Integer sprintCount;
 }

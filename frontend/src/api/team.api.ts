@@ -61,5 +61,15 @@ export const teamApi = {
     const response = await apiClient.post<ApiResponse<void>>(`/teams/${teamId}/consent`, payload);
     return response.data;
   },
+
+  getConsentStatus: async (teamId: number): Promise<ApiResponse<{ consented: boolean }>> => {
+    const response = await apiClient.get<ApiResponse<{ consented: boolean }>>(`/teams/${teamId}/consent/status`);
+    return response.data;
+  },
+
+  revokeConsent: async (teamId: number): Promise<ApiResponse<void>> => {
+    const response = await apiClient.delete<ApiResponse<void>>(`/teams/${teamId}/consent`);
+    return response.data;
+  },
 };
 

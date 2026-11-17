@@ -5,6 +5,13 @@ export interface User {
   email: string;
   fullName: string;
   avatarUrl?: string;
+  studentId?: string | null;
+  phone?: string | null;
+  major?: string | null;
+  teamRole?: string | null;
+  bio?: string | null;
+  githubUsername?: string | null;
+  createdAt?: string;
 }
 
 export interface TeamMember {
@@ -25,6 +32,8 @@ export interface Team {
   courseName?: string;
   description?: string;
   inviteCode?: string;
+  lecturer?: string | null;
+  sprintCount?: number | null;
   members?: TeamMember[];
   createdAt: string;
 }
@@ -33,6 +42,8 @@ export interface CreateTeamRequest {
   name: string;
   courseName?: string;
   description?: string;
+  lecturer?: string;
+  sprintCount?: number;
 }
 
 export interface ConsentRequest {

@@ -18,6 +18,8 @@ public class TeamDto {
     private String courseName;
     private String description;
     private String inviteCode;
+    private String lecturer;
+    private Integer sprintCount;
     private String currentRole;
     private List<TeamMemberDto> members;
     private LocalDateTime createdAt;
