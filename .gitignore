@@ -27,3 +27,7 @@ fairshare-backend/uploads/*
 .demo-credentials.local
 # Video demo (lớn, lưu ngoài Git)
 docs/qa/evidence/demo/*.avi
+
+# Mat khau tai khoan test ban beta (scripts/beta-accounts.py)
+.beta-credentials.local
+__pycache__/
