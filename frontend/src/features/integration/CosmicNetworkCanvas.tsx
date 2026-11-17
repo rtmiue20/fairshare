@@ -1533,11 +1533,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowMemberDropdown((v) => !v)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-cyan-500/40 bg-white dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800/90 transition-all text-xs text-slate-800 dark:text-slate-200 font-medium shadow-md w-full max-w-[200px] group"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold shadow-sm w-full max-w-[210px] select-none cursor-pointer ${
+                    showMemberDropdown
+                      ? 'border-cyan-500 dark:border-cyan-400 ring-2 ring-cyan-500/25 bg-white dark:bg-[#222632] text-zinc-950 dark:text-white'
+                      : 'border-slate-300 dark:border-white/20 bg-white dark:bg-[#1c1f28] hover:bg-zinc-100 dark:hover:bg-[#262a36] hover:border-slate-400 dark:hover:border-white/35 text-zinc-800 dark:text-zinc-200'
+                  }`}
                 >
                   {/* Avatar initials */}
                   <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 shadow-xs"
                     style={{ background: 'linear-gradient(135deg,#6366f1,#06b6d4)', color: '#fff' }}
                   >
                     {(members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'U')
@@ -1547,18 +1551,30 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                       .join('')
                       .toUpperCase()}
                   </span>
-                  <span className="truncate max-w-[130px] text-left">
+                  <span className="truncate max-w-[130px] text-left font-bold tracking-tight">
                     {members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'Chọn thành viên'}
                   </span>
-                  <svg className={`w-3 h-3 ml-auto shrink-0 text-cyan-500 dark:text-cyan-400 transition-transform ${showMemberDropdown ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+                  <svg className={`w-3.5 h-3.5 ml-auto shrink-0 transition-transform ${showMemberDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
 
                 {showMemberDropdown && (
-                  <div className="absolute top-full left-0 mt-1.5 z-50 w-56 rounded-2xl border border-slate-200 dark:border-cyan-500/30 bg-white dark:bg-slate-950/95 backdrop-blur-xl shadow-2xl overflow-hidden">
-                    <div className="px-3 pt-2.5 pb-1">
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-cyan-600 dark:text-cyan-400/70">Thành viên nhóm</span>
+                  <div
+                    className="absolute top-full left-0 mt-2 z-50 w-72 rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                    style={{
+                      boxShadow:
+                        '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                    }}
+                  >
+                    <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                        Thành viên nhóm
+                      </span>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                        {members.length}
+                      </span>
                     </div>
-                    <div className="max-h-52 overflow-y-auto py-1">
+
+                    <div className="max-h-60 overflow-y-auto p-1.5 space-y-1" style={{ scrollbarWidth: 'thin' }}>
                       {members.map((m) => {
                         const isActive = (selectedUserId || 110) === m.id;
                         const roleMatch = m.fullName.match(/\(([^)]+)\)/);
@@ -1567,29 +1583,48 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                         const initials = displayName.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || 'U';
                         const colors = ['#6366f1,#8b5cf6', '#06b6d4,#0891b2', '#10b981,#059669', '#ec4899,#db2777', '#f59e0b,#d97706'];
                         const colorIdx = m.id % colors.length;
+                        const accentColor = colors[colorIdx].split(',')[0];
+
                         return (
                           <button
                             key={m.id}
                             type="button"
                             onClick={() => { onSelectUser?.(m.id); setShowMemberDropdown(false); }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 transition-all text-left group/item ${isActive ? 'bg-cyan-500/15 text-cyan-900 dark:text-white' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                              isActive
+                                ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-950 dark:text-white font-semibold shadow-xs'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                            }`}
                           >
                             <span
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md"
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md transition-transform group-hover:scale-105"
                               style={{ background: `linear-gradient(135deg,${colors[colorIdx]})`, color: '#fff' }}
                             >
                               {initials}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100">{displayName}</div>
-                              {role && (
-                                <div className="text-[9px] font-medium mt-0.5 truncate" style={{ color: `#${colors[colorIdx].split(',')[0].replace('#', '')}` }}>
+                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                {displayName}
+                              </div>
+                              {role ? (
+                                <span
+                                  className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.2 rounded-full border"
+                                  style={{
+                                    color: accentColor,
+                                    borderColor: `${accentColor}55`,
+                                    background: `${accentColor}20`,
+                                  }}
+                                >
                                   {role}
-                                </div>
+                                </span>
+                              ) : (
+                                <div className="text-[9px] text-slate-400 mt-0.5">Thành viên</div>
                               )}
                             </div>
                             {isActive && (
-                              <svg className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+                              <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
                             )}
                           </button>
                         );
@@ -1882,7 +1917,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowMemberDropdown2((v) => !v)}
-                      className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-zinc-300 dark:border-white/15 bg-white dark:bg-[#27272a] hover:bg-zinc-100 dark:hover:bg-[#323238] transition-all text-xs text-zinc-800 dark:text-zinc-200 font-bold shadow-sm max-w-[200px]"
+                      className={`flex items-center gap-2 px-2.5 py-1 rounded-xl border transition-all text-xs font-semibold select-none cursor-pointer max-w-[210px] shadow-sm ${
+                        showMemberDropdown2
+                          ? 'border-cyan-500 dark:border-cyan-400 ring-2 ring-cyan-500/25 bg-white dark:bg-[#222632] text-zinc-950 dark:text-white'
+                          : 'border-slate-300 dark:border-white/20 bg-white dark:bg-[#1c1f28] hover:bg-zinc-100 dark:hover:bg-[#262a36] hover:border-slate-400 dark:hover:border-white/35 text-zinc-800 dark:text-zinc-200'
+                      }`}
                     >
                       <span
                         className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 shadow-sm"
@@ -1890,9 +1929,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                       >
                         {activeInitials}
                       </span>
-                      <span className="truncate max-w-[130px]">{activeDisplayName}</span>
+                      <span className="truncate max-w-[130px] font-bold tracking-tight">{activeDisplayName}</span>
                       <svg
-                        className={`w-3 h-3 ml-1 shrink-0 transition-transform ${showMemberDropdown2 ? 'rotate-180' : ''}`}
+                        className={`w-3 h-3 ml-1 shrink-0 transition-transform ${showMemberDropdown2 ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`}
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
                       >
                         <path d="M6 9l6 6 6-6" />
@@ -1901,16 +1940,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
                     {showMemberDropdown2 && (
                       <div
-                        className="absolute bottom-full left-0 mb-2 z-[9999] w-64 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/98 dark:bg-[#18181b]/98 backdrop-blur-xl shadow-2xl"
-                        style={{ overflow: 'hidden' }}
+                        className="absolute bottom-full left-0 mb-3 z-[9999] w-72 rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150"
+                        style={{
+                          boxShadow:
+                            '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                        }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="px-3 pt-2.5 pb-1">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                        {/* Header */}
+                        <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                             Thành viên nhóm
                           </span>
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                            {members.length}
+                          </span>
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1">
+
+                        {/* Member List */}
+                        <div className="max-h-64 overflow-y-auto p-1.5 space-y-1" style={{ scrollbarWidth: 'thin' }}>
                           {members.map((m) => {
                             const isActive = (selectedUserId || 110) === m.id;
                             const roleMatch = m.fullName.match(/\(([^)]+)\)/);
@@ -1934,6 +1982,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                             ];
                             const ci = m.id % palette.length;
                             const accentColor = palette[ci].split(',')[0];
+
                             return (
                               <button
                                 key={m.id}
@@ -1942,21 +1991,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                                   onSelectUser?.(m.id);
                                   setShowMemberDropdown2(false);
                                 }}
-                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 transition-all text-left ${
-                                  isActive ? 'bg-cyan-500/15 text-cyan-900 dark:text-white' : 'hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300'
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                                  isActive
+                                    ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-950 dark:text-white font-semibold shadow-xs'
+                                    : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                                 }`}
                               >
                                 <span
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 shadow-lg"
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 shadow-md transition-transform group-hover:scale-105"
                                   style={{ background: `linear-gradient(135deg,${palette[ci]})`, color: '#fff' }}
                                 >
                                   {initials}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100">{displayName}</div>
+                                  <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                    {displayName}
+                                  </div>
                                   {role ? (
                                     <span
-                                      className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.5 rounded-full border"
+                                      className="inline-block text-[9px] font-bold mt-0.5 px-1.5 py-0.2 rounded-full border"
                                       style={{
                                         color: accentColor,
                                         borderColor: `${accentColor}55`,
@@ -1966,12 +2019,12 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                                       {role}
                                     </span>
                                   ) : (
-                                    <div className="text-[9px] text-zinc-500 mt-0.5">Thành viên</div>
+                                    <div className="text-[9px] text-slate-400 mt-0.5">Thành viên</div>
                                   )}
                                 </div>
                                 {isActive && (
-                                  <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                  <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <polyline points="20 6 9 17 4 12" />
                                   </svg>
                                 )}
                               </button>

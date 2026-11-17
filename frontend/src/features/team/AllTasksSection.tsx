@@ -21,6 +21,7 @@ import { TaskDetailModal, parseChecklistFromDescription } from './TaskDetailModa
 import { CustomToolsPopup, ColumnItem } from './CustomToolsPopup';
 import { boardApi } from '../../api/board.api';
 import { getMemberAvatarGradient, getMemberInitials } from '../../utils/format';
+import { useNotificationStore } from '../../store/notificationStore';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'completed' | string;
 
@@ -615,6 +616,22 @@ export const AllTasksSection: React.FC<{
           `Đã di chuyển "${task.title}" sang "${toColName}" và lưu vào DB!`,
           'DB Synced'
         );
+
+        if (toColLower.includes('done') || toColLower.includes('complete') || toColLower.includes('hoàn thành')) {
+          useNotificationStore.getState().addNotification({
+            type: 'success',
+            title: 'Hoàn thành task',
+            message: `Task "${task.title}" đã được hoàn thành và cập nhật tiến độ 100%.`,
+            authorName: task.assignees?.[0]?.name || 'Thành viên nhóm',
+            avatarText: task.assignees?.[0]?.name?.substring(0, 2).toUpperCase() || 'TK',
+            avatarBg: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            actionPrimary: {
+              label: 'Xem task',
+              link: '/teams',
+            },
+            triggerToast: false,
+          });
+        }
       } catch (e) {
         console.warn('moveCard error:', e);
         // Revert on failure
@@ -801,6 +818,20 @@ export const AllTasksSection: React.FC<{
         setTasks((prev) => [newTask, ...prev]);
         window.dispatchEvent(new CustomEvent('fairshare:board-updated'));
         showToast.success(`Đã tạo và lưu công việc "${newTask.title}" vào DB!`, 'Database Saved');
+
+        useNotificationStore.getState().addNotification({
+          type: 'info',
+          title: 'Công việc mới được tạo',
+          message: `Nhiệm vụ "${newTask.title}" đã được thêm vào bảng task dự án.`,
+          authorName: 'Bảng Task',
+          avatarText: 'TK',
+          avatarBg: 'linear-gradient(135deg, #0284c7, #0369a1)',
+          actionPrimary: {
+            label: 'Xem task',
+            link: '/teams',
+          },
+          triggerToast: false,
+        });
         return;
       } catch (e) {
         console.warn('API createCard error:', e);
