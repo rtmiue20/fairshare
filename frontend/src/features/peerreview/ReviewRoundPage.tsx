@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { showToast } from '../../components/ui/Toast';
+import { useNotificationStore } from '../../store/notificationStore';
 import {
   Star,
   Users,
@@ -478,6 +479,19 @@ export const ReviewRoundPage: React.FC = () => {
       });
 
       showToast({ message: 'Đã gửi phiếu chấm điểm đồng đội thành công!', type: 'success' });
+      useNotificationStore.getState().addNotification({
+        type: 'success',
+        title: 'Hoàn thành phiếu chấm chéo',
+        message: 'Bạn đã hoàn tất đánh giá và gửi điểm chấm chéo cho đồng đội thành công.',
+        authorName: 'Chấm chéo',
+        avatarText: 'CC',
+        avatarBg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+        actionPrimary: {
+          label: 'Xem kết quả',
+          link: '/peer-review',
+        },
+        triggerToast: false,
+      });
       setShowReviewModal(false);
       loadReviews();
     } catch (err: unknown) {

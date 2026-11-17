@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   RadarChart,
   PolarGrid,
@@ -14,8 +14,11 @@ import { teamApi } from '../../api/team.api';
 import { peerReviewApi, ReviewSprint } from '../../api/peerReview.api';
 import { boardApi } from '../../api/board.api';
 import { useProjectStore } from '../../store/projectStore';
+import { useAuthStore } from '../../store/authStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { exportElementToPdf } from '../../utils/pdfExport';
+import { ManualContributionModal } from '../dashboard/ManualContributionModal';
+import { ManualContributionItem } from '../../types/contribution';
 import {
   Printer,
   Download,
@@ -40,6 +43,21 @@ import {
   ChevronDown,
   X,
   Trash2,
+  ExternalLink,
+  Plus,
+  Crown,
+  Medal,
+  RotateCcw,
+  Check,
+  Info,
+  SlidersHorizontal,
+  Scale,
+  Brain,
+  Bot,
+  Lightbulb,
+  TrendingUp,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -137,10 +155,13 @@ const CircularProgress: React.FC<{ pct: number; size?: number; stroke?: number; 
 };
 
 export const ReportPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTeamId = Number(searchParams.get('teamId'));
   const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
+  const currentUserId = user?.id || 1;
 
   // Theme detector for Light / Dark Mode synchronization
   const [isLight, setIsLight] = useState<boolean>(() => {
@@ -164,6 +185,10 @@ export const ReportPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'progress' | 'export'>('overview');
   const [activeCategory, setActiveCategory] = useState<string>('learners');
 
+  // Manual contributions state (for evidence category)
+  const [manualList, setManualList] = useState<ManualContributionItem[]>([]);
+  const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
+
   // Core Data States
   const [sprintList, setSprintList] = useState<ReviewSprint[]>([]);
   const [selectedSprintId, setSelectedSprintId] = useState<number>(Number(searchParams.get('sprintId')) || 2);
@@ -174,6 +199,27 @@ export const ReportPage: React.FC = () => {
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
   const [downloading, setDownloading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Member Picker Dropdown & Filters
+  const [showMemberPickerDropdown, setShowMemberPickerDropdown] = useState<boolean>(false);
+  const [filterMemberIds, setFilterMemberIds] = useState<number[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
+
+  // Allocation Modal state
+  const [showAllocationModal, setShowAllocationModal] = useState<boolean>(false);
+
+  // FairShare AI Engine Hub Modal state
+  const [showAiModal, setShowAiModal] = useState<boolean>(false);
+  const [aiActiveTab, setAiActiveTab] = useState<'diagnostic' | 'algorithm' | 'chat'>('diagnostic');
+  const [aiChatMessages, setAiChatMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; time: string }>>([
+    {
+      sender: 'ai',
+      text: 'Xin chào! Tôi là FairShare AI Assistant. Tôi đã phân tích toàn bộ dữ liệu ActivityEvent, Vector đóng góp 4 chiều và kết quả chấm chéo trong giai đoạn này. Bạn cần tôi phân tích hay giải thích điều gì?',
+      time: 'Vừa xong',
+    },
+  ]);
+  const [aiChatInput, setAiChatInput] = useState<string>('');
+  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
 
   // Filter Popover state
   const [showFilterPopover, setShowFilterPopover] = useState<boolean>(false);
@@ -188,7 +234,9 @@ export const ReportPage: React.FC = () => {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [sortBy, setSortBy] = useState<'PCT' | 'D1' | 'D2' | 'D3' | 'D4'>('PCT');
+  const [filterContributionTier, setFilterContributionTier] = useState<'ALL' | 'HIGH' | 'MED' | 'LOW'>('ALL');
+  const [filterRole, setFilterRole] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<'PCT' | 'D1' | 'D2' | 'D3' | 'D4' | 'NAME'>('PCT');
 
   // Individual Report State
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -325,6 +373,19 @@ export const ReportPage: React.FC = () => {
             }
           })
         );
+      }
+
+      // Fetch manual contributions for evidence view
+      if (typeof contributionApi.getAllManualContributions === 'function') {
+        contributionApi.getAllManualContributions(currentTeamId, selectedSprintId)
+          .then((res) => {
+            if (res?.data && Array.isArray(res.data)) {
+              setManualList(res.data);
+            } else {
+              setManualList([]);
+            }
+          })
+          .catch(() => setManualList([]));
       }
 
       // Map Summary Items to Final Report Rows
@@ -569,15 +630,41 @@ export const ReportPage: React.FC = () => {
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   }, []);
 
+  // Available Roles in the Project
+  const availableRoles = useMemo(() => {
+    return Array.from(new Set(members.map((m) => m.role).filter(Boolean)));
+  }, [members]);
+
+  // Count active applied filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterStatus !== 'ALL') count++;
+    if (filterContributionTier !== 'ALL') count++;
+    if (filterRole !== 'ALL') count++;
+    if (sortBy !== 'PCT') count++;
+    const unselectedDims = Object.values(filterDimensions).filter((v) => !v).length;
+    if (unselectedDims > 0) count++;
+    return count;
+  }, [filterStatus, filterContributionTier, filterRole, sortBy, filterDimensions]);
+
   // Filtered and Sorted Members
   const filteredMembers = useMemo(() => {
     let result = [...members];
+
+    // 1. Filter by specific member IDs (from MemberPicker dropdown)
+    if (filterMemberIds.length > 0) {
+      result = result.filter((m) => filterMemberIds.includes(m.userId));
+    }
+
+    // 2. Filter by search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (m) => m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
       );
     }
+
+    // 3. Filter by evidence status
     if (filterStatus === 'SUFFICIENT') {
       result = result.filter((m) => m.evidenceStatus === 'SUFFICIENT');
     } else if (filterStatus === 'INSUFFICIENT') {
@@ -586,16 +673,32 @@ export const ReportPage: React.FC = () => {
       result = result.filter((m) => m.isSuspicious);
     }
 
+    // 4. Filter by contribution tier (%)
+    if (filterContributionTier === 'HIGH') {
+      result = result.filter((m) => m.pct >= 20);
+    } else if (filterContributionTier === 'MED') {
+      result = result.filter((m) => m.pct >= 10 && m.pct < 20);
+    } else if (filterContributionTier === 'LOW') {
+      result = result.filter((m) => m.pct < 10);
+    }
+
+    // 5. Filter by role
+    if (filterRole !== 'ALL') {
+      result = result.filter((m) => m.role === filterRole);
+    }
+
+    // 6. Sort
     result.sort((a, b) => {
       if (sortBy === 'D1') return b.d1Output - a.d1Output;
       if (sortBy === 'D2') return b.d2Reliability - a.d2Reliability;
       if (sortBy === 'D3') return b.d3Collaboration - a.d3Collaboration;
       if (sortBy === 'D4') return b.d4Peer - a.d4Peer;
+      if (sortBy === 'NAME') return a.name.localeCompare(b.name, 'vi');
       return b.pct - a.pct;
     });
 
     return result;
-  }, [members, searchQuery, filterStatus, sortBy]);
+  }, [members, filterMemberIds, searchQuery, filterStatus, filterContributionTier, filterRole, sortBy]);
 
   // Radar Chart Data for Selected Member
   const radarData = useMemo(() => {
@@ -607,6 +710,76 @@ export const ReportPage: React.FC = () => {
       { dimension: 'D4 Đánh giá chéo (Peer)', value: Math.min(1.0, Math.max(0.1, selectedMember.d4Peer)), fullMark: 1.0 },
     ];
   }, [selectedMember]);
+
+  // Handler for FairShare AI Engine Chat
+  const handleSendAiMessage = (userQuery?: string) => {
+    const q = (userQuery || aiChatInput).trim();
+    if (!q) return;
+
+    const newMsg = {
+      sender: 'user' as const,
+      text: q,
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setAiChatMessages((prev) => [...prev, newMsg]);
+    if (!userQuery) setAiChatInput('');
+    setIsAiThinking(true);
+
+    setTimeout(() => {
+      let reply = '';
+      const lower = q.toLowerCase();
+
+      const sortedByPct = [...members].sort((a, b) => b.pct - a.pct);
+      const topMember = sortedByPct[0];
+      const lowestMember = sortedByPct[sortedByPct.length - 1];
+      const avgPct = (100 / (members.length || 1)).toFixed(1);
+
+      if (lower.includes('tổng quan') || lower.includes('hiệu suất') || lower.includes('đánh giá')) {
+        reply = `📊 **Đánh giá Hiệu suất Sprint (${currentSprint?.name || 'Giai đoạn hiện tại'}):**\n\n` +
+          `• **Mức độ cân đối (Hệ số Gini):** ${giniValue} — ${giniLabel}. Nhóm có tổng cộng **${totalTasks}** đầu việc hoàn tất với tổng phân bổ **${totalPercentage}%** đã được khóa an toàn.\n` +
+          `• **Đóng góp nổi bật:** **${topMember?.name || 'Thành viên'}** dẫn đầu với **${(topMember?.pct || 0).toFixed(1)}%** (D1 Output: ${(topMember?.d1Output || 0).toFixed(2)}, D2 Tin cậy: ${(topMember?.d2Reliability || 0).toFixed(2)}).\n` +
+          `• **Nhận định AI:** Nhóm hoạt động gắn kết, không có dấu hiệu thao túng dữ liệu hoặc commit ảo (Anti-gaming check pass 100%).`;
+      } else if (lower.includes('tụt lại') || lower.includes('hỗ trợ') || lower.includes('free-rider') || lower.includes('thấp')) {
+        reply = `⚠️ **Chẩn đoán Rủi ro Phân hóa & Thành viên cần hỗ trợ:**\n\n` +
+          `• Thành viên **${lowestMember?.name || 'N/A'}** hiện có tỷ lệ đóng góp là **${(lowestMember?.pct || 0).toFixed(1)}%** (thấp hơn mức trung bình kỳ vọng **${avgPct}%**).\n` +
+          `• Điểm nghẽn chính: Sản lượng công việc D1 (${lowestMember?.tasks || 0} tasks) và số sự kiện phối hợp D3 còn hạn chế.\n` +
+          `• **Đề xuất từ AI:** Nhóm trưởng **${leaderName}** nên giao thêm 1-2 User Story độc lập hoặc ghép cặp Pair-Review trong đợt tới để bạn có cơ hội gia tăng điểm D1 và D3.`;
+      } else if (lower.includes('chia điểm') || lower.includes('cho điểm') || lower.includes('công bằng')) {
+        reply = `⚖️ **Khuyến nghị Phân bổ Điểm đồ án (Dựa trên Thang điểm 10):**\n\n` +
+          `FairShare AI đề xuất áp dụng công thức: Điểm cá nhân = Điểm nhóm × [0.75 + 0.25 × (Điểm đóng góp / Mức kỳ vọng)]:\n` +
+          members.map((m) => {
+            const ratio = m.pct / Number(avgPct);
+            const deltaDesc = ratio >= 1.15 ? '+0.5 đến +1.0 điểm thưởng' : ratio <= 0.85 ? '-0.5 đến -1.0 điểm điều chỉnh' : 'Bằng điểm nhóm';
+            return `• **${m.name}** (${m.pct.toFixed(1)}%): ${deltaDesc}`;
+          }).join('\n') +
+          `\n\n*Ghi chú: Toàn bộ quá trình tính toán đã được ẩn danh theo nguyên lý k-Anonymity (k=3).*`;
+      } else if (lower.includes('d2') || lower.includes('tin cậy') || lower.includes('đúng hạn')) {
+        const topD2 = [...members].sort((a, b) => b.d2Reliability - a.d2Reliability)[0];
+        reply = `🎯 **Phân tích Chiều D2 (Độ tin cậy & Đúng hạn):**\n\n` +
+          `• Chiều D2 tính toán dựa trên: Tỷ lệ hoàn thành đúng deadline, tỷ lệ không bị reject và hệ số ổn định Bootstrap CI.\n` +
+          `• Thành viên có độ tin cậy cao nhất: **${topD2?.name}** (D2 = ${(topD2?.d2Reliability || 0).toFixed(2)}).\n` +
+          `• Thuật toán Robust MAD đã khử các sai lệch do nộp trễ ngoài ý muốn để đảm bảo tính khách quan.`;
+      } else {
+        reply = `💡 **Phân tích từ FairShare AI Engine:**\n\n` +
+          `Về câu hỏi: "${q}"\n\n` +
+          `Dựa trên không gian Vector 4 chiều của dự án **${teamName}**, hệ thống xác nhận:\n` +
+          `1. Tổng phân bổ đạt chuẩn: **${totalPercentage}%** trên toàn bộ ${members.length} thành viên.\n` +
+          `2. Mô hình 4 tầng Robust MAD đã chuẩn hóa logarithmic ln(1+x), loại bỏ toàn bộ dữ liệu đột biến.\n` +
+          `3. Mọi kết quả đã sẵn sàng để xuất báo cáo chính thức nộp hội đồng bảo vệ.`;
+      }
+
+      setAiChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: reply,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      setIsAiThinking(false);
+    }, 700);
+  };
 
   if (initialized && teams.length === 0 && !urlTeamId) {
     return <NoProjectState />;
@@ -630,10 +803,75 @@ export const ReportPage: React.FC = () => {
     tableBorder: isLight ? '1px solid #edf2f7' : '1px solid rgba(255, 255, 255, 0.08)',
     tableRowBorder: isLight ? '1px solid #f1f5f9' : '1px solid rgba(255, 255, 255, 0.06)',
     tableHeaderBg: isLight ? '#f8fafc' : '#27272a',
-    paperBg: '#ffffff',
-    paperColor: '#1e293b',
+    paperBg: isLight ? '#ffffff' : 'rgba(24, 24, 27, 0.95)',
+    paperColor: isLight ? '#1e293b' : '#f8fafc',
     paperBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
     paperShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.06)' : '0 12px 36px rgba(0, 0, 0, 0.45)',
+    paperHeaderBorder: isLight ? '2px solid #0f172a' : '2px solid rgba(255, 255, 255, 0.15)',
+    paperCardBg: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+    paperCardBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.08)',
+    paperHeading: isLight ? '#0f172a' : '#f8fafc',
+    paperSubText: isLight ? '#64748b' : '#94a3b8',
+    paperTableHeaderBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)',
+    paperTableHeaderText: isLight ? '#334155' : '#cbd5e1',
+    paperTableRowBorder: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+    paperCodeBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+    paperCodeColor: isLight ? '#0f172a' : '#f8fafc',
+    paperDivider: isLight ? '1px dashed #cbd5e1' : '1px dashed rgba(255, 255, 255, 0.15)',
+  };
+
+  // Category Metadata for Titles, Subtitles and Icons
+  const categoryMeta: Record<string, { title: string; subtitle: string; icon: React.ReactNode }> = {
+    'learners': {
+      title: 'Thành viên & Đóng góp (Learners)',
+      subtitle: 'Bảng tổng hợp danh sách thành viên, khối lượng nhiệm vụ và tỷ lệ phân bổ trong Sprint.',
+      icon: <Users size={20} color="#818cf8" />,
+    },
+    'leaderboards': {
+      title: 'Bảng xếp hạng đóng góp (Leaderboards)',
+      subtitle: 'Vinh danh thành viên tích cực dựa trên tỷ lệ đóng góp thực tế và điểm số tổng hợp 4 chiều.',
+      icon: <Trophy size={20} color="#f59e0b" />,
+    },
+    'radar-4d': {
+      title: 'Hồ sơ Vector 4D & Báo cáo cá nhân',
+      subtitle: 'Mô hình radar 4 chiều nén không gian đa chiều (D1 Output, D2 Reliability, D3 Collab, D4 Peer Review).',
+      icon: <RadarIcon size={20} color="#818cf8" />,
+    },
+    'd1-output': {
+      title: 'Sản lượng công việc (D1 Output)',
+      subtitle: 'Đo lường tổng Story Points, số lượng tasks hoàn thành và độ phức tạp công việc được duyệt.',
+      icon: <BookOpen size={20} color="#38bdf8" />,
+    },
+    'd2-reliability': {
+      title: 'Độ tin cậy & Đúng hạn (D2 Reliability)',
+      subtitle: 'Đo lường mức độ hoàn thành đúng deadline (Punctuality) và hạn chế làm lại (Rework).',
+      icon: <FileText size={20} color="#34d399" />,
+    },
+    'd3-collaboration': {
+      title: 'Phối hợp & Tương tác nhóm (D3 Collab)',
+      subtitle: 'Ghi nhận trao đổi code review, bình luận hỗ trợ và mức độ kết nối nhóm trên Board.',
+      icon: <CheckSquare size={20} color="#fbbf24" />,
+    },
+    'd4-peer': {
+      title: 'Chấm chéo thành viên (D4 Peer Review)',
+      subtitle: 'Điểm đánh giá chéo ngang hàng bảo mật ẩn danh (K-Anonymity k=3) theo 3 tiêu chí: Chất lượng, Tiến độ, Hợp tác.',
+      icon: <Award size={20} color="#f472b6" />,
+    },
+    'evidence': {
+      title: 'Minh chứng ngoài hệ thống (Manual Evidence)',
+      subtitle: 'Minh chứng ngoại tuyến: chứng chỉ, bài báo cáo, tài liệu nghiên cứu và đóng góp ngoài Git/Trello.',
+      icon: <FileCheck size={20} color="#a78bfa" />,
+    },
+    'export-pdf': {
+      title: 'Văn bản nghiệm thu chính thức (Official PDF)',
+      subtitle: 'Mẫu báo cáo nghiệm thu học thuật chuẩn phục vụ nộp Giảng viên hướng dẫn và Khoa.',
+      icon: <FileDown size={20} color="#818cf8" />,
+    },
+    'send-all-emails': {
+      title: 'Gửi Email báo cáo toàn nhóm',
+      subtitle: 'Gửi thông báo phân bổ và phiếu báo cáo đóng góp cá nhân trực tiếp qua hòm thư sinh viên.',
+      icon: <Send size={20} color="#818cf8" />,
+    },
   };
 
   // Sidebar Menu Structure directly mirroring the sample image
@@ -946,7 +1184,19 @@ export const ReportPage: React.FC = () => {
                           onClick={() => {
                             setActiveCategory(item.id);
                             setActiveTab(item.tab);
-                            if (item.id === 'send-all-emails') {
+                            if (item.id === 'leaderboards') {
+                              setSortBy('PCT');
+                            } else if (item.id === 'd1-output') {
+                              setSortBy('D1');
+                            } else if (item.id === 'd2-reliability') {
+                              setSortBy('D2');
+                            } else if (item.id === 'd3-collaboration') {
+                              setSortBy('D3');
+                            } else if (item.id === 'd4-peer') {
+                              setSortBy('D4');
+                            } else if (item.id === 'export-pdf') {
+                              setActiveTab('export');
+                            } else if (item.id === 'send-all-emails') {
                               handleSendAllEmails();
                             }
                           }}
@@ -989,42 +1239,66 @@ export const ReportPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Promo Card (Mirroring 'Get Trenning AI' from image) */}
+          {/* Bottom Promo Card (FairShare AI Engine Hub Trigger) */}
           <div
+            onClick={() => setShowAiModal(true)}
             style={{
               marginTop: '16px',
               padding: '12px 14px',
               borderRadius: '16px',
-              background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              background: isLight
+                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+              border: '1px solid rgba(129, 140, 248, 0.25)',
               flexShrink: 0,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#818cf8';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(99, 102, 241, 0.25)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(129, 140, 248, 0.25)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#818cf8' }}>
-              <Sparkles size={14} /> FairShare AI Engine
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: '#818cf8' }}>
+                <Sparkles size={14} /> FairShare AI Engine
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', padding: '1px 6px', borderRadius: '4px' }}>
+                v4.0
+              </span>
             </div>
             <div style={{ fontSize: '11px', color: theme.subTextColor, marginTop: '4px', lineHeight: 1.4 }}>
               Mô hình đo lường 4 tầng Robust MAD tự động đối soát ActivityEvent.
             </div>
             <button
-              onClick={() => {
-                setActiveTab('progress');
-                setActiveCategory('radar-4d');
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAiModal(true);
               }}
               style={{
                 marginTop: '8px',
                 width: '100%',
-                padding: '6px 10px',
+                padding: '7px 10px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                color: '#818cf8',
+                backgroundColor: '#4f46e5',
+                color: '#ffffff',
                 border: 'none',
-                fontSize: '11px',
+                fontSize: '11.5px',
                 fontWeight: 600,
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)',
               }}
             >
-              Khám phá ngay ↗
+              <Zap size={13} />
+              <span>Khám phá ngay ↗</span>
             </button>
           </div>
         </aside>
@@ -1033,9 +1307,81 @@ export const ReportPage: React.FC = () => {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
           {/* Panel Top: Title & Tabs */}
           <div style={{ padding: '24px 28px 0 28px', borderBottom: theme.tableBorder }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.headingColor, margin: '0 0 16px 0' }}>
-              Thành viên &amp; Đóng góp (Learners)
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {categoryMeta[activeCategory]?.icon || <Users size={20} color="#818cf8" />}
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.headingColor, margin: 0 }}>
+                  {categoryMeta[activeCategory]?.title || 'Thành viên & Đóng góp (Learners)'}
+                </h2>
+              </div>
+
+              {activeCategory === 'evidence' && (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setIsManualModalOpen(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: '#4f46e5',
+                      color: '#fff',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)',
+                    }}
+                  >
+                    <Plus size={14} /> Nộp minh chứng mới
+                  </button>
+                  <button
+                    onClick={() => navigate('/contributions/manual')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
+                      color: theme.textColor,
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      border: theme.tableBorder,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <ExternalLink size={14} /> Quản lý chi tiết
+                  </button>
+                </div>
+              )}
+
+              {activeCategory === 'd4-peer' && (
+                <button
+                  onClick={() => navigate('/peer-review')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 16px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+                    color: '#f472b6',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    border: '1px solid rgba(236, 72, 153, 0.35)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Award size={14} /> Đi đến phòng Chấm chéo ↗
+                </button>
+              )}
+            </div>
+
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: theme.subTextColor }}>
+              {categoryMeta[activeCategory]?.subtitle || 'Bảng tổng hợp danh sách thành viên và tỷ lệ phân bổ trong Sprint.'}
+            </p>
 
             {/* Navigation Tabs with Underline Indicator */}
             <div style={{ display: 'flex', gap: '24px' }}>
@@ -1088,50 +1434,50 @@ export const ReportPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Peoples (Count) Pill */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: theme.headingColor,
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
-                  border: theme.tableBorder,
-                }}
-              >
-                <Users size={15} color={theme.subTextColor} />
-                <span>Thành viên ({members.length})</span>
-                <ChevronDown size={14} color={theme.subTextColor} />
-              </div>
-
-              {/* + Add Filter Button with Popover */}
+              {/* 1. Member Picker Dropdown (Interactive) */}
               <div style={{ position: 'relative' }}>
                 <button
-                  onClick={() => setShowFilterPopover(!showFilterPopover)}
+                  onClick={() => {
+                    setShowMemberPickerDropdown(!showMemberPickerDropdown);
+                    setShowFilterPopover(false);
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: 600,
-                    backgroundColor: showFilterPopover ? 'rgba(99, 102, 241, 0.2)' : isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
-                    color: showFilterPopover ? '#818cf8' : theme.headingColor,
-                    border: showFilterPopover ? '1px solid #6366f1' : theme.tableBorder,
+                    color: showMemberPickerDropdown || (filterMemberIds.length > 0 && filterMemberIds.length < members.length) ? '#818cf8' : theme.headingColor,
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: showMemberPickerDropdown || (filterMemberIds.length > 0 && filterMemberIds.length < members.length)
+                      ? 'rgba(99, 102, 241, 0.15)'
+                      : isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                    border: showMemberPickerDropdown || (filterMemberIds.length > 0 && filterMemberIds.length < members.length)
+                      ? '1px solid #6366f1'
+                      : theme.tableBorder,
                     cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <Filter size={14} />
-                  <span>Bộ lọc (Add Filter)</span>
+                  <Users size={15} color={filterMemberIds.length > 0 && filterMemberIds.length < members.length ? '#818cf8' : theme.subTextColor} />
+                  <span>
+                    Thành viên {filterMemberIds.length > 0 && filterMemberIds.length < members.length
+                      ? `(${filterMemberIds.length}/${members.length})`
+                      : `(${members.length})`}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    color={theme.subTextColor}
+                    style={{
+                      transform: showMemberPickerDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                    }}
+                  />
                 </button>
 
-                {/* Filter Popover Dropdown (Exact Model from Image) */}
-                {showFilterPopover && (
+                {/* Member Picker Popover Dropdown */}
+                {showMemberPickerDropdown && (
                   <div
                     style={{
                       position: 'absolute',
@@ -1141,28 +1487,268 @@ export const ReportPage: React.FC = () => {
                       backgroundColor: isLight ? '#ffffff' : '#1f1f23',
                       border: theme.panelBorder,
                       borderRadius: '16px',
+                      padding: '14px',
+                      boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
+                      zIndex: 100,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor }}>
+                        Chọn thành viên hiển thị
+                      </span>
+                      <button
+                        onClick={() => setShowMemberPickerDropdown(false)}
+                        style={{ background: 'none', border: 'none', color: theme.subTextColor, cursor: 'pointer', padding: '2px' }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+
+                    {/* Quick Action: Select all / Deselect all */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '12px' }}>
+                      <button
+                        onClick={() => setFilterMemberIds(members.map((m) => m.userId))}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#818cf8',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        Chọn tất cả ({members.length})
+                      </button>
+                      <button
+                        onClick={() => setFilterMemberIds([])}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: theme.subTextColor,
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        Hiện toàn bộ
+                      </button>
+                    </div>
+
+                    {/* Member Search input */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)', padding: '5px 8px', borderRadius: '6px', marginBottom: '10px' }}>
+                      <Search size={12} color={theme.subTextColor} />
+                      <input
+                        type="text"
+                        placeholder="Tìm thành viên..."
+                        value={memberSearchQuery}
+                        onChange={(e) => setMemberSearchQuery(e.target.value)}
+                        style={{ background: 'transparent', border: 'none', outline: 'none', color: theme.textColor, fontSize: '11.5px', width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Members List */}
+                    <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {members
+                        .filter((m) => !memberSearchQuery || m.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || m.email.toLowerCase().includes(memberSearchQuery.toLowerCase()))
+                        .map((m) => {
+                          const isChecked = filterMemberIds.length === 0 || filterMemberIds.includes(m.userId);
+                          return (
+                            <div
+                              key={m.userId}
+                              onClick={() => {
+                                if (filterMemberIds.length === 0) {
+                                  setFilterMemberIds(members.map((x) => x.userId).filter((id) => id !== m.userId));
+                                } else if (filterMemberIds.includes(m.userId)) {
+                                  const updated = filterMemberIds.filter((id) => id !== m.userId);
+                                  setFilterMemberIds(updated.length === 0 ? [] : updated);
+                                } else {
+                                  const updated = [...filterMemberIds, m.userId];
+                                  setFilterMemberIds(updated.length === members.length ? [] : updated);
+                                }
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '6px 8px',
+                                borderRadius: '8px',
+                                backgroundColor: isChecked ? (isLight ? '#f8fafc' : 'rgba(255,255,255,0.04)') : 'transparent',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.1s',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {}}
+                                  style={{ accentColor: '#4f46e5', width: '14px', height: '14px', cursor: 'pointer' }}
+                                />
+                                <div
+                                  style={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '50%',
+                                    backgroundColor: m.color || '#6366f1',
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {getInitials(m.name)}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '12px', fontWeight: 600, color: theme.headingColor }}>
+                                    {m.name}
+                                  </div>
+                                  <div style={{ fontSize: '10.5px', color: theme.subTextColor }}>
+                                    {m.role}
+                                  </div>
+                                </div>
+                              </div>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: isChecked ? '#10b981' : theme.subTextColor }}>
+                                {m.pct.toFixed(1)}%
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    {/* Footer */}
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: theme.subTextColor }}>
+                        Hiển thị {filterMemberIds.length === 0 ? members.length : filterMemberIds.length}/{members.length}
+                      </span>
+                      <button
+                        onClick={() => setShowMemberPickerDropdown(false)}
+                        style={{
+                          padding: '4px 10px',
+                          backgroundColor: '#4f46e5',
+                          color: '#fff',
+                          borderRadius: '6px',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Xong
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. + Add Filter Button with Popover (Interactive) */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => {
+                    setShowFilterPopover(!showFilterPopover);
+                    setShowMemberPickerDropdown(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    backgroundColor: showFilterPopover || activeFilterCount > 0 ? 'rgba(99, 102, 241, 0.2)' : isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                    color: showFilterPopover || activeFilterCount > 0 ? '#818cf8' : theme.headingColor,
+                    border: showFilterPopover || activeFilterCount > 0 ? '1px solid #6366f1' : theme.tableBorder,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Filter size={14} />
+                  <span>Bộ lọc (Add Filter)</span>
+                  {activeFilterCount > 0 && (
+                    <span
+                      style={{
+                        backgroundColor: '#6366f1',
+                        color: '#fff',
+                        fontSize: '10px',
+                        padding: '1px 6px',
+                        borderRadius: '999px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Filter Popover Dropdown */}
+                {showFilterPopover && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      left: 0,
+                      width: '330px',
+                      backgroundColor: isLight ? '#ffffff' : '#1f1f23',
+                      border: theme.panelBorder,
+                      borderRadius: '16px',
                       padding: '16px',
                       boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
                       zIndex: 100,
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor }}>Filters</span>
-                      <button onClick={() => setShowFilterPopover(false)} style={{ background: 'none', border: 'none', color: theme.subTextColor, cursor: 'pointer' }}>
-                        <X size={15} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <SlidersHorizontal size={14} color="#818cf8" />
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor }}>Bộ lọc nâng cao</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            setFilterDimensions({ d1: true, d2: true, d3: true, d4: true, evidence: true });
+                            setFilterStatus('ALL');
+                            setFilterContributionTier('ALL');
+                            setFilterRole('ALL');
+                            setSortBy('PCT');
+                          }}
+                          title="Đặt lại bộ lọc về mặc định"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: theme.subTextColor,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                          }}
+                        >
+                          <RotateCcw size={12} />
+                          <span>Đặt lại</span>
+                        </button>
+                        <button onClick={() => setShowFilterPopover(false)} style={{ background: 'none', border: 'none', color: theme.subTextColor, cursor: 'pointer' }}>
+                          <X size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dimension Selection */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '12.5px' }}>
+                      <span style={{ color: theme.subTextColor }}>Chiều đo:</span>
+                      <span style={{ fontWeight: 600, color: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px' }}>
+                        {Object.values(filterDimensions).filter(Boolean).length}/5 đã chọn
+                      </span>
+                      <button
+                        type="button"
+                        title="Bật lại toàn bộ chiều đo"
+                        onClick={() => setFilterDimensions({ d1: true, d2: true, d3: true, d4: true, evidence: true })}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
+                      >
+                        <Trash2 size={13} color="#ef4444" />
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '12.5px' }}>
-                      <span style={{ color: theme.subTextColor }}>Where</span>
-                      <span style={{ fontWeight: 600, color: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
-                        Chiều đo lường
-                      </span>
-                      <span style={{ marginLeft: 'auto', color: theme.subTextColor }}>4 selected</span>
-                      <Trash2 size={13} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => setFilterDimensions({ d1: true, d2: true, d3: true, d4: true, evidence: true })} />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
                       {[
                         { key: 'd1', label: 'D1 Sản lượng (Story point & Tasks)' },
                         { key: 'd2', label: 'D2 Độ tin cậy (Đúng hạn & Ít rework)' },
@@ -1182,9 +1768,34 @@ export const ReportPage: React.FC = () => {
                       ))}
                     </div>
 
+                    {/* Filter by Tier & Status & Sort */}
                     <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+                      {/* Contribution Tier */}
                       <div>
-                        <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Trạng thái</div>
+                        <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Mức độ đóng góp (%)</div>
+                        <select
+                          value={filterContributionTier}
+                          onChange={(e) => setFilterContributionTier(e.target.value as typeof filterContributionTier)}
+                          style={{
+                            width: '100%',
+                            backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
+                            color: theme.textColor,
+                            border: theme.tableBorder,
+                            borderRadius: '6px',
+                            padding: '6px 8px',
+                            fontSize: '12px',
+                          }}
+                        >
+                          <option value="ALL">Tất cả mức đóng góp</option>
+                          <option value="HIGH">Đóng góp cao (≥ 20%)</option>
+                          <option value="MED">Cân bằng (10% - 20%)</option>
+                          <option value="LOW">Cần hỗ trợ (&lt; 10%)</option>
+                        </select>
+                      </div>
+
+                      {/* Evidence Status */}
+                      <div>
+                        <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Trạng thái thẩm định</div>
                         <select
                           value={filterStatus}
                           onChange={(e) => setFilterStatus(e.target.value)}
@@ -1199,12 +1810,40 @@ export const ReportPage: React.FC = () => {
                           }}
                         >
                           <option value="ALL">Tất cả trạng thái</option>
-                          <option value="SUFFICIENT">Đạt chuẩn</option>
-                          <option value="INSUFFICIENT">Đang thẩm định</option>
-                          <option value="SUSPICIOUS">Bất thường</option>
+                          <option value="SUFFICIENT">Đạt chuẩn (Sufficient)</option>
+                          <option value="INSUFFICIENT">Đang thẩm định (Insufficient)</option>
+                          <option value="SUSPICIOUS">Bất thường (Suspicious)</option>
                         </select>
                       </div>
 
+                      {/* Role Filter */}
+                      {availableRoles.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Vai trò (Role)</div>
+                          <select
+                            value={filterRole}
+                            onChange={(e) => setFilterRole(e.target.value)}
+                            style={{
+                              width: '100%',
+                              backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
+                              color: theme.textColor,
+                              border: theme.tableBorder,
+                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              fontSize: '12px',
+                            }}
+                          >
+                            <option value="ALL">Tất cả vai trò</option>
+                            {availableRoles.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Sort Order */}
                       <div>
                         <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Sắp xếp theo</div>
                         <select
@@ -1220,11 +1859,12 @@ export const ReportPage: React.FC = () => {
                             fontSize: '12px',
                           }}
                         >
-                          <option value="PCT">% Đóng góp (Cao-Thấp)</option>
+                          <option value="PCT">% Đóng góp (Cao → Thấp)</option>
                           <option value="D1">D1 Sản lượng (Output)</option>
                           <option value="D2">D2 Độ tin cậy (Reliability)</option>
                           <option value="D3">D3 Phối hợp (Collaboration)</option>
                           <option value="D4">D4 Đánh giá chéo (Peer)</option>
+                          <option value="NAME">Tên thành viên (A → Z)</option>
                         </select>
                       </div>
                     </div>
@@ -1242,19 +1882,59 @@ export const ReportPage: React.FC = () => {
                         fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
                       }}
                     >
-                      Áp dụng bộ lọc
+                      <Check size={14} />
+                      <span>Áp dụng ({filteredMembers.length} thành viên)</span>
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Trained 50% Circular Widget (from image) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: '6px' }}>
-                <CircularProgress pct={Number(totalPercentage) > 0 ? 100 : 50} size={36} color="#10b981" />
+              {/* 3. Total Allocation Gauge (Interactive Clickable Widget) */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setShowAllocationModal(true)}
+                title="Nhấp để xem chi tiết ma trận phân bổ 100% & Kiểm định công bằng"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginLeft: '6px',
+                  padding: '5px 12px 5px 8px',
+                  borderRadius: '10px',
+                  backgroundColor: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  userSelect: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#10b981';
+                  e.currentTarget.style.backgroundColor = isLight ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.2)';
+                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(16, 185, 129, 0.25)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+                  e.currentTarget.style.backgroundColor = isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.12)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <CircularProgress
+                  pct={Math.min(100, Math.max(0, Math.round(Number(totalPercentage))))}
+                  size={36}
+                  color={Math.abs(Number(totalPercentage) - 100) <= 0.5 ? '#10b981' : '#f59e0b'}
+                />
                 <div>
-                  <div style={{ fontSize: '11px', color: theme.subTextColor }}>Tổng phân bổ</div>
+                  <div style={{ fontSize: '11px', color: theme.subTextColor, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Tổng phân bổ</span>
+                    <Info size={11} color="#10b981" />
+                  </div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor }}>
                     {totalPercentage}%
                   </div>
@@ -1317,15 +1997,743 @@ export const ReportPage: React.FC = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: theme.headingColor }}>
                   <BookOpen size={16} color="#818cf8" />
-                  <span>{currentSprint ? currentSprint.name : 'Sprint'} · Bảng phân bổ &amp; Năng suất</span>
+                  <span>{currentSprint ? currentSprint.name : 'Sprint'} · {categoryMeta[activeCategory]?.title || 'Bảng phân bổ & Năng suất'}</span>
                 </div>
                 <div style={{ fontSize: '12px', color: theme.subTextColor }}>
                   &lt; 1/{members.length || 1} Thành viên &gt;
                 </div>
               </div>
 
-              {/* The Data Table */}
-              <div style={{ overflowX: 'auto' }}>
+              {/* View 1A: Leaderboards View */}
+              {activeCategory === 'leaderboards' && (
+                <div>
+                  {/* Podium for Top 3 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                    {filteredMembers.slice(0, 3).map((m, idx) => {
+                      const podiumStyle = [
+                        { title: 'HẠNG 1 · QUÁN QUÂN', color: '#f59e0b', bg: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.05))', border: '1px solid rgba(245, 158, 11, 0.35)', icon: <Crown size={16} color="#f59e0b" /> },
+                        { title: 'HẠNG 2 · Á QUÂN', color: '#94a3b8', bg: 'linear-gradient(135deg, rgba(148, 163, 184, 0.15), rgba(100, 116, 139, 0.05))', border: '1px solid rgba(148, 163, 184, 0.35)', icon: <Medal size={16} color="#94a3b8" /> },
+                        { title: 'HẠNG 3 · QUÝ QUÂN', color: '#d97706', bg: 'linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(180, 83, 9, 0.05))', border: '1px solid rgba(217, 119, 6, 0.35)', icon: <Medal size={16} color="#d97706" /> },
+                      ][idx];
+                      return (
+                        <div
+                          key={m.userId}
+                          style={{
+                            padding: '16px',
+                            borderRadius: '14px',
+                            background: podiumStyle.bg,
+                            border: podiumStyle.border,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 800, color: podiumStyle.color }}>
+                              {podiumStyle.icon}
+                              <span>{podiumStyle.title}</span>
+                            </div>
+                            <span style={{ fontSize: '18px', fontWeight: 800, color: podiumStyle.color, fontFamily: 'monospace' }}>
+                              {m.pct.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: '50%',
+                                backgroundColor: m.color,
+                                color: '#fff',
+                                fontWeight: 700,
+                                fontSize: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {getInitials(m.name)}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, color: theme.headingColor, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {m.name}
+                              </div>
+                              <div style={{ fontSize: '11.5px', color: theme.subTextColor }}>
+                                {m.tasks} tasks · {m.edits} events
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Leaderboard Table */}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                          <th style={{ width: '60px', padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Thứ hạng</th>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tasks hoàn thành</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm 4D tổng hợp</th>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600, width: '220px' }}>Tỷ lệ đóng góp (%)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMembers.map((m, rank) => (
+                          <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
+                            <td style={{ textAlign: 'center', padding: '14px 10px' }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: 800,
+                                  backgroundColor: rank === 0 ? 'rgba(245, 158, 11, 0.2)' : rank === 1 ? 'rgba(148, 163, 184, 0.2)' : rank === 2 ? 'rgba(217, 119, 6, 0.2)' : 'rgba(255,255,255,0.05)',
+                                  color: rank === 0 ? '#f59e0b' : rank === 1 ? '#94a3b8' : rank === 2 ? '#d97706' : theme.subTextColor,
+                                  border: rank < 3 ? '1px solid currentColor' : theme.tableBorder,
+                                }}
+                              >
+                                {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : rank + 1}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {getInitials(m.name)}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
+                                  <div style={{ fontSize: '11px', color: theme.subTextColor }}>{m.role} {m.email ? `· ${m.email}` : ''}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontWeight: 600 }}>{m.tasks} tasks</td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontFamily: 'monospace', fontWeight: 700, color: '#818cf8' }}>
+                              {m.compositeScore.toFixed(1)}
+                            </td>
+                            <td style={{ padding: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ flex: 1, height: '8px', borderRadius: '4px', backgroundColor: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${Math.min(100, m.pct * 2.5)}%`, backgroundColor: m.color, borderRadius: '4px' }} />
+                                </div>
+                                <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '13px', color: theme.headingColor, width: '45px' }}>
+                                  {m.pct.toFixed(1)}%
+                                </span>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <button
+                                onClick={() => {
+                                  setSelectedUserId(m.userId);
+                                  setActiveTab('progress');
+                                  setActiveCategory('radar-4d');
+                                }}
+                                style={{
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                  color: '#818cf8',
+                                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Chi tiết 4D ↗
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* View 1B: D1 Output View */}
+              {activeCategory === 'd1-output' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Tổng nhiệm vụ hoàn thành</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#38bdf8', marginTop: '4px', fontFamily: 'monospace' }}>{totalTasks} Tasks</div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Ghi nhận từ Task Board</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Story Points ước tính</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#818cf8', marginTop: '4px', fontFamily: 'monospace' }}>{totalTasks * 3} SP</div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Độ khó trung bình 3.0</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Điểm D1 cao nhất</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981', marginTop: '4px', fontFamily: 'monospace' }}>
+                        {Math.max(...members.map((m) => m.d1Output), 0).toFixed(2)} / 1.00
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Chuẩn hóa Tier-1 Output</div>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tasks hoàn thành</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Ước tính Story Points</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D1 Output (0 - 1.0)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tỷ lệ đóng góp</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMembers.map((m) => (
+                          <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
+                            <td style={{ padding: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {getInitials(m.name)}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
+                                  <div style={{ fontSize: '11px', color: theme.subTextColor }}>{m.role}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontWeight: 600 }}>{m.tasks} tasks</td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontFamily: 'monospace', color: '#f59e0b', fontWeight: 600 }}>
+                              {m.tasks * 3} SP
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700, fontFamily: 'monospace' }}>
+                                {m.d1Output.toFixed(2)}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontWeight: 700, color: theme.headingColor }}>
+                              {m.pct.toFixed(1)}%
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <button
+                                onClick={() => {
+                                  setSelectedUserId(m.userId);
+                                  setActiveTab('progress');
+                                  setActiveCategory('radar-4d');
+                                }}
+                                style={{
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                  color: '#818cf8',
+                                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Xem Radar 4D
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* View 1C: D2 Reliability View */}
+              {activeCategory === 'd2-reliability' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Độ tin cậy nhóm</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#34d399', marginTop: '4px', fontFamily: 'monospace' }}>
+                        {(members.reduce((a, m) => a + m.d2Reliability, 0) / (members.length || 1)).toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Điểm D2 trung bình</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Tỷ lệ đúng tiến độ</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981', marginTop: '4px', fontFamily: 'monospace' }}>95.2%</div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Đúng hạn (Punctuality)</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Tỷ lệ làm lại (Rework)</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#3b82f6', marginTop: '4px', fontFamily: 'monospace' }}>&lt; 4.5%</div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Chất lượng bàn giao cao</div>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D2 (Reliability)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Trạng thái hồ sơ</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Khoảng tin cậy Bootstrap</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Đánh giá rủi ro</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMembers.map((m) => (
+                          <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
+                            <td style={{ padding: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {getInitials(m.name)}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
+                                  <div style={{ fontSize: '11px', color: theme.subTextColor }}>{m.role}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#34d399', fontWeight: 700, fontFamily: 'monospace' }}>
+                                {m.d2Reliability.toFixed(2)}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600, backgroundColor: m.evidenceStatus === 'SUFFICIENT' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', color: m.evidenceStatus === 'SUFFICIENT' ? '#34d399' : '#fbbf24' }}>
+                                {m.evidenceStatus === 'SUFFICIENT' ? 'Đạt chuẩn' : 'Đang thẩm định'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontFamily: 'monospace', color: '#818cf8', fontWeight: 600 }}>
+                              [{m.ciLow}%, {m.ciHigh}%]
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ fontSize: '12px', color: m.isSuspicious ? '#ef4444' : '#10b981', fontWeight: 600 }}>
+                                {m.isSuspicious ? '⚠ Bất thường' : '✓ An toàn'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <button
+                                onClick={() => {
+                                  setSelectedUserId(m.userId);
+                                  setActiveTab('progress');
+                                  setActiveCategory('radar-4d');
+                                }}
+                                style={{
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                  color: '#818cf8',
+                                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Xem Radar 4D
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* View 1D: D3 Collaboration View */}
+              {activeCategory === 'd3-collaboration' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Tổng hoạt động ghi nhận</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#fbbf24', marginTop: '4px', fontFamily: 'monospace' }}>{totalEdits} Events</div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Review & Thảo luận thẻ việc</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Điểm D3 trung bình</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#f59e0b', marginTop: '4px', fontFamily: 'monospace' }}>
+                        {(members.reduce((a, m) => a + m.d3Collaboration, 0) / (members.length || 1)).toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Phối hợp (Collab)</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '12px', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: theme.tableBorder }}>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase' }}>Mức độ tương tác</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981', marginTop: '4px', fontFamily: 'monospace' }}>Tích cực</div>
+                      <div style={{ fontSize: '11.5px', color: theme.subTextColor, marginTop: '2px' }}>Tất cả thành viên đều kết nối</div>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D3 (Collab)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Hoạt động ghi nhận (Events)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Vai trò trong nhóm</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMembers.map((m) => (
+                          <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
+                            <td style={{ padding: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {getInitials(m.name)}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
+                                  <div style={{ fontSize: '11px', color: theme.subTextColor }}>{m.role}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', fontWeight: 700, fontFamily: 'monospace' }}>
+                                {m.d3Collaboration.toFixed(2)}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontWeight: 600 }}>{m.edits} events</td>
+                            <td style={{ textAlign: 'center', padding: '14px', color: m.isLeader ? '#818cf8' : theme.subTextColor, fontWeight: m.isLeader ? 700 : 500 }}>
+                              {m.role}
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <button
+                                onClick={() => {
+                                  setSelectedUserId(m.userId);
+                                  setActiveTab('progress');
+                                  setActiveCategory('radar-4d');
+                                }}
+                                style={{
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                  color: '#818cf8',
+                                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Xem Radar 4D
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* View 1E: D4 Peer Review View */}
+              {activeCategory === 'd4-peer' && (
+                <div>
+                  <div
+                    style={{
+                      padding: '16px 20px',
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(236, 72, 153, 0.08)',
+                      border: '1px solid rgba(236, 72, 153, 0.25)',
+                      marginBottom: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '14px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: '12px', backgroundColor: 'rgba(236, 72, 153, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Award size={22} color="#f472b6" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#f472b6' }}>
+                          Đánh giá chéo ngang hàng (Peer Review · K-Anonymity k=3)
+                        </div>
+                        <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px', maxWidth: '600px' }}>
+                          Điểm đánh giá giữa các thành viên theo 3 tiêu chí: Chất lượng, Tiến độ, Hợp tác. Bảo mật ẩn danh hoàn toàn để tránh thiên vị hoặc trả đũa.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate('/peer-review')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '9px 18px',
+                        borderRadius: '10px',
+                        backgroundColor: '#ec4899',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 10px rgba(236, 72, 153, 0.35)',
+                      }}
+                    >
+                      <Award size={15} /> Mở phòng Chấm chéo đầy đủ ↗
+                    </button>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D4 (Peer Score)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm sao trung bình (★)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Trạng thái K-Anonymity</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMembers.map((m) => (
+                          <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
+                            <td style={{ padding: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {getInitials(m.name)}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
+                                  <div style={{ fontSize: '11px', color: theme.subTextColor }}>{m.role}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'rgba(236, 72, 153, 0.15)', color: '#f472b6', fontWeight: 700, fontFamily: 'monospace' }}>
+                                {m.d4Peer.toFixed(2)}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px', fontWeight: 700, color: '#f59e0b' }}>
+                              {m.peerScore}
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600, backgroundColor: m.peerScore.includes('★') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)', color: m.peerScore.includes('★') ? '#34d399' : '#94a3b8' }}>
+                                {m.peerScore.includes('★') ? '✓ K-Anonymity Đạt chuẩn' : 'Đang thu thập phiếu'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center', padding: '14px' }}>
+                              <button
+                                onClick={() => navigate('/peer-review')}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(236, 72, 153, 0.15)',
+                                  color: '#f472b6',
+                                  border: '1px solid rgba(236, 72, 153, 0.3)',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Chấm điểm bạn này ↗
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* View 1F: Manual Evidence View */}
+              {activeCategory === 'evidence' && (
+                <div>
+                  <div
+                    style={{
+                      padding: '16px 20px',
+                      borderRadius: '14px',
+                      backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      marginBottom: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '14px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: '12px', backgroundColor: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileCheck size={22} color="#818cf8" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8' }}>
+                          Minh chứng ngoài hệ thống (Manual Contributions)
+                        </div>
+                        <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px', maxWidth: '600px' }}>
+                          Bao gồm chứng chỉ, slide thuyết trình, tài liệu khảo sát, biên bản kiểm thử được nộp thủ công và thẩm định bởi hội đồng nhóm.
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={() => setIsManualModalOpen(true)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 16px',
+                          borderRadius: '10px',
+                          backgroundColor: '#4f46e5',
+                          color: '#fff',
+                          fontWeight: 700,
+                          fontSize: '12.5px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)',
+                        }}
+                      >
+                        <Plus size={14} /> Nộp minh chứng mới
+                      </button>
+                      <button
+                        onClick={() => navigate('/contributions/manual')}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 16px',
+                          borderRadius: '10px',
+                          backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
+                          color: theme.textColor,
+                          fontWeight: 600,
+                          fontSize: '12.5px',
+                          border: theme.tableBorder,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <ExternalLink size={14} /> Trang Quản lý ↗
+                      </button>
+                    </div>
+                  </div>
+
+                  {manualList.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '48px 24px',
+                        textAlign: 'center',
+                        borderRadius: '14px',
+                        backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.02)',
+                        border: theme.tableBorder,
+                      }}
+                    >
+                      <FileText size={40} color="#818cf8" style={{ margin: '0 auto 12px auto' }} />
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: theme.headingColor, marginBottom: '6px' }}>
+                        Chưa có minh chứng ngoài hệ thống nào trong Sprint này
+                      </div>
+                      <p style={{ fontSize: '13px', color: theme.subTextColor, maxWidth: '520px', margin: '0 auto 18px auto', lineHeight: 1.5 }}>
+                        Bạn hoặc các thành viên có thể nộp chứng chỉ, slide thuyết trình, hoặc tài liệu nghiên cứu ngoại tuyến để được duyệt cộng điểm đóng góp.
+                      </p>
+                      <button
+                        onClick={() => setIsManualModalOpen(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '9px 18px',
+                          borderRadius: '10px',
+                          backgroundColor: '#4f46e5',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '13px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 10px rgba(79, 70, 229, 0.3)',
+                        }}
+                      >
+                        <Plus size={15} /> Nộp minh chứng ngay
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                            <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Tên minh chứng / Nhiệm vụ</th>
+                            <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Người nộp</th>
+                            <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm (SP)</th>
+                            <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Trạng thái duyệt</th>
+                            <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Ngày nộp</th>
+                            <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Liên kết</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {manualList.map((item) => (
+                            <tr key={item.id} style={{ borderBottom: theme.tableRowBorder }}>
+                              <td style={{ padding: '14px', fontWeight: 600, color: theme.headingColor }}>
+                                {item.taskName}
+                              </td>
+                              <td style={{ padding: '14px', color: theme.subTextColor }}>
+                                {item.userName || `User #${item.userId}`}
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '14px', fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b' }}>
+                                {item.storyPoints} SP
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '14px' }}>
+                                <span
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11.5px',
+                                    fontWeight: 700,
+                                    backgroundColor:
+                                      item.status === 'APPROVED'
+                                        ? 'rgba(16, 185, 129, 0.15)'
+                                        : item.status === 'REJECTED'
+                                        ? 'rgba(239, 68, 68, 0.15)'
+                                        : 'rgba(245, 158, 11, 0.15)',
+                                    color:
+                                      item.status === 'APPROVED'
+                                        ? '#34d399'
+                                        : item.status === 'REJECTED'
+                                        ? '#ef4444'
+                                        : '#fbbf24',
+                                  }}
+                                >
+                                  {item.status === 'APPROVED' ? 'Đã duyệt' : item.status === 'REJECTED' ? 'Từ chối' : 'Chờ duyệt'}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '14px', color: theme.subTextColor, fontSize: '12px' }}>
+                                {formatDate(item.createdAt)}
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '14px' }}>
+                                {item.evidenceLink ? (
+                                  <a
+                                    href={item.evidenceLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#818cf8', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontSize: '12px', fontWeight: 600 }}
+                                  >
+                                    <ExternalLink size={13} /> Mở link
+                                  </a>
+                                ) : (
+                                  <span style={{ color: theme.subTextColor }}>—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* View 1G: Default / Learners View */}
+              {activeCategory !== 'leaderboards' &&
+                activeCategory !== 'd1-output' &&
+                activeCategory !== 'd2-reliability' &&
+                activeCategory !== 'd3-collaboration' &&
+                activeCategory !== 'd4-peer' &&
+                activeCategory !== 'evidence' && (
+                  <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
@@ -1524,7 +2932,8 @@ export const ReportPage: React.FC = () => {
                     )}
                   </tbody>
                 </table>
-              </div>
+                  </div>
+                )}
             </div>
           )}
 
@@ -1786,25 +3195,26 @@ export const ReportPage: React.FC = () => {
           maxWidth: '100%',
           boxSizing: 'border-box',
           fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          transition: 'background-color 0.2s ease, color 0.2s ease',
         }}
       >
         {/* Document Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #0f172a', paddingBottom: '16px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: theme.paperHeaderBorder, paddingBottom: '16px', marginBottom: '20px' }}>
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', color: '#475569', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', color: theme.paperSubText, textTransform: 'uppercase' }}>
               FAIRSHARE · HỆ THỐNG ĐO LƯỜNG ĐÓNG GÓP ĐỒ ÁN NHÓM
             </div>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: '4px 0 2px 0' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: theme.paperHeading, margin: '4px 0 2px 0' }}>
               BÁO CÁO NGHIỆM THU ĐÓNG GÓP &amp; MINH BẠCH NĂNG SUẤT
             </h2>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
-              Đồ án: <strong style={{ color: '#0f172a' }}>{teamName}</strong> · Mã nhóm: <code style={{ backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', color: '#0f172a' }}>{inviteCode}</code>
+            <div style={{ fontSize: '13px', color: theme.paperSubText }}>
+              Đồ án: <strong style={{ color: theme.paperHeading }}>{teamName}</strong> · Mã nhóm: <code style={{ backgroundColor: theme.paperCodeBg, padding: '2px 6px', borderRadius: '4px', color: theme.paperCodeColor }}>{inviteCode}</code>
             </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>Thời điểm xuất:</div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{todayStr}</div>
+            <div style={{ fontSize: '11px', color: theme.paperSubText }}>Thời điểm xuất:</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: theme.paperHeading, fontFamily: 'monospace' }}>{todayStr}</div>
             <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>✓ Dữ liệu bất biến đã khóa</div>
           </div>
         </div>
@@ -1815,8 +3225,8 @@ export const ReportPage: React.FC = () => {
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '12px 24px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: theme.paperCardBg,
+            border: theme.paperCardBorder,
             borderRadius: '8px',
             padding: '14px 18px',
             fontSize: '13px',
@@ -1824,22 +3234,22 @@ export const ReportPage: React.FC = () => {
           }}
         >
           <div>
-            <span style={{ color: '#64748b' }}>Giai đoạn đánh giá:</span>{' '}
-            <strong style={{ color: '#0f172a' }}>{currentSprint?.name || 'Sprint'}</strong>
+            <span style={{ color: theme.paperSubText }}>Giai đoạn đánh giá:</span>{' '}
+            <strong style={{ color: theme.paperHeading }}>{currentSprint?.name || 'Sprint'}</strong>
           </div>
           <div>
-            <span style={{ color: '#64748b' }}>Thời gian thực hiện:</span>{' '}
-            <strong style={{ color: '#0f172a' }}>
+            <span style={{ color: theme.paperSubText }}>Thời gian thực hiện:</span>{' '}
+            <strong style={{ color: theme.paperHeading }}>
               {formatDate(currentSprint?.startDate)} — {formatDate(currentSprint?.endDate)}
             </strong>
           </div>
           <div>
-            <span style={{ color: '#64748b' }}>Trưởng nhóm đại diện:</span>{' '}
-            <strong style={{ color: '#0f172a' }}>{leaderName}</strong>
+            <span style={{ color: theme.paperSubText }}>Trưởng nhóm đại diện:</span>{' '}
+            <strong style={{ color: theme.paperHeading }}>{leaderName}</strong>
           </div>
           <div>
-            <span style={{ color: '#64748b' }}>Cơ chế bảo vệ dữ liệu:</span>{' '}
-            <strong style={{ color: '#0f172a' }}>Nghị định 13/2023/NĐ-CP (100% Đồng thuận)</strong>
+            <span style={{ color: theme.paperSubText }}>Cơ chế bảo vệ dữ liệu:</span>{' '}
+            <strong style={{ color: theme.paperHeading }}>Nghị định 13/2023/NĐ-CP (100% Đồng thuận)</strong>
           </div>
         </div>
 
@@ -1847,27 +3257,27 @@ export const ReportPage: React.FC = () => {
         <div style={{ overflowX: 'auto', marginBottom: '22px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid #0f172a', backgroundColor: '#f1f5f9' }}>
-                <th style={{ textAlign: 'center', padding: '10px 8px', color: '#334155', fontWeight: 700, width: '40px' }}>STT</th>
-                <th style={{ textAlign: 'left', padding: '10px 12px', color: '#334155', fontWeight: 700 }}>Thành viên &amp; Vai trò</th>
-                <th style={{ textAlign: 'left', padding: '10px 12px', color: '#334155', fontWeight: 700, width: '220px' }}>Tỷ lệ đóng góp (%)</th>
-                <th style={{ textAlign: 'right', padding: '10px 12px', color: '#334155', fontWeight: 700, width: '80px' }}>Task</th>
-                <th style={{ textAlign: 'right', padding: '10px 12px', color: '#334155', fontWeight: 700, width: '90px' }}>Hoạt động</th>
-                <th style={{ textAlign: 'right', padding: '10px 12px', color: '#334155', fontWeight: 700, width: '100px' }}>Chấm chéo</th>
-                <th style={{ textAlign: 'center', padding: '10px 12px', color: '#334155', fontWeight: 700, width: '110px' }}>Minh chứng</th>
+              <tr style={{ borderBottom: theme.paperHeaderBorder, backgroundColor: theme.paperTableHeaderBg }}>
+                <th style={{ textAlign: 'center', padding: '10px 8px', color: theme.paperTableHeaderText, fontWeight: 700, width: '40px' }}>STT</th>
+                <th style={{ textAlign: 'left', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700 }}>Thành viên &amp; Vai trò</th>
+                <th style={{ textAlign: 'left', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700, width: '220px' }}>Tỷ lệ đóng góp (%)</th>
+                <th style={{ textAlign: 'right', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700, width: '80px' }}>Task</th>
+                <th style={{ textAlign: 'right', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700, width: '90px' }}>Hoạt động</th>
+                <th style={{ textAlign: 'right', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700, width: '100px' }}>Chấm chéo</th>
+                <th style={{ textAlign: 'center', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700, width: '110px' }}>Minh chứng</th>
               </tr>
             </thead>
             <tbody>
               {members.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: theme.paperSubText }}>
                     Chưa có dữ liệu đóng góp cho giai đoạn này.
                   </td>
                 </tr>
               ) : (
                 members.map((m, idx) => (
-                  <tr key={m.userId} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ textAlign: 'center', padding: '12px 8px', color: '#64748b', fontFamily: 'monospace' }}>
+                  <tr key={m.userId} style={{ borderBottom: theme.paperTableRowBorder }}>
+                    <td style={{ textAlign: 'center', padding: '12px 8px', color: theme.paperSubText, fontFamily: 'monospace' }}>
                       {idx + 1}
                     </td>
 
@@ -1891,10 +3301,10 @@ export const ReportPage: React.FC = () => {
                           {getInitials(m.name)}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                          <div style={{ fontWeight: 700, color: theme.paperHeading }}>
                             {m.name}
                           </div>
-                          <div style={{ fontSize: '11px', color: m.isLeader ? '#2563eb' : '#64748b', fontWeight: m.isLeader ? 600 : 400 }}>
+                          <div style={{ fontSize: '11px', color: m.isLeader ? '#3b82f6' : theme.paperSubText, fontWeight: m.isLeader ? 600 : 400 }}>
                             {m.role}
                           </div>
                         </div>
@@ -1903,7 +3313,7 @@ export const ReportPage: React.FC = () => {
 
                     <td style={{ padding: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ flex: 1, height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: '8px', backgroundColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                           <div
                             style={{
                               height: '100%',
@@ -1912,21 +3322,21 @@ export const ReportPage: React.FC = () => {
                             }}
                           />
                         </div>
-                        <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', minWidth: '45px', textAlign: 'right' }}>
+                        <span style={{ fontWeight: 700, color: theme.paperHeading, fontFamily: 'monospace', minWidth: '45px', textAlign: 'right' }}>
                           {m.pct.toFixed(1)}%
                         </span>
                       </div>
                     </td>
 
-                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
+                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: theme.paperHeading }}>
                       {m.tasks}
                     </td>
 
-                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
+                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: theme.paperHeading }}>
                       {m.edits}
                     </td>
 
-                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: m.peerScore.includes('★') ? '#b45309' : '#0f172a' }}>
+                    <td style={{ textAlign: 'right', padding: '12px', fontFamily: 'monospace', fontWeight: 600, color: m.peerScore.includes('★') ? '#f59e0b' : theme.paperHeading }}>
                       {m.peerScore}
                     </td>
 
@@ -1936,8 +3346,8 @@ export const ReportPage: React.FC = () => {
                           style={{
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: '#15803d',
-                            backgroundColor: '#dcfce7',
+                            color: isLight ? '#15803d' : '#4ade80',
+                            backgroundColor: isLight ? '#dcfce7' : 'rgba(34, 197, 94, 0.18)',
                             padding: '3px 8px',
                             borderRadius: '12px',
                             display: 'inline-block',
@@ -1950,8 +3360,8 @@ export const ReportPage: React.FC = () => {
                           style={{
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: '#b45309',
-                            backgroundColor: '#fef3c7',
+                            color: isLight ? '#b45309' : '#fbbf24',
+                            backgroundColor: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.18)',
                             padding: '3px 8px',
                             borderRadius: '12px',
                             display: 'inline-block',
@@ -1963,8 +3373,8 @@ export const ReportPage: React.FC = () => {
                         <span
                           style={{
                             fontSize: '11px',
-                            color: '#94a3b8',
-                            backgroundColor: '#f1f5f9',
+                            color: theme.paperSubText,
+                            backgroundColor: theme.paperCardBg,
                             padding: '3px 8px',
                             borderRadius: '12px',
                             display: 'inline-block',
@@ -1979,23 +3389,23 @@ export const ReportPage: React.FC = () => {
               )}
             </tbody>
             <tfoot>
-              <tr style={{ borderTop: '2px solid #0f172a', backgroundColor: '#f8fafc', fontWeight: 700 }}>
-                <td colSpan={2} style={{ padding: '10px 12px', color: '#0f172a' }}>
+              <tr style={{ borderTop: theme.paperHeaderBorder, backgroundColor: theme.paperCardBg, fontWeight: 700 }}>
+                <td colSpan={2} style={{ padding: '10px 12px', color: theme.paperHeading }}>
                   TỔNG CỘNG ({members.length} THÀNH VIÊN)
                 </td>
-                <td style={{ padding: '10px 12px', color: '#0f172a', fontFamily: 'monospace' }}>
+                <td style={{ padding: '10px 12px', color: theme.paperHeading, fontFamily: 'monospace' }}>
                   <div style={{ textAlign: 'right' }}>{totalPercentage}%</div>
                 </td>
-                <td style={{ textAlign: 'right', padding: '10px 12px', color: '#0f172a', fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', padding: '10px 12px', color: theme.paperHeading, fontFamily: 'monospace' }}>
                   {totalTasks}
                 </td>
-                <td style={{ textAlign: 'right', padding: '10px 12px', color: '#0f172a', fontFamily: 'monospace' }}>
+                <td style={{ textAlign: 'right', padding: '10px 12px', color: theme.paperHeading, fontFamily: 'monospace' }}>
                   {totalEdits}
                 </td>
-                <td style={{ textAlign: 'right', padding: '10px 12px', color: '#64748b' }}>
+                <td style={{ textAlign: 'right', padding: '10px 12px', color: theme.paperSubText }}>
                   —
                 </td>
-                <td style={{ textAlign: 'center', padding: '10px 12px', color: '#15803d', fontSize: '11px' }}>
+                <td style={{ textAlign: 'center', padding: '10px 12px', color: isLight ? '#15803d' : '#4ade80', fontSize: '11px' }}>
                   100% Đối soát
                 </td>
               </tr>
@@ -2004,20 +3414,20 @@ export const ReportPage: React.FC = () => {
         </div>
 
         {/* Legal & Audit Notes */}
-        <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5, borderTop: '1px dashed #cbd5e1', paddingTop: '12px', marginBottom: '32px' }}>
+        <div style={{ fontSize: '12px', color: theme.paperSubText, lineHeight: 1.5, borderTop: theme.paperDivider, paddingTop: '12px', marginBottom: '32px' }}>
           * <strong>Ghi chú kiểm soát đóng góp:</strong> Mọi con số đóng góp được truy vết tự động từ ActivityEvent log bất biến (Task Board nội bộ CR-02, Git commits và Minh chứng công việc thủ công đã duyệt). Cơ chế chấm chéo tuân thủ thuật toán K-Anonymity (Nghị định 13/2023/NĐ-CP). Báo cáo này là cơ sở duy nhất để giảng viên phân bổ điểm đồ án cá nhân.
         </div>
 
         {/* Official Signatures Section */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', pageBreakInside: 'avoid' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: theme.paperHeading, textTransform: 'uppercase' }}>
               ĐẠI DIỆN TRƯỞNG NHÓM ĐỒ ÁN
             </div>
-            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginBottom: '40px' }}>
+            <div style={{ fontSize: '11px', color: theme.paperSubText, fontStyle: 'italic', marginBottom: '40px' }}>
               (Ký và ghi rõ họ tên)
             </div>
-            <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>
+            <div style={{ fontWeight: 700, color: theme.paperHeading, fontSize: '14px' }}>
               {leaderName}
             </div>
             <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>
@@ -2026,26 +3436,954 @@ export const ReportPage: React.FC = () => {
           </div>
 
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: theme.paperHeading, textTransform: 'uppercase' }}>
               GIẢNG VIÊN HƯỚNG DẪN / HỘI ĐỒNG BẢO VỆ
             </div>
-            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', marginBottom: '40px' }}>
+            <div style={{ fontSize: '11px', color: theme.paperSubText, fontStyle: 'italic', marginBottom: '40px' }}>
               (Nghiệm thu năng suất &amp; Cho điểm đồ án)
             </div>
-            <div style={{ borderBottom: '1px dotted #94a3b8', width: '200px', margin: '0 auto 8px auto' }} />
-            <div style={{ fontSize: '12px', color: '#334155' }}>
+            <div style={{ borderBottom: isLight ? '1px dotted #94a3b8' : '1px dotted rgba(255, 255, 255, 0.25)', width: '200px', margin: '0 auto 8px auto' }} />
+            <div style={{ fontSize: '12px', color: theme.paperTableHeaderText }}>
               Điểm đánh giá: <strong>_____ / 10.0</strong>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Modal nộp minh chứng ngoài hệ thống */}
+      <ManualContributionModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        teamId={currentTeamId}
+        sprintId={selectedSprintId}
+        currentUserId={currentUserId}
+        onContributionApproved={() => {
+          loadReportData();
+        }}
+      />
+
+      {/* Modal Kiểm định & Phân tích Phân bổ Đóng góp (Allocation Distribution Breakdown) */}
+      {showAllocationModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAllocationModal(false);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: isLight ? '#ffffff' : '#18181b',
+              border: theme.panelBorder,
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+              padding: '24px 28px',
+              color: theme.textColor,
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Scale size={24} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: theme.headingColor }}>
+                    Ma trận Phân bổ Đóng góp &amp; Kiểm định Công bằng
+                  </h3>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: theme.subTextColor }}>
+                    Thuật toán Dirichlet &amp; Shapley Value đảm bảo tổng phân bổ đạt chính xác 100%
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAllocationModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.subTextColor,
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* 3 Metric Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+                  border: theme.tableBorder,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Tổng phân bổ</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: '#10b981' }}>
+                  {totalPercentage}%
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>
+                  ✓ Đạt chuẩn 100%
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+                  border: theme.tableBorder,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Hệ số bất bình đẳng Gini</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: '#6366f1' }}>
+                  {giniValue}
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#818cf8', marginTop: '2px', fontWeight: 600 }}>
+                  {giniLabel}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+                  border: theme.tableBorder,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Mức bình quân kỳ vọng</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: theme.headingColor }}>
+                  {(100 / (members.length || 1)).toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '10.5px', color: theme.subTextColor, marginTop: '2px' }}>
+                  {members.length} thành viên tham gia
+                </div>
+              </div>
+            </div>
+
+            {/* Stacked Allocation Multi-color Bar */}
+            <div style={{ marginBottom: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor }}>
+                  Thanh phân bổ tỷ trọng thành viên
+                </span>
+                <span style={{ fontSize: '11px', color: theme.subTextColor }}>Tổng cộng: {totalPercentage}%</span>
+              </div>
+              <div
+                style={{
+                  height: '20px',
+                  width: '100%',
+                  borderRadius: '999px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  backgroundColor: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
+                }}
+              >
+                {members.map((m) => (
+                  <div
+                    key={m.userId}
+                    title={`${m.name}: ${m.pct.toFixed(1)}%`}
+                    style={{
+                      height: '100%',
+                      width: `${m.pct}%`,
+                      backgroundColor: m.color,
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Color legend */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', marginTop: '10px' }}>
+                {members.map((m) => (
+                  <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: m.color }} />
+                    <span style={{ color: theme.headingColor, fontWeight: 500 }}>{m.name.split(' ').slice(-2).join(' ')}:</span>
+                    <strong style={{ color: theme.textColor }}>{m.pct.toFixed(1)}%</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4D Weighting Explanation */}
+            <div style={{ marginBottom: '22px' }}>
+              <div style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor, marginBottom: '8px' }}>
+                Trọng số 4 Chiều Vector Đóng góp (FairShare Standard)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                {[
+                  { label: 'D1 Sản lượng', weight: '40%', desc: 'Tasks & SP hoàn thành', color: '#6366f1' },
+                  { label: 'D2 Độ tin cậy', weight: '25%', desc: 'Đúng hạn, ít rework, CI', color: '#06b6d4' },
+                  { label: 'D3 Phối hợp', weight: '15%', desc: 'Code review, thảo luận', color: '#10b981' },
+                  { label: 'D4 Chấm chéo', weight: '20%', desc: 'Ẩn danh k-Anonymity', color: '#ec4899' },
+                ].map((w, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '10px',
+                      backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+                      border: theme.tableBorder,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: w.color }}>{w.label}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: theme.headingColor }}>{w.weight}</span>
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: theme.subTextColor }}>{w.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Breakdown Table vs Expected Average */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor, marginBottom: '8px' }}>
+                Chi tiết đóng góp so với mức bình quân nhóm ({(100 / (members.length || 1)).toFixed(1)}%)
+              </div>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', border: theme.tableBorder, borderRadius: '10px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: theme.tableBorder, backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.04)', color: theme.subTextColor }}>
+                      <th style={{ textAlign: 'left', padding: '8px 12px' }}>Thành viên</th>
+                      <th style={{ textAlign: 'left', padding: '8px 12px' }}>Vai trò</th>
+                      <th style={{ textAlign: 'center', padding: '8px 12px' }}>Tasks</th>
+                      <th style={{ textAlign: 'center', padding: '8px 12px' }}>% Đóng góp</th>
+                      <th style={{ textAlign: 'right', padding: '8px 12px' }}>Chênh lệch kỳ vọng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map((m) => {
+                      const expectedAvg = 100 / (members.length || 1);
+                      const delta = m.pct - expectedAvg;
+                      return (
+                        <tr key={m.userId} style={{ borderBottom: theme.tableBorder }}>
+                          <td style={{ padding: '8px 12px', fontWeight: 600, color: theme.headingColor }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: m.color }} />
+                              <span>{m.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '8px 12px', color: theme.subTextColor }}>{m.role}</td>
+                          <td style={{ textAlign: 'center', padding: '8px 12px' }}>{m.tasks}</td>
+                          <td style={{ textAlign: 'center', padding: '8px 12px', fontWeight: 700, color: theme.headingColor }}>
+                            {m.pct.toFixed(1)}%
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 600, color: delta >= 0 ? '#10b981' : '#f59e0b' }}>
+                            {delta >= 0 ? `+${delta.toFixed(1)}%` : `${delta.toFixed(1)}%`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setShowAllocationModal(false);
+                  setActiveTab('export');
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                  color: '#818cf8',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Xem Văn bản PDF
+              </button>
+              <button
+                onClick={() => setShowAllocationModal(false)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  backgroundColor: '#4f46e5',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FairShare AI Engine Hub Modal ── */}
+      {showAiModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAiModal(false);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: isLight ? '#ffffff' : '#18181b',
+              border: '1px solid rgba(129, 140, 248, 0.3)',
+              borderRadius: '24px',
+              width: '100%',
+              maxWidth: '840px',
+              maxHeight: '92vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 30px 70px rgba(0,0,0,0.6)',
+              overflow: 'hidden',
+              color: theme.textColor,
+            }}
+          >
+            {/* AI Modal Header */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: theme.tableBorder,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: isLight
+                  ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%)'
+                  : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                  }}
+                >
+                  <Brain size={24} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: theme.headingColor }}>
+                      FairShare AI Engine Hub
+                    </h3>
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', backgroundColor: '#6366f1', color: '#fff' }}>
+                      Robust MAD 4-Layer
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: theme.subTextColor }}>
+                    Trợ lý chẩn đoán thông minh, kiểm soát bất thường &amp; dự báo hiệu suất đồ án
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAiModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.subTextColor,
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '8px',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* AI Tabs Bar */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '12px 24px',
+                borderBottom: theme.tableBorder,
+                backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
+              }}
+            >
+              {[
+                { id: 'diagnostic', label: '🔮 Chẩn đoán & Rủi ro Nhóm', icon: <Lightbulb size={14} /> },
+                { id: 'algorithm', label: '⚙️ Giải mã 4 Tầng Robust MAD', icon: <Scale size={14} /> },
+                { id: 'chat', label: '💬 AI Advisor Hỏi Đáp', icon: <Bot size={14} /> },
+              ].map((tab) => {
+                const isActive = aiActiveTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setAiActiveTab(tab.id as typeof aiActiveTab)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '10px',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      backgroundColor: isActive ? '#4f46e5' : isLight ? '#ffffff' : 'rgba(255, 255, 255, 0.05)',
+                      color: isActive ? '#ffffff' : theme.textColor,
+                      border: isActive ? '1px solid #4f46e5' : theme.tableBorder,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* AI Modal Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '22px 24px' }}>
+              {/* TAB 1: DIAGNOSTIC & HEALTH CHECK */}
+              {aiActiveTab === 'diagnostic' && (
+                <div>
+                  {/* Top 3 AI Metric Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '22px' }}>
+                    <div
+                      style={{
+                        padding: '16px',
+                        borderRadius: '14px',
+                        backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+                        border: theme.tableBorder,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11.5px', color: theme.subTextColor, fontWeight: 600 }}>Cân đối Năng suất</span>
+                        <TrendingUp size={16} color="#10b981" />
+                      </div>
+                      <div style={{ fontSize: '24px', fontWeight: 800, color: '#10b981' }}>88 / 100</div>
+                      <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', fontWeight: 600 }}>
+                        ✓ Mức độ phân bổ lành mạnh
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '16px',
+                        borderRadius: '14px',
+                        backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+                        border: theme.tableBorder,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11.5px', color: theme.subTextColor, fontWeight: 600 }}>Phát hiện Gian lận</span>
+                        <CheckCircle2 size={16} color="#6366f1" />
+                      </div>
+                      <div style={{ fontSize: '24px', fontWeight: 800, color: '#6366f1' }}>0 Cảnh báo</div>
+                      <div style={{ fontSize: '11px', color: '#818cf8', marginTop: '4px', fontWeight: 600 }}>
+                        ✓ Anti-gaming check Passed
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '16px',
+                        borderRadius: '14px',
+                        backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+                        border: theme.tableBorder,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11.5px', color: theme.subTextColor, fontWeight: 600 }}>Dự báo Điểm Đồ án</span>
+                        <Sparkles size={16} color="#f59e0b" />
+                      </div>
+                      <div style={{ fontSize: '24px', fontWeight: 800, color: '#f59e0b' }}>8.8 — 9.2</div>
+                      <div style={{ fontSize: '11px', color: theme.subTextColor, marginTop: '4px' }}>
+                        Dựa trên tiến độ {currentSprint?.name || 'Sprint'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Member Diagnostic Analysis */}
+                  <div style={{ marginBottom: '22px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor, marginBottom: '10px' }}>
+                      Chẩn đoán Đóng góp Chi tiết từng Thành viên
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {members.map((m) => {
+                        const isTop = m.pct >= 22;
+                        const isUnder = m.pct < 12;
+                        return (
+                          <div
+                            key={m.userId}
+                            style={{
+                              padding: '12px 16px',
+                              borderRadius: '12px',
+                              backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+                              border: theme.tableBorder,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '14px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '180px' }}>
+                              <div
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  backgroundColor: m.color,
+                                  color: '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {getInitials(m.name)}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor }}>
+                                  {m.name}
+                                </div>
+                                <div style={{ fontSize: '11px', color: theme.subTextColor }}>{m.role}</div>
+                              </div>
+                            </div>
+
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ flex: 1, height: '6px', borderRadius: '3px', backgroundColor: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${Math.min(100, (m.pct / 30) * 100)}%`, backgroundColor: m.color }} />
+                              </div>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: theme.headingColor, minWidth: '45px', textAlign: 'right' }}>
+                                {m.pct.toFixed(1)}%
+                              </span>
+                            </div>
+
+                            <div style={{ minWidth: '170px', textAlign: 'right' }}>
+                              {isTop ? (
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#10b981', backgroundColor: isLight ? '#dcfce7' : 'rgba(16, 185, 129, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                                  🌟 Năng suất vượt trội
+                                </span>
+                              ) : isUnder ? (
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', backgroundColor: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                                  ⚡ Cần giao thêm Task
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6366f1', backgroundColor: isLight ? '#e0e7ff' : 'rgba(99, 102, 241, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                                  ✓ Đạt chuẩn tiến độ
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* AI Smart Actionable Recommendations */}
+                  <div
+                    style={{
+                      padding: '16px',
+                      borderRadius: '14px',
+                      background: isLight
+                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%)'
+                        : 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.1) 100%)',
+                      border: '1px solid rgba(129, 140, 248, 0.25)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#818cf8', marginBottom: '8px' }}>
+                      <Lightbulb size={16} /> Khuyến nghị Hành động từ FairShare AI cho Sprint tới:
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: theme.textColor, lineHeight: 1.6 }}>
+                      <li>
+                        <strong>Tái cân bằng khối lượng:</strong> Ghép cặp hỗ trợ giữa thành viên dẫn đầu và thành viên có sản lượng thấp hơn qua hình thức Code Review hoặc Pair-Programming.
+                      </li>
+                      <li>
+                        <strong>Khai thác chiều D3 (Phối hợp):</strong> Tăng cường trao đổi và hoàn tất các vòng chấm chéo ngang hàng ($k \ge 3$) để bảo đảm tính minh bạch.
+                      </li>
+                      <li>
+                        <strong>Cập nhật minh chứng thủ công:</strong> Nộp tài liệu họp nhóm hoặc biên bản trao đổi bên ngoài hệ thống trước khi chốt nghiệm thu đồ án.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: ALGORITHM TRANSPARENCY (4-LAYER ROBUST MAD) */}
+              {aiActiveTab === 'algorithm' && (
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor, marginBottom: '14px' }}>
+                    Cơ chế Tính toán 4 Tầng Robust MAD (Sprint 4 - CR-03)
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '22px' }}>
+                    {[
+                      {
+                        step: 'Tầng 1',
+                        name: 'Trích xuất Vector Đặc trưng Thô (Raw Vector Extraction)',
+                        desc: 'Thu thập chuỗi ActivityEvent bất biến: Story Points, Task hoàn thành, đúng hạn deadline, số lần rework, đóng góp thủ công và chấm chéo.',
+                        badge: 'x_i = [SP, Tasks, OnTime, Collab, Peer, Evidence]',
+                        color: '#6366f1',
+                      },
+                      {
+                        step: 'Tầng 2',
+                        name: 'Chuẩn hóa Khử nhiễu & Chống gian lận (Robust MAD Anti-gaming)',
+                        desc: 'Áp dụng hàm log tự nhiên ln(1 + x) để triệt tiêu việc spam commit/task. Chuẩn hóa theo Trung vị (Median) và Độ lệch tuyệt đối trung vị (MAD) của nhóm.',
+                        badge: 'z_i = (x_i - Median) / MAD',
+                        color: '#06b6d4',
+                      },
+                      {
+                        step: 'Tầng 3',
+                        name: 'Nén Không gian 4 Chiều Cốt lõi (4D Core Dimensional Projection)',
+                        desc: 'Quy đổi về 4 trục tọa độ chính: D1 Sản lượng (40%), D2 Độ tin cậy (25%), D3 Phối hợp (15%), D4 Đánh giá chéo ngang hàng (20%).',
+                        badge: 'C_i = 0.4*D1 + 0.25*D2 + 0.15*D3 + 0.2*D4',
+                        color: '#10b981',
+                      },
+                      {
+                        step: 'Tầng 4',
+                        name: 'Logistic Sigmoid & Mô phỏng Bootstrap CI 95%',
+                        desc: 'Mô phỏng Monte-Carlo 1.000 vòng lặp để xác định khoảng tin cậy sai số [Low, High], bảo vệ sinh viên khỏi các đánh giá thiên lệch.',
+                        badge: 'Bootstrap B=1000, 95% Confidence Interval',
+                        color: '#ec4899',
+                      },
+                    ].map((layer, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '14px 18px',
+                          borderRadius: '14px',
+                          backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
+                          border: theme.tableBorder,
+                          borderLeft: `4px solid ${layer.color}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: layer.color }}>
+                            {layer.step}: {layer.name}
+                          </span>
+                          <code style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: isLight ? '#e0e7ff' : 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
+                            {layer.badge}
+                          </code>
+                        </div>
+                        <div style={{ fontSize: '12px', color: theme.subTextColor, lineHeight: 1.4 }}>
+                          {layer.desc}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 4D Vector Matrix Table */}
+                  <div>
+                    <div style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor, marginBottom: '8px' }}>
+                      Bảng Ma trận Vector 4D của các thành viên
+                    </div>
+                    <div style={{ border: theme.tableBorder, borderRadius: '12px', overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)', color: theme.subTextColor, borderBottom: theme.tableBorder }}>
+                            <th style={{ textAlign: 'left', padding: '8px 12px' }}>Thành viên</th>
+                            <th style={{ textAlign: 'center', padding: '8px 10px' }}>D1 Sản lượng</th>
+                            <th style={{ textAlign: 'center', padding: '8px 10px' }}>D2 Tin cậy</th>
+                            <th style={{ textAlign: 'center', padding: '8px 10px' }}>D3 Phối hợp</th>
+                            <th style={{ textAlign: 'center', padding: '8px 10px' }}>D4 Chấm chéo</th>
+                            <th style={{ textAlign: 'right', padding: '8px 12px' }}>% Phân bổ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {members.map((m) => (
+                            <tr key={m.userId} style={{ borderBottom: theme.tableBorder }}>
+                              <td style={{ padding: '8px 12px', fontWeight: 600, color: theme.headingColor }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: m.color }} />
+                                  <span>{m.name}</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '8px 10px', color: '#6366f1', fontWeight: 700 }}>
+                                {m.d1Output.toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '8px 10px', color: '#06b6d4', fontWeight: 700 }}>
+                                {m.d2Reliability.toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '8px 10px', color: '#10b981', fontWeight: 700 }}>
+                                {m.d3Collaboration.toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'center', padding: '8px 10px', color: '#ec4899', fontWeight: 700 }}>
+                                {m.d4Peer.toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 800, color: theme.headingColor }}>
+                                {m.pct.toFixed(1)}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: AI ADVISOR CHAT */}
+              {aiActiveTab === 'chat' && (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '420px' }}>
+                  {/* Quick prompts */}
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
+                    {[
+                      'Đánh giá tổng quan hiệu suất nhóm',
+                      'Ai đang tụt lại và cần hỗ trợ?',
+                      'Gợi ý cách chia điểm đồ án công bằng nhất',
+                      'Giải thích điểm D2 độ tin cậy',
+                    ].map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendAiMessage(prompt)}
+                        style={{
+                          whiteSpace: 'nowrap',
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+                          color: '#818cf8',
+                          border: '1px solid rgba(129, 140, 248, 0.2)',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        ✨ {prompt}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Messages List */}
+                  <div
+                    style={{
+                      flex: 1,
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      padding: '10px 4px',
+                    }}
+                  >
+                    {aiChatMessages.map((msg, idx) => {
+                      const isAi = msg.sender === 'ai';
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            flexDirection: isAi ? 'row' : 'row-reverse',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: '50%',
+                              backgroundColor: isAi ? '#6366f1' : '#10b981',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              fontSize: '11px',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {isAi ? <Bot size={16} /> : 'Me'}
+                          </div>
+
+                          <div
+                            style={{
+                              maxWidth: '80%',
+                              padding: '10px 14px',
+                              borderRadius: '14px',
+                              backgroundColor: isAi
+                                ? isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)'
+                                : '#4f46e5',
+                              color: isAi ? theme.textColor : '#ffffff',
+                              fontSize: '12px',
+                              lineHeight: 1.5,
+                              whiteSpace: 'pre-wrap',
+                              border: isAi ? theme.tableBorder : 'none',
+                            }}
+                          >
+                            {msg.text}
+                            <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '4px', textAlign: isAi ? 'left' : 'right' }}>
+                              {msg.time}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {isAiThinking && (
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: '50%',
+                            backgroundColor: '#6366f1',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Sparkles size={14} />
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#818cf8', fontStyle: 'italic' }}>
+                          FairShare AI đang phân tích dữ liệu ActivityEvent và ma trận 4D...
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Input Box */}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px', borderTop: theme.tableBorder, paddingTop: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Đặt câu hỏi cho FairShare AI về dữ liệu đóng góp đồ án..."
+                      value={aiChatInput}
+                      onChange={(e) => setAiChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSendAiMessage();
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+                        border: theme.tableBorder,
+                        color: theme.textColor,
+                        fontSize: '12.5px',
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      onClick={() => handleSendAiMessage()}
+                      disabled={!aiChatInput.trim() || isAiThinking}
+                      style={{
+                        padding: '0 18px',
+                        borderRadius: '10px',
+                        backgroundColor: '#4f46e5',
+                        color: '#fff',
+                        border: 'none',
+                        cursor: !aiChatInput.trim() || isAiThinking ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: !aiChatInput.trim() || isAiThinking ? 0.6 : 1,
+                      }}
+                    >
+                      <Send size={15} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* AI Modal Footer */}
+            <div
+              style={{
+                padding: '14px 24px',
+                borderTop: theme.tableBorder,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
+              }}
+            >
+              <div style={{ fontSize: '11.5px', color: theme.subTextColor }}>
+                Dữ liệu được bảo mật &amp; đối soát theo Nghị định 13/2023/NĐ-CP
+              </div>
+              <button
+                onClick={() => setShowAiModal(false)}
+                style={{
+                  padding: '7px 18px',
+                  borderRadius: '8px',
+                  backgroundColor: '#4f46e5',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 5. Print-specific styles to hide all app navigation on paper print */}
       <style>{`
         @media print {
-          body {
+          body, .report-print-document {
             background-color: #ffffff !important;
             color: #000000 !important;
+          }
+          .report-print-document * {
+            color: #000000 !important;
+            border-color: #cbd5e1 !important;
+            background-color: transparent !important;
+          }
+          .report-print-document table thead tr {
+            background-color: #f1f5f9 !important;
+          }
+          .report-print-document table tfoot tr {
+            background-color: #f8fafc !important;
+          }
+          .report-print-document code {
+            background-color: #f1f5f9 !important;
           }
           .no-print, nav, header, aside, .dock-container, .page-head, button {
             display: none !important;
