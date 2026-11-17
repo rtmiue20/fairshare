@@ -27,13 +27,13 @@ py -X utf8 scripts/demo-seed.py            # Windows; Linux/macOS: python3 scrip
 
 ## 4. Trước khi đưa web ra ngoài máy (LAN, tunnel, VPS)
 
-- [ ] **DEF-40 chưa sửa:** xóa tài khoản demo do migration V23 tạo (mật khẩu đang công khai trong repo). Lệnh dưới chỉ đổi mật khẩu thành chuỗi ngẫu nhiên không đăng nhập được, để không đụng khóa ngoại:
+- [ ] **DEF-40 chưa sửa:** khóa 6 tài khoản demo do migration V23/V25 tạo (mật khẩu đang công khai trong repo; từ master `be7e441` có thêm id 1 `minhtrieu.po@fairshare.io`). Lệnh dưới lọc theo email (không theo id, để không khóa nhầm người dùng thật id 1 ở CSDL cũ) và chỉ đổi mật khẩu thành chuỗi ngẫu nhiên không đăng nhập được, để không đụng khóa ngoại:
 
 ```bash
-docker compose -p fairshare-staging exec -T db sh -c 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "UPDATE users SET password = CONCAT(\"!disabled-\", UUID()) WHERE id BETWEEN 109 AND 113;"'
+docker compose -p fairshare-staging exec -T db sh -c 'mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "UPDATE users SET password = CONCAT(\"!disabled-\", UUID()) WHERE email IN (\"minhtrieu.po@fairshare.io\", \"demo@fairshare.io\", \"trang.tran@edu.vn\", \"bao.le@edu.vn\", \"duc.pham@edu.vn\", \"vy.dang@edu.vn\");"'
 ```
 
-- [ ] Kiểm tra: đăng nhập `demo@fairshare.io` phải trả HTTP 401.
+- [ ] Kiểm tra: đăng nhập `demo@fairshare.io` và `minhtrieu.po@fairshare.io` đều phải trả HTTP 401.
 - [ ] LAN: mở tường lửa (PowerShell quyền admin) `New-NetFirewallRule -DisplayName "FairShare demo 8081" -Direction Inbound -Protocol TCP -LocalPort 8081 -Action Allow -Profile Private`; xem IP bằng `ipconfig`; thử mở `http://<IP>:8081` từ điện thoại cùng Wi-Fi. Xong buổi thì xóa rule.
 - [ ] Tunnel: `cloudflared tunnel --url http://localhost:8081`, lấy URL `https://….trycloudflare.com` in ra màn hình, thử mở bằng 4G. Tắt (Ctrl+C) ngay khi xong UAT/demo.
 

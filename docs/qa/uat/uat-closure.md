@@ -22,7 +22,7 @@ Lỗi từ phản hồi UAT chính thức (DEF-43 trở đi): `<TODO 17/11: đi�
 | Mã | Mô tả ngắn | Người xử lý | Bằng chứng 16/11 |
 |---|---|---|---|
 | DEF-31 | API khai báo đóng góp không xác thực người gọi: khai báo đứng tên người khác, tự duyệt, người ngoài nhóm duyệt | M3 | UAT-SEC-04, 05, 06 FAIL |
-| DEF-40 | Migration V23 chèn 5 tài khoản demo có mật khẩu công khai và ghi đè/xóa dữ liệu nhóm id 1 ở mọi CSDL | M0 (+ M4 xác nhận phần chấm chéo) | RT-40a, b, c FAIL |
+| DEF-40 | Migration V23, V25 chèn 6 tài khoản demo có mật khẩu công khai và ghi đè/xóa dữ liệu nhóm id 1 ở mọi CSDL (V25 còn xóa toàn bộ `contribution_scores`) | M0 (+ M4 xác nhận phần chấm chéo) | RT-40a, b, c FAIL |
 | DEF-41 | Người phụ trách kéo thẻ của mình qua lại giữa các cột để tự nâng tỷ lệ đóng góp (50% → 91,67%) | M1 + M3 | RT-41a, b FAIL |
 
 ## 3. Đề xuất chấp nhận rủi ro (nếu không sửa kịp trước release 18/11)
@@ -40,8 +40,8 @@ Lỗi từ phản hồi UAT chính thức (DEF-43 trở đi): `<TODO 17/11: đi�
 
 | | |
 |---|---|
-| Ảnh hưởng | Mọi CSDL chạy Flyway (dev, staging, demo, production) có 5 tài khoản đăng nhập được bằng mật khẩu công khai trong repo. Nhóm id 1 (nhóm thật đầu tiên) bị đổi tên, đổi vai trò thành viên, đổi người phụ trách thẻ; phiếu chấm chéo của đợt 2, 3 bị xóa. Với bản demo dựng mới thì nhóm id 1 là nhóm demo, nên không mất dữ liệu thật |
-| Cách né khi demo/UAT | Dựng CSDL mới (`staging-up.sh reset`), rồi khóa 5 tài khoản demo bằng lệnh ở `docs/deploy/demo-checklist.md` bước 4 (đã chạy thử 16/11: đăng nhập trả 401). Demo bằng tài khoản `demo01..05` của `demo-seed.py`, không dùng nhóm id 1 |
+| Ảnh hưởng | Mọi CSDL chạy Flyway (dev, staging, demo, production) có 6 tài khoản đăng nhập được bằng mật khẩu công khai trong repo (CSDL mới; CSDL cũ thì người dùng id 1 bị đổi tên). Nhóm id 1 (nhóm thật đầu tiên) bị đổi tên, đổi vai trò thành viên, đổi người phụ trách thẻ; phiếu chấm chéo của đợt 2, 3 bị xóa; V25 (master `be7e441`) xóa toàn bộ điểm đóng góp đã tính (`DELETE FROM contribution_scores`). Với bản demo dựng mới thì nhóm id 1 là nhóm demo, nên không mất dữ liệu thật |
+| Cách né khi demo/UAT | Dựng CSDL mới (`staging-up.sh reset`), rồi khóa 6 tài khoản demo bằng lệnh ở `docs/deploy/demo-checklist.md` bước 4 (đã chạy thử 16/11: đăng nhập trả 401). Demo bằng tài khoản `demo01..05` của `demo-seed.py`, không dùng nhóm id 1 |
 | Điều kiện kèm theo | **Không chấp nhận cho bản phát hành chính thức** (tag v1.0.0) nếu nhóm định cho người ngoài dùng: M0 tạo migration mới gỡ dữ liệu demo trước khi gắn tag. Chấp nhận tạm thời chỉ cho buổi demo trên máy M5 |
 | Quyết định của M0 | ☐ Sửa trước tag ☐ Chấp nhận tạm cho demo, sửa Sprint 7 · Ngày: ____ |
 

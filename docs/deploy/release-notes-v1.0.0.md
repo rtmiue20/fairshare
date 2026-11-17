@@ -49,7 +49,7 @@ Medium/Low tiêu biểu: PDF mất dấu tiếng Việt (DEF-21), PDF trộn spr
 | Mã | Mức | Lỗi | Cách né |
 |---|---|---|---|
 | DEF-31 | High | Khai báo đóng góp thủ công không xác thực người gọi (giả danh, tự duyệt) | Không dùng chức năng Khai báo đóng góp |
-| DEF-40 | High | Migration V23 tạo tài khoản demo có mật khẩu công khai, ghi đè dữ liệu nhóm id 1 | Dựng CSDL mới và khóa 5 tài khoản demo (`docs/deploy/demo-checklist.md` bước 4). `<chờ M0: sửa trước tag hay chấp nhận rủi ro>` |
+| DEF-40 | High | Migration V23, V25 tạo tài khoản demo có mật khẩu công khai, ghi đè dữ liệu nhóm id 1, V25 xóa toàn bộ điểm đóng góp đã tính | Dựng CSDL mới và khóa 6 tài khoản demo (`docs/deploy/demo-checklist.md` bước 4). `<chờ M0: sửa trước tag hay chấp nhận rủi ro>` |
 | DEF-41 | High | Kéo thẻ của mình qua lại giữa các cột tự nâng tỷ lệ đóng góp | Chỉ kéo thẻ một chiều tới Done |
 | DEF-32 | Medium | Người ngoài nhóm xem được khai báo đóng góp | Như DEF-31 |
 | DEF-19, 28, 39, 42 | Low | 400 thay vì 403; ảnh upload trong repo; số liệu mẫu cứng trên Dashboard/Lịch; đổi tên thẻ vượt bản sửa DEF-38 | Xem defect log |
