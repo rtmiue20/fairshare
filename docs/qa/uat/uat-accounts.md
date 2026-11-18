@@ -1,6 +1,6 @@
 # Tài khoản thử UAT – Sprint 6
 
-**Tạo bởi:** `scripts/uat-seed.py` (M5) – 15/11/2026 11:29 | **Môi trường:** http://localhost:8081
+**Tạo bởi:** `scripts/uat-seed.py` (M5) – 16/11/2026 23:24 | **Môi trường:** http://localhost:8081
 
 > Mật khẩu dùng chung **không ghi ở đây**. M5 gửi riêng cho M2 (file `.uat-credentials.local`, không commit).
 

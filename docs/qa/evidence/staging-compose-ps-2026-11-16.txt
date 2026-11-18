@@ -1,0 +1,4 @@
+NAME                 IMAGE                                                                     STATUS                    PORTS
+fairshare-backend    sha256:c5674b73a3ac386d4e565481a67bfbcdd2b1209907b7cd1bbe71978a7235bc8d   Up 26 minutes (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+fairshare-db         mariadb:10.11                                                             Up 32 minutes (healthy)   3306/tcp
+fairshare-frontend   fairshare-staging-frontend                                                Up 24 seconds (healthy)   0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
