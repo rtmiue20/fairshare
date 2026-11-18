@@ -100,7 +100,12 @@ def pdf_text(pdf_bytes):
     try:
         # Linux/macOS: pdftotext (poppler). Windows thường không có -> thử thư viện pypdf.
         try:
-            return subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True).stdout
+            # encoding rõ ràng: trên Windows (pdftotext của Git Bash) text=True mặc định dùng cp1252,
+            # giải mã lỗi trong luồng đọc và trả stdout = None.
+            out = subprocess.run(["pdftotext", "-enc", "UTF-8", "-layout", path, "-"], capture_output=True,
+                                 encoding="utf-8", errors="replace").stdout
+            if out:
+                return out
         except FileNotFoundError:
             pass
         try:
@@ -273,7 +278,9 @@ left = [p for p in legacy if os.path.exists(os.path.join(REPO, p))]
 check("TRL-01", "Đã xóa module/test/trang Trello legacy theo DoD", "0 đường dẫn còn tồn tại",
       f"còn {len(left)}/{len(legacy)}: {', '.join(os.path.basename(p) for p in left) or '-'}", not left, "TRL")
 # Tìm bằng Python thay vì `grep` để chạy được cả trên Windows
-_route_re = re.compile(r"path: *['\"]/?integration|ConnectTrelloPage")
+# Từ 16/11 route `integration` / `tich-hop` được dùng lại cho trang MultidimensionalVectorPage
+# (không liên quan Trello), nên chỉ tìm tham chiếu tới trang/API kết nối Trello cũ.
+_route_re = re.compile(r"ConnectTrelloPage|integration\.api|integration/trello|[Tt]relloClient")
 router_hits = []
 for _root, _dirs, _files in os.walk(os.path.join(REPO, "frontend", "src")):
     for _fn in _files:
@@ -284,7 +291,7 @@ for _root, _dirs, _files in os.walk(os.path.join(REPO, "frontend", "src")):
                     router_hits.append(os.path.relpath(_fp, REPO).replace(os.sep, "/"))
         except OSError:
             pass
-check("TRL-02", "Router frontend không còn route integration / ConnectTrelloPage", "0 file tham chiếu",
+check("TRL-02", "Frontend không còn tham chiếu ConnectTrelloPage / API tích hợp Trello", "0 file tham chiếu",
       f"{len(router_hits)} file: {', '.join(router_hits) or '-'}", not router_hits, "TRL")
 sql(f"INSERT INTO activity_events (team_id, sprint_id, user_id, source, event_type, details, occurred_at, "
     f"story_points, difficulty_level, delay_days, is_on_time) VALUES "
