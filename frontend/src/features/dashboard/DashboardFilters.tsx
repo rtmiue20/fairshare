@@ -11,6 +11,8 @@ export interface MemberOption {
   id: number;
   name: string;
   role?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
 }
 
 export interface DashboardFiltersProps {

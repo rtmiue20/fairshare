@@ -34,6 +34,8 @@ export interface Team {
   inviteCode?: string;
   lecturer?: string | null;
   sprintCount?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
   members?: TeamMember[];
   createdAt: string;
 }
@@ -44,6 +46,8 @@ export interface CreateTeamRequest {
   description?: string;
   lecturer?: string;
   sprintCount?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface ConsentRequest {

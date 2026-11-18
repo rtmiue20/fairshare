@@ -420,11 +420,21 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
                         }}
                       >
                         {member.user?.avatarUrl ? (
-                          <img
-                            src={member.user.avatarUrl}
-                            alt={memberName}
-                            className="w-full h-full object-cover"
-                          />
+                          <>
+                            <img
+                              src={member.user.avatarUrl}
+                              alt=""
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                                const fallback = e.currentTarget.parentElement?.querySelector('.member-memoji-fallback');
+                                if (fallback) (fallback as HTMLElement).style.display = 'block';
+                              }}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="member-memoji-fallback w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+                              {memojiRenderer()}
+                            </div>
+                          </>
                         ) : (
                           memojiRenderer()
                         )}

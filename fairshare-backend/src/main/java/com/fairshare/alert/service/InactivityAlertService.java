@@ -200,26 +200,26 @@ public class InactivityAlertService {
                     }
                 }
 
-                if (lastAct != null) {
-                    long daysInactive = ChronoUnit.DAYS.between(lastAct.toLocalDate(), today);
-                    if (daysInactive >= thresholdDays) {
-                        boolean exists = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
-                                teamId, u.getId(), "INACTIVITY_WARNING"
-                        );
-                        if (!exists) {
-                            Alert alert = new Alert();
-                            alert.setTeam(team);
-                            alert.setUser(u);
-                            alert.setAlertType("INACTIVITY_WARNING");
-                            alert.setSeverity("WARNING");
-                            alert.setMessage(String.format("Thành viên %s không có hoạt động trong %d ngày liên tiếp (vượt ngưỡng %d ngày cảnh báo theo CR-04).",
-                                    u.getFullName(),
-                                    daysInactive,
-                                    thresholdDays));
-                            alert.setResolved(false);
-                            alertRepository.save(alert);
-                            log.info("CR-04 Created INACTIVITY_WARNING alert for user: {} ({} days inactive)", u.getId(), daysInactive);
-                        }
+                long daysInactive = lastAct != null
+                        ? Math.max(0, ChronoUnit.DAYS.between(lastAct.toLocalDate(), today))
+                        : 7L;
+                if (daysInactive >= thresholdDays) {
+                    boolean exists = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
+                            teamId, u.getId(), "INACTIVITY_WARNING"
+                    );
+                    if (!exists) {
+                        Alert alert = new Alert();
+                        alert.setTeam(team);
+                        alert.setUser(u);
+                        alert.setAlertType("INACTIVITY_WARNING");
+                        alert.setSeverity("WARNING");
+                        alert.setMessage(String.format("Thành viên %s không có hoạt động trong %d ngày liên tiếp (vượt ngưỡng %d ngày cảnh báo theo CR-04).",
+                                u.getFullName(),
+                                daysInactive,
+                                thresholdDays));
+                        alert.setResolved(false);
+                        alertRepository.save(alert);
+                        log.info("CR-04 Created INACTIVITY_WARNING alert for user: {} ({} days inactive)", u.getId(), daysInactive);
                     }
                 }
             }

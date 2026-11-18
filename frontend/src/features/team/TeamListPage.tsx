@@ -144,7 +144,7 @@ export const TeamListPage: React.FC = () => {
       </div>
 
       {/* ── SECTION 1: TASK CALENDAR (Image 1 Top Layout) ── */}
-      <TaskCalendar teamId={currentTeam?.id} />
+      <TaskCalendar teamId={currentTeam?.id} projectName={currentTeam?.name} />
 
       {/* ── SECTION 2: ALL TASK (Image 1 Bottom Layout) ── */}
       <AllTasksSection projectName={currentTeam?.name} teamId={currentTeam?.id} />
