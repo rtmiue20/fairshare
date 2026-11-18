@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -130,7 +131,7 @@ export const TimelinePicker: React.FC<TimelinePickerProps> = ({ start, end, onCh
             <span className="range-chip-label">Bắt đầu:</span>
             <span className="range-chip-value">{formatTimelineDate(start)}</span>
           </div>
-          <span className="range-chip-arrow">➔</span>
+          <ArrowRight size={13} className="range-chip-arrow text-zinc-400" />
           <div className="range-chip">
             <span className="range-chip-label">Kết thúc:</span>
             <span className="range-chip-value">{formatTimelineDate(end)}</span>

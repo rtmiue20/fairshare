@@ -39,6 +39,9 @@ import {
   CheckSquare,
   Sparkles,
   Award,
+  AlertTriangle,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
 
 interface TeamMemberItem {
@@ -1259,7 +1262,7 @@ export const ReviewRoundPage: React.FC = () => {
                 <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', color: isLight ? '#0f172a' : '#ffffff' }}>
                   {activeTeam?.name || 'KINGSHA'}
                 </h3>
-                <span style={{ fontSize: '14px' }}>✨</span>
+                <Sparkles size={16} className="text-amber-400" />
               </div>
               <div style={{ fontSize: '13px', color: isLight ? '#64748b' : '#a1a1aa', marginTop: '4px' }}>
                 {stats.totalReviews > 0 ? `(${stats.totalReviews}) ${stats.avgScore.toFixed(1)} Ratings` : 'Hệ thống đánh giá đồng đội'}
@@ -1797,7 +1800,8 @@ export const ReviewRoundPage: React.FC = () => {
                             color: '#10b981',
                           }}
                         >
-                          ✅ Thẻ hoàn thành: {review.cardTitle}
+                          <CheckCircle2 size={12} strokeWidth={2.5} />
+                          <span>Thẻ hoàn thành: {review.cardTitle}</span>
                         </span>
                       </div>
                     )}
@@ -2148,8 +2152,9 @@ export const ReviewRoundPage: React.FC = () => {
                           );
                         })}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
-                      ⚠️ Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
+                      <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                      <span>Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.</span>
                     </div>
                   </div>
                 </div>
@@ -2522,8 +2527,15 @@ export const ReviewRoundPage: React.FC = () => {
                     {/* Linked Done Card */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Thẻ nhiệm vụ:</span>
-                      <span style={{ fontWeight: 600, color: '#10b981' }}>
-                        {selectedCard ? `✅ ${selectedCard.title}` : 'Đánh giá chung toàn sprint'}
+                      <span style={{ fontWeight: 600, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        {selectedCard ? (
+                          <>
+                            <CheckCircle2 size={13} strokeWidth={2.5} />
+                            <span>{selectedCard.title}</span>
+                          </>
+                        ) : (
+                          'Đánh giá chung toàn sprint'
+                        )}
                       </span>
                     </div>
 
@@ -2558,8 +2570,18 @@ export const ReviewRoundPage: React.FC = () => {
                     {/* Identity Mode */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
                       <span style={{ color: 'var(--fg3)' }}>Chế độ hiển thị:</span>
-                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1' }}>
-                        {modalIsAnonymous ? '🕶️ Ẩn danh (Anonymous K-Anonymity)' : '👤 Công khai tên thật'}
+                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        {modalIsAnonymous ? (
+                          <>
+                            <ShieldCheck size={14} />
+                            <span>Ẩn danh (Anonymous K-Anonymity)</span>
+                          </>
+                        ) : (
+                          <>
+                            <User size={14} />
+                            <span>Công khai tên thật</span>
+                          </>
+                        )}
                       </span>
                     </div>
                   </div>

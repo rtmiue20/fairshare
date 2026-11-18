@@ -320,7 +320,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                 }`}
               >
                 <span className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300">
-                  👥
+                  <Users className="w-4 h-4" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
