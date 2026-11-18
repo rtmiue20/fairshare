@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import apiClient from '../../api/client';
 import { ApiResponse } from '../../types/api';
@@ -883,6 +884,28 @@ export const AlertList: React.FC = () => {
           finalInactivity = fallback.inactivity;
         }
 
+        // 5. Ensure inactivity alerts from finalInactivity are synchronized into finalAlerts
+        finalInactivity.forEach((m) => {
+          if (m.exceeded) {
+            const hasAlert = finalAlerts.some(
+              (a) => a.userId === m.userId && a.alertType === 'INACTIVITY_WARNING'
+            );
+            if (!hasAlert) {
+              finalAlerts.push({
+                id: 9000 + m.userId,
+                level: 'warning',
+                title: formatAlertTitle('INACTIVITY_WARNING'),
+                desc: `Thành viên ${m.userName} không có hoạt động trong ${m.daysInactive} ngày liên tiếp (vượt ngưỡng ${threshold} ngày theo quy tắc CR-04).`,
+                timeAgo: 'Tự động quét hôm nay',
+                userId: m.userId,
+                userName: m.userName,
+                alertType: 'INACTIVITY_WARNING',
+                autoDispatched: true,
+              });
+            }
+          }
+        });
+
         const resolvedTasks = extractedTasks.length > 0 ? extractedTasks : fallback.tasks;
         setTaskCandidates(resolvedTasks);
         setAlerts(finalAlerts);
@@ -1198,13 +1221,13 @@ export const AlertList: React.FC = () => {
   return (
     <div className="page pad" style={{ maxWidth: '1200px', margin: '0 auto', color: theme.textColor }}>
       {/* 1. Breadcrumb & Header */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.subTextColor, marginBottom: '8px' }}>
           <Link to="/" style={{ color: theme.subTextColor, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <ArrowLeft size={14} /> Dashboard
           </Link>
           <ChevronRight size={14} />
-          <span style={{ color: '#818cf8', fontWeight: 500 }}>Cảnh báo sớm & Giám sát tiến độ</span>
+          <span style={{ color: '#818cf8', fontWeight: 500 }}>Cảnh báo tiến độ</span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
@@ -1217,25 +1240,25 @@ export const AlertList: React.FC = () => {
                   gap: '6px',
                   padding: '3px 10px',
                   borderRadius: '999px',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontWeight: 600,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                   background: isLight ? '#eef2ff' : 'rgba(99, 102, 241, 0.15)',
                   color: '#6366f1',
                   border: isLight ? '1px solid #c7d2fe' : '1px solid rgba(99, 102, 241, 0.3)',
                 }}
               >
                 <ShieldAlert size={13} />
-                Giám sát tự động (CR-04)
+                Giám sát tự động
               </span>
             </div>
 
-            <h1 style={{ fontSize: '28px', fontWeight: 700, margin: '8px 0 6px', letterSpacing: '-0.02em', color: theme.headingColor }}>
-              Cảnh báo sớm & Phát hiện im lặng
+            <h1 style={{ fontSize: '26px', fontWeight: 700, margin: '8px 0 6px', letterSpacing: '-0.02em', color: theme.headingColor }}>
+              Cảnh báo tiến độ &amp; Thành viên
             </h1>
-            <p style={{ color: theme.subTextColor, margin: 0, fontSize: '14.5px', maxWidth: '72ch', lineHeight: 1.5 }}>
-              Hệ thống tự động quét công việc cần thực hiện, sắp trễ hoặc quá hạn chót để tự gửi cảnh báo đến thành viên có nguy cơ, đồng thời hỗ trợ nhóm trưởng và thành viên gửi cảnh báo theo mẫu.
+            <p style={{ color: theme.subTextColor, margin: 0, fontSize: '13.5px', maxWidth: '64ch', lineHeight: 1.5 }}>
+              Tự động theo dõi tiến độ công việc, phát hiện task trễ hạn và nhắc nhở thành viên kịp thời.
             </p>
           </div>
 
@@ -1349,8 +1372,8 @@ export const AlertList: React.FC = () => {
       {autoDispatchStats.alertCount > 0 && (
         <div
           style={{
-            marginBottom: '20px',
-            padding: '12px 16px',
+            marginBottom: '18px',
+            padding: '10px 16px',
             borderRadius: '14px',
             background: isLight ? '#eef2ff' : 'rgba(99, 102, 241, 0.12)',
             border: isLight ? '1px solid #c7d2fe' : '1px solid rgba(99, 102, 241, 0.28)',
@@ -1361,19 +1384,19 @@ export const AlertList: React.FC = () => {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: theme.textColor }}>
-            <Sparkles size={16} color="#6366f1" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.textColor }}>
+            <Sparkles size={15} color="#6366f1" />
             <span>
-              Hệ thống đã tự động phát hiện <b>{autoDispatchStats.alertCount} cảnh báo rủi ro</b> (task quá hạn, sắp trễ hoặc cần thực hiện) và tự động gửi thông báo tới <b>{autoDispatchStats.memberCount} thành viên có nguy cơ</b>.
+              Đã phát hiện <b>{autoDispatchStats.alertCount} cảnh báo</b> và tự động gửi thông báo tới <b>{autoDispatchStats.memberCount} thành viên</b>.
             </span>
           </div>
           <span
             style={{
-              fontSize: '11.5px',
+              fontSize: '11px',
               fontWeight: 600,
               color: '#6366f1',
               background: isLight ? '#ffffff' : 'rgba(99, 102, 241, 0.18)',
-              padding: '3px 10px',
+              padding: '2px 8px',
               borderRadius: '999px',
               border: isLight ? '1px solid #c7d2fe' : '1px solid rgba(99, 102, 241, 0.35)',
             }}
@@ -1540,6 +1563,9 @@ export const AlertList: React.FC = () => {
                           {a.autoDispatched && (
                             <span
                               style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
                                 fontSize: '11px',
                                 fontWeight: 600,
                                 padding: '2px 8px',
@@ -1548,7 +1574,8 @@ export const AlertList: React.FC = () => {
                                 color: palette.titleColor,
                               }}
                             >
-                              ✓ Đã tự động gửi cảnh báo
+                              <Check size={11} strokeWidth={2.5} />
+                              <span>Đã tự động gửi cảnh báo</span>
                             </span>
                           )}
                         </div>
@@ -1905,7 +1932,9 @@ export const AlertList: React.FC = () => {
       </div>
 
       {/* ──────────────── 3-STEP SEND ALERT WIZARD MODAL (Image 3 + Image 1 Style) ──────────────── */}
-      {wizardOpen && (
+      {wizardOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -1913,14 +1942,15 @@ export const AlertList: React.FC = () => {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '0.75rem',
             background: 'rgba(0, 0, 0, 0.68)',
             backdropFilter: 'blur(8px)',
             WebkitBackdropFilter: 'blur(8px)',
+            overflowY: 'auto',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !submittingWizard) {
@@ -1933,7 +1963,8 @@ export const AlertList: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '610px',
-              maxHeight: '90vh',
+              maxHeight: 'calc(100dvh - 2.5rem)',
+              margin: 'auto',
               borderRadius: '26px',
               border: '1px solid var(--line)',
               background: 'var(--surface)',
@@ -1948,11 +1979,12 @@ export const AlertList: React.FC = () => {
             {/* Top Bar with Circular Close Button */}
             <div
               style={{
-                padding: '1.5rem 1.75rem 0.6rem',
+                padding: '1.25rem 1.5rem 0.5rem',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 gap: '1rem',
+                flexShrink: 0,
               }}
             >
               <div style={{ flex: 1 }}>
@@ -2008,7 +2040,7 @@ export const AlertList: React.FC = () => {
             </div>
 
             {/* Scrollable Body */}
-            <div style={{ padding: '1rem 1.75rem 1.5rem', overflowY: 'auto' }}>
+            <div style={{ padding: '1rem 1.5rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {wizardError && (
                 <div
                   style={{
@@ -2402,13 +2434,14 @@ export const AlertList: React.FC = () => {
             {/* Footer Bar (Matching Image 3: Progress bar + Step x/3 + Pill Buttons) */}
             <div
               style={{
-                padding: '1rem 1.75rem',
+                padding: '0.85rem 1.5rem',
                 borderTop: '1px solid var(--line)',
                 background: 'var(--surface2)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '1rem',
+                flexShrink: 0,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -2528,7 +2561,8 @@ export const AlertList: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

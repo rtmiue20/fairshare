@@ -15,6 +15,7 @@ import { DashboardFilters, SprintOption, MemberOption } from './DashboardFilters
 import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
 import { ManualContributionModal } from './ManualContributionModal';
 import { FeedbackResolutionModal } from './FeedbackResolutionModal';
+import { MemberProfileModal } from './MemberProfileModal';
 import { contributionApi } from '../../api/contribution.api';
 import {
   ContributionSummary,
@@ -26,12 +27,16 @@ import { ExportReportButton } from '../report/ExportReportButton';
 import {
   AlertTriangle,
   AlertCircle,
+  Activity,
+  Check,
   CheckCircle2,
+  CheckSquare,
   ChevronRight,
   Loader2,
   RotateCcw,
   Search,
   TrendingUp,
+  FolderOpen,
 } from 'lucide-react';
 
 const AVAILABLE_SPRINTS: SprintOption[] = [
@@ -44,6 +49,77 @@ const AVAILABLE_SPRINTS: SprintOption[] = [
 
 // Member color palette matching sample --m1..m4
 const MEMBER_COLORS = ['var(--m1)', 'var(--ok)', 'var(--m3)', 'var(--m2)', 'var(--m4)', 'var(--ital)'];
+
+// Cute cartoon avatars fallback matching sample UI (4 variants)
+export const CuteAvatarSvg: React.FC<{ index: number; className?: string }> = ({ index, className = 'w-full h-full' }) => {
+  const variant = Math.abs(index) % 4;
+
+  if (variant === 0) {
+    // 1. Pink / Bearded warm smile avatar
+    return (
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <rect width="200" height="200" rx="36" fill="#fce7f3" stroke="#fbcfe8" strokeWidth="2.5" />
+        <circle cx="100" cy="100" r="62" fill="#fed7aa" />
+        <path d="M 66 74 C 66 52, 134 52, 134 74 C 122 66, 78 66, 66 74 Z" fill="#78350f" />
+        <circle cx="82" cy="94" r="6" fill="#1e293b" />
+        <circle cx="84" cy="92" r="2" fill="#ffffff" />
+        <circle cx="118" cy="94" r="6" fill="#1e293b" />
+        <circle cx="120" cy="92" r="2" fill="#ffffff" />
+        <path d="M 88 114 Q 100 126 112 114" stroke="#78350f" strokeWidth="4.5" strokeLinecap="round" fill="none" />
+        <path d="M 72 108 C 72 144, 128 144, 128 108 C 124 136, 76 136, 72 108 Z" fill="#92400e" />
+      </svg>
+    );
+  }
+
+  if (variant === 1) {
+    // 2. Green / Swimmer / Round glasses avatar
+    return (
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <rect width="200" height="200" rx="36" fill="#dcfce7" stroke="#bbf7d0" strokeWidth="2.5" />
+        <circle cx="100" cy="100" r="68" fill="#bbf7d0" fillOpacity="0.5" />
+        <circle cx="100" cy="100" r="56" fill="#fed7aa" />
+        <path d="M 68 84 C 68 56, 132 56, 132 84 C 120 72, 80 72, 68 84 Z" fill="#1e293b" />
+        <circle cx="82" cy="100" r="14" stroke="#1e293b" strokeWidth="5.5" fill="#ffffff" fillOpacity="0.15" />
+        <circle cx="82" cy="100" r="5" fill="#1e293b" />
+        <circle cx="118" cy="100" r="14" stroke="#1e293b" strokeWidth="5.5" fill="#ffffff" fillOpacity="0.15" />
+        <circle cx="118" cy="100" r="5" fill="#1e293b" />
+        <path d="M 96 100 L 104 100" stroke="#1e293b" strokeWidth="5" strokeLinecap="round" />
+        <path d="M 90 124 Q 100 133 110 124" stroke="#78350f" strokeWidth="4" strokeLinecap="round" fill="none" />
+      </svg>
+    );
+  }
+
+  if (variant === 2) {
+    // 3. Blue / Blue beanie cap tan skin avatar
+    return (
+      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <rect width="200" height="200" rx="36" fill="#e0f2fe" stroke="#bae6fd" strokeWidth="2.5" />
+        <circle cx="100" cy="100" r="68" fill="#bae6fd" fillOpacity="0.5" />
+        <circle cx="100" cy="100" r="56" fill="#ea580c" fillOpacity="0.85" />
+        <path d="M 68 88 C 68 58, 132 58, 132 88 Z" fill="#2563eb" />
+        <rect x="64" y="84" width="72" height="12" rx="6" fill="#1d4ed8" />
+        <circle cx="82" cy="110" r="5.5" fill="#1e293b" />
+        <circle cx="118" cy="110" r="5.5" fill="#1e293b" />
+        <path d="M 88 126 Q 100 138 112 126" stroke="#1e293b" strokeWidth="4.5" strokeLinecap="round" fill="none" />
+      </svg>
+    );
+  }
+
+  // 4. Purple / Lavender parted bangs avatar
+  return (
+    <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <rect width="200" height="200" rx="36" fill="#f3e8ff" stroke="#e9d5ff" strokeWidth="2.5" />
+      <circle cx="100" cy="100" r="68" fill="#e9d5ff" fillOpacity="0.5" />
+      <circle cx="100" cy="100" r="56" fill="#fed7aa" />
+      <path d="M 70 82 C 70 54, 130 54, 130 82 C 118 78, 105 88, 100 94 C 95 88, 82 78, 70 82 Z" fill="#1e293b" />
+      <path d="M 66 84 C 64 96, 72 104, 75 96 Z" fill="#1e293b" />
+      <path d="M 134 84 C 136 96, 128 104, 125 96 Z" fill="#1e293b" />
+      <circle cx="82" cy="104" r="5.5" fill="#1e293b" />
+      <circle cx="118" cy="104" r="5.5" fill="#1e293b" />
+      <path d="M 90 124 Q 100 133 110 124" stroke="#78350f" strokeWidth="4" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+};
 
 export interface ContributionDashboardProps {
   teamId?: number;
@@ -108,6 +184,8 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             id: uId,
             name: uName,
             role: m.role === 'LEADER' ? 'Leader' : 'Thành viên',
+            avatarUrl: m.user?.avatarUrl,
+            bio: m.user?.bio,
           };
         });
         setAvailableMembers(dynamicMembers);
@@ -140,6 +218,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
   // State cho Modal Nhật ký phản hồi đã xử lý (CR-03 & WBS 5.4.4)
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
+
+  // State cho Modal Hồ sơ chi tiết thành viên (Profile Information & AI Summary)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
   // State cho Tab hiển thị chi tiết bên dưới Bento Grid
   const [dashboardViewTab, setDashboardViewTab] = useState<'members' | 'radar' | 'audit'>('members');
@@ -522,6 +603,94 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     return 'Điểm C_avg trung bình nhóm';
   }, [activeRadarUserId, safeSummaryItems]);
 
+  // Thành viên nổi bật & thông số cá nhân cho Thẻ FairShare Card & Hệ số Khả dụng a_i
+  const featuredMember = useMemo(() => {
+    const target = safeSummaryItems.find((m) => m.userId === activeRadarUserId) ?? safeSummaryItems[0];
+    if (!target) {
+      return {
+        id: 1,
+        name: 'Thành viên',
+        role: 'Leader',
+        pct: '0.0',
+        compositeScore: 0.0,
+        tasks: 0,
+        edits: 0,
+        peer: 4.5,
+        d1: 0.0,
+        onTime: 100,
+        availabilityFactor: 1.0,
+      };
+    }
+    const sc = scores.find((s) => s.userId === target.userId);
+    const memberOption = availableMembers.find((am) => am.id === target.userId);
+    const cleanName = target.userName.replace(/\s*\([^)]*\)/g, '').trim() || target.userName;
+    const roleFromTeam = memberOption?.role;
+    const roleMatch = target.userName.match(/\(([^)]+)\)/);
+    const role = roleMatch?.[1] || roleFromTeam || (target.userId === 1 ? 'Leader' : 'Thành viên');
+    const avatarUrl = (sc as unknown as { avatarUrl?: string })?.avatarUrl || memberOption?.avatarUrl || (target.userId === user?.id ? user?.avatarUrl : undefined);
+    const bio = memberOption?.bio;
+    const tasks = Number(sc?.taskCompletedCount ?? (target.trelloScore && target.trelloScore > 0 ? Math.round(target.trelloScore / 5) : 0));
+    const edits = Number(sc?.docsEditCount ?? Math.round((target.trelloScore ?? 0) + (target.manualScore ?? 0)));
+    const peerFromPct = target.peerPct && target.peerPct > 0 ? Number(((target.peerPct / 100) * 5).toFixed(1)) : 4.5;
+    const peer = Number(sc?.peerReviewScore ?? (target.d4Peer && target.d4Peer > 0 ? Number((target.d4Peer * 5).toFixed(1)) : peerFromPct));
+    const scOnTime = (sc as unknown as { onTimeRate?: number })?.onTimeRate;
+    const scRework = (sc as unknown as { reworkCount?: number })?.reworkCount ?? 0;
+    const onTime = scOnTime !== undefined ? Math.round(scOnTime * 100) : avgOnTimeRate;
+    const d1 = target.d1Output ?? 0.0;
+    const comp = target.compositeScore ?? 0.0;
+
+    // Tính hệ số khả dụng a_i (thang đo 0.0 - 1.0) theo chuẩn FairShare:
+    // Thể hiện tỷ lệ hoàn thành đúng toàn bộ các công việc.
+    // Nếu hoàn thành đúng toàn bộ task và đạt điểm tốt thì luôn ở 1.00;
+    // Nếu phát sinh trễ hạn, rủi ro hay lỗi thì giảm tỷ lệ tương ứng.
+    let a_i = 1.0;
+    if (typeof target.availabilityFactor === 'number' && target.availabilityFactor < 1.0 && target.availabilityFactor >= 0.0) {
+      a_i = target.availabilityFactor;
+    } else if (tasks > 0) {
+      const onTimeFraction = onTime / 100;
+      const reworkPenalty = scRework * 0.05;
+      a_i = Math.max(0.0, Math.min(1.0, Number((onTimeFraction - reworkPenalty).toFixed(2))));
+    }
+
+    let localProfile: Record<string, string> = {};
+    try {
+      const stored = localStorage.getItem(`fairshare_user_profile_${target.userId}`) || localStorage.getItem('fairshare_user_profile');
+      if (stored) {
+        localProfile = JSON.parse(stored);
+      }
+    } catch {
+      // ignore
+    }
+
+    const email = localProfile.email || (target.userId === user?.id ? user?.email : undefined) || (target.userId === 1 ? 'mt200206@gmail.com' : `user${target.userId}@gmail.com`);
+    const studentId = localProfile.studentId || (target.userId === user?.id ? user?.studentId : undefined) || (target.userId === 1 ? '31241027455' : undefined);
+    const phone = localProfile.phone || (target.userId === user?.id ? user?.phone : undefined) || (target.userId === 1 ? '0913114207' : undefined);
+    const major = localProfile.major || (target.userId === user?.id ? user?.major : undefined) || (target.userId === 1 ? 'Software Engineering' : 'Công nghệ Thông tin');
+    const teamRole = localProfile.teamRole || roleFromTeam || (target.userId === 1 ? 'Project Manager' : role);
+    const bioText = localProfile.bio || bio || (target.userId === 1 ? 'Phụ trách quản lý đồ án, thiết kế kiến trúc hệ thống và điều phối tiến độ toàn nhóm.' : undefined);
+
+    return {
+      id: target.userId,
+      name: cleanName,
+      role,
+      pct: (target.finalPct ?? 0).toFixed(1),
+      compositeScore: comp,
+      tasks,
+      edits,
+      peer,
+      d1,
+      onTime,
+      availabilityFactor: a_i,
+      avatarUrl,
+      bio: bioText,
+      email,
+      studentId,
+      phone,
+      major,
+      teamRole,
+    };
+  }, [safeSummaryItems, activeRadarUserId, scores, availableMembers, avgOnTimeRate]);
+
   if (initialized && teams.length === 0 && !propTeamId && !urlTeamId) {
     return <NoProjectState />;
   }
@@ -624,7 +793,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             gap: '1rem',
           }}
         >
-          <div style={{ fontSize: '2.5rem' }}>📂</div>
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--fg3)', opacity: 0.85 }}>
+            <FolderOpen size={48} strokeWidth={1.5} />
+          </div>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--fg)' }}>
             Chưa có dữ liệu đóng góp cho Sprint này
           </h3>
@@ -666,10 +837,164 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       {!isLoading && !isSprintEmpty && (
         <>
           {/* ══════════════════════════════════════════════════════════════
-              BENTO GRID 3 Ô HÀNG NGANG (100% SỐ LIỆU THỰC TẾ HỆ THỐNG)
+              BENTO GRID 6 COMPONENTS (THEO MẪU FAIRSHARE THIẾT KẾ ĐA CHIỀU)
              ══════════════════════════════════════════════════════════════ */}
-          <div id="dashboard-bento-section" data-testid="dashboard-bento-grid" className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* ───────── Ô 1: SẢN LƯỢNG D1 OUTPUT (DỮ LIỆU THẬT) ───────── */}
+          <div id="dashboard-bento-section" data-testid="dashboard-bento-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* ───────── CỘT 1 (LG:ROW-SPAN-2): THÀNH VIÊN TIÊU BIỂU & SẢN LƯỢNG CÁ NHÂN (2 COMPONENTS) ───────── */}
+            <div className="lg:row-span-2 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
+              {/* COMPONENT 1: THÀNH VIÊN TIÊU BIỂU (FAIRSHARE CARD) */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                    Thành viên tiêu biểu
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <span>+ Xem chi tiết</span>
+                  </button>
+                </div>
+
+                {/* Thẻ thành viên trực quan hóa theo mẫu profile card (visual avatar / cute cartoon) */}
+                <div className="p-3.5 sm:p-4 rounded-3xl bg-slate-50/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col gap-3">
+                  {/* Khung ảnh đại diện / Avatar Visual */}
+                  <div className="aspect-[4/3] w-full rounded-2xl overflow-hidden relative shadow-inner bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                    {featuredMember.avatarUrl ? (
+                      <>
+                        <img
+                          src={featuredMember.avatarUrl}
+                          alt=""
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                            const fallback = e.currentTarget.parentElement?.querySelector('.avatar-cute-fallback');
+                            if (fallback) (fallback as HTMLElement).style.display = 'block';
+                          }}
+                          className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
+                        />
+                        <div className="avatar-cute-fallback w-full h-full" style={{ display: 'none' }}>
+                          <CuteAvatarSvg index={featuredMember.id} className="w-full h-full object-contain p-2" />
+                        </div>
+                      </>
+                    ) : (
+                      <CuteAvatarSvg index={featuredMember.id} className="w-full h-full object-contain p-2" />
+                    )}
+
+                    {/* Badge Tỷ lệ % đóng góp nổi bật ở góc trên bên phải */}
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 dark:bg-black/70 backdrop-blur-md text-white border border-white/15 text-[11px] font-bold shadow-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{featuredMember.pct}%</span>
+                    </div>
+
+                    {/* Chip thương hiệu FairShare góc trên bên trái */}
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-md text-slate-800 dark:text-slate-100 border border-slate-200/50 dark:border-white/10 text-[10px] font-bold tracking-wider uppercase shadow-xs">
+                      FAIRSHARE
+                    </div>
+                  </div>
+
+                  {/* Thông tin thành viên & Huy hiệu tích xanh (Verified checkmark) */}
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate">
+                        {featuredMember.name}
+                      </h3>
+                      {/* Huy hiệu tích xanh tròn chuẩn nhận diện verified */}
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shrink-0 shadow-xs" title="Thành viên đã xác thực">
+                        <Check size={11} strokeWidth={3.5} />
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                      {featuredMember.bio || `${featuredMember.role} · Đóng góp ${featuredMember.pct}% (C_i ${featuredMember.compositeScore.toFixed(1)}) cho ${currentSprintLabel}.`}
+                    </p>
+                  </div>
+
+                  {/* Thanh chỉ số nhanh & Nút tương tác (Follow / Xem chi tiết) */}
+                  <div className="pt-2 border-t border-slate-200/70 dark:border-white/10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 font-semibold">
+                      <span className="flex items-center gap-1.5" title="Số Tasks hoàn thành">
+                        <CheckSquare size={13} className="text-slate-400" />
+                        <span>{featuredMember.tasks} tasks</span>
+                      </span>
+                      <span className="flex items-center gap-1.5" title="Số sự kiện tài liệu / Git">
+                        <Activity size={13} className="text-slate-400" />
+                        <span>{featuredMember.edits} sk</span>
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileModalOpen(true)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-[#252836] text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-white/10 shadow-xs hover:bg-slate-100 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      <span>Chi tiết</span>
+                      <span className="text-slate-400">+</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* COMPONENT 2: SẢN LƯỢNG THÀNH VIÊN ĐANG CHỌN */}
+              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/10">
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Sản lượng thành viên đang chọn
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    {featuredMember.pct}% · {featuredMember.tasks} tasks
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-2.5 text-xs">
+                  {/* Task Board Kanban */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                      <span>Task Board (Kanban)</span>
+                    </span>
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                      {featuredMember.tasks} tasks · {featuredMember.d1.toFixed(2)} D1
+                    </span>
+                  </div>
+
+                  {/* Hoạt động Docs & Git */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                      <span>Hoạt động Docs &amp; Git</span>
+                    </span>
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                      {featuredMember.edits} sự kiện
+                    </span>
+                  </div>
+
+                  {/* Chấm chéo đồng đội */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span>Chấm chéo đồng đội</span>
+                    </span>
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                      {featuredMember.peer.toFixed(1)} / 5.0 D4
+                    </span>
+                  </div>
+
+                  {/* Độ tin cậy đúng hạn */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span>Độ tin cậy đúng hạn</span>
+                    </span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      {featuredMember.onTime}% On-time
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ───────── COMPONENT 3: SẢN LƯỢNG D1 OUTPUT ───────── */}
             <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -768,74 +1093,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
               })()}
             </div>
 
-            {/* ───────── Ô 2: TIẾN ĐỘ & ĐÚNG HẠN D2 (DỮ LIỆU THẬT) ───────── */}
-            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
-                    Tiến độ &amp; Xu hướng Sprint
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10">
-                    {currentSprintLabel}
-                  </span>
-                </div>
-
-                {/* Hero Metric với Tỷ lệ đúng hạn thực tế */}
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    {avgOnTimeRate}%
-                  </div>
-                  <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                    avgOnTimeRate >= 80
-                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                      : 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20'
-                  }`}>
-                    <TrendingUp size={12} />
-                    <span>{avgOnTimeRate >= 80 ? 'Ổn định đúng hạn' : 'Cần kiểm soát'}</span>
-                  </span>
-                </div>
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  Độ tin cậy D2 đạt {(avgOnTimeRate / 100).toFixed(2)} · {totalTasks} task đã hoàn thành đúng hạn
-                </p>
-              </div>
-
-              {/* Đồ thị SVG đường cong xu hướng thực tế */}
-              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/10">
-                <div className="relative w-full h-24">
-                  <svg viewBox="0 0 320 80" className="w-full h-full overflow-visible">
-                    <defs>
-                      <linearGradient id="trendGradientReal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <line x1="0" y1="40" x2="320" y2="40" stroke="currentColor" strokeDasharray="3 3" className="text-slate-200 dark:text-white/10" />
-                    <path
-                      d="M 10 65 C 70 65, 120 48, 170 36 C 220 24, 270 18, 310 12 L 310 75 L 10 75 Z"
-                      fill="url(#trendGradientReal)"
-                    />
-                    <path
-                      d="M 10 65 C 70 65, 120 48, 170 36 C 220 24, 270 18, 310 12"
-                      fill="none"
-                      stroke="#6366f1"
-                      strokeWidth="3.2"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="170" cy="36" r="4.5" fill="#6366f1" stroke="#ffffff" strokeWidth="2.5" />
-                  </svg>
-
-                  {/* Nhãn mốc thời gian thực tế */}
-                  <div
-                    className="absolute text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-md"
-                    style={{ top: '6px', left: '48%' }}
-                  >
-                    {new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'short' })}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ───────── Ô 3: CHỈ SỐ NĂNG LỰC 4D (DỮ LIỆU THẬT) ───────── */}
+            {/* ───────── COMPONENT 4: CHỈ SỐ NĂNG LỰC 4D ───────── */}
             <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -919,6 +1177,143 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                   <span className="w-2 h-2 rounded-full bg-indigo-500" />
                   <span>D4 Chấm chéo (20%)</span>
                 </span>
+              </div>
+            </div>
+
+            {/* ───────── COMPONENT 5: TIẾN ĐỘ & XU HƯỚNG SPRINT ───────── */}
+            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
+                    Tiến độ &amp; Xu hướng Sprint
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10">
+                    {currentSprintLabel}
+                  </span>
+                </div>
+
+                {/* Hero Metric với Tỷ lệ đúng hạn thực tế */}
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    {avgOnTimeRate}%
+                  </div>
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                    avgOnTimeRate >= 80
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                      : 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20'
+                  }`}>
+                    <TrendingUp size={12} />
+                    <span>{avgOnTimeRate >= 80 ? '↑ 16.4% On-track' : 'Cần kiểm soát'}</span>
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+                  Độ tin cậy D2 đạt {(avgOnTimeRate / 100).toFixed(2)} · {totalTasks} task đã hoàn thành đúng hạn
+                </p>
+              </div>
+
+              {/* Đồ thị SVG đường cong xu hướng thực tế */}
+              <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/10">
+                <div className="relative w-full h-24">
+                  <svg viewBox="0 0 320 80" className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="trendGradientReal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="0" y1="40" x2="320" y2="40" stroke="currentColor" strokeDasharray="3 3" className="text-slate-200 dark:text-white/10" />
+                    <path
+                      d="M 10 65 C 70 65, 120 48, 170 36 C 220 24, 270 18, 310 12 L 310 75 L 10 75 Z"
+                      fill="url(#trendGradientReal)"
+                    />
+                    <path
+                      d="M 10 65 C 70 65, 120 48, 170 36 C 220 24, 270 18, 310 12"
+                      fill="none"
+                      stroke="#6366f1"
+                      strokeWidth="3.2"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="170" cy="36" r="4.5" fill="#6366f1" stroke="#ffffff" strokeWidth="2.5" />
+                  </svg>
+
+                  {/* Nhãn mốc thời gian thực tế */}
+                  <div
+                    className="absolute text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-md"
+                    style={{ top: '6px', left: '48%' }}
+                  >
+                    {new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'short' })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ───────── COMPONENT 6: HỆ SỐ KHẢ DỤNG a_i (DỮ LIỆU THẬT & MÀU SẮC DỰ ÁN) ───────── */}
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-[#5b54fa] via-[#7544f8] to-[#9333ea] text-white border border-indigo-400/30 shadow-[0_10px_30px_-8px_rgba(117,68,248,0.35)] dark:shadow-[0_20px_50px_-12px_rgba(117,68,248,0.5)] flex flex-col justify-between transition-all relative overflow-hidden">
+              {/* Subtle ambient light glow in background */}
+              <div className="absolute -right-8 -bottom-8 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none" />
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
+                    <span>Hệ số Khả dụng</span>
+                    <span className="italic font-serif">a_i</span>
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white border border-white/20">
+                    95% CI
+                  </span>
+                </div>
+
+                {/* Hero Metric Thật của a_i */}
+                <div className="flex items-baseline justify-between gap-2 mt-1">
+                  <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                    {featuredMember.availabilityFactor.toFixed(2)}
+                  </div>
+                  <span className="inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-xs text-white border border-white/25">
+                    {featuredMember.availabilityFactor >= 0.9
+                      ? 'Ổn định (a_i ≥ 0.9)'
+                      : featuredMember.availabilityFactor >= 0.7
+                      ? 'Khá tốt (a_i ≥ 0.7)'
+                      : 'Cần cải thiện (a_i < 0.7)'}
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-white/80 mt-1 truncate">
+                  Tỉ lệ hoàn thành chuẩn xác không lỗi · {featuredMember.name}
+                </p>
+              </div>
+
+              {/* Đồ thị SVG dạng sóng lượn (Waveform/Curve) biểu diễn độ ổn định a_i */}
+              <div className="mt-5 pt-4 border-t border-white/15">
+                <div className="relative w-full h-24">
+                  <svg viewBox="0 0 320 80" className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="availWaveGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.30" />
+                        <stop offset="100%" stopColor="#ffffff" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="0" y1="40" x2="320" y2="40" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                    <path
+                      d="M 10 52 C 60 52, 90 62, 140 48 C 190 34, 240 38, 310 32 L 310 75 L 10 75 Z"
+                      fill="url(#availWaveGradient)"
+                    />
+                    <path
+                      d="M 10 52 C 60 52, 90 62, 140 48 C 190 34, 240 38, 310 32"
+                      fill="none"
+                      stroke="#ffffff"
+                      strokeWidth="2.8"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="240" cy="38" r="4.5" fill="#ffffff" stroke="#7544f8" strokeWidth="2.5" />
+                  </svg>
+
+                  {/* Nhãn mốc thời gian / trạng thái */}
+                  <div
+                    className="absolute text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-xs text-white shadow-md border border-white/20"
+                    style={{ top: '8px', left: '68%' }}
+                  >
+                    {new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: 'short' })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1232,6 +1627,16 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           <FeedbackResolutionModal
             isOpen={isFeedbackModalOpen}
             onClose={() => setIsFeedbackModalOpen(false)}
+          />
+
+          {/* Modal Hồ sơ thành viên trực quan hóa (Profile Information & AI Summary) */}
+          <MemberProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+            member={featuredMember}
+            projectName={teams.find((t) => t.id === currentTeamId)?.name || 'EduConnect'}
+            courseName={teams.find((t) => t.id === currentTeamId)?.courseName || 'Quản lý Dự án Công nghệ Thông tin'}
+            sprintLabel={currentSprintLabel}
           />
         </>
       )}

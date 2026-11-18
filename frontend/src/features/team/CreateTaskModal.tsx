@@ -8,6 +8,7 @@ import {
   Plus,
   Flame,
   CheckCircle2,
+  Check,
   Loader2,
 } from 'lucide-react';
 import { TaskItem, TaskStatus } from './AllTasksSection';
@@ -361,7 +362,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                           <span className="member-picker-role" style={{ color: '#a1a1aa', fontSize: '11px' }}>
                             {m.role === 'LEADER' ? 'Leader' : 'Member'}
                           </span>
-                          {isSelected && <span className="member-picker-check">✓</span>}
+                          {isSelected && <Check size={14} className="member-picker-check text-cyan-500" strokeWidth={2.5} />}
                         </button>
                       );
                     })

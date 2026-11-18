@@ -14,6 +14,7 @@ import {
   ListTodo,
   GripHorizontal,
   Database,
+  X,
 } from 'lucide-react';
 import { showToast } from '../../components/ui/Toast';
 import { CreateTaskModal, CreateTaskSavePayload } from './CreateTaskModal';
@@ -908,8 +909,9 @@ export const AllTasksSection: React.FC<{
             </span>
           )}
           {activeFilter && (
-            <span className="active-filter-badge" onClick={() => setActiveFilter(null)}>
-              Lọc: {activeFilter} ✕
+            <span className="active-filter-badge" onClick={() => setActiveFilter(null)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span>Lọc: {activeFilter}</span>
+              <X size={11} />
             </span>
           )}
         </div>

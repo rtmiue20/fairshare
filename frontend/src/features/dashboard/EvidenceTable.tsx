@@ -1,10 +1,12 @@
 import React from 'react';
 import { EvidenceItemDto, EvidenceItem } from '../../types/contribution';
 import { formatDateTime } from '../../utils/date';
-import { CheckCircle2, Clock, FileText, LayoutList, UserCheck, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, LayoutList, UserCheck, AlertCircle, Sparkles } from 'lucide-react';
 
 export interface EvidenceTableProps {
   items: (EvidenceItemDto | EvidenceItem)[];
+  onSortTime?: () => void;
+  sortDirection?: 'asc' | 'desc';
 }
 
 interface NormalizedEvidenceItem {
@@ -43,23 +45,20 @@ function normalizeEvidenceItem(
   };
 }
 
-export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
+export const EvidenceTable: React.FC<EvidenceTableProps> = ({
+  items,
+  onSortTime,
+  sortDirection = 'desc',
+}) => {
   if (!items || items.length === 0) {
     return (
       <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2rem',
-          textAlign: 'center',
-          color: 'var(--fg3)',
-          gap: '0.5rem',
-        }}
+        className="flex flex-col items-center justify-center p-10 text-center text-slate-400 dark:text-slate-500 gap-2.5 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01]"
       >
-        <AlertCircle style={{ width: 28, height: 28, color: 'var(--fg3)' }} />
-        <p style={{ margin: 0, fontSize: '0.82rem' }}>Không có dữ liệu bằng chứng</p>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/5 text-slate-400">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Không có dữ liệu bằng chứng</p>
       </div>
     );
   }
@@ -71,17 +70,9 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
       return (
         <span
           data-testid="badge-source-board"
-          className="chip"
-          style={{
-            background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-            color: 'var(--accent)',
-            border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-          }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20"
         >
-          <LayoutList style={{ width: 11, height: 11 }} />
+          <LayoutList className="w-3.5 h-3.5 text-sky-500" />
           Task Board nội bộ
         </span>
       );
@@ -91,27 +82,16 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
       return (
         <span
           data-testid="badge-source-manual"
-          className="chip"
-          style={{
-            background: 'color-mix(in srgb, var(--ital) 12%, transparent)',
-            color: 'var(--ital)',
-            border: '1px solid color-mix(in srgb, var(--ital) 30%, transparent)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-          }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20"
         >
-          <FileText style={{ width: 11, height: 11 }} />
+          <FileText className="w-3.5 h-3.5 text-purple-500" />
           Khai báo thủ công
         </span>
       );
     }
 
     return (
-      <span
-        className="chip"
-        style={{ background: 'var(--surface2)', color: 'var(--fg2)', border: '1px solid var(--line)' }}
-      >
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10">
         {type}
       </span>
     );
@@ -122,18 +102,8 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
 
     if (st === 'DONE' || st === 'COMPLETED') {
       return (
-        <span
-          className="chip"
-          style={{
-            background: 'color-mix(in srgb, var(--ok) 12%, transparent)',
-            color: 'var(--ok)',
-            border: '1px solid color-mix(in srgb, var(--ok) 30%, transparent)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-          }}
-        >
-          <CheckCircle2 style={{ width: 10, height: 10 }} />
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
           Hoàn thành
         </span>
       );
@@ -141,18 +111,8 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
 
     if (st === 'APPROVED' || st === 'VERIFIED') {
       return (
-        <span
-          className="chip"
-          style={{
-            background: 'color-mix(in srgb, var(--m4) 12%, transparent)',
-            color: 'var(--m4)',
-            border: '1px solid color-mix(in srgb, var(--m4) 30%, transparent)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-          }}
-        >
-          <UserCheck style={{ width: 10, height: 10 }} />
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+          <UserCheck className="w-3.5 h-3.5 text-blue-500" />
           Đã phê duyệt
         </span>
       );
@@ -160,74 +120,49 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
 
     if (st === 'IN_PROGRESS') {
       return (
-        <span
-          className="chip"
-          style={{
-            background: 'color-mix(in srgb, var(--warn) 12%, transparent)',
-            color: 'var(--warn)',
-            border: '1px solid color-mix(in srgb, var(--warn) 30%, transparent)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-          }}
-        >
-          <Clock style={{ width: 10, height: 10 }} />
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+          <Clock className="w-3.5 h-3.5 text-amber-500" />
           Đang thực hiện
         </span>
       );
     }
 
     return (
-      <span
-        className="chip"
-        style={{ background: 'var(--surface2)', color: 'var(--fg3)', border: '1px solid var(--line)' }}
-      >
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10">
         {st}
       </span>
     );
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        overflowX: 'auto',
-        borderRadius: 8,
-        border: '1px solid var(--line)',
-      }}
-    >
+    <div className="w-full overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#181a24] shadow-sm">
       <table
-        className="w-full"
-        style={{
-          minWidth: 700,
-          borderCollapse: 'collapse',
-          textAlign: 'left',
-          fontSize: '0.8rem',
-          color: 'var(--fg)',
-        }}
+        className="w-full min-w-[720px] border-collapse text-left text-sm"
         data-testid="evidence-table"
       >
         <thead>
-          <tr
-            style={{
-              borderBottom: '1px solid var(--line)',
-              background: 'var(--surface2)',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              color: 'var(--fg3)',
-              textTransform: 'uppercase',
-            }}
-          >
-            <th scope="col" style={{ padding: '0.65rem 1rem' }}>Nguồn</th>
-            <th scope="col" style={{ padding: '0.65rem 1rem' }}>Tên công việc</th>
-            <th scope="col" style={{ padding: '0.65rem 1rem', textAlign: 'center' }}>Story Points</th>
-            <th scope="col" style={{ padding: '0.65rem 1rem', textAlign: 'right' }}>Điểm thực nhận</th>
-            <th scope="col" style={{ padding: '0.65rem 1rem' }}>Thời gian ghi nhận</th>
-            <th scope="col" style={{ padding: '0.65rem 1rem', textAlign: 'center' }}>Trạng thái</th>
+          <tr className="border-b border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400">
+            <th
+              scope="col"
+              className="py-2.5 px-3 sm:py-3 sm:px-4 cursor-pointer select-none hover:text-slate-800 dark:hover:text-white transition"
+              onClick={onSortTime}
+              title="Nhấn để sắp xếp theo thời gian"
+            >
+              <div className="flex items-center gap-1">
+                <span>Thời gian ghi nhận</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                  {sortDirection === 'asc' ? '↑' : '↓'}
+                </span>
+              </div>
+            </th>
+            <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4">Nguồn</th>
+            <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4">Tên công việc</th>
+            <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4 text-center">Story Points</th>
+            <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4 text-right">Điểm thực nhận</th>
+            <th scope="col" className="py-2.5 px-3 sm:py-3 sm:px-4 text-center">Trạng thái</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
           {items.map((rawItem, index) => {
             const item = normalizeEvidenceItem(rawItem, index);
             const { sourceType, sourceId, taskName, storyPoints, earnedScore, eventTime, status } = item;
@@ -235,66 +170,51 @@ export const EvidenceTable: React.FC<EvidenceTableProps> = ({ items }) => {
             return (
               <tr
                 key={`${sourceType}-${sourceId}-${index}`}
-                style={{ borderTop: '1px solid var(--line)', transition: 'background 0.12s' }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--surface3, rgba(255, 255, 255, 0.04))')}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
+                className="transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.03]"
               >
+                {/* Thời gian */}
+                <td className="py-2.5 px-3 sm:py-3 sm:px-4 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  {formatDateTime(eventTime) || '—'}
+                </td>
+
                 {/* Nguồn */}
-                <td style={{ padding: '0.65rem 1rem', whiteSpace: 'nowrap' }}>
+                <td className="py-2.5 px-3 sm:py-3 sm:px-4 whitespace-nowrap">
                   {renderSourceBadge(sourceType)}
                 </td>
 
                 {/* Tên công việc */}
-                <td style={{ padding: '0.65rem 1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 500, color: 'var(--fg)' }}>{taskName}</span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--fg3)', fontFamily: 'var(--f-mono)' }}>
+                <td className="py-2.5 px-3 sm:py-3 sm:px-4">
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {taskName}
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono mt-0.5">
                       Mã task: #{sourceId}
                     </span>
                   </div>
                 </td>
 
                 {/* Story Points */}
-                <td style={{ padding: '0.65rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                <td className="py-2.5 px-3 sm:py-3 sm:px-4 text-center whitespace-nowrap">
                   {typeof storyPoints === 'number' && storyPoints > 0 ? (
-                    <span
-                      className="chip"
-                      style={{
-                        background: 'color-mix(in srgb, var(--m3) 12%, transparent)',
-                        color: 'var(--m3)',
-                        border: '1px solid color-mix(in srgb, var(--m3) 30%, transparent)',
-                        fontWeight: 700,
-                      }}
-                    >
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
                       {storyPoints} SP
                     </span>
                   ) : (
-                    <span style={{ color: 'var(--fg3)' }}>—</span>
+                    <span className="text-slate-300 dark:text-slate-600">—</span>
                   )}
                 </td>
 
                 {/* Điểm thực nhận */}
-                <td style={{ padding: '0.65rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--ok)', fontFamily: 'var(--f-mono)' }}>
+                <td className="py-2.5 px-3 sm:py-3 sm:px-4 text-right whitespace-nowrap">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
                     +{Number(earnedScore).toFixed(1)}
                   </span>
                 </td>
 
-                {/* Thời gian */}
-                <td
-                  style={{
-                    padding: '0.65rem 1rem',
-                    whiteSpace: 'nowrap',
-                    fontSize: '0.72rem',
-                    color: 'var(--fg3)',
-                    fontFamily: 'var(--f-mono)',
-                  }}
-                >
-                  {formatDateTime(eventTime)}
-                </td>
-
                 {/* Trạng thái */}
-                <td style={{ padding: '0.65rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                <td className="py-2.5 px-3 sm:py-3 sm:px-4 text-center whitespace-nowrap">
                   {renderStatusBadge(status)}
                 </td>
               </tr>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   peerReviewApi,
@@ -32,11 +33,15 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Calendar,
   Check,
   CheckSquare,
   Sparkles,
   Award,
+  AlertTriangle,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
 
 interface TeamMemberItem {
@@ -145,6 +150,26 @@ export const ReviewRoundPage: React.FC = () => {
 
   // Filter by selected reviewee (0 = Tất cả thành viên)
   const [selectedMemberId, setSelectedMemberId] = useState<number>(0);
+  const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState<boolean>(false);
+  const [isRoundDropdownOpen, setIsRoundDropdownOpen] = useState<boolean>(false);
+  const memberDropdownRef = useRef<HTMLDivElement>(null);
+  const roundDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close custom dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (memberDropdownRef.current && !memberDropdownRef.current.contains(event.target as Node)) {
+        setIsMemberDropdownOpen(false);
+      }
+      if (roundDropdownRef.current && !roundDropdownRef.current.contains(event.target as Node)) {
+        setIsRoundDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Filter by Star Rating (0 = All, 5, 4, 3, 2, 1)
   const [selectedStarFilter, setSelectedStarFilter] = useState<number>(0);
@@ -407,6 +432,16 @@ export const ReviewRoundPage: React.FC = () => {
       cooperationVotes,
     };
   }, [reviews]);
+
+  const selectedMember = useMemo(
+    () => members.find((m) => m.id === selectedMemberId),
+    [members, selectedMemberId]
+  );
+
+  const currentRound = useMemo(
+    () => rounds.find((r) => r.id === activeRoundId) || rounds[0],
+    [rounds, activeRoundId]
+  );
 
   // Handle Like — calls real API with optimistic local update
   const handleToggleLike = async (reviewId: number, currentLikes: number) => {
@@ -1016,31 +1051,152 @@ export const ReviewRoundPage: React.FC = () => {
           </div>
 
           {/* Member Filter Section */}
-          <div style={{ borderTop: isLight ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+          <div
+            ref={memberDropdownRef}
+            className="relative"
+            style={{
+              borderTop: isLight ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.06)',
+              paddingTop: '16px',
+            }}
+          >
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '8px' }}>
               Xem đánh giá theo thành viên:
             </label>
-            <select
-              value={selectedMemberId}
-              onChange={(e) => setSelectedMemberId(Number(e.target.value))}
-              style={{
-                width: '100%',
-                backgroundColor: theme.inputBg,
-                color: theme.inputColor,
-                border: theme.inputBorder,
-                borderRadius: '10px',
-                padding: '9px 12px',
-                fontSize: '13px',
-                outline: 'none',
-              }}
+
+            {/* Custom Popover Dropdown Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsMemberDropdownOpen((prev) => !prev)}
+              className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                isMemberDropdownOpen
+                  ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-slate-50 dark:bg-zinc-800'
+                  : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-white dark:bg-zinc-900/80'
+              }`}
             >
-              <option value={0}>Tất cả thành viên trong nhóm</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} · {m.role}
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center gap-2.5 min-w-0">
+                {selectedMember ? (
+                  <span
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm text-white"
+                    style={{ backgroundColor: selectedMember.color }}
+                  >
+                    {getInitials(selectedMember.name)}
+                  </span>
+                ) : (
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm bg-gradient-to-br from-indigo-500 to-cyan-500 text-white">
+                    <Users className="w-3.5 h-3.5" />
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100">
+                    {selectedMember ? selectedMember.name : 'Tất cả thành viên trong nhóm'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                    {selectedMember
+                      ? `${selectedMember.role}${selectedMember.isLeader ? ' · Trưởng nhóm' : ''}`
+                      : 'Xem toàn bộ đánh giá'}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200 ${
+                  isMemberDropdownOpen ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                }`}
+              />
+            </button>
+
+            {/* Custom Popover Menu */}
+            {isMemberDropdownOpen && (
+              <div
+                className="absolute left-0 right-0 z-[100] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150"
+                style={{
+                  top: 'calc(100% + 8px)',
+                  boxShadow: isLight
+                    ? '0 20px 45px -12px rgba(15, 23, 42, 0.22), 0 6px 18px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)'
+                    : '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                }}
+              >
+                {/* Header */}
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                  <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                    THÀNH VIÊN TRONG NHÓM
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                    {members.length + 1}
+                  </span>
+                </div>
+
+                {/* List */}
+                <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                  {/* All members option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMemberId(0);
+                      setIsMemberDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                      selectedMemberId === 0
+                        ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-xs'
+                        : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm bg-gradient-to-br from-indigo-500 to-cyan-500 text-white transition-transform group-hover:scale-105">
+                      <Users className="w-3.5 h-3.5" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                        Tất cả thành viên trong nhóm
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Xem toàn bộ đánh giá của nhóm
+                      </div>
+                    </div>
+                    {selectedMemberId === 0 && (
+                      <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                    )}
+                  </button>
+
+                  {/* Individual members */}
+                  {members.map((m) => {
+                    const isActive = selectedMemberId === m.id;
+                    const initials = getInitials(m.name);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMemberId(m.id);
+                          setIsMemberDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                          isActive
+                            ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-xs'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                        }`}
+                      >
+                        <span
+                          className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm text-white transition-transform group-hover:scale-105"
+                          style={{ backgroundColor: m.color }}
+                        >
+                          {initials}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                            {m.name}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                            {m.role} {m.isLeader ? '· Trưởng nhóm' : '· Thành viên'}
+                          </div>
+                        </div>
+                        {isActive && (
+                          <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1106,7 +1262,7 @@ export const ReviewRoundPage: React.FC = () => {
                 <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', color: isLight ? '#0f172a' : '#ffffff' }}>
                   {activeTeam?.name || 'KINGSHA'}
                 </h3>
-                <span style={{ fontSize: '14px' }}>✨</span>
+                <Sparkles size={16} className="text-amber-400" />
               </div>
               <div style={{ fontSize: '13px', color: isLight ? '#64748b' : '#a1a1aa', marginTop: '4px' }}>
                 {stats.totalReviews > 0 ? `(${stats.totalReviews}) ${stats.avgScore.toFixed(1)} Ratings` : 'Hệ thống đánh giá đồng đội'}
@@ -1262,31 +1418,130 @@ export const ReviewRoundPage: React.FC = () => {
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: theme.subTextColor }}>
+            <div ref={roundDropdownRef} className="relative flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
                 Đợt chấm:
               </span>
-              <select
-                value={activeRoundId}
-                onChange={(e) => setActiveRoundId(Number(e.target.value))}
-                style={{
-                  backgroundColor: theme.cardBg,
-                  color: theme.headingColor,
-                  border: theme.cardBorder,
-                  borderRadius: '10px',
-                  padding: '7px 12px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  outline: 'none',
-                  boxShadow: theme.cardShadow,
-                }}
+              <button
+                type="button"
+                onClick={() => setIsRoundDropdownOpen((prev) => !prev)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-left cursor-pointer ${
+                  isRoundDropdownOpen
+                    ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-slate-50 dark:bg-zinc-800'
+                    : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-white dark:bg-zinc-900/80'
+                }`}
+                style={{ boxShadow: theme.cardShadow }}
               >
-                {rounds.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} ({r.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'})
-                  </option>
-                ))}
-              </select>
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    currentRound?.status === 'OPEN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400 dark:bg-slate-500'
+                  }`}
+                />
+                <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[280px] truncate">
+                  {currentRound ? currentRound.name : 'Chọn đợt chấm'}
+                </span>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                    currentRound?.status === 'OPEN'
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                  }`}
+                >
+                  {currentRound?.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200 ${
+                    isRoundDropdownOpen ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Popover Menu */}
+              {isRoundDropdownOpen && (
+                <div
+                  className="absolute left-0 z-[100] w-[360px] max-w-[90vw] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150"
+                  style={{
+                    top: 'calc(100% + 8px)',
+                    boxShadow: isLight
+                      ? '0 20px 45px -12px rgba(15, 23, 42, 0.22), 0 6px 18px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)'
+                      : '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                  }}
+                >
+                  {/* Header */}
+                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                      ĐỢT CHẤM CHÉO
+                    </span>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                      {rounds.length}
+                    </span>
+                  </div>
+
+                  {/* List */}
+                  <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                    {rounds.map((r, idx) => {
+                      const isActive = activeRoundId === r.id;
+                      const isOpen = r.status === 'OPEN';
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveRoundId(r.id);
+                            setIsRoundDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                            isActive
+                              ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-xs'
+                              : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                          }`}
+                        >
+                          <span
+                            className={`w-7 h-7 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
+                              isOpen
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                            }`}
+                          >
+                            R{idx + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                              {r.name}
+                            </div>
+                            <div className="text-[10px] flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isOpen ? 'bg-emerald-500' : 'bg-slate-400'
+                                }`}
+                              />
+                              {isOpen ? 'Đang hoạt động (Đang mở)' : 'Đã kết thúc (Đã đóng)'}
+                            </div>
+                          </div>
+                          {isActive && (
+                            <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bottom Action: Create new round */}
+                  <div className="p-2 border-t border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-black/30">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRoundDropdownOpen(false);
+                        openCreateModal();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/10 rounded-xl transition cursor-pointer border border-dashed border-cyan-500/30 hover:border-cyan-500/60"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Tạo đợt chấm mới...
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Star Filters */}
@@ -1545,7 +1800,8 @@ export const ReviewRoundPage: React.FC = () => {
                             color: '#10b981',
                           }}
                         >
-                          ✅ Thẻ hoàn thành: {review.cardTitle}
+                          <CheckCircle2 size={12} strokeWidth={2.5} />
+                          <span>Thẻ hoàn thành: {review.cardTitle}</span>
                         </span>
                       </div>
                     )}
@@ -1657,22 +1913,25 @@ export const ReviewRoundPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* ==================== MULTI-STEP MODAL: CHẤM ĐIỂM (4 BƯỚC) ==================== */}
       {/* ========================================================================= */}
-      {showReviewModal && (
+      {showReviewModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
         <div
           role="dialog"
           aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '0.75rem',
             background: 'rgba(0, 0, 0, 0.72)',
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             animation: 'fadeIn 0.2s ease-out',
+            overflowY: 'auto',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !submittingReview) setShowReviewModal(false);
@@ -1683,6 +1942,8 @@ export const ReviewRoundPage: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '620px',
+              maxHeight: 'calc(100dvh - 2.5rem)',
+              margin: 'auto',
               borderRadius: '26px',
               border: '1px solid var(--line)',
               background: 'var(--surface)',
@@ -1698,11 +1959,12 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Header */}
             <div
               style={{
-                padding: '1.5rem 1.75rem 0.5rem',
+                padding: '1.25rem 1.5rem 0.5rem',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 position: 'relative',
+                flexShrink: 0,
               }}
             >
               <div style={{ flex: 1, paddingRight: '1.5rem' }}>
@@ -1762,7 +2024,7 @@ export const ReviewRoundPage: React.FC = () => {
             </div>
 
             {/* Modal Content Body */}
-            <div style={{ padding: '1.25rem 1.75rem 1.25rem', maxHeight: '68vh', overflowY: 'auto' }}>
+            <div style={{ padding: '1rem 1.5rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {/* ==================== BƯỚC 1: SPRINT & REVIEWEE ==================== */}
               {reviewStep === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -1890,8 +2152,9 @@ export const ReviewRoundPage: React.FC = () => {
                           );
                         })}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
-                      ⚠️ Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
+                      <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                      <span>Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.</span>
                     </div>
                   </div>
                 </div>
@@ -2264,8 +2527,15 @@ export const ReviewRoundPage: React.FC = () => {
                     {/* Linked Done Card */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Thẻ nhiệm vụ:</span>
-                      <span style={{ fontWeight: 600, color: '#10b981' }}>
-                        {selectedCard ? `✅ ${selectedCard.title}` : 'Đánh giá chung toàn sprint'}
+                      <span style={{ fontWeight: 600, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        {selectedCard ? (
+                          <>
+                            <CheckCircle2 size={13} strokeWidth={2.5} />
+                            <span>{selectedCard.title}</span>
+                          </>
+                        ) : (
+                          'Đánh giá chung toàn sprint'
+                        )}
                       </span>
                     </div>
 
@@ -2300,8 +2570,18 @@ export const ReviewRoundPage: React.FC = () => {
                     {/* Identity Mode */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
                       <span style={{ color: 'var(--fg3)' }}>Chế độ hiển thị:</span>
-                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1' }}>
-                        {modalIsAnonymous ? '🕶️ Ẩn danh (Anonymous K-Anonymity)' : '👤 Công khai tên thật'}
+                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        {modalIsAnonymous ? (
+                          <>
+                            <ShieldCheck size={14} />
+                            <span>Ẩn danh (Anonymous K-Anonymity)</span>
+                          </>
+                        ) : (
+                          <>
+                            <User size={14} />
+                            <span>Công khai tên thật</span>
+                          </>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -2312,12 +2592,13 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Step Footer with Progress Bar */}
             <div
               style={{
-                padding: '0.9rem 1.75rem 1.25rem',
+                padding: '0.85rem 1.5rem 1rem',
                 borderTop: '1px solid var(--line)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 background: 'var(--surface)',
+                flexShrink: 0,
               }}
             >
               {/* Progress indicator */}
@@ -2447,28 +2728,32 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* ==================== MULTI-STEP MODAL: TẠO ĐỢT MỚI (3 BƯỚC) ==================== */}
       {/* ========================================================================= */}
-      {showCreateModal && (
+      {showCreateModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
         <div
           role="dialog"
           aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '0.75rem',
             background: 'rgba(0, 0, 0, 0.72)',
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             animation: 'fadeIn 0.2s ease-out',
+            overflowY: 'auto',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !creatingRound) setShowCreateModal(false);
@@ -2479,6 +2764,8 @@ export const ReviewRoundPage: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '540px',
+              maxHeight: 'calc(100dvh - 2.5rem)',
+              margin: 'auto',
               borderRadius: '26px',
               border: '1px solid var(--line)',
               background: 'var(--surface)',
@@ -2494,11 +2781,12 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Header */}
             <div
               style={{
-                padding: '1.5rem 1.75rem 0.5rem',
+                padding: '1.25rem 1.5rem 0.5rem',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 position: 'relative',
+                flexShrink: 0,
               }}
             >
               <div style={{ flex: 1, paddingRight: '1.5rem' }}>
@@ -2554,7 +2842,7 @@ export const ReviewRoundPage: React.FC = () => {
             </div>
 
             {/* Modal Content Body */}
-            <div style={{ padding: '1.25rem 1.75rem 1.25rem' }}>
+            <div style={{ padding: '1rem 1.5rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {createRoundStep === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)' }}>
@@ -2705,12 +2993,13 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Step Footer with Progress Bar */}
             <div
               style={{
-                padding: '0.9rem 1.75rem 1.25rem',
+                padding: '0.85rem 1.5rem 1rem',
                 borderTop: '1px solid var(--line)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 background: 'var(--surface)',
+                flexShrink: 0,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -2834,7 +3123,8 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

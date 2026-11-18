@@ -19,12 +19,19 @@ frontend/test-results/
 .env.staging
 fairshare-backend/uploads/*
 !fairshare-backend/uploads/.gitkeep
+# Ảnh người dùng tải lên khi chạy backend từ thư mục gốc (DEF-28)
+/uploads/
 
 # Tài khoản UAT (scripts/uat-seed.py) – không commit
 .uat-credentials.local
+.demo-credentials.local
 # Video demo (lớn, lưu ngoài Git)
 docs/qa/evidence/demo/*.avi
 
 # Alwaysdata local tools & embedded frontend static build output
 .tools/
 fairshare-backend/src/main/resources/static/
+
+# Mat khau tai khoan test ban beta (scripts/beta-accounts.py)
+.beta-credentials.local
+__pycache__/
