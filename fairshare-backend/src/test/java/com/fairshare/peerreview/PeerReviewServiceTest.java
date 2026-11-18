@@ -1,6 +1,7 @@
 package com.fairshare.peerreview;
 
 import com.fairshare.common.exception.BusinessException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.peerreview.dto.ReviewSubmissionDto;
 import com.fairshare.peerreview.dto.ReviewerSubmissionDto;
 import com.fairshare.peerreview.entity.ReviewCriterion;
@@ -62,6 +63,7 @@ class PeerReviewServiceTest {
         round.setId(12L);
         round.setTeam(team);
         round.setStatus(ReviewRoundStatus.DRAFT);
+        round.setMinSubmissionsRequired(3);
     }
 
     @Test
@@ -111,9 +113,70 @@ class PeerReviewServiceTest {
                 .thenReturn(Optional.of(member(MemberRole.MEMBER)));
 
         assertThatThrownBy(() -> peerReviewService.openRound(12L, 3L))
-                .isInstanceOf(BusinessException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("team leader");
         verify(reviewRoundRepository, never()).save(round);
+    }
+
+    @Test
+    void getRoundReviewDetails_rejectsNonMembersBeforeReadingSubmissions() {
+        when(reviewRoundRepository.findById(12L)).thenReturn(Optional.of(round));
+        when(teamMemberRepository.existsByTeamIdAndUserId(7L, 99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> peerReviewService.getRoundReviewDetails(12L, null, 99L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(reviewSubmissionRepository, never()).findByReviewRoundId(12L);
+    }
+
+    @Test
+    void getAggregatedResults_rejectsRevieweeOutsideTeam() {
+        when(reviewRoundRepository.findById(12L)).thenReturn(Optional.of(round));
+        when(teamMemberRepository.existsByTeamIdAndUserId(7L, 3L)).thenReturn(true);
+        when(teamMemberRepository.existsByTeamIdAndUserId(7L, 99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> peerReviewService.getAggregatedResults(12L, 99L, 3L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(reviewSubmissionRepository, never()).findByReviewRoundIdAndRevieweeId(12L, 99L);
+    }
+
+    @Test
+    void getSubmissionsByReviewer_rejectsRequestsForAnotherReviewersIdentity() {
+        when(reviewRoundRepository.findById(12L)).thenReturn(Optional.of(round));
+
+        assertThatThrownBy(() -> peerReviewService.getSubmissionsByReviewer(12L, 3L, 99L))
+                .isInstanceOf(ForbiddenException.class);
+        verify(reviewSubmissionRepository, never()).findByReviewRoundIdAndReviewerId(12L, 3L);
+    }
+
+    @Test
+    void getRoundReviewDetails_returnsOnlyThresholdGatedAggregates() {
+        User reviewee = user(4L);
+        reviewee.setFullName("Reviewee");
+        ReviewSubmission submission = new ReviewSubmission();
+        submission.setReviewee(reviewee);
+        submission.setCriterion(ReviewCriterion.QUALITY);
+        submission.setScore(5);
+        when(reviewRoundRepository.findById(12L)).thenReturn(Optional.of(round));
+        when(teamMemberRepository.existsByTeamIdAndUserId(7L, 3L)).thenReturn(true);
+        when(reviewSubmissionRepository.findByReviewRoundId(12L)).thenReturn(List.of(submission));
+        when(anonymityAggregator.aggregateForReviewee(4L, List.of(submission), 3))
+                .thenReturn(AnonymityAggregator.AggregatedResult.builder()
+                        .revieweeId(4L)
+                        .averageScore(0.0)
+                        .submissionCount(1)
+                        .isAnonymousSafe(false)
+                        .feedbackComments(List.of())
+                        .build());
+
+        List<com.fairshare.peerreview.dto.PeerReviewDetailDto> results =
+                peerReviewService.getRoundReviewDetails(12L, null, 3L);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).isAnonymousSafe()).isFalse();
+        assertThat(results.get(0).getSubmissionCount()).isEqualTo(1);
+        assertThat(results.get(0).getAverageScore()).isNull();
+        assertThat(results.get(0).getFeedbackComments()).isEmpty();
+        assertThat(results.get(0).getRevieweeName()).isEqualTo("Reviewee");
     }
 
     @Test
@@ -192,7 +255,10 @@ class PeerReviewServiceTest {
         when(reviewSubmissionRepository.findByReviewRoundIdAndReviewerId(12L, 3L))
                 .thenReturn(List.of(s1, s2));
 
-        List<ReviewerSubmissionDto> result = peerReviewService.getSubmissionsByReviewer(12L, 3L);
+        when(reviewRoundRepository.findById(12L)).thenReturn(Optional.of(round));
+        when(teamMemberRepository.existsByTeamIdAndUserId(7L, 3L)).thenReturn(true);
+
+        List<ReviewerSubmissionDto> result = peerReviewService.getSubmissionsByReviewer(12L, 3L, 3L);
 
         assertThat(result).hasSize(1);
         ReviewerSubmissionDto item = result.get(0);

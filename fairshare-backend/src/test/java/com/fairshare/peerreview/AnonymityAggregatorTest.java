@@ -79,4 +79,53 @@ public class AnonymityAggregatorTest {
         assertEquals(0.0, result.getAverageScore());
         assertTrue(result.getFeedbackComments().isEmpty());
     }
+
+    @Test
+    @DisplayName("A persisted threshold below three cannot weaken the anonymity floor")
+    void testThresholdCannotBeLoweredBelowThree() {
+        List<ReviewSubmission> list = List.of(
+                createSubmission(1L, 5, "First"),
+                createSubmission(2L, 4, "Second")
+        );
+
+        AnonymityAggregator.AggregatedResult result = aggregator.aggregateForReviewee(100L, list, 1);
+
+        assertFalse(result.isAnonymousSafe());
+        assertEquals(0.0, result.getAverageScore());
+        assertTrue(result.getFeedbackComments().isEmpty());
+    }
+
+    @Test
+    @DisplayName("A reviewer contributes one equally weighted score to the aggregate")
+    void testReviewerScoresAreNotOverweightedByNumberOfCriteria() {
+        List<ReviewSubmission> list = List.of(
+                createSubmission(1L, 5, "One"),
+                createSubmission(1L, 5, "One"),
+                createSubmission(1L, 5, "One"),
+                createSubmission(2L, 1, "Two"),
+                createSubmission(3L, 3, "Three")
+        );
+
+        AnonymityAggregator.AggregatedResult result = aggregator.aggregateForReviewee(100L, list, 3);
+
+        assertTrue(result.isAnonymousSafe());
+        assertEquals(3.0, result.getAverageScore(), 0.01);
+        assertEquals(3, result.getFeedbackComments().size());
+    }
+
+    @Test
+    @DisplayName("A lone feedback author stays hidden even when the score threshold is met")
+    void testFeedbackRequiresThreeDistinctCommenters() {
+        List<ReviewSubmission> list = List.of(
+                createSubmission(1L, 5, "Only one person wrote this"),
+                createSubmission(2L, 4, ""),
+                createSubmission(3L, 3, null)
+        );
+
+        AnonymityAggregator.AggregatedResult result = aggregator.aggregateForReviewee(100L, list, 3);
+
+        assertTrue(result.isAnonymousSafe());
+        assertEquals(4.0, result.getAverageScore(), 0.01);
+        assertTrue(result.getFeedbackComments().isEmpty());
+    }
 }

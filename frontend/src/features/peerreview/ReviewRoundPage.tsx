@@ -23,10 +23,6 @@ import {
   Play,
   Square,
   RefreshCw,
-  ThumbsUp,
-  Share2,
-  MessageCircle,
-  Eye,
   EyeOff,
   X,
   CheckCircle2,
@@ -140,9 +136,6 @@ export const ReviewRoundPage: React.FC = () => {
   // Active Evaluator (current user)
   const [currentEvaluatorId] = useState<number>(currentUser?.id || 109);
 
-  // KEY FEATURE: Nút bật/tắt "Ẩn danh" trên trang
-  const [isAnonymous, setIsAnonymous] = useState<boolean>(true);
-
   // Filter by selected reviewee (0 = Tất cả thành viên)
   const [selectedMemberId, setSelectedMemberId] = useState<number>(0);
 
@@ -156,10 +149,6 @@ export const ReviewRoundPage: React.FC = () => {
   // Done cards for review form modal
   const [doneCards, setDoneCards] = useState<DoneCard[]>([]);
 
-  // Likes state map (id -> count, id -> userLiked)
-  const [likesMap, setLikesMap] = useState<Record<number, number>>({});
-  const [userLikedMap, setUserLikedMap] = useState<Record<number, boolean>>({});
-
   // ==================== MULTI-STEP REVIEW MODAL STATES ====================
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [reviewStep, setReviewStep] = useState<number>(1); // 1: Sprint & Reviewee -> 2: Done Card -> 3: Sliders & Comment -> 4: Confirm
@@ -171,7 +160,6 @@ export const ReviewRoundPage: React.FC = () => {
   const [modalPunctuality, setModalPunctuality] = useState<number>(5);
   const [modalCooperation, setModalCooperation] = useState<number>(5);
   const [modalFeedback, setModalFeedback] = useState<string>('');
-  const [modalIsAnonymous, setModalIsAnonymous] = useState<boolean>(true);
   const [submittingReview, setSubmittingReview] = useState<boolean>(false);
 
   // ==================== MULTI-STEP CREATE ROUND MODAL STATES ====================
@@ -322,28 +310,17 @@ export const ReviewRoundPage: React.FC = () => {
       list = list.filter((r) => r.revieweeId === selectedMemberId);
     }
     if (selectedStarFilter > 0) {
-      list = list.filter((r) => Math.round(r.averageScore) === selectedStarFilter);
+      list = list.filter((r) => (
+        r.anonymousSafe && Math.round(r.averageScore ?? 0) === selectedStarFilter
+      ));
     }
     return list;
   }, [reviews, selectedMemberId, selectedStarFilter]);
 
-  // Stable Anonymous Alias Generator:
-  // Maps reviewerId -> "Anonymous001", "Anonymous002", etc.
-  const reviewerAnonymousMap = useMemo(() => {
-    const map = new Map<number, string>();
-    let counter = 1;
-    reviews.forEach((r) => {
-      if (!map.has(r.reviewerId)) {
-        map.set(r.reviewerId, `Anonymous${String(counter).padStart(3, '0')}`);
-        counter++;
-      }
-    });
-    return map;
-  }, [reviews]);
-
-  // Overall Statistics calculated from real reviews
+  // Only threshold-qualified summaries contribute to published statistics.
   const stats = useMemo(() => {
-    const total = reviews.length;
+    const publishedReviews = reviews.filter((review) => review.anonymousSafe);
+    const total = publishedReviews.length;
     if (total === 0) {
       return {
         avgScore: 0,
@@ -359,12 +336,15 @@ export const ReviewRoundPage: React.FC = () => {
       };
     }
 
-    const sum = reviews.reduce((acc, r) => acc + (r.averageScore || 0), 0);
+    const sum = publishedReviews.reduce(
+      (acc, review) => acc + (review.averageScore ?? 0),
+      0,
+    );
     const avgScore = Number((sum / total).toFixed(2));
 
     const breakdown: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviews.forEach((r) => {
-      const rounded = Math.min(5, Math.max(1, Math.round(r.averageScore || 0)));
+    publishedReviews.forEach((review) => {
+      const rounded = Math.min(5, Math.max(1, Math.round(review.averageScore ?? 0)));
       breakdown[rounded] = (breakdown[rounded] || 0) + 1;
     });
 
@@ -376,23 +356,28 @@ export const ReviewRoundPage: React.FC = () => {
       1: Math.round(((breakdown[1] || 0) / total) * 100),
     };
 
-    const qScores = reviews
-      .map((r) => r.qualityScore)
-      .filter((s): s is number => typeof s === 'number' && !isNaN(s));
-    const pScores = reviews
-      .map((r) => r.punctualityScore)
-      .filter((s): s is number => typeof s === 'number' && !isNaN(s));
-    const cScores = reviews
-      .map((r) => r.cooperationScore)
-      .filter((s): s is number => typeof s === 'number' && !isNaN(s));
+    const weightedAverage = (selectScore: (review: PeerReviewDetail) => number | null) => {
+      const scores = publishedReviews.reduce<number[]>((result, review) => {
+        const score = selectScore(review);
+        return score === null ? result : [...result, score];
+      }, []);
+      return scores.length > 0
+        ? Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1))
+        : 0;
+    };
+    const qualityAvg = weightedAverage((review) => review.qualityScore);
+    const punctualityAvg = weightedAverage((review) => review.punctualityScore);
+    const cooperationAvg = weightedAverage((review) => review.cooperationScore);
 
-    const qualityAvg = qScores.length > 0 ? Number((qScores.reduce((a, b) => a + b, 0) / qScores.length).toFixed(1)) : 0;
-    const punctualityAvg = pScores.length > 0 ? Number((pScores.reduce((a, b) => a + b, 0) / pScores.length).toFixed(1)) : 0;
-    const cooperationAvg = cScores.length > 0 ? Number((cScores.reduce((a, b) => a + b, 0) / cScores.length).toFixed(1)) : 0;
-
-    const qualityVotes = qScores.filter((s) => s >= 4).length;
-    const punctualityVotes = pScores.filter((s) => s >= 4).length;
-    const cooperationVotes = cScores.filter((s) => s >= 4).length;
+    const countHighScores = (selectScore: (review: PeerReviewDetail) => number | null) => (
+      publishedReviews.reduce((count, review) => {
+        const score = selectScore(review);
+        return count + (score !== null && score >= 4 ? 1 : 0);
+      }, 0)
+    );
+    const qualityVotes = countHighScores((review) => review.qualityScore);
+    const punctualityVotes = countHighScores((review) => review.punctualityScore);
+    const cooperationVotes = countHighScores((review) => review.cooperationScore);
 
     return {
       avgScore,
@@ -408,29 +393,6 @@ export const ReviewRoundPage: React.FC = () => {
     };
   }, [reviews]);
 
-  // Handle Like — calls real API with optimistic local update
-  const handleToggleLike = async (reviewId: number, currentLikes: number) => {
-    const wasLiked = Boolean(userLikedMap[reviewId]);
-    const nextLiked = !wasLiked;
-    setUserLikedMap((prev) => ({ ...prev, [reviewId]: nextLiked }));
-    setLikesMap((prev) => ({
-      ...prev,
-      [reviewId]: nextLiked
-        ? (prev[reviewId] ?? currentLikes) + 1
-        : Math.max(0, (prev[reviewId] ?? currentLikes) - 1),
-    }));
-
-    try {
-      const res = await peerReviewApi.toggleLike(reviewId);
-      if (res?.data != null) {
-        setLikesMap((prev) => ({ ...prev, [reviewId]: res.data as number }));
-      }
-    } catch {
-      setUserLikedMap((prev) => ({ ...prev, [reviewId]: wasLiked }));
-      setLikesMap((prev) => ({ ...prev, [reviewId]: currentLikes }));
-    }
-  };
-
   // Open Multi-Step Review Modal
   const openReviewModal = () => {
     const eligible = members.find((m) => m.id !== currentEvaluatorId);
@@ -443,7 +405,6 @@ export const ReviewRoundPage: React.FC = () => {
     setModalPunctuality(5);
     setModalCooperation(5);
     setModalFeedback('');
-    setModalIsAnonymous(isAnonymous);
     setShowReviewModal(true);
   };
 
@@ -467,7 +428,6 @@ export const ReviewRoundPage: React.FC = () => {
     setSubmittingReview(true);
     try {
       await peerReviewApi.submitReview(targetRoundId, {
-        reviewerId: currentEvaluatorId,
         revieweeId: modalRevieweeId,
         scores: [
           { criterion: 'QUALITY', score: modalQuality },
@@ -808,7 +768,7 @@ export const ReviewRoundPage: React.FC = () => {
               })}
             </div>
             <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '6px' }}>
-              {stats.totalReviews > 0 ? `${stats.totalReviews} Đánh giá (Reviews)` : '0 Đánh giá (Reviews)'}
+              {stats.totalReviews > 0 ? `${stats.totalReviews} kết quả tổng hợp` : '0 kết quả tổng hợp'}
             </div>
           </div>
 
@@ -925,7 +885,7 @@ export const ReviewRoundPage: React.FC = () => {
                     color: stats.totalReviews > 0 ? '#6366f1' : theme.subTextColor,
                   }}
                 >
-                  {stats.totalReviews > 0 ? `${stats.qualityAvg.toFixed(1)}/5 ★ (${stats.qualityVotes} votes)` : 'Chưa có vote'}
+                  {stats.totalReviews > 0 ? `${stats.qualityAvg.toFixed(1)}/5 ★ (${stats.qualityVotes} kết quả)` : 'Chưa có kết quả'}
                 </span>
               </div>
 
@@ -967,7 +927,7 @@ export const ReviewRoundPage: React.FC = () => {
                     color: stats.totalReviews > 0 ? '#10b981' : theme.subTextColor,
                   }}
                 >
-                  {stats.totalReviews > 0 ? `${stats.punctualityAvg.toFixed(1)}/5 ★ (${stats.punctualityVotes} votes)` : 'Chưa có vote'}
+                  {stats.totalReviews > 0 ? `${stats.punctualityAvg.toFixed(1)}/5 ★ (${stats.punctualityVotes} kết quả)` : 'Chưa có kết quả'}
                 </span>
               </div>
 
@@ -1009,7 +969,7 @@ export const ReviewRoundPage: React.FC = () => {
                     color: stats.totalReviews > 0 ? '#f59e0b' : theme.subTextColor,
                   }}
                 >
-                  {stats.totalReviews > 0 ? `${stats.cooperationAvg.toFixed(1)}/5 ★ (${stats.cooperationVotes} votes)` : 'Chưa có vote'}
+                  {stats.totalReviews > 0 ? `${stats.cooperationAvg.toFixed(1)}/5 ★ (${stats.cooperationVotes} kết quả)` : 'Chưa có kết quả'}
                 </span>
               </div>
             </div>
@@ -1175,7 +1135,7 @@ export const ReviewRoundPage: React.FC = () => {
               })}
             </div>
 
-            {/* Banner Right: KEY FEATURE - TOGGLE "ẨN DANH" */}
+            {/* Privacy policy is enforced by the API for every review round. */}
             <div
               style={{
                 zIndex: 2,
@@ -1190,64 +1150,23 @@ export const ReviewRoundPage: React.FC = () => {
                 gap: '8px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {isAnonymous ? <EyeOff size={18} color={isLight ? '#059669' : '#a7f3d0'} /> : <Eye size={18} color={isLight ? '#d97706' : '#fed7aa'} />}
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
-                    Chế độ Ẩn danh:
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsAnonymous(!isAnonymous)}
-                  style={{
-                    position: 'relative',
-                    width: '48px',
-                    height: '26px',
-                    borderRadius: '13px',
-                    backgroundColor: isAnonymous ? '#10b981' : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255, 255, 255, 0.25)'),
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s ease',
-                    padding: '2px',
-                    outline: 'none',
-                  }}
-                  title={isAnonymous ? 'Bật: Hiển thị Anonymous001, Anonymous002,...' : 'Tắt: Hiển thị tên thật user'}
-                >
-                  <div
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      borderRadius: '50%',
-                      backgroundColor: '#ffffff',
-                      transform: isAnonymous ? 'translateX(22px)' : 'translateX(0)',
-                      transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    }}
-                  />
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <EyeOff size={18} color={isLight ? '#059669' : '#a7f3d0'} />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
+                  Chấm chéo luôn ẩn danh
+                </span>
               </div>
-
               <div
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: isAnonymous ? (isLight ? '#059669' : '#a7f3d0') : (isLight ? '#d97706' : '#fed7aa'),
+                  color: isLight ? '#059669' : '#a7f3d0',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
                 }}
               >
-                {isAnonymous ? (
-                  <>
-                    <CheckCircle2 size={12} /> BẬT: Hiển thị Anonymous001, Anonymous002,...
-                  </>
-                ) : (
-                  <>
-                    <Eye size={12} /> TẮT: Hiển thị tên thật thành viên
-                  </>
-                )}
+                <CheckCircle2 size={12} /> Kết quả chỉ công bố khi đủ ít nhất 3 người chấm
               </div>
             </div>
           </div>
@@ -1375,17 +1294,6 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
             ) : (
               filteredReviews.map((review) => {
-                const displayName = isAnonymous
-                  ? reviewerAnonymousMap.get(review.reviewerId) || `Anonymous${String(review.reviewerId % 100).padStart(3, '0')}`
-                  : review.reviewerName;
-
-                const reviewerObj = members.find((m) => m.id === review.reviewerId);
-                const avatarBg = isAnonymous ? '#6366f1' : reviewerObj?.color || '#3b82f6';
-                const avatarText = isAnonymous ? '🕶️' : getInitials(review.reviewerName);
-
-                const currentLikes = likesMap[review.id] ?? (review.likesCount || 0);
-                const isLiked = Boolean(userLikedMap[review.id]);
-
                 const formattedDate = review.submittedAt
                   ? new Date(review.submittedAt).toLocaleDateString('vi-VN', {
                       day: 'numeric',
@@ -1406,27 +1314,20 @@ export const ReviewRoundPage: React.FC = () => {
                       transition: 'all 0.2s ease',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '14px',
+                      gap: '16px',
                     }}
                   >
-                    {/* Card Header: Avatar + Name + Date & Stars */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                      }}
-                    >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                         <div
                           style={{
                             width: 44,
                             height: 44,
                             borderRadius: '50%',
-                            backgroundColor: avatarBg,
+                            backgroundColor: '#6366f1',
                             color: '#ffffff',
                             fontWeight: 700,
-                            fontSize: isAnonymous ? '16px' : '14px',
+                            fontSize: '16px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1434,218 +1335,56 @@ export const ReviewRoundPage: React.FC = () => {
                             boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
                           }}
                         >
-                          {avatarText}
+                          🕶️
                         </div>
 
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <h4
-                              style={{
-                                fontSize: '15px',
-                                fontWeight: 700,
-                                margin: 0,
-                                color: theme.headingColor,
-                              }}
-                            >
-                              {displayName}
-                            </h4>
-                            {isAnonymous && (
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 600,
-                                  padding: '1px 6px',
-                                  borderRadius: '10px',
-                                  backgroundColor: isLight ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)',
-                                  color: '#6366f1',
-                                }}
-                              >
-                                Ẩn danh K-Anonymity
-                              </span>
-                            )}
-                          </div>
+                          <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
+                            Tổng hợp ẩn danh
+                          </h4>
                           <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px' }}>
-                            {formattedDate} · Chấm cho:{' '}
-                            <strong style={{ color: theme.headingColor }}>
-                              {review.revieweeName || 'Thành viên'}
-                            </strong>
+                            {review.revieweeName || 'Thành viên'} · {review.submissionCount} người chấm
+                            {formattedDate ? ` · Cập nhật ${formattedDate}` : ''}
                           </div>
                         </div>
                       </div>
 
-                      {/* Top Right Stars */}
-                      <div style={{ display: 'flex', gap: '3px', color: '#f59e0b' }}>
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star
-                            key={s}
-                            size={16}
-                            fill={s <= Math.round(review.averageScore) ? '#f59e0b' : 'transparent'}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Criteria score tags */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '3px 9px',
-                          borderRadius: '6px',
-                          backgroundColor: theme.pillBg,
-                          border: theme.pillBorder,
-                          color: theme.pillText,
-                        }}
-                      >
-                        Chất lượng: {review.qualityScore ?? 5}/5 ★
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '3px 9px',
-                          borderRadius: '6px',
-                          backgroundColor: theme.pillBg,
-                          border: theme.pillBorder,
-                          color: theme.pillText,
-                        }}
-                      >
-                        Tiến độ: {review.punctualityScore ?? 5}/5 ★
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '3px 9px',
-                          borderRadius: '6px',
-                          backgroundColor: theme.pillBg,
-                          border: theme.pillBorder,
-                          color: theme.pillText,
-                        }}
-                      >
-                        Hợp tác: {review.cooperationScore ?? 5}/5 ★
-                      </span>
-                    </div>
-
-                    {/* Linked Done Card Badge */}
-                    {review.cardTitle && (
-                      <div style={{ marginBottom: '-4px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            padding: '3px 9px',
-                            borderRadius: '6px',
-                            backgroundColor: isLight ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
-                            border: '1px solid rgba(16,185,129,0.25)',
-                            color: '#10b981',
-                          }}
-                        >
-                          ✅ Thẻ hoàn thành: {review.cardTitle}
+                      {review.anonymousSafe && review.averageScore !== null ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b' }}>
+                          <Star size={18} fill="#f59e0b" />
+                          <strong>{review.averageScore.toFixed(2)} / 5</strong>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: theme.subTextColor }}>
+                          {review.submissionCount}/3 phiếu
                         </span>
-                      </div>
-                    )}
-
-                    {/* Feedback Content Text */}
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: '13px',
-                        lineHeight: 1.6,
-                        color: theme.textColor,
-                      }}
-                    >
-                      {review.feedback ||
-                        'Thành viên hoàn thành tốt công việc được phân công, phối hợp ăn ý với nhóm và duy trì tiến độ sprint ổn định.'}
-                    </p>
-
-                    {/* Footer Actions: Reply, Share, Likes */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '4px',
-                        paddingTop: '10px',
-                        borderTop: isLight ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <button
-                          type="button"
-                          onClick={() => showToast({ message: 'Tính năng phản hồi đang được phát triển', type: 'info' })}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: theme.subTextColor,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <MessageCircle size={14} /> Reply
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(review.feedback);
-                              showToast({ message: 'Đã sao chép nhận xét!', type: 'success' });
-                            }
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: theme.subTextColor,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Share2 size={14} /> Share
-                        </button>
-                      </div>
-
-                      {/* Likes Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleToggleLike(review.id, review.likesCount || 0)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'none',
-                          border: 'none',
-                          padding: '4px 8px',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          color: isLiked ? '#6366f1' : theme.subTextColor,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          backgroundColor: isLiked
-                            ? isLight
-                              ? 'rgba(99, 102, 241, 0.1)'
-                              : 'rgba(99, 102, 241, 0.15)'
-                            : 'transparent',
-                        }}
-                      >
-                        <span>{currentLikes}</span>
-                        <ThumbsUp size={15} fill={isLiked ? '#6366f1' : 'transparent'} />
-                      </button>
+                      )}
                     </div>
+
+                    {review.anonymousSafe ? (
+                      <>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 9px', borderRadius: '6px', backgroundColor: theme.pillBg, border: theme.pillBorder, color: theme.pillText }}>
+                            Chất lượng: {review.qualityScore?.toFixed(1) ?? '—'}/5
+                          </span>
+                          <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 9px', borderRadius: '6px', backgroundColor: theme.pillBg, border: theme.pillBorder, color: theme.pillText }}>
+                            Tiến độ: {review.punctualityScore?.toFixed(1) ?? '—'}/5
+                          </span>
+                          <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 9px', borderRadius: '6px', backgroundColor: theme.pillBg, border: theme.pillBorder, color: theme.pillText }}>
+                            Hợp tác: {review.cooperationScore?.toFixed(1) ?? '—'}/5
+                          </span>
+                        </div>
+                        {review.feedbackComments.length > 0 && (
+                          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', lineHeight: 1.6, color: theme.textColor }}>
+                            {review.feedbackComments.map((comment, index) => <li key={`${review.id}-${index}`}>{comment}</li>)}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      <p role="status" style={{ margin: 0, fontSize: '13px', color: theme.subTextColor }}>
+                        Điểm và nhận xét đang được giữ kín cho đến khi có ít nhất 3 người chấm khác nhau.
+                      </p>
+                    )}
                   </div>
                 );
               })
@@ -2161,60 +1900,28 @@ export const ReviewRoundPage: React.FC = () => {
                     />
                   </div>
 
-                  {/* In-form Anonymous Toggle Switch */}
+                  {/* Anonymous identity is fixed by the peer-review policy. */}
                   <div
                     style={{
                       padding: '12px 16px',
                       borderRadius: '14px',
-                      background: modalIsAnonymous ? 'rgba(99, 102, 241, 0.08)' : 'var(--surface2)',
-                      border: modalIsAnonymous ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid var(--line)',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {modalIsAnonymous ? <EyeOff size={18} color="#6366f1" /> : <Eye size={18} color="var(--fg2)" />}
+                      <EyeOff size={18} color="#6366f1" />
                       <div>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
-                          Bật chế độ Ẩn danh (Anonymous)
+                          Phiếu chấm luôn được giữ ẩn danh
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '2px' }}>
-                          {modalIsAnonymous
-                            ? 'Phiếu chấm sẽ hiển thị dưới danh xưng Anonymous (K-Anonymity)'
-                            : 'Phiếu chấm sẽ hiển thị tên thật của bạn'}
+                          Danh tính người chấm không được công bố; chỉ hiện kết quả tổng hợp khi đủ ít nhất 3 người.
                         </div>
                       </div>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setModalIsAnonymous(!modalIsAnonymous)}
-                      style={{
-                        position: 'relative',
-                        width: '44px',
-                        height: '24px',
-                        borderRadius: '12px',
-                        backgroundColor: modalIsAnonymous ? '#10b981' : 'var(--line)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s ease',
-                        padding: '2px',
-                        outline: 'none',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ffffff',
-                          transform: modalIsAnonymous ? 'translateX(20px)' : 'translateX(0)',
-                          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        }}
-                      />
-                    </button>
                   </div>
                 </div>
               )}
@@ -2297,11 +2004,10 @@ export const ReviewRoundPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Identity Mode */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
-                      <span style={{ color: 'var(--fg3)' }}>Chế độ hiển thị:</span>
-                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1' }}>
-                        {modalIsAnonymous ? '🕶️ Ẩn danh (Anonymous K-Anonymity)' : '👤 Công khai tên thật'}
+                      <span style={{ color: 'var(--fg3)' }}>Chính sách:</span>
+                      <span style={{ fontWeight: 600, color: '#10b981' }}>
+                        🕶️ Luôn ẩn danh; tổng hợp khi đủ ngưỡng
                       </span>
                     </div>
                   </div>

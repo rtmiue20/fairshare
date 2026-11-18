@@ -46,7 +46,6 @@ export interface CreateReviewRoundPayload {
 }
 
 export interface ReviewSubmissionPayload {
-  reviewerId?: number;
   revieweeId: number;
   scores: { criterion: ReviewCriterion; score: number }[];
   feedback?: string;
@@ -90,21 +89,16 @@ export interface PeerReviewResult {
 export interface PeerReviewDetail {
   id: number;
   reviewRoundId: number;
-  reviewerId: number;
-  reviewerName: string;
-  reviewerEmail: string;
   revieweeId: number;
   revieweeName: string;
-  averageScore: number;
-  qualityScore?: number;
-  punctualityScore?: number;
-  cooperationScore?: number;
-  scores?: { criterion: ReviewCriterion; score: number }[];
-  feedback: string;
+  averageScore: number | null;
+  qualityScore: number | null;
+  punctualityScore: number | null;
+  cooperationScore: number | null;
+  submissionCount: number;
+  anonymousSafe: boolean;
+  feedbackComments: string[];
   submittedAt?: string;
-  likesCount?: number;
-  cardId?: number;
-  cardTitle?: string;
 }
 
 export const peerReviewApi = {

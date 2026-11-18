@@ -8,12 +8,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 @Component
 public class AnonymityAggregator {
+
+    private static final int MIN_ANONYMITY_THRESHOLD = 3;
 
     @Data
     @Builder
@@ -36,39 +38,45 @@ public class AnonymityAggregator {
                     .build();
         }
 
-        Set<Long> reviewerIds = new LinkedHashSet<>();
+        Map<Long, List<Integer>> scoresByReviewer = new LinkedHashMap<>();
         for (ReviewSubmission submission : submissions) {
             User reviewer = submission.getReviewer();
             if (reviewer != null && reviewer.getId() != null) {
-                reviewerIds.add(reviewer.getId());
+                scoresByReviewer.computeIfAbsent(reviewer.getId(), ignored -> new ArrayList<>())
+                        .add(submission.getScore());
             }
         }
 
-        int count = reviewerIds.size();
-        boolean safe = count >= threshold;
+        int count = scoresByReviewer.size();
+        boolean safe = count >= Math.max(MIN_ANONYMITY_THRESHOLD, threshold);
 
-        double sum = 0.0;
-        List<String> comments = new ArrayList<>();
-        Set<Long> commenters = new LinkedHashSet<>();
+        double reviewerAverages = 0.0;
+        Map<Long, String> commentsByReviewer = new LinkedHashMap<>();
 
-        for (ReviewSubmission s : submissions) {
-            sum += s.getScore();
-            User reviewer = s.getReviewer();
+        for (Map.Entry<Long, List<Integer>> entry : scoresByReviewer.entrySet()) {
+            reviewerAverages += entry.getValue().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+        }
+
+        for (ReviewSubmission submission : submissions) {
+            User reviewer = submission.getReviewer();
             Long reviewerId = reviewer == null ? null : reviewer.getId();
-            if (safe && reviewerId != null && s.getFeedback() != null
-                    && !s.getFeedback().isBlank() && commenters.add(reviewerId)) {
-                comments.add(s.getFeedback());
+            if (reviewerId != null && submission.getFeedback() != null
+                    && !submission.getFeedback().isBlank()) {
+                commentsByReviewer.putIfAbsent(reviewerId, submission.getFeedback());
             }
         }
 
-        double avg = safe ? sum / submissions.size() : 0.0;
+        double avg = safe && count > 0 ? reviewerAverages / count : 0.0;
+        List<String> comments = safe && commentsByReviewer.size() >= Math.max(MIN_ANONYMITY_THRESHOLD, threshold)
+                ? new ArrayList<>(commentsByReviewer.values())
+                : Collections.emptyList();
 
         return AggregatedResult.builder()
                 .revieweeId(revieweeId)
                 .averageScore(Math.round(avg * 100.0) / 100.0)
                 .submissionCount(count)
                 .isAnonymousSafe(safe)
-                .feedbackComments(safe ? comments : Collections.emptyList())
+                .feedbackComments(comments)
                 .build();
     }
 }

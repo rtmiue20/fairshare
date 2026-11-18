@@ -72,12 +72,16 @@ public class PeerReviewService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReviewRound> getRoundsByTeam(Long teamId) {
+    public List<ReviewRound> getRoundsByTeam(Long teamId, Long requesterId) {
+        assertTeamMember(teamId, requesterId);
         return reviewRoundRepository.findByTeamId(teamId);
     }
 
     @Transactional(readOnly = true)
-    public List<ReviewRound> getRoundsBySprint(Long sprintId) {
+    public List<ReviewRound> getRoundsBySprint(Long sprintId, Long requesterId) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sprint not found: " + sprintId));
+        assertTeamMember(sprint.getTeam().getId(), requesterId);
         return reviewRoundRepository.findBySprintId(sprintId);
     }
 
@@ -176,32 +180,23 @@ public class PeerReviewService {
     }
 
     @Transactional(readOnly = true)
-    public AnonymityAggregator.AggregatedResult getAggregatedResults(Long roundId, Long revieweeId) {
-        ReviewRound round = reviewRoundRepository.findById(roundId)
-                .orElseThrow(() -> new ResourceNotFoundException("Review round not found: " + roundId));
-
-        List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
-        return anonymityAggregator.aggregateForReviewee(revieweeId, submissions, round.getMinSubmissionsRequired());
-    }
-
-    @Transactional(readOnly = true)
     public AnonymityAggregator.AggregatedResult getAggregatedResults(Long roundId, Long revieweeId, Long requesterId) {
-        ReviewRound round = reviewRoundRepository.findById(roundId)
-                .orElseThrow(() -> new ResourceNotFoundException("Review round not found: " + roundId));
-        if (requesterId != null && round.getTeam() != null && round.getTeam().getId() != null) {
-            if (!teamMemberRepository.existsByTeamIdAndUserId(round.getTeam().getId(), requesterId)) {
-                throw new ForbiddenException("Bạn không thuộc nhóm của đợt chấm chéo này");
-            }
+        ReviewRound round = getRound(roundId);
+        assertTeamMember(round.getTeam().getId(), requesterId);
+        if (!teamMemberRepository.existsByTeamIdAndUserId(round.getTeam().getId(), revieweeId)) {
+            throw new ForbiddenException("Thành viên cần xem kết quả không thuộc nhóm của đợt chấm chéo này");
         }
         List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
         return anonymityAggregator.aggregateForReviewee(revieweeId, submissions, round.getMinSubmissionsRequired());
     }
 
     @Transactional(readOnly = true)
-    public List<ReviewerSubmissionDto> getSubmissionsByReviewer(Long roundId, Long reviewerId) {
-        if (roundId == null || reviewerId == null) {
-            return List.of();
+    public List<ReviewerSubmissionDto> getSubmissionsByReviewer(Long roundId, Long reviewerId, Long requesterId) {
+        ReviewRound round = getRound(roundId);
+        if (requesterId == null || !requesterId.equals(reviewerId)) {
+            throw new ForbiddenException("Bạn chỉ có thể xem các đánh giá do chính mình gửi");
         }
+        assertTeamMember(round.getTeam().getId(), requesterId);
         List<ReviewSubmission> submissions = reviewSubmissionRepository.findByReviewRoundIdAndReviewerId(roundId, reviewerId);
         Map<Long, List<ReviewSubmission>> byReviewee = submissions.stream()
                 .filter(s -> s.getReviewee() != null)
@@ -247,99 +242,81 @@ public class PeerReviewService {
     }
 
     @Transactional(readOnly = true)
-    public List<PeerReviewDetailDto> getRoundReviewDetails(Long roundId, Long revieweeId) {
-        if (roundId == null) {
-            return List.of();
+    public List<PeerReviewDetailDto> getRoundReviewDetails(Long roundId, Long revieweeId, Long requesterId) {
+        ReviewRound round = getRound(roundId);
+        assertTeamMember(round.getTeam().getId(), requesterId);
+        if (revieweeId != null && !teamMemberRepository.existsByTeamIdAndUserId(round.getTeam().getId(), revieweeId)) {
+            throw new ForbiddenException("Thành viên cần xem kết quả không thuộc nhóm của đợt chấm chéo này");
         }
-        List<ReviewSubmission> submissions;
-        if (revieweeId != null && revieweeId > 0) {
-            submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
-        } else {
-            submissions = reviewSubmissionRepository.findByReviewRoundId(roundId);
-        }
-
-        // Group by (reviewerId, revieweeId) to combine criteria scores into a single review card
-        Map<String, List<ReviewSubmission>> grouped = submissions.stream()
-                .filter(s -> s.getReviewer() != null && s.getReviewee() != null)
+        List<ReviewSubmission> submissions = revieweeId == null || revieweeId <= 0
+                ? reviewSubmissionRepository.findByReviewRoundId(roundId)
+                : reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
+        Map<Long, List<ReviewSubmission>> grouped = submissions.stream()
+                .filter(s -> s.getReviewee() != null && s.getReviewee().getId() != null)
                 .collect(Collectors.groupingBy(
-                        s -> s.getReviewer().getId() + "_" + s.getReviewee().getId(),
+                        s -> s.getReviewee().getId(),
                         LinkedHashMap::new,
                         Collectors.toList()
                 ));
-
         List<PeerReviewDetailDto> results = new ArrayList<>();
-        for (List<ReviewSubmission> list : grouped.values()) {
-            if (list.isEmpty()) continue;
-            ReviewSubmission first = list.get(0);
-            User reviewer = first.getReviewer();
-            User reviewee = first.getReviewee();
-
-            double avg = list.stream().mapToInt(ReviewSubmission::getScore).average().orElse(0.0);
-            Integer quality = list.stream().filter(s -> s.getCriterion() == ReviewCriterion.QUALITY).map(ReviewSubmission::getScore).findFirst().orElse(null);
-            Integer punctuality = list.stream().filter(s -> s.getCriterion() == ReviewCriterion.PUNCTUALITY).map(ReviewSubmission::getScore).findFirst().orElse(null);
-            Integer cooperation = list.stream().filter(s -> s.getCriterion() == ReviewCriterion.COOPERATION).map(ReviewSubmission::getScore).findFirst().orElse(null);
-
-            String feedback = list.stream()
-                    .map(ReviewSubmission::getFeedback)
-                    .filter(Objects::nonNull)
-                    .filter(f -> !f.isBlank())
-                    .findFirst()
-                    .orElse("");
-
-            LocalDateTime submittedAt = list.stream()
-                    .map(ReviewSubmission::getCreatedAt)
-                    .filter(Objects::nonNull)
-                    .max(LocalDateTime::compareTo)
-                    .orElse(first.getCreatedAt());
-
-            List<PeerReviewDetailDto.CriterionScoreDto> scoreDtos = list.stream()
-                    .map(s -> new PeerReviewDetailDto.CriterionScoreDto(s.getCriterion(), s.getScore()))
-                    .toList();
-
-            // Real likes from DB (sum of all submissions in this reviewer-reviewee group)
-            int totalLikes = list.stream().mapToInt(ReviewSubmission::getLikesCount).sum();
-
-            // Card linkage (take from first submission that has a card)
-            Card linkedCard = list.stream()
-                    .map(ReviewSubmission::getCard)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-
+        for (Map.Entry<Long, List<ReviewSubmission>> entry : grouped.entrySet()) {
+            Long currentRevieweeId = entry.getKey();
+            List<ReviewSubmission> revieweeSubmissions = entry.getValue();
+            ReviewSubmission first = revieweeSubmissions.get(0);
+            AnonymityAggregator.AggregatedResult aggregate = anonymityAggregator.aggregateForReviewee(
+                    currentRevieweeId, revieweeSubmissions, round.getMinSubmissionsRequired());
+            boolean safe = aggregate.isAnonymousSafe();
             results.add(PeerReviewDetailDto.builder()
-                    .id(first.getId())
+                    .id(currentRevieweeId)
                     .reviewRoundId(roundId)
-                    .reviewerId(reviewer.getId())
-                    .reviewerName(reviewer.getFullName() != null && !reviewer.getFullName().isBlank() ? reviewer.getFullName() : reviewer.getEmail())
-                    .reviewerEmail(reviewer.getEmail())
-                    .revieweeId(reviewee.getId())
-                    .revieweeName(reviewee.getFullName() != null && !reviewee.getFullName().isBlank() ? reviewee.getFullName() : reviewee.getEmail())
-                    .averageScore(Math.round(avg * 100.0) / 100.0)
-                    .qualityScore(quality)
-                    .punctualityScore(punctuality)
-                    .cooperationScore(cooperation)
-                    .scores(scoreDtos)
-                    .feedback(feedback)
-                    .submittedAt(submittedAt)
-                    .likesCount(totalLikes)
-                    .cardId(linkedCard != null ? linkedCard.getId() : null)
-                    .cardTitle(linkedCard != null ? linkedCard.getTitle() : null)
+                    .revieweeId(currentRevieweeId)
+                    .revieweeName(first.getReviewee().getFullName() != null
+                            && !first.getReviewee().getFullName().isBlank()
+                            ? first.getReviewee().getFullName()
+                            : first.getReviewee().getEmail())
+                    .averageScore(safe ? aggregate.getAverageScore() : null)
+                    .qualityScore(safe ? averageScoreForCriterion(revieweeSubmissions, ReviewCriterion.QUALITY) : null)
+                    .punctualityScore(safe ? averageScoreForCriterion(revieweeSubmissions, ReviewCriterion.PUNCTUALITY) : null)
+                    .cooperationScore(safe ? averageScoreForCriterion(revieweeSubmissions, ReviewCriterion.COOPERATION) : null)
+                    .submissionCount(aggregate.getSubmissionCount())
+                    .anonymousSafe(safe)
+                    .feedbackComments(safe ? aggregate.getFeedbackComments() : List.of())
+                    .submittedAt(revieweeSubmissions.stream()
+                            .map(ReviewSubmission::getCreatedAt)
+                            .filter(Objects::nonNull)
+                            .max(LocalDateTime::compareTo)
+                            .orElse(null))
                     .build());
         }
         return results;
+    }
+
+    private Double averageScoreForCriterion(List<ReviewSubmission> submissions, ReviewCriterion criterion) {
+        Map<Long, Integer> reviewerScores = new LinkedHashMap<>();
+        for (ReviewSubmission submission : submissions) {
+            if (submission.getReviewer() != null && submission.getReviewer().getId() != null
+                    && submission.getCriterion() == criterion) {
+                reviewerScores.putIfAbsent(submission.getReviewer().getId(), submission.getScore());
+            }
+        }
+        return reviewerScores.isEmpty()
+                ? null
+                : reviewerScores.values().stream().mapToInt(Integer::intValue).average().orElse(0.0);
     }
 
     @Transactional
     public int toggleLike(Long submissionId, Long userId) {
         ReviewSubmission submission = reviewSubmissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review submission not found: " + submissionId));
+        assertTeamMember(submission.getReviewRound().getTeam().getId(), userId);
         submission.setLikesCount(submission.getLikesCount() + 1);
         reviewSubmissionRepository.save(submission);
         return submission.getLikesCount();
     }
 
     @Transactional(readOnly = true)
-    public List<CardDto> getDoneCardsForTeam(Long teamId) {
+    public List<CardDto> getDoneCardsForTeam(Long teamId, Long requesterId) {
+        assertTeamMember(teamId, requesterId);
         List<Card> allCards = cardRepository.findByBoardTeamId(teamId);
         return allCards.stream()
                 .filter(c -> c.getColumn() != null && "Done".equalsIgnoreCase(c.getColumn().getName()))
@@ -357,12 +334,18 @@ public class PeerReviewService {
 
     private void requireLeader(Long teamId, Long userId) {
         if (userId == null) {
-            throw new BusinessException("Authenticated user is required");
+            throw new ForbiddenException("Authenticated user is required");
         }
         TeamMember member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-                .orElseThrow(() -> new BusinessException("Only a team leader can manage review rounds"));
+                .orElseThrow(() -> new ForbiddenException("Only a team leader can manage review rounds"));
         if (member.getRole() != MemberRole.LEADER) {
-            throw new BusinessException("Only a team leader can manage review rounds");
+            throw new ForbiddenException("Only a team leader can manage review rounds");
+        }
+    }
+
+    private void assertTeamMember(Long teamId, Long userId) {
+        if (teamId == null || userId == null || !teamMemberRepository.existsByTeamIdAndUserId(teamId, userId)) {
+            throw new ForbiddenException("Bạn không thuộc nhóm của đợt chấm chéo này");
         }
     }
 }

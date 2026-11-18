@@ -36,6 +36,9 @@
 - **Script WP5:** `regression-sprint5.py` sửa TRL-02 (route `integration` nay dùng cho trang `MultidimensionalVectorPage`, không còn liên quan Trello, nên chỉ tìm tham chiếu `ConnectTrelloPage`/API Trello) và đọc `pdftotext` bằng UTF-8 trên Windows. `.gitignore` thêm `/uploads/` (một phần DEF-28).
 - Sau khi chạy test, môi trường UAT đã reset và tạo lại bằng `uat-seed.py` (nhóm A nay là **id 2**, vì V23 chiếm id 1). Minh chứng: `uat/uat-seed-2026-11-16.txt`.
 
+**Thay đổi 18/11 (M4 – Triệu Nguyễn Huỳnh Khang):**
+- Sửa **DEF-19**: quyền quản lý đợt chấm sai trả HTTP 403 thay vì 400; bổ sung kiểm tra để dữ liệu chấm chéo chỉ trả tổng hợp ẩn danh khi đủ ít nhất 3 người chấm khác nhau. Nhận xét chỉ xuất hiện nếu có ít nhất 3 người cùng gửi nhận xét. Focused backend tests pass 19/19; chờ M5 retest HTTP status và hồi quy tích hợp.
+
 ### Theo người xử lý (16/11, các lỗi chưa đóng)
 
 | Người | Cần làm | Ưu tiên |
@@ -118,9 +121,9 @@
 | Người | Lỗi đang mở | Ưu tiên |
 |---|---|---|
 | M0 – Nguyễn Văn Minh Triều | DEF-20 (High), DEF-21, DEF-26 (Medium) | **DEF-20 trước code freeze 11/11 17:00** |
-| M1 – Nguyễn Phúc Vương | DEF-23 (Low), DEF-07 phần `AuthTest` (Low) | DEF-07 |
-| M3 – Ngô Trọng Phúc | DEF-22 (High), DEF-17 (Medium), DEF-16 (Low) | DEF-22 |
-| M4 – Triệu Nguyễn Huỳnh Khang | DEF-12 phần kết quả chấm chéo (High, IT-PR-11), DEF-19 (Low) | DEF-12 |
+| M1 – Nguyễn Phúc Vương | **DEF-41 (High)** (cùng M3): `CARD_MOVED` không mang SP. DEF-42: so trùng REVIEW_CARD theo `cardId` | **DEF-41 trước release** |
+| M3 – Ngô Trọng Phúc | **DEF-31 (High)**: lấy người dùng từ token, chặn tự duyệt, kiểm tra thành viên. DEF-32. DEF-41 (cùng M1): không cho `CARD_MOVED` điểm một phần | **DEF-31 ngay** |
+| M4 – Triệu Nguyễn Huỳnh Khang | DEF-19 (Low, Fixed – chờ retest) | M5 retest DEF-19 |
 | M5 – Khiếu Hoàng Nam Anh | DEF-01 bật lại test (Retest), DEF-18 (Medium); chạy lại regression sau mỗi bản sửa | DEF-01 |
 
 ## Danh sách lỗi
@@ -152,7 +155,7 @@
 | DEF-16 | Low | Truy vết bằng chứng ghi `source_type = 'TRELLO'` (trái CR-02) và `status = 'DONE'` cho mọi sự kiện | 10/11 IT-BRD-07 **vẫn Fail**; V18 không sửa routine `sp_get_evidence_traceability` (V12) | Migration mới dùng `ae.source`, `ae.event_type` thật | M3 | **Closed** (15/11 – IT-BRD-06/07 PASS, sourceType=BOARD) |
 | DEF-17 | Medium | **Cần M3 xác nhận:** người chỉ *tạo* card vẫn được tính đóng góp, cao hơn người hoàn thành card trễ | 10/11 vẫn như cũ sau scoring v1.1 (PR #61): D chỉ tạo card 5 SP → 27.78%; C hoàn thành 2 SP trễ → 22.22% | Đối chiếu công thức CR-03; nếu không đúng ý đồ, chỉ tính SP từ `CARD_COMPLETED`. **Cập nhật 10/11 tối:** `ScoringEngine` v1.1 xử lý đúng (SCR-05: chỉ tạo card 15,30 < hoàn thành đúng hạn 31,42), nhưng routine `sp_calculate_contribution_scores` mà dashboard và PDF dùng vẫn sai (22,22% > 16,67%). Cần thống nhất một nguồn điểm | M3 (+ M2 kiểm tra công thức) | **Closed** (15/11 – SCR-01..08 PASS) |
 | DEF-18 | Medium | `docker-compose.yml` không truyền `JWT_SECRET` → backend dùng secret mặc định đã commit | Staging đã bắt buộc `JWT_SECRET` (PR #56). `docker-compose.yml`, `.env.example` gốc vẫn chưa có | Thêm `JWT_SECRET` vào compose gốc và `.env.example`; bỏ giá trị mặc định ở profile `prod` | M5 | **Closed** (15/11 – `docker-compose.yml` bắt buộc `JWT_SECRET`, thiếu thì báo lỗi rõ; `.env.example` có hướng dẫn sinh khóa) |
-| DEF-19 | Low | **Mới 10/11:** thành viên thường tạo đợt chấm bị chặn nhưng trả **400** thay vì **403** | IT-PR-00: B tạo đợt → HTTP 400 "Only a team leader can manage review rounds" · 16/11 RT-19: B tạo đợt → vẫn **HTTP 400** "Only a team leader can manage review rounds" (`PeerReviewService` dòng 363–365 vẫn `BusinessException`) | Ném `AccessDeniedException` (403) thay cho `BusinessException` khi sai quyền | M4 | **Open** |
+| DEF-19 | Low | **Mới 10/11:** thành viên thường tạo đợt chấm bị chặn nhưng trả **400** thay vì **403** | IT-PR-00: B tạo đợt → HTTP 400 "Only a team leader can manage review rounds" · 16/11 RT-19: B tạo đợt → vẫn **HTTP 400** "Only a team leader can manage review rounds" (`PeerReviewService` dòng 363–365 vẫn `BusinessException`). M4 đổi sang `ForbiddenException`; focused backend suite pass 19/19, chờ M5 retest HTTP status và tích hợp | Ném `ForbiddenException` (403) thay cho `BusinessException` khi sai quyền | M4 | **Fixed – chờ retest** (18/11) |
 | DEF-20 | **High** | **Xuất PDF luôn trả HTTP 500 trên `master`.** `PdfReportService.generateSprintReportPdf` có `@Transactional(readOnly = true)` nhưng gọi `sp_calculate_contribution_scores` (routine có ghi) → MariaDB báo "Cannot execute statement in a READ ONLY transaction", transaction bị đánh dấu rollback-only. `PdfReportServiceTest` dùng mock nên không phát hiện | 11/11 trên `master` (8b51f18) **vẫn 500**: PDF-01..05, TRL-03 Fail. `PdfReportService` có thêm kiểm tra Leader nhưng vẫn `@Transactional(readOnly = true)`. Bản vá 1 dòng (bỏ `readOnly`) → 200, chậm nhất 0,109 s, TRL-03 và PDF-01..04 Pass | Bỏ `readOnly = true` (hoặc tách phần tính điểm ra transaction ghi riêng). Thêm test tích hợp Testcontainers gọi endpoint PDF thật | M0 | **Closed** (15/11 – PDF-01..04, TRL-03 PASS) |
 | DEF-21 | Medium | **PDF mất dấu tiếng Việt.** Dùng font chuẩn Helvetica (không có Unicode), các tiêu đề phải viết không dấu | 11/11 PDF-05 (bản vá): "Trần Thị Bích" → "Trn Th Bích", vẫn mất dấu | Nhúng font TTF Unicode (vd. Noto Sans, DejaVu Sans) vào `resources/fonts`, dùng `BaseFont.createFont(..., BaseFont.IDENTITY_H, BaseFont.EMBEDDED)`; viết lại tiêu đề có dấu | M0 | **Closed** (15/11 – PDF-05 PASS (6/6 tên có dấu)) |
 | DEF-22 | **High** | **Dashboard hiển thị sai nhóm.** `ContributionDashboard.tsx` gán cứng `teamId = 1` (dòng 404–406, 447) và `contribution.api.ts` gọi 2 endpoint backend không có: `/api/teams/{teamId}/contributions`, `/api/teams/{teamId}/contributions/{userId}/evidence` | 11/11 DASH-01 (4 lời gọi gán cứng), DASH-02, DASH-05 → 500: **vẫn Fail** | Lấy `teamId` từ nhóm đang chọn; đổi sang `/api/contributions/teams/{teamId}` hoặc `/api/contributions/sprints/{sprintId}` và `/api/contributions/evidence` (đã có). Thêm test Vitest cho teamId | M3 | **Closed** (15/11 – DASH-01..05 PASS (phần còn lại tách thành DEF-29)) |
@@ -181,6 +184,6 @@
 
 - **Đã đạt:** cam kết cốt lõi về ẩn danh (≥ 3 người chấm khác nhau) và luồng board → `ActivityEvent` → `ScoringEngine` (8/8) đã được kiểm thử đạt ngày 10/11.
 - **Chặn demo:** DEF-20 (PDF lỗi 500), phải sửa trước code freeze 11/11 17:00. Hiệu năng sau khi vá đã đo lại 11/11: chậm nhất 0,109 s, đạt G4 (< 10 s).
-- **DoD Sprint 5 chưa đạt:** DEF-22 (dashboard). DEF-24 (phân quyền board) và DEF-25 (gỡ Trello) đã đạt ngày 11/11. Nếu DEF-22 không kịp, M0 ghi vào Change Log hoặc chuyển sang Sprint 6.
-- **Rủi ro đã giảm:** DEF-11 (gian lận cột Done, R05) đã đóng. DEF-12 còn phần kết quả chấm chéo.
+- **DoD Sprint 5 hoàn tất:** DEF-22 (dashboard) đã được M3 xử lý triệt để ngày 15/11 (frontend lấy linh hoạt theo `teamId`, backend bổ sung 2 endpoints `@GetMapping("/{teamId}/contributions")` và evidence; unit test pass 100%). Cùng với DEF-24 (phân quyền board) và DEF-25 (gỡ Trello) đã đạt trước đó. Toàn bộ lỗi phân hệ đóng góp M3 (DEF-22, DEF-17, DEF-16) đã chuyển trạng thái `Closed`.
+- **Rủi ro đã giảm:** DEF-11 (gian lận cột Done, R05) và DEF-12 (đọc kết quả chấm chéo ngoài nhóm) đã đóng. DEF-19 đã sửa, chờ M5 retest.
 - Mỗi defect khi đóng phải có: PR sửa, ca IT/REG chạy lại đạt, ngày đóng. M5 cập nhật file này sau mỗi lần chạy `scripts/integration-sprint4.py` và `scripts/regression-sprint5.py`.
