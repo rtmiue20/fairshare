@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FileDown } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { reportApi } from '../../api/report.api';
 
@@ -31,7 +32,10 @@ export const ExportReportButton: React.FC<ExportReportButtonProps> = ({ teamId, 
 
   return (
     <Button onClick={handleExport} isLoading={loading} variant="primary">
-      📄 Xuất báo cáo PDF
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+        <FileDown size={15} />
+        <span>Xuất báo cáo PDF</span>
+      </span>
     </Button>
   );
 };

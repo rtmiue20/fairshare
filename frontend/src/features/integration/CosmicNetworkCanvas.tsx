@@ -20,6 +20,13 @@ import {
   Users,
   Star,
   AlertTriangle,
+  ChevronDown,
+  Check,
+  Sliders,
+  BarChart2,
+  TrendingUp,
+  Target,
+  ThumbsUp,
 } from 'lucide-react';
 
 export interface CosmicNetworkCanvasProps {
@@ -1554,7 +1561,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                   <span className="truncate max-w-[130px] text-left font-bold tracking-tight">
                     {members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'Chọn thành viên'}
                   </span>
-                  <svg className={`w-3.5 h-3.5 ml-auto shrink-0 transition-transform ${showMemberDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+                  <ChevronDown className={`w-3.5 h-3.5 ml-auto shrink-0 transition-transform ${showMemberDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`} />
                 </button>
 
                 {showMemberDropdown && (
@@ -1622,9 +1629,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                               )}
                             </div>
                             {isActive && (
-                              <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
+                              <Check className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
                             )}
                           </button>
                         );
@@ -1832,8 +1837,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           <div className="w-full h-[1px] bg-zinc-200 dark:bg-white/10 my-2" />
 
           <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
-            <span>⚙ Chuẩn hóa: <b className="text-cyan-600 dark:text-cyan-300">ln(1+x) · MAD</b></span>
-            <span>📊 Khoảng tin cậy: <b className="text-emerald-600 dark:text-emerald-300">95% CI</b></span>
+            <span className="flex items-center gap-1"><Sliders className="w-3 h-3 text-cyan-600 dark:text-cyan-400" /> Chuẩn hóa: <b className="text-cyan-600 dark:text-cyan-300">ln(1+x) · MAD</b></span>
+            <span className="flex items-center gap-1"><BarChart2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Khoảng tin cậy: <b className="text-emerald-600 dark:text-emerald-300">95% CI</b></span>
           </div>
         </div>
       )}
@@ -1844,26 +1849,30 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           <div className="grid grid-cols-4 divide-x divide-zinc-200 dark:divide-white/10 px-4 py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Đóng góp p_i</span>
-              <strong className="text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-0.5">
-                ↗ {((finalPct || 0.22) * 100).toFixed(1)}%
+              <strong className="text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>{((finalPct || 0.22) * 100).toFixed(1)}%</span>
               </strong>
             </div>
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Điểm C_i</span>
-              <strong className="text-sm font-extrabold text-zinc-900 dark:text-white flex items-center justify-center gap-0.5">
-                ◎ {(compositeScore || 33.1).toFixed(1)}
+              <strong className="text-sm font-extrabold text-zinc-900 dark:text-white flex items-center justify-center gap-1">
+                <Target className="w-3.5 h-3.5 text-zinc-400" />
+                <span>{(compositeScore || 33.1).toFixed(1)}</span>
               </strong>
             </div>
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Khoảng cách δ_i</span>
-              <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-0.5">
-                👥 {(distanceToCenter || 2.2).toFixed(2)}
+              <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                <span>{(distanceToCenter || 2.2).toFixed(2)}</span>
               </strong>
             </div>
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Khả dụng a_i</span>
-              <strong className="text-sm font-extrabold text-amber-600 dark:text-amber-300 flex items-center justify-center gap-0.5">
-                👍 {((availabilityFactor || 1.0) * 100).toFixed(0)}%
+              <strong className="text-sm font-extrabold text-amber-600 dark:text-amber-300 flex items-center justify-center gap-1">
+                <ThumbsUp className="w-3.5 h-3.5" />
+                <span>{((availabilityFactor || 1.0) * 100).toFixed(0)}%</span>
               </strong>
             </div>
           </div>
@@ -2023,9 +2032,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                                   )}
                                 </div>
                                 {isActive && (
-                                  <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
+                                  <Check className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
                                 )}
                               </button>
                             );

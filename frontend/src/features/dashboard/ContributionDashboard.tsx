@@ -36,6 +36,7 @@ import {
   RotateCcw,
   Search,
   TrendingUp,
+  FolderOpen,
 } from 'lucide-react';
 
 const AVAILABLE_SPRINTS: SprintOption[] = [
@@ -792,7 +793,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             gap: '1rem',
           }}
         >
-          <div style={{ fontSize: '2.5rem' }}>📂</div>
+          <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--fg3)', opacity: 0.85 }}>
+            <FolderOpen size={48} strokeWidth={1.5} />
+          </div>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--fg)' }}>
             Chưa có dữ liệu đóng góp cho Sprint này
           </h3>

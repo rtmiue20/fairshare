@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { LandingRibbon } from './LandingRibbon';
-import { FairShareIcon } from '../../components/ui/Icons';
 import { TopNav } from '../../components/layout/TopNav';
 import { ToastContainer } from '../../components/ui/Toast';
+import { Plug, BarChart3, Scale, Bell } from 'lucide-react';
 
 const CHAPTERS = [
   { name: 'Mở đầu' },
@@ -101,28 +101,28 @@ export const LandingPage: React.FC = () => {
                 <div className="cards c4">
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="plug" />
+                      <Plug size={20} />
                     </span>
                     <h3>Ghi nhận tự động</h3>
                     <p>Task Board Kanban nội bộ, Git commit logs và khai báo thủ công được tự động lưu vết minh chứng bất biến.</p>
                   </div>
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="chart" />
+                      <BarChart3 size={20} />
                     </span>
                     <h3>Bảng đóng góp</h3>
                     <p>Biểu đồ tỷ lệ từng người, mở ra thấy ai làm gì và lúc nào.</p>
                   </div>
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="vote" />
+                      <Scale size={20} />
                     </span>
                     <h3>Chấm chéo ẩn danh</h3>
                     <p>Cuối mỗi sprint, thành viên đánh giá nhau theo chất lượng, đúng hạn, hợp tác.</p>
                   </div>
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="bell" />
+                      <Bell size={20} />
                     </span>
                     <h3>Cảnh báo sớm</h3>
                     <p>Nhắc nhóm khi có người không hoạt động trong thời gian dài.</p>

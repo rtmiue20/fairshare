@@ -1563,6 +1563,9 @@ export const AlertList: React.FC = () => {
                           {a.autoDispatched && (
                             <span
                               style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
                                 fontSize: '11px',
                                 fontWeight: 600,
                                 padding: '2px 8px',
@@ -1571,7 +1574,8 @@ export const AlertList: React.FC = () => {
                                 color: palette.titleColor,
                               }}
                             >
-                              ✓ Đã tự động gửi cảnh báo
+                              <Check size={11} strokeWidth={2.5} />
+                              <span>Đã tự động gửi cảnh báo</span>
                             </span>
                           )}
                         </div>

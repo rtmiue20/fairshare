@@ -25,7 +25,8 @@ import {
   Paperclip,
   Trash2,
   ExternalLink,
-  UploadCloud
+  UploadCloud,
+  X,
 } from 'lucide-react';
 import {
   DragDropContext,
@@ -1085,10 +1086,10 @@ export const BoardView: React.FC = () => {
             </button>
             <button
               onClick={() => setErrorMessage(null)}
-              className="text-amber-400 hover:text-amber-200 px-1 text-xs"
+              className="text-amber-400 hover:text-amber-200 p-1 text-xs"
               title="Đóng thông báo"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -1352,7 +1353,7 @@ export const BoardView: React.FC = () => {
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                 title="Đóng"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1876,9 +1877,10 @@ export const BoardView: React.FC = () => {
               </h3>
               <button
                 onClick={() => setShowAddCard(false)}
-                className="text-zinc-500 hover:text-zinc-300 text-xs"
+                className="text-zinc-500 hover:text-zinc-300 p-1"
+                aria-label="Đóng"
               >
-                ✕
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -1995,8 +1997,8 @@ export const BoardView: React.FC = () => {
           <div className="bg-[#121318] border border-zinc-800 rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
               <h3 className="text-sm font-semibold text-white">Thêm cột trạng thái</h3>
-              <button onClick={() => setShowAddColumn(false)} className="text-zinc-500 hover:text-zinc-300 text-xs">
-                ✕
+              <button onClick={() => setShowAddColumn(false)} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Đóng">
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 

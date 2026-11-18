@@ -6,7 +6,7 @@ import { CreateProjectModal } from './CreateProjectModal';
 import { TeamMembersModal } from './TeamMembersModal';
 import { TaskCalendar } from './TaskCalendar';
 import { AllTasksSection } from './AllTasksSection';
-import { FolderPlus, Users, BarChart3, Award } from 'lucide-react';
+import { FolderPlus, Users, BarChart3, Award, Key } from 'lucide-react';
 
 export const TeamListPage: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, setActiveTeamId, initialized } = useProjectStore();
@@ -51,6 +51,9 @@ export const TeamListPage: React.FC = () => {
             <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <span
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
                   fontFamily: 'var(--f-mono)',
                   color: 'var(--accent)',
                   background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
@@ -62,7 +65,7 @@ export const TeamListPage: React.FC = () => {
                   letterSpacing: '0.12em',
                 }}
               >
-                🔑 Mã mời: {currentTeam.inviteCode}
+                <Key size={13} /> Mã mời: {currentTeam.inviteCode}
               </span>
               <span style={{ fontSize: '12px', color: 'var(--fg3)' }}>
                 (Chia sẻ mã này cho bạn bè để tham gia nhóm)

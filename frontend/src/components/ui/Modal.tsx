@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -54,14 +55,20 @@ export const Modal: React.FC<ModalProps> = ({
           <h3 style={{ margin: 0, fontSize: '18px' }}>{title}</h3>
           <button
             onClick={onClose}
+            aria-label="Đóng"
             style={{
               background: 'none',
               border: 'none',
-              fontSize: '18px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+              padding: '4px',
+              borderRadius: '4px',
             }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
         <div>{children}</div>

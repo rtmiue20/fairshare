@@ -57,6 +57,7 @@ import {
   TrendingUp,
   CheckCircle2,
   Zap,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -2311,8 +2312,9 @@ export const ReportPage: React.FC = () => {
                               [{m.ciLow}%, {m.ciHigh}%]
                             </td>
                             <td style={{ textAlign: 'center', padding: '14px' }}>
-                              <span style={{ fontSize: '12px', color: m.isSuspicious ? '#ef4444' : '#10b981', fontWeight: 600 }}>
-                                {m.isSuspicious ? '⚠ Bất thường' : '✓ An toàn'}
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: m.isSuspicious ? '#ef4444' : '#10b981', fontWeight: 600 }}>
+                                {m.isSuspicious ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
+                                <span>{m.isSuspicious ? 'Bất thường' : 'An toàn'}</span>
                               </span>
                             </td>
                             <td style={{ textAlign: 'center', padding: '14px' }}>
@@ -2515,8 +2517,15 @@ export const ReportPage: React.FC = () => {
                               {m.peerScore}
                             </td>
                             <td style={{ textAlign: 'center', padding: '14px' }}>
-                              <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600, backgroundColor: m.peerScore.includes('★') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)', color: m.peerScore.includes('★') ? '#34d399' : '#94a3b8' }}>
-                                {m.peerScore.includes('★') ? '✓ K-Anonymity Đạt chuẩn' : 'Đang thu thập phiếu'}
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600, backgroundColor: m.peerScore.includes('★') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)', color: m.peerScore.includes('★') ? '#34d399' : '#94a3b8' }}>
+                                {m.peerScore.includes('★') ? (
+                                  <>
+                                    <CheckCircle2 size={12} />
+                                    <span>K-Anonymity Đạt chuẩn</span>
+                                  </>
+                                ) : (
+                                  'Đang thu thập phiếu'
+                                )}
                               </span>
                             </td>
                             <td style={{ textAlign: 'center', padding: '14px' }}>
@@ -3216,7 +3225,10 @@ export const ReportPage: React.FC = () => {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '11px', color: theme.paperSubText }}>Thời điểm xuất:</div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: theme.paperHeading, fontFamily: 'monospace' }}>{todayStr}</div>
-            <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>✓ Dữ liệu bất biến đã khóa</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>
+              <CheckCircle2 size={12} />
+              <span>Dữ liệu bất biến đã khóa</span>
+            </div>
           </div>
         </div>
 
@@ -3551,8 +3563,9 @@ export const ReportPage: React.FC = () => {
                 <div style={{ fontSize: '22px', fontWeight: 800, color: '#10b981' }}>
                   {totalPercentage}%
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>
-                  ✓ Đạt chuẩn 100%
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10.5px', color: '#10b981', marginTop: '2px', fontWeight: 600 }}>
+                  <CheckCircle2 size={11} />
+                  <span>Đạt chuẩn 100%</span>
                 </div>
               </div>
 
@@ -3855,9 +3868,9 @@ export const ReportPage: React.FC = () => {
               }}
             >
               {[
-                { id: 'diagnostic', label: '🔮 Chẩn đoán & Rủi ro Nhóm', icon: <Lightbulb size={14} /> },
-                { id: 'algorithm', label: '⚙️ Giải mã 4 Tầng Robust MAD', icon: <Scale size={14} /> },
-                { id: 'chat', label: '💬 AI Advisor Hỏi Đáp', icon: <Bot size={14} /> },
+                { id: 'diagnostic', label: 'Chẩn đoán & Rủi ro Nhóm', icon: <Lightbulb size={14} /> },
+                { id: 'algorithm', label: 'Giải mã 4 Tầng Robust MAD', icon: <Scale size={14} /> },
+                { id: 'chat', label: 'AI Advisor Hỏi Đáp', icon: <Bot size={14} /> },
               ].map((tab) => {
                 const isActive = aiActiveTab === tab.id;
                 return (
@@ -3906,8 +3919,9 @@ export const ReportPage: React.FC = () => {
                         <TrendingUp size={16} color="#10b981" />
                       </div>
                       <div style={{ fontSize: '24px', fontWeight: 800, color: '#10b981' }}>88 / 100</div>
-                      <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', fontWeight: 600 }}>
-                        ✓ Mức độ phân bổ lành mạnh
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#10b981', marginTop: '4px', fontWeight: 600 }}>
+                        <CheckCircle2 size={12} />
+                        <span>Mức độ phân bổ lành mạnh</span>
                       </div>
                     </div>
 
@@ -3924,8 +3938,9 @@ export const ReportPage: React.FC = () => {
                         <CheckCircle2 size={16} color="#6366f1" />
                       </div>
                       <div style={{ fontSize: '24px', fontWeight: 800, color: '#6366f1' }}>0 Cảnh báo</div>
-                      <div style={{ fontSize: '11px', color: '#818cf8', marginTop: '4px', fontWeight: 600 }}>
-                        ✓ Anti-gaming check Passed
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#818cf8', marginTop: '4px', fontWeight: 600 }}>
+                        <CheckCircle2 size={12} />
+                        <span>Anti-gaming check Passed</span>
                       </div>
                     </div>
 
@@ -4007,16 +4022,19 @@ export const ReportPage: React.FC = () => {
 
                             <div style={{ minWidth: '170px', textAlign: 'right' }}>
                               {isTop ? (
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#10b981', backgroundColor: isLight ? '#dcfce7' : 'rgba(16, 185, 129, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
-                                  🌟 Năng suất vượt trội
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#10b981', backgroundColor: isLight ? '#dcfce7' : 'rgba(16, 185, 129, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                                  <Sparkles size={12} />
+                                  <span>Năng suất vượt trội</span>
                                 </span>
                               ) : isUnder ? (
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', backgroundColor: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
-                                  ⚡ Cần giao thêm Task
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#f59e0b', backgroundColor: isLight ? '#fef3c7' : 'rgba(245, 158, 11, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                                  <Zap size={12} />
+                                  <span>Cần giao thêm Task</span>
                                 </span>
                               ) : (
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#6366f1', backgroundColor: isLight ? '#e0e7ff' : 'rgba(99, 102, 241, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
-                                  ✓ Đạt chuẩn tiến độ
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#6366f1', backgroundColor: isLight ? '#e0e7ff' : 'rgba(99, 102, 241, 0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                                  <CheckCircle2 size={12} />
+                                  <span>Đạt chuẩn tiến độ</span>
                                 </span>
                               )}
                             </div>
@@ -4192,9 +4210,13 @@ export const ReportPage: React.FC = () => {
                           fontSize: '11px',
                           cursor: 'pointer',
                           fontWeight: 500,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                       >
-                        ✨ {prompt}
+                        <Sparkles size={11} className="text-purple-400" />
+                        <span>{prompt}</span>
                       </button>
                     ))}
                   </div>
