@@ -15,6 +15,7 @@ import {
   Link2,
   User as UserIcon,
   FolderKanban,
+  Camera,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -117,6 +118,68 @@ export const ProfileSettingsPage: React.FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [joinedAt, setJoinedAt] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Avatar Upload on Double Click
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imgError, setImgError] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>(() => {
+    return (
+      localStorage.getItem(`fairshare_avatar_data_${user?.id || 'me'}`) ||
+      user?.avatarUrl ||
+      localStorage.getItem(`fairshare_avatar_${user?.id || 'me'}`) ||
+      localStorage.getItem('user_avatar') ||
+      ''
+    );
+  });
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setSaveError('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError('Kích thước ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const previewUrl = reader.result as string;
+      setImgError(false);
+      setAvatarUrl(previewUrl);
+
+      const userIdKey = user?.id || 'me';
+      localStorage.setItem(`fairshare_avatar_data_${userIdKey}`, previewUrl);
+      localStorage.setItem(`fairshare_avatar_${userIdKey}`, previewUrl);
+      localStorage.setItem('user_avatar', previewUrl);
+      if (updateUser) {
+        updateUser({ avatarUrl: previewUrl });
+      }
+      setSaveSuccess('Đã cập nhật ảnh đại diện thành công!');
+      setTimeout(() => setSaveSuccess(null), 3500);
+
+      try {
+        const uploadData = new FormData();
+        uploadData.append('file', file);
+        const res = await apiClient.post<{ data?: { url?: string } }>('/upload', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const serverUrl = res.data?.data?.url;
+        if (serverUrl) {
+          // If server returns relative path /uploads/..., keep working preview or proxy url
+          localStorage.setItem(`fairshare_avatar_${userIdKey}`, serverUrl);
+          localStorage.setItem('user_avatar', serverUrl);
+        }
+      } catch (err) {
+        console.warn('Backend upload notice, local avatar preview preserved', err);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // Active project resolution
   const activeTeam = teams.find((t) => t.id === activeTeamId) || (teams.length > 0 ? teams[0] : null);
@@ -567,8 +630,47 @@ export const ProfileSettingsPage: React.FC = () => {
       <section className="ps-shell">
         {/* ---------- Hero ---------- */}
         <header className="ps-hero">
-          <div className="ps-avatar" aria-hidden>
-            {getInitials(formData.fullName || formData.email || 'FS')}
+          {/* Avatar with Double-click upload */}
+          <div
+            className="ps-avatar-wrapper"
+            onDoubleClick={() => fileInputRef.current?.click()}
+            title="Nhấp đúp chuột (Double click) để tải ảnh đại diện từ máy tính lên"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
+            <div className="ps-avatar" aria-hidden>
+              {avatarUrl && !imgError ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  onError={() => {
+                    const userIdKey = user?.id || 'me';
+                    const cachedData = localStorage.getItem(`fairshare_avatar_data_${userIdKey}`);
+                    if (cachedData && avatarUrl !== cachedData) {
+                      setAvatarUrl(cachedData);
+                    } else {
+                      setImgError(true);
+                    }
+                  }}
+                  onLoad={() => setImgError(false)}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                />
+              ) : (
+                getInitials(formData.fullName || formData.email || 'FS')
+              )}
+            </div>
+            <div className="ps-avatar-camera-badge" title="Nhấp đúp để đổi ảnh">
+              <Camera size={13} />
+            </div>
+            <div className="ps-avatar-overlay">
+              <Camera size={18} />
+              <span>Đổi ảnh</span>
+            </div>
           </div>
           <div className="ps-hero-info">
             <div className="ps-name-row">

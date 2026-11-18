@@ -64,6 +64,7 @@ public class TeamService {
         team.setCourseName(request.getCourseName());
         team.setDescription(request.getDescription());
         team.setInviteCode(generateUniqueInviteCode());
+        applyTimeline(team, request);
 
         Team savedTeam = teamRepository.save(team);
 
@@ -86,8 +87,13 @@ public class TeamService {
             Sprint sprint = new Sprint();
             sprint.setTeam(savedTeam);
             sprint.setName("Sprint 1");
-            sprint.setStartDate(LocalDate.now());
-            sprint.setEndDate(LocalDate.now().plusDays(14));
+            LocalDate sStart = savedTeam.getStartDate() != null ? savedTeam.getStartDate() : LocalDate.now();
+            LocalDate sEnd = sStart.plusDays(13);
+            if (savedTeam.getEndDate() != null && savedTeam.getEndDate().isBefore(sEnd)) {
+                sEnd = savedTeam.getEndDate();
+            }
+            sprint.setStartDate(sStart);
+            sprint.setEndDate(sEnd);
             sprint.setStatus("ACTIVE");
             sprintRepository.save(sprint);
         }
@@ -260,8 +266,23 @@ public class TeamService {
             }
             team.setSprintCount(sprintCount);
         }
+        applyTimeline(team, request);
         Team saved = teamRepository.save(team);
         return getTeamDetail(saved.getId(), userId);
+    }
+
+    /** Validate and apply project timeline (start/end date) to Team. */
+    private void applyTimeline(Team team, CreateTeamRequest request) {
+        if (request.getStartDate() == null && request.getEndDate() == null) {
+            return;
+        }
+        LocalDate start = request.getStartDate() != null ? request.getStartDate() : team.getStartDate();
+        LocalDate end = request.getEndDate() != null ? request.getEndDate() : team.getEndDate();
+        if (start != null && end != null && end.isBefore(start)) {
+            throw new BusinessException("Ngày kết thúc phải sau ngày bắt đầu");
+        }
+        team.setStartDate(start);
+        team.setEndDate(end);
     }
 
     private String generateUniqueInviteCode() {
@@ -284,6 +305,8 @@ public class TeamService {
                 .inviteCode(team.getInviteCode())
                 .lecturer(team.getLecturer())
                 .sprintCount(team.getSprintCount())
+                .startDate(team.getStartDate())
+                .endDate(team.getEndDate())
                 .currentRole(role)
                 .createdAt(team.getCreatedAt())
                 .updatedAt(team.getUpdatedAt())

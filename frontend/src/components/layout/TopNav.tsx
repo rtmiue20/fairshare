@@ -191,6 +191,7 @@ export const TopNav: React.FC = () => {
                                 setActiveTeamId(t.id);
                                 setIsProjectOpen(false);
                                 showToast(`Đã chuyển sang dự án: ${t.name}`);
+                                navigate(`${location.pathname}?teamId=${t.id}`);
                               }}
                               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
                                 isActive

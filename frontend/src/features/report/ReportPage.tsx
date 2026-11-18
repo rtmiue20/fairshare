@@ -918,13 +918,13 @@ export const ReportPage: React.FC = () => {
       }}
     >
       {/* 1. Page Breadcrumb & Top Actions Bar */}
-      <div className="no-print" style={{ marginBottom: '20px', marginTop: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.subTextColor, marginBottom: '10px' }}>
+      <div className="no-print" style={{ marginBottom: '18px', marginTop: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.subTextColor, marginBottom: '8px' }}>
           <Link to="/" style={{ color: theme.subTextColor, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <ArrowLeft size={14} /> Dashboard
           </Link>
           <ChevronRight size={14} />
-          <span style={{ color: '#818cf8', fontWeight: 500 }}>Xuất báo cáo đóng góp chính thức</span>
+          <span style={{ color: '#818cf8', fontWeight: 500 }}>Báo cáo nghiệm thu</span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
@@ -936,9 +936,9 @@ export const ReportPage: React.FC = () => {
               {currentSprint && (
                 <span
                   style={{
-                    fontSize: '12px',
+                    fontSize: '11.5px',
                     fontWeight: 600,
-                    padding: '4px 12px',
+                    padding: '3px 10px',
                     borderRadius: '999px',
                     backgroundColor: currentSprint.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
                     color: currentSprint.status === 'ACTIVE' ? '#34d399' : '#94a3b8',
@@ -949,8 +949,8 @@ export const ReportPage: React.FC = () => {
                 </span>
               )}
             </div>
-            <p style={{ margin: '6px 0 0', fontSize: '13.5px', color: theme.subTextColor, maxWidth: '740px', lineHeight: 1.5 }}>
-              Bảng tổng hợp điểm danh nghĩa và tỷ lệ đóng góp được chốt theo thuật toán đa chiều (Multi-Dimensional Scoring v1.1). Dữ liệu minh chứng truy vết bất biến phục vụ nghiệm thu đồ án.
+            <p style={{ margin: '5px 0 0', fontSize: '13.5px', color: theme.subTextColor, maxWidth: '640px', lineHeight: 1.5 }}>
+              Tổng hợp tỷ lệ đóng góp và minh chứng minh bạch phục vụ đánh giá, nghiệm thu đồ án.
             </p>
           </div>
 
@@ -1078,7 +1078,7 @@ export const ReportPage: React.FC = () => {
             {totalTasks} Tasks · {totalEdits} Events
           </div>
           <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px' }}>
-            Ghi nhận từ Task Board &amp; Git commits
+            Ghi nhận từ Task Board &amp; Git
           </div>
         </div>
 
@@ -1090,7 +1090,7 @@ export const ReportPage: React.FC = () => {
             {giniValue} ({giniLabel})
           </div>
           <div style={{ fontSize: '12px', color: theme.subTextColor, marginTop: '2px' }}>
-            Khối lượng công việc phân bổ đồng đều
+            Phân bổ công việc đồng đều
           </div>
         </div>
 
@@ -1102,7 +1102,7 @@ export const ReportPage: React.FC = () => {
             100% Consent
           </div>
           <div style={{ fontSize: '12px', color: '#10b981', marginTop: '2px', fontWeight: 500 }}>
-            Nghị định 13/2023/NĐ-CP
+            Bảo vệ dữ liệu minh bạch
           </div>
         </div>
       </div>
