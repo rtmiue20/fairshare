@@ -182,13 +182,14 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
     // 3. Đồng bộ lại điểm 4D & Audit Trail thật từ Backend MariaDB
     try {
+      const targetEvidenceUserId = typeof selectedUserId === 'number' && selectedUserId > 0 ? selectedUserId : (currentUserId > 0 ? currentUserId : 109);
       const [scoresRes, summaryRes, evidenceRes] = await Promise.allSettled([
         contributionApi.getContributions(currentTeamId, selectedSprintId),
         contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
         contributionApi.getEvidenceTraceability(
           currentTeamId,
           selectedSprintId,
-          typeof selectedUserId === 'number' ? selectedUserId : currentUserId
+          targetEvidenceUserId
         ),
       ]);
 
@@ -217,11 +218,13 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   useEffect(() => {
     setIsLoading(true);
 
+    const targetEvidenceUserId = typeof selectedUserId === 'number' && selectedUserId > 0 ? selectedUserId : (currentUserId > 0 ? currentUserId : 109);
+
     // Gọi API thật từ backend
     Promise.allSettled([
       contributionApi.getContributions(currentTeamId, selectedSprintId),
       contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
-      contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, typeof selectedUserId === 'number' ? selectedUserId : currentUserId),
+      contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, targetEvidenceUserId),
       contributionApi.getPendingManualContributions?.(currentTeamId, selectedSprintId),
     ])
       .then(([scoresRes, summaryRes, evidenceRes, pendingRes]) => {
