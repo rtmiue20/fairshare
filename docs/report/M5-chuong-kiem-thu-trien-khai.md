@@ -1,10 +1,10 @@
 # CHƯƠNG: KIỂM THỬ VÀ TRIỂN KHAI (BẢN NHÁP 1)
 
 **Người viết:** M5 – Khiếu Hoàng Nam Anh (MSSV 31241022203), PM QA & Deployment, WP5
-**Bản nháp:** 16/11/2026, số liệu đến `master` @ `f18a705` (retest staging, pilot UAT, unit test ngày 16/11, 23:00–23:30 GMT+7) | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
+**Bản nháp:** 16/11/2026, cập nhật 18/11 (kết quả UAT chính thức). Số liệu kiểm thử tự động đến `master` @ `f18a705` (retest staging, pilot UAT, unit test ngày 16/11, 23:00–23:30 GMT+7) | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
 **Nguồn số liệu:** `docs/qa/` (test case, test report, integration log, defect log, evidence), `docs/deploy/staging.md`, `.github/workflows/`
 
-> Các chỗ `<TODO: …>` là số liệu **chưa có**: kết quả UAT (M2 đóng UAT ngày 17/11), lần chạy cuối trên bản release, release tag và URL/video demo (18/11). Bản nháp này không tự điền các số liệu đó.
+> Các chỗ `<TODO: …>` là số liệu **chưa có**: lần chạy cuối trên bản release, release tag và URL/video demo (18/11). Bản nháp này không tự điền các số liệu đó.
 
 > **Lưu ý CR-02:** Kế hoạch ban đầu thu thập dữ liệu từ Trello qua API/Webhook. Theo Change Request **CR-02**, nhóm đã thay bằng **Task Board nội bộ**. Vì vậy mọi ca kiểm thử từ Sprint 4 trở đi kiểm tra luồng *board nội bộ → sự kiện hoạt động → điểm đóng góp*, không còn kiểm thử tích hợp Trello. Mã tích hợp Trello cũ đã được gỡ (DEF-25, đóng 11/11).
 
@@ -138,7 +138,17 @@ Phía server (51 lần): trung vị 27 ms, chậm nhất 204 ms. Lần đo lại
 
 **Pilot lần 2 – 16/11** trên `master` @ `f18a705`, môi trường dựng sạch: **20/24 đạt**. Các ca của M2 (UAT-M2-01..05) và phân quyền board/sprint đã đạt sau bản sửa DEF-33..37 (PR #81) và DEF-34 (PR #84). 4 ca còn lỗi đều thuộc chức năng Khai báo đóng góp (DEF-31, 32, chưa sửa). M5 viết thêm `scripts/retest-sprint6.py` (9 ca) để thử các biến thể gian lận: DEF-38 đạt, nhưng phát hiện **DEF-41 (High)** (người phụ trách kéo thẻ của mình qua lại giữa To Do và In Progress 10 vòng, tỷ lệ đóng góp tăng từ 50% lên 91,67%) và DEF-42 (đổi tên thẻ vượt bản sửa DEF-38). Môi trường UAT được bàn giao cho M2 kèm danh sách thao tác cần tránh (`docs/qa/uat/uat-handoff-M2.md`).
 
-**UAT chính thức:** `<TODO (M2 cung cấp 17/11): số phiếu, mức hài lòng G5, số lỗi UAT theo mức độ, lỗi nào đã đóng>`
+**UAT chính thức – 14 đến 17/11** (M2 chủ trì). Người thử dùng bản Render `https://fairshare-web-3iuo.onrender.com` (nhánh `deploy/render` @ `29945fe`, đã gộp `master` @ `be7e441`) và trả lời phiếu Google Form gồm 10 câu SUS và 1 câu CSAT. Kết quả do M2 tổng hợp ngày 17/11, M5 tính lại từ tệp CSV và ra cùng số liệu:
+
+| Chỉ tiêu | Ngưỡng | Kết quả | Đánh giá |
+|---|---|---|---|
+| Số phiếu hợp lệ | ≥ 10 | 10 (1 Leader, 9 Member) | Đạt |
+| SUS trung bình | ≥ 75 | 47,0 (thấp nhất 32,5, cao nhất 62,5) | Chưa đạt |
+| CSAT (G5) | ≥ 80% chọn 4–5 | 60% (6/10), trung bình 3,5/5 | Chưa đạt |
+
+Khi kiểm chứng bản Render, M2 ghi nhận 2 lỗi mới: **DEF-43 (High)** API bằng chứng `GET /api/contributions/evidence` trả HTTP 500, bảng Audit Trail trống; **DEF-44 (Low)** chuông thông báo không mở. Cả hai thuộc M3; bản sửa có trên nhánh `TrongPhuc` (18/11) nhưng chưa merge, chưa retest. Theo M2, SUS thấp chủ yếu vì người dùng mới khó hiểu các chỉ số thống kê trên Dashboard (8/10 phiếu đồng ý câu "cần hỗ trợ kỹ thuật"); đề xuất thêm chú thích cho chỉ số D1–D4.
+
+Hai điểm hạn chế của đợt UAT: (1) UAT không chạy trên môi trường UAT do M5 chuẩn bị, nên M5 không đối chiếu được dữ liệu đóng góp của người thử, ví dụ lọc thao tác kéo thẻ bất thường (DEF-41); (2) nhánh Render có migration V23–V25, nên CSDL Render nhiều khả năng có tài khoản demo với mật khẩu công khai (DEF-40). Nguồn: `uat-formal-report.md` và `uat-responses-2026-11-17.csv` trên thẻ Trello của M2; kết luận chốt UAT: `docs/qa/uat/uat-closure.md` mục 5.
 
 ---
 
@@ -157,7 +167,7 @@ Phía server (51 lần): trung vị 27 ms, chậm nhất 204 ms. Lần đo lại
 | Low | 4 | 0 | 0 | 11 | 15 (+1 bị rút: DEF-29) |
 | **Tổng** | **8** | **0** | **0** | **33** | **41 (+1 rút)** |
 
-Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..42, trong đó pilot UAT và quay demo tìm được DEF-31..39, retest 16/11 tìm được DEF-40..42). Ngày 16/11 đóng 7 lỗi (DEF-27, 33..38). 3 lỗi High đang mở: DEF-31 (M3, chưa sửa), DEF-40 (M0, mới), DEF-41 (M1 + M3, mới). DEF-29 bị rút vì M5 ghi nhầm. Đề xuất chấp nhận rủi ro cho các lỗi High còn mở, chờ M0 quyết định: `docs/qa/uat/uat-closure.md`.
+Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..42, trong đó pilot UAT và quay demo tìm được DEF-31..39, retest 16/11 tìm được DEF-40..42). Ngày 16/11 đóng 7 lỗi (DEF-27, 33..38). UAT chính thức (17/11) tìm thêm DEF-43, 44. Tính đến 18/11, 4 lỗi High đang mở: DEF-31 (M3, chưa sửa), DEF-40 (M0), DEF-41 (M1 + M3), DEF-43 (M3, bản sửa chưa merge). DEF-29 bị rút vì M5 ghi nhầm. Đề xuất chấp nhận rủi ro cho các lỗi High còn mở, chờ M0 quyết định: `docs/qa/uat/uat-closure.md`.
 
 ### 4.3 Các lỗi đáng chú ý
 

@@ -1,7 +1,7 @@
 # Defect Log – FairShare
 
 **Phụ trách:** M5 – Khiếu Hoàng Nam Anh (PM QA & Deployment) | **Thẻ Trello:** "[M5] Ghi defect: Phân loại lỗi, giao người xử lý"
-**Cập nhật:** 16/11/2026 23:30 (GMT+7). Retest trên staging dựng từ `master` @ `f18a705` (reset sạch): smoke **PASS**, tích hợp **23/23**, hồi quy **30/30**, pilot UAT **20/24**, retest Sprint 6 **2/9** (script mới `scripts/retest-sprint6.py`), unit test backend **233/233** (Docker, 0 skip), frontend **86/86**.
+**Cập nhật:** 18/11/2026 11:30 (GMT+7). Ghi nhận kết quả UAT chính thức của M2 (17/11, 10 phiếu) và 2 lỗi mới DEF-43, 44. Lần retest gần nhất vẫn là 16/11/2026 23:30 (GMT+7): retest trên staging dựng từ `master` @ `f18a705` (reset sạch): smoke **PASS**, tích hợp **23/23**, hồi quy **30/30**, pilot UAT **20/24**, retest Sprint 6 **2/9** (script mới `scripts/retest-sprint6.py`), unit test backend **233/233** (Docker, 0 skip), frontend **86/86**.
 **Nguồn:** báo cáo kiểm thử Sprint 3 (`docs/qa/test-report-sprint3.md`), Integration Log Sprint 4 (`docs/qa/integration-log-sprint4.md`, lần chạy 09/11 và 10/11), báo cáo kiểm thử Sprint 5 (`docs/qa/test-report-sprint5.md`), unit test BE/FE ngày 10/11.
 
 ## Quy ước
@@ -15,14 +15,34 @@
 **Trạng thái:** `Open` → `In Progress` → `Fixed` (dev đã sửa, có thể ghi "Fixed – chờ retest") → `Closed` (M5 kiểm thử lại đạt) · `Retest` = đã sửa trong code, chờ M5 bật lại test tự động.
 **Người xử lý** theo lát cắt dọc: M0 Report · M1 Auth/User/Common/Board · M2 Team/Sprint · M3 Đóng góp/Dashboard · M4 Chấm chéo · M5 QA/Deployment.
 
-## Tổng quan (16/11/2026, sau retest trên `master` @ `f18a705`)
+## Tổng quan (18/11/2026, sau UAT chính thức)
 
 | Mức độ | Open | In Progress | Fixed – chờ retest | Closed | Rejected | Tổng |
 |---|---|---|---|---|---|---|
-| High | 3 (DEF-31, 40, 41) | 0 | 0 | 12 | 0 | 15 |
+| High | 4 (DEF-31, 40, 41, 43) | 0 | 0 | 12 | 0 | 16 |
 | Medium | 1 (DEF-32) | 0 | 0 | 10 | 0 | 11 |
-| Low | 4 (DEF-19, 28, 39, 42) | 0 | 0 | 11 | 1 (DEF-29) | 16 |
-| **Tổng** | **8** | **0** | **0** | **33** | **1** | **42** |
+| Low | 5 (DEF-19, 28, 39, 42, 44) | 0 | 0 | 11 | 1 (DEF-29) | 17 |
+| **Tổng** | **10** | **0** | **0** | **33** | **1** | **44** |
+
+**Thay đổi 18/11 (UAT chính thức do M2 chủ trì, đóng 17/11)**
+- Nguồn: thẻ Trello "[17/11] Đóng đợt UAT & Đo lường mức độ hài lòng (Mục tiêu G5)" của M2, tệp `uat-formal-report.md` và `uat-responses-2026-11-17.csv` đính kèm thẻ. M5 đã tính lại SUS và CSAT từ CSV, khớp với báo cáo của M2.
+- **Môi trường UAT:** bản Render `https://fairshare-web-3iuo.onrender.com`, nhánh `deploy/render` @ `29945fe` (đã gộp `master` @ `be7e441`), CSDL Layerbase MariaDB. Đây **không phải** môi trường UAT trên staging của M5 (12 tài khoản `uat01..uat12`), nên M5 không truy cập được CSDL để đối chiếu dữ liệu người thử.
+- **Kết quả:** 10 phiếu hợp lệ (1 Leader, 9 Member), đủ chỉ tiêu số lượng G5. **SUS trung bình 47,0/100** (thấp nhất 32,5, cao nhất 62,5; 0/10 phiếu ≥ 75), **chưa đạt** ngưỡng 75. **CSAT 60%** chọn mức 4–5 (6/10; trung bình 3,5/5), **chưa đạt** ngưỡng G5 80%. Không phiếu nào ghi góp ý tự do.
+- **Lỗi mới khi M2 kiểm chứng bản Render:** **DEF-43 (High, M3)**: `GET /api/contributions/evidence` trả HTTP 500, bảng Audit Trail trên `/dashboard` hiện 0 mục. **DEF-44 (Low, M3)**: nút chuông thông báo không mở popover. Thời gian khởi động lâu (cold start) là giới hạn gói Render miễn phí, ghi vào rủi ro demo, không ghi thành lỗi.
+- **Lưu ý DEF-40 trên Render:** nhánh `deploy/render` có V23, V24, V25, nên CSDL Render nhiều khả năng đã có 6 tài khoản demo với mật khẩu công khai trong repo, trên một URL công khai. Phiếu UAT ghi người thử dùng "mã mời FS-EDU-2026 hoặc tài khoản mẫu". **Chưa kiểm tra trực tiếp**; cần M0 xác nhận và khóa các tài khoản này trước buổi demo.
+- **Lưu ý DEF-41:** M5 không lọc được người thử có số `CARD_MOVED` bất thường (biện pháp trong `uat/uat-closure.md`) vì không truy cập CSDL Render. Điểm SUS/CSAT không bị ảnh hưởng (lấy từ phiếu), nhưng số liệu đóng góp trên bản Render chưa được kiểm chứng.
+- M3 đã đẩy bản sửa DEF-43, 44 lên nhánh `TrongPhuc` (commit `f252482`, 18/11 10:31), **chưa merge vào `master`, chưa retest**. Ghi chú khi retest: bản sửa bọc lời gọi routine trong `try/catch` rồi chuyển sang truy vấn JPA. Nếu lỗi nằm trong repository có transaction, Spring có thể đánh dấu rollback-only và vẫn trả 500 lúc commit; ngoài ra nhánh dự phòng gán `earnedScore = storyPoints` cho mọi sự kiện, có thể lệch với điểm thật của `ScoringEngine` (ví dụ `CARD_MOVED` chỉ được 20%). Cần kiểm tra cả mã trạng thái lẫn số điểm hiển thị.
+
+### Theo người xử lý (18/11, các lỗi chưa đóng)
+
+| Người | Cần làm | Ưu tiên |
+|---|---|---|
+| M0 – Nguyễn Văn Minh Triều | **DEF-40 (High)**: gỡ dữ liệu demo khỏi migration; xác nhận và khóa tài khoản demo trên CSDL Render. Quyết định chấp nhận rủi ro cho các lỗi High còn mở (`uat/uat-closure.md` mục 3). DEF-28, DEF-39 | **Trước khi gắn tag release 18/11** |
+| M1 – Nguyễn Phúc Vương | **DEF-41 (High)** (cùng M3). DEF-42 | **DEF-41 trước release** |
+| M2 – Hà Ngọc Thiện | *Không còn lỗi mở.* SUS 47,0 và CSAT 60% chưa đạt G5: đề xuất cải thiện trong `uat-formal-report.md` mục 4 (chú thích chỉ số D1–D4) | Sprint 7 |
+| M3 – Ngô Trọng Phúc | **DEF-43 (High)**: merge bản sửa `f252482` vào `master`. **DEF-31 (High)**. DEF-32, DEF-44. DEF-41 (cùng M1) | **DEF-43, DEF-31 trước release** |
+| M4 – Triệu Nguyễn Huỳnh Khang | DEF-19 | Thấp |
+| M5 – Khiếu Hoàng Nam Anh | Retest DEF-43, 44 khi `f252482` vào `master`; retest DEF-31, 32, 40, 41 khi có bản sửa | – |
 
 **Thay đổi 16/11 (retest trên staging, `master` @ `f18a705`, 23:00–23:30 GMT+7)**
 - **Khôi phục file này.** Các merge vào `master` ngày 15–16/11 (commit `7798e33`, `59ef7d7`, `34bde2f`) sửa trên một bản cũ của `defect-log.md`, làm mất phần cập nhật 15/11 của M5 (DEF-18, 20, 21 bị đưa về Open, bảng Tổng quan về số 26 lỗi). Bản này dựng lại từ bản 15/11 của M5 (`7f36c32`) và ghi thêm kết quả 16/11. **Quy ước:** dev ghi `Fixed – chờ retest`, chỉ M5 chuyển `Closed` sau khi chạy lại ca test.
@@ -176,6 +196,8 @@
 | DEF-40 | **High** | **Mới 16/11:** migration `V23__seed_demo_peer_review_data.sql` (commit `db59b72`) **chèn dữ liệu demo vào mọi CSDL** qua Flyway, kể cả staging/production: (a) 5 tài khoản `demo@fairshare.io`, `*@edu.vn` (id 109–113) với **mật khẩu ghi công khai trong comment của file migration**, đăng nhập được; (b) `INSERT … ON DUPLICATE KEY UPDATE` lên `teams.id = 1`, `team_members.id = 1..5`, `sprints.id = 1..3`, `boards`, `cards`: **ghi đè tên nhóm, vai trò, người phụ trách** của dữ liệu thật đang có; (c) `DELETE FROM review_submissions WHERE review_round_id IN (2, 3)` **xóa phiếu chấm chéo thật**; (d) **Bổ sung 17/11 (đọc mã master `be7e441`, chưa retest):** V24, V25 lặp lại cùng kiểu: V25 thêm tài khoản thứ 6 id 1 `minhtrieu.po@fairshare.io` cùng mật khẩu công khai (CSDL mới) hoặc đổi tên người dùng thật id 1 (CSDL cũ), seed nhóm id 2, 3, và dòng cuối `DELETE FROM contribution_scores;` **xóa toàn bộ điểm đóng góp đã tính** ở mọi CSDL | 16/11 trên staging cũ (trước reset): nhóm UAT A (id 1) bị đổi tên thành "EduConnect — …", `team_members` 1..5 bị cập nhật vai trò. Sau reset: RT-40a FAIL (5 tài khoản demo), RT-40b FAIL (đăng nhập demo HTTP 200), RT-40c FAIL (5 thành viên demo trong team 1). Seed M3 nạp sau đó cũng bị lẫn: team 1 có 11 thành viên thay vì 6 | Không sửa V23 đã chạy (Flyway báo lỗi checksum). Tạo migration mới xóa dữ liệu demo id 109–113 (và id 1 nếu email là `minhtrieu.po@fairshare.io`), nhóm id 2, 3 và các dòng phụ thuộc; chuyển dữ liệu demo sang `src/main/resources/seed/` (nạp tay) hoặc `db/seed-dev` chỉ bật ở profile `dev`. Không ghi mật khẩu vào repo | M0 (tác giả `db59b72`), M4 xác nhận phần chấm chéo | **Open** |
 | DEF-41 | **High** | **Mới 16/11:** **người phụ trách tự nâng tỷ lệ đóng góp bằng cách kéo thẻ của mình qua lại** giữa To Do và In Progress. Mỗi lần kéo, `BoardService.moveCard` (nhánh 4) ghi `CARD_MOVED` mang **toàn bộ story points** của thẻ, và công thức tính điểm (V19, DEF-17) cho `CARD_MOVED` 20% điểm một phần. Không giới hạn số lần. Cùng loại gian lận R05 với DEF-11, DEF-38 | RT-41a: thẻ 5 SP, 10 vòng → 21 `CARD_MOVED`, tổng SP 5 → **105**. RT-41b: tỷ lệ đóng góp của D **50% → 91,67%** dù thẻ chưa hoàn thành | `CARD_MOVED` ghi `storyPoints = 0` (chỉ là nhật ký), hoặc mỗi (thẻ, người) chỉ được điểm một phần 1 lần; thêm test chống lặp như DEF-38 | M1 (sinh sự kiện), M3 (công thức) | **Open** |
 | DEF-42 | Low | **Mới 16/11:** bản sửa DEF-38 so trùng `REVIEW_CARD` bằng chuỗi `reviewed card '<tiêu đề>'` trong `details`. Đổi tiêu đề thẻ rồi kéo lại vào Review sẽ sinh thêm `REVIEW_CARD` | RT-38c: đổi tiêu đề (HTTP 200) → 2 `REVIEW_CARD` của C cho cùng thẻ. Hiện `REVIEW_CARD` chưa làm tăng tỷ lệ đóng góp (RT-38b: 0%), nên ảnh hưởng thấp | So trùng theo `cardId` (thêm cột `card_id` vào `activity_events` hoặc lưu id trong `details`) | M1 | **Open** |
+| DEF-43 | **High** | **Mới 18/11 (UAT chính thức, M2 báo):** trên bản Render (`deploy/render` @ `29945fe`), `GET /api/contributions/evidence` trả **HTTP 500**, bảng Audit Trail/bằng chứng trên `/dashboard` hiện 0 mục. Mất chức năng truy vết bằng chứng, một cơ chế cốt lõi trong Charter | `uat-formal-report.md` mục 4.2 (M2, 17/11); ảnh `Live_Verify_ReportPage_29945fe_1711.png` trên thẻ Trello "[14/11 - 17/11] Điều phối thử nghiệm UAT". M5 chưa tái hiện trên staging | M3 đã đẩy bản sửa lên nhánh `TrongPhuc` (`f252482`): bắt lỗi routine `sp_get_evidence_traceability`, dự phòng bằng truy vấn JPA. Cần tìm nguyên nhân gốc của lỗi routine trên CSDL Render; khi retest kiểm tra cả mã 200 lẫn điểm `earnedScore` (xem ghi chú 18/11) | M3 | **Open** (bản sửa chưa merge `master`) |
+| DEF-44 | Low | **Mới 18/11 (UAT chính thức, M2 báo):** nút chuông thông báo (`#notifBtn`) không mở popover | `uat-formal-report.md` mục 4.2 (M2, 17/11) | M3 sửa trong `f252482` (`TopNav.tsx`, `NotificationPopover.tsx`), chưa merge `master` | M3 | **Open** (bản sửa chưa merge `master`) |
 
 ## Ghi chú cho Sprint Review 12/11
 
