@@ -158,14 +158,14 @@ Hai điểm hạn chế của đợt UAT: (1) UAT không chạy trên môi trư�
 
 `Open` → `In Progress` → `Fixed` (dev đã sửa) → `Closed` (M5 chạy lại ca kiểm thử đạt). Mỗi lỗi có mức độ (High/Medium/Low), người xử lý theo lát cắt dọc, bằng chứng và đề xuất sửa. M5 cập nhật `docs/qa/defect-log.md` sau mỗi lần chạy tích hợp hoặc hồi quy.
 
-### 4.2 Số liệu (16/11/2026, sau retest trên `master` @ `f18a705`)
+### 4.2 Số liệu (18/11/2026, sau UAT chính thức; lần retest gần nhất 16/11 trên `master` @ `f18a705`)
 
 | Mức độ | Open | In Progress | Fixed – chờ retest | Closed | Tổng |
 |---|---|---|---|---|---|
-| High | 3 | 0 | 0 | 12 | 15 |
+| High | 4 | 0 | 0 | 12 | 16 |
 | Medium | 1 | 0 | 0 | 10 | 11 |
-| Low | 4 | 0 | 0 | 11 | 15 (+1 bị rút: DEF-29) |
-| **Tổng** | **8** | **0** | **0** | **33** | **41 (+1 rút)** |
+| Low | 5 | 0 | 0 | 11 | 16 (+1 bị rút: DEF-29) |
+| **Tổng** | **10** | **0** | **0** | **33** | **43 (+1 rút)** |
 
 Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..42, trong đó pilot UAT và quay demo tìm được DEF-31..39, retest 16/11 tìm được DEF-40..42). Ngày 16/11 đóng 7 lỗi (DEF-27, 33..38). UAT chính thức (17/11) tìm thêm DEF-43, 44. Tính đến 18/11, 4 lỗi High đang mở: DEF-31 (M3, chưa sửa), DEF-40 (M0), DEF-41 (M1 + M3), DEF-43 (M3, bản sửa chưa merge). DEF-29 bị rút vì M5 ghi nhầm. Đề xuất chấp nhận rủi ro cho các lỗi High còn mở, chờ M0 quyết định: `docs/qa/uat/uat-closure.md`.
 
