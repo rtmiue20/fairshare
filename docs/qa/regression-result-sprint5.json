@@ -1,13 +1,13 @@
 {
-  "run": "1794845793",
+  "run": "1795068233",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-16T23:16:39",
+  "executed_at": "2026-11-19T13:03:59",
   "ids": {
-    "team": 3,
-    "sprint": 7,
-    "board": 5
+    "team": 7,
+    "sprint": 11,
+    "board": 10
   },
-  "passed": 30,
+  "passed": 26,
   "total": 30,
   "groups": {
     "SCR": [
@@ -27,50 +27,50 @@
       3
     ],
     "PDF": [
-      8,
+      4,
       8
     ]
   },
   "pdf_performance": [
     {
       "sprint": 1,
-      "events": 100,
-      "cold_s": 0.043,
-      "p50_s": 0.037,
-      "p95_s": 0.058,
-      "max_s": 0.058,
-      "size_kb": 70.9,
-      "status": 200
-    },
-    {
-      "sprint": 2,
-      "events": 100,
-      "cold_s": 0.038,
-      "p50_s": 0.031,
-      "p95_s": 0.05,
-      "max_s": 0.05,
+      "events": 132,
+      "cold_s": 0.153,
+      "p50_s": 0.069,
+      "p95_s": 0.102,
+      "max_s": 0.102,
       "size_kb": 71.4,
       "status": 200
     },
     {
+      "sprint": 2,
+      "events": 134,
+      "cold_s": 0.073,
+      "p50_s": 0.053,
+      "p95_s": 0.083,
+      "max_s": 0.083,
+      "size_kb": 71.7,
+      "status": 200
+    },
+    {
       "sprint": 3,
-      "events": 100,
-      "cold_s": 0.066,
-      "p50_s": 0.03,
-      "p95_s": 0.044,
-      "max_s": 0.044,
-      "size_kb": 71.0,
+      "events": 135,
+      "cold_s": 0.06,
+      "p50_s": 0.056,
+      "p95_s": 0.078,
+      "max_s": 0.078,
+      "size_kb": 71.7,
       "status": 200
     },
     {
       "sprint": 4,
       "events": 100,
-      "cold_s": 0.03,
-      "p50_s": 0.039,
-      "p95_s": 0.053,
-      "max_s": 0.053,
-      "size_kb": 71.2,
-      "status": 200
+      "cold_s": 0.019,
+      "p50_s": 0.012,
+      "p95_s": 0.018,
+      "max_s": 0.018,
+      "size_kb": 0.1,
+      "status": 404
     }
   ],
   "cases": [
@@ -135,7 +135,7 @@
       "group": "SCR",
       "name": "Hai nguồn điểm thống nhất: ScoringEngine (/calculate) và routine (/summary) xếp cùng người đứng đầu",
       "expected": "Người có điểm cao nhất giống nhau",
-      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=0.0, Bích=19.57, Cường=19.57, Dũng=8.7, Én=19.57, Phú=32.61)",
+      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=3.58, Bích=23.78, Cường=9.17, Dũng=9.87, Én=23.78, Phú=29.83)",
       "result": "PASS"
     },
     {
@@ -255,39 +255,39 @@
       "group": "PDF",
       "name": "G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (500 sự kiện), 11 lần/sprint",
       "expected": "Mọi lần HTTP 200, file %PDF hợp lệ, chậm nhất < 10 s",
-      "actual": "chậm nhất 0.066s; p50 theo sprint = [0.037, 0.031, 0.03, 0.039]s",
-      "result": "PASS"
+      "actual": "chậm nhất 0.153s; p50 theo sprint = [0.069, 0.053, 0.056, 0.012]s",
+      "result": "FAIL"
     },
     {
       "id": "PDF-02",
       "group": "PDF",
       "name": "PDF có phần đóng góp của đủ 6 thành viên",
       "expected": "Đủ 6 tên trong PDF",
-      "actual": "thiếu 0: -",
-      "result": "PASS"
+      "actual": "thiếu 11: ['Nguyen Van Minh Trieu (Leader)', 'Le Phuc Vuong (M1 - Platform)', 'Ha Ngoc Thien (M2 - BA)', 'Ngo Trong Phuc (M3 - Data/DB)', 'Trieu Nguyen Huynh Khang (M4 - PeerReview)', 'Nguyen Nam Anh (M5 - QA/Deploy)', 'Nguyễn Hoàng Nam (Trưởng nhóm)', 'Trần Thu Trang (Frontend Dev)', 'Lê Quốc Bảo (Backend Dev)', 'Phạm Minh Đức (DevOps)', 'Đặng Thảo Vy (QA Engineer)']",
+      "result": "FAIL"
     },
     {
       "id": "PDF-03",
       "group": "PDF",
       "name": "PDF có điểm chấm chéo khi đủ 3 người chấm (sprint 4 có 3 lượt cho thành viên 1)",
       "expected": "Có điểm dạng x.x/5",
-      "actual": "có",
-      "result": "PASS"
+      "actual": "không thấy điểm x.x/5",
+      "result": "FAIL"
     },
     {
       "id": "PDF-04",
       "group": "PDF",
       "name": "PDF có bằng chứng chính (sự kiện gốc)",
       "expected": "Có tên task trong seed (vd. '#4xx')",
-      "actual": "có",
-      "result": "PASS"
+      "actual": "không thấy",
+      "result": "FAIL"
     },
     {
       "id": "PDF-05",
       "group": "PDF",
       "name": "Tiếng Việt có dấu hiển thị đúng trong PDF (tên thành viên)",
       "expected": "Đủ 6 tên có dấu, vd. 'Trần Thị Bích'",
-      "actual": "HTTP 200; đúng 6/6; ví dụ dòng trong PDF: 'Trần Thị Bích                0.5             0.0         0.0'",
+      "actual": "HTTP 200; đúng 6/6; ví dụ dòng trong PDF: 'Trần Thị Bích'",
       "result": "PASS"
     },
     {

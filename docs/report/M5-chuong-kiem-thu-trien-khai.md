@@ -113,7 +113,7 @@ Minh chứng: `docs/qa/evidence/backend-unit-docker-2026-11-16.txt`, `frontend-u
 
 (**) Ngày 16/11, TRL-02 báo fail giả vì đường dẫn `/integration` được dùng lại cho trang mới `MultidimensionalVectorPage` (không liên quan Trello). M5 sửa ca kiểm thử cho đúng mục đích (không còn tham chiếu trang/API kết nối Trello) rồi chạy lại.
 
-`<TODO: lần chạy trên bản release 18/11>`
+**Kiểm tra trước release, 19/11 trên `master` @ `adb33ad`:** 26/30. Bốn ca PDF-01..04 lỗi vì migration V24/V25 (DEF-40) chèn dữ liệu demo vào nhóm id 1, làm bộ dữ liệu 500 sự kiện của M3 không còn khớp (nhóm 1 không có sprint 4). Xuất PDF trên một nhóm sạch tạo qua API vẫn đạt: HTTP 200, chậm nhất 0,061 s, đủ thành viên, có điểm chấm chéo và bảng truy vết. Cùng ngày: unit backend 236/236, frontend 89/89, tích hợp 23/23, pilot UAT 20/24, retest 2/9 (`docs/qa/evidence/*-2026-11-19.txt`).
 
 ### 3.5 Hiệu năng xuất PDF (mục tiêu G4 < 10 giây)
 
@@ -219,7 +219,7 @@ Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, bu
 | Quy trình dựng demo | `docs/deploy/demo-checklist.md`: dựng sạch, seed, khóa tài khoản lỗi DEF-40, kiểm tra 7 bước trước giờ demo |
 | Release notes | Bản nháp `docs/deploy/release-notes-v1.0.0.md`: tính năng, thay đổi CR-02, lỗi đã sửa, lỗi còn tồn tại và cách né, hướng dẫn chạy |
 | Video demo dự phòng | Đã quay 15/11 bằng `scripts/record-demo.ps1` (102 giây, có chú thích từng bước). File 84 MB nên không đưa vào Git; bản online: https://drive.google.com/file/d/1HE7ZnfLf49j5UMruRp-0IG11czHqGZjV/view |
-| Smoke test trên bản release | `<TODO>` |
+| Smoke test trên bản release | PASS trên ứng viên release `master` @ `adb33ad` (19/11, `staging-smoke-2026-11-19.txt`). Tag chưa gắn |
 
 ---
 
