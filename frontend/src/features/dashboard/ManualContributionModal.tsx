@@ -9,6 +9,8 @@ export interface ManualContributionModalProps {
   onClose: () => void;
   teamId: number;
   sprintId: number;
+  sprintName?: string;
+  sprints?: { id: number; name: string; isCurrent?: boolean }[];
   currentUserId: number;
   onContributionApproved?: (item: ManualContributionItem) => void;
 }
@@ -18,6 +20,8 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
   onClose,
   teamId,
   sprintId,
+  sprintName,
+  sprints,
   currentUserId,
   onContributionApproved,
 }) => {
@@ -65,7 +69,7 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
                   Khai báo & Xét duyệt đóng góp thủ công
                 </h2>
                 <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
-                  Sprint {sprintId}
+                  {sprintName || `Sprint ${sprintId}`}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -133,6 +137,8 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
             <ManualContributionForm
               teamId={teamId}
               sprintId={sprintId}
+              sprintName={sprintName}
+              sprints={sprints}
               userId={currentUserId}
               onSuccess={handleFormSuccess}
             />

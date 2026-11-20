@@ -300,16 +300,23 @@ public class BoardService {
             card.setDescription(request.getDescription());
         }
         if (request.getAssigneeId() != null) {
-            User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Assignee not found: " + request.getAssigneeId()));
-            Long teamId = card.getBoard().getTeam().getId();
-            if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, assignee.getId())) {
-                throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");
+            if (request.getAssigneeId() <= 0) {
+                if (oldAssigneeId != null) {
+                    assigneeChanged = true;
+                }
+                card.setAssignee(null);
+            } else {
+                User assignee = userRepository.findById(request.getAssigneeId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Assignee not found: " + request.getAssigneeId()));
+                Long teamId = card.getBoard().getTeam().getId();
+                if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, assignee.getId())) {
+                    throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");
+                }
+                if (!Objects.equals(oldAssigneeId, assignee.getId())) {
+                    assigneeChanged = true;
+                }
+                card.setAssignee(assignee);
             }
-            if (!Objects.equals(oldAssigneeId, assignee.getId())) {
-                assigneeChanged = true;
-            }
-            card.setAssignee(assignee);
         }
         if (request.getStoryPoints() != null) {
             validateStoryPoints(request.getStoryPoints());
@@ -407,10 +414,35 @@ public class BoardService {
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardId));
         checkCardPermission(card, actorUserId, false);
 
+        Long teamId = card.getBoard().getTeam().getId();
+
+        // Cho phép bỏ phân công (Unassign) khi truyền assigneeId <= 0
+        if (request.getAssigneeId() <= 0) {
+            String oldAssigneeName = card.getAssignee() != null ? card.getAssignee().getFullName() : "Unassigned";
+            card.setAssignee(null);
+            Card savedCard = cardRepository.save(card);
+
+            User actor = actorUserId != null ? userRepository.findById(actorUserId).orElse(null) : null;
+            Sprint activeSprint = getActiveSprintForTeam(teamId);
+            if (actor != null) {
+                activityService.logActivity(
+                        card.getBoard().getTeam(),
+                        actor,
+                        ActivitySource.BOARD,
+                        "CARD_ASSIGNEE_UPDATED",
+                        String.format("Unassigned card '%s' (was '%s')",
+                                card.getTitle(), oldAssigneeName),
+                        LocalDateTime.now(),
+                        activeSprint,
+                        card.getStoryPoints(),
+                        null);
+            }
+            return mapCardToDto(savedCard);
+        }
+
         User assignee = userRepository.findById(request.getAssigneeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assignee not found: " + request.getAssigneeId()));
 
-        Long teamId = card.getBoard().getTeam().getId();
         boolean isMember = teamMemberRepository.existsByTeamIdAndUserId(teamId, assignee.getId());
         if (!isMember) {
             throw new BusinessException("Người phụ trách phải thuộc nhóm (Team ID: " + teamId + ")");

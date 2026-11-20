@@ -1150,6 +1150,9 @@ export const ManualContributionPage: React.FC = () => {
             <ManualContributionForm
               teamId={currentTeamId}
               sprintId={selectedSprintId}
+              sprintName={sprints.find((s) => s.id === selectedSprintId)?.name}
+              sprints={sprints}
+              onSprintChange={(newId) => setSelectedSprintId(newId)}
               userId={currentUserId}
               onCancel={() => setIsCreateModalOpen(false)}
               onSuccess={(newItem) => {
