@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
@@ -7,11 +7,12 @@ import {
   GraduationCap,
   Sparkles,
   Check,
-  ExternalLink,
+  Share2,
   X,
   ArrowRight,
 } from 'lucide-react';
 import { CuteAvatarSvg } from './ContributionDashboard';
+import { showToast } from '../../components/ui/Toast';
 
 export interface MemberProfileModalData {
   id: number;
@@ -51,7 +52,37 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   courseName = 'Quản lý Dự án Công nghệ Thông tin',
   sprintLabel = 'Sprint 3',
 }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleShareMember = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('memberId', String(member.id));
+      const directUrl = url.toString();
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(directUrl).then(() => {
+          showToast.success(`Đã sao chép liên kết chia sẻ hồ sơ ${member.name} vào khay nhớ tạm!`, 'Chia sẻ hồ sơ');
+        });
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = directUrl;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast.success(`Đã sao chép liên kết chia sẻ hồ sơ ${member.name} vào khay nhớ tạm!`, 'Chia sẻ hồ sơ');
+      }
+
+      window.history.replaceState(null, '', directUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast.error('Không thể sao chép liên kết.', 'Lỗi');
+    }
+  };
 
   const displayMajor = member.major || 'Software Engineering';
   const displayRole = member.teamRole || member.role || 'Project Manager';
@@ -113,15 +144,21 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Nút Chia sẻ / Mở hồ sơ đầy đủ & Nút đóng */}
+          {/* Nút Chia sẻ hồ sơ & Nút đóng */}
           <div className="flex items-center gap-1 shrink-0">
-            <Link
-              to="/settings/profile"
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition"
-              title="Mở toàn bộ trang hồ sơ cá nhân"
+            <button
+              type="button"
+              onClick={handleShareMember}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+              title="Chia sẻ liên kết trực tiếp tới hồ sơ thành viên"
+              aria-label="Chia sẻ hồ sơ thành viên"
             >
-              <ExternalLink size={18} />
-            </Link>
+              {copied ? (
+                <Check size={18} className="text-emerald-500" />
+              ) : (
+                <Share2 size={18} />
+              )}
+            </button>
             <button
               type="button"
               onClick={onClose}
@@ -227,7 +264,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               Đóng
             </button>
             <Link
-              to="/settings/profile"
+              to="/profile"
               className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm hover:opacity-90 transition flex items-center gap-1.5"
             >
               <span>Hồ sơ chi tiết</span>

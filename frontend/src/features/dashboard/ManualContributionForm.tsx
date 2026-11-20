@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { contributionApi } from '../../api/contribution.api';
 import { boardApi } from '../../api/board.api';
+import { peerReviewApi } from '../../api/peerReview.api';
 import { ManualContributionItem, ManualContributionRequest } from '../../types/contribution';
 import {
   Send,
@@ -16,6 +17,7 @@ import {
   Check,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   FileText,
   Figma,
   Code2,
@@ -24,6 +26,9 @@ import {
 export interface ManualContributionFormProps {
   teamId: number;
   sprintId: number;
+  sprintName?: string;
+  sprints?: { id: number; name: string; isCurrent?: boolean }[];
+  onSprintChange?: (sprintId: number) => void;
   userId: number;
   onSuccess?: (newItem: ManualContributionItem) => void;
   onCancel?: () => void;
@@ -40,12 +45,57 @@ interface KanbanCardItem {
 export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
   teamId,
   sprintId,
+  sprintName,
+  sprints,
+  onSprintChange,
   userId,
   onSuccess,
   onCancel,
 }) => {
   // Step state: 1 = Chọn mã thẻ, 2 = Minh chứng, 3 = Điểm tự chấm & Xác nhận
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  // Active Sprint state & synchronization with data
+  const [activeSprintId, setActiveSprintId] = useState<number>(sprintId);
+  const [sprintList, setSprintList] = useState<{ id: number; name: string; isCurrent?: boolean }[]>(sprints || []);
+
+  useEffect(() => {
+    if (sprintId) {
+      setActiveSprintId(sprintId);
+    }
+  }, [sprintId]);
+
+  useEffect(() => {
+    if (sprints && sprints.length > 0) {
+      setSprintList(sprints);
+      return;
+    }
+    if (!teamId) return;
+
+    let mounted = true;
+    peerReviewApi
+      .getSprints(teamId)
+      .then((res) => {
+        if (!mounted) return;
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setSprintList(
+            res.data.map((sp, idx) => ({
+              id: sp.id,
+              name: sp.name || `Sprint ${idx + 1}`,
+              isCurrent: sp.status === 'ACTIVE',
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [teamId, sprints]);
+
+  const selectedSprint = sprintList.find((s) => s.id === activeSprintId);
+  const displaySprintName = sprintName || selectedSprint?.name || `Sprint ${activeSprintId}`;
 
   // Form states
   const [taskName, setTaskName] = useState('');
@@ -212,7 +262,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await contributionApi.submitManualContribution(teamId, sprintId, userId, payload);
+      const response = await contributionApi.submitManualContribution(teamId, activeSprintId, userId, payload);
       const createdItem = response.data;
 
       setStatusMessage({
@@ -272,9 +322,31 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
               {stepInfo.title}
             </h2>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 font-mono">
-              Sprint {sprintId}
-            </span>
+            {sprintList.length > 0 ? (
+              <div className="relative inline-flex items-center">
+                <select
+                  value={activeSprintId}
+                  onChange={(e) => {
+                    const newId = Number(e.target.value);
+                    setActiveSprintId(newId);
+                    onSprintChange?.(newId);
+                  }}
+                  className="rounded-full border border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/40 pl-2.5 pr-5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 font-mono hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition cursor-pointer appearance-none outline-none focus:ring-1 focus:ring-indigo-400"
+                  aria-label="Chọn Sprint"
+                >
+                  {sprintList.map((sp) => (
+                    <option key={sp.id} value={sp.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-sans">
+                      {sp.name} {sp.isCurrent ? '• Hiện tại' : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-1.5 text-indigo-500 dark:text-indigo-400 pointer-events-none" />
+              </div>
+            ) : (
+              <span className="rounded-full border border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 font-mono">
+                {displaySprintName}
+              </span>
+            )}
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             {stepInfo.subtitle}

@@ -75,10 +75,13 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
 
   return (
     <div
-      className="notif-popover-container"
+      className="notif-popover-container notif-popover"
+      id="notifPopover"
+      data-testid="notif-popover"
       role="dialog"
       aria-label="Hộp thư thông báo"
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}
       <div className="notif-popover-header">

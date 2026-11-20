@@ -1,6 +1,6 @@
 # Minh chứng kiểm thử và triển khai (WP5 – M5)
 
-**Phụ trách:** M5 – Khiếu Hoàng Nam Anh · **Cập nhật:** 16/11/2026 23:40 (GMT+7)
+**Phụ trách:** M5 – Khiếu Hoàng Nam Anh · **Cập nhật:** 19/11/2026 13:20 (GMT+7)
 
 Thư mục này lưu log chạy test, kết quả JSON, file PDF mẫu, ảnh màn hình và video demo dùng làm minh chứng cho defect log (`docs/qa/defect-log.md`), chương Kiểm thử & Triển khai (`docs/report/M5-chuong-kiem-thu-trien-khai.md`) và Mini-PM Report.
 
@@ -13,7 +13,23 @@ Quy ước tên file: `<loại>-<yyyy-mm-dd>.<đuôi>`. File mới (từ 14/11) 
 | Video demo dự phòng (102 giây, quay 15/11 trên staging) | https://drive.google.com/file/d/1HE7ZnfLf49j5UMruRp-0IG11czHqGZjV/view |
 | Sheet QA (tab "UAT pilot", "Defect log") | https://docs.google.com/spreadsheets/d/104KW7se8hVV37DPfD7vKPBYUGpkmSk94uUbg0KYrkb8/edit |
 
-## Lần chạy mới nhất: 16/11/2026, `master` @ `f18a705`
+## Lần chạy mới nhất: 19/11/2026 (kiểm tra trước release), `master` @ `adb33ad`
+
+Staging dựng sạch từ `master` @ `adb33ad` (merge PR #103, 18/11 14:06). Jar và bundle frontend build trên máy chạy rồi đóng image (cùng mã nguồn; build trong container bị chặn bởi chứng chỉ proxy của máy chạy). Nạp seed M3 `large_dataset_500_tasks.sql`, chạy `uat-seed.py` và `demo-seed.py`.
+
+| File | Nội dung | Kết quả | Ghi chú |
+|---|---|---|---|
+| `staging-compose-ps-2026-11-19.txt`, `staging-smoke-2026-11-19.txt` | Dựng staging, `staging-smoke.sh` | 3 container healthy, **PASS** | |
+| `backend-unit-docker-2026-11-19.txt` | `mvn test`, Testcontainers chạy thật | **236 test, 0 lỗi, 0 skip** | |
+| `frontend-unit-2026-11-19.txt` | Vitest | **20 file, 89/89 PASS** | |
+| `integration-2026-11-19.txt` | `integration-sprint4.py` | **23/23 PASS** | |
+| `regression-2026-11-19.txt` | `regression-sprint5.py` | **26/30** (PDF-01..04 FAIL) | Lỗi do dữ liệu: migration V24/V25 (DEF-40) chèn 11 thành viên và sprint 1–3 vào nhóm id 1, nên seed 500 sự kiện của M3 không còn khớp (nhóm 1 không có sprint 4 → 404). Xem dòng dưới |
+| `report-clean-team-2026-11-19.pdf` | Xuất PDF trên nhóm demo sạch tạo qua API (`demo-seed.py`), 11 lần | HTTP 200, **chậm nhất 0,061 s**, đủ 5 thành viên, có điểm chấm chéo 4.3/5 và 4.7/5, ẩn điểm khi chưa đủ lượt, có bảng truy vết | Chức năng PDF và G4 vẫn đạt |
+| `retest-2026-11-19.txt`, `retest-result-2026-11-19.json` | `retest-sprint6.py` | **2/9** (như 16/11: DEF-19, 40, 41, 42 còn lỗi) | |
+| `uat-pilot-2026-11-19.txt` | `uat-pilot.py` | **20/24** (như 16/11: DEF-31, 32) | |
+| (không lưu file) | `GET /api/contributions/evidence` cho 5 thành viên nhóm demo | **200** cả 5 | DEF-43 **không tái hiện** trên staging; lỗi 500 chỉ thấy trên CSDL Render |
+
+## Lần chạy 16/11/2026, `master` @ `f18a705`
 
 Staging dựng lại sạch (`./scripts/staging-up.sh reset` rồi `./scripts/staging-up.sh`), nạp seed M3 `large_dataset_500_tasks.sql` cho tích hợp và hồi quy. Sau đó reset lần nữa và chạy `uat-seed.py` cho pilot UAT và môi trường UAT.
 

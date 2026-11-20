@@ -96,6 +96,10 @@ export const router = createBrowserRouter([
             path: 'profile',
             element: <ProfileSettingsPage />,
           },
+          {
+            path: 'settings/profile',
+            element: <Navigate to="/profile" replace />,
+          },
         ],
       },
     ],

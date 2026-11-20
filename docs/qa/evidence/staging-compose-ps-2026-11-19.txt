@@ -1,0 +1,3 @@
+fairshare-backend fairshare-staging-backend Up 5 minutes (healthy)
+fairshare-db mariadb:10.11 Up 5 minutes (healthy)
+fairshare-frontend fairshare-staging-frontend Up 5 minutes (healthy)

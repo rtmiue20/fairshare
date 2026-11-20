@@ -1,0 +1,3 @@
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.088 s -- in com.fairshare.expense.ExpenseRepositoryTest
+[INFO] Tests run: 236, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS

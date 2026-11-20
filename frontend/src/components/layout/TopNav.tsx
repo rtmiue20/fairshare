@@ -127,10 +127,13 @@ export const TopNav: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // Tránh đóng popover nếu phần tử click bị unmount khỏi DOM trong khi re-render
+      if (!target || !document.contains(target)) return;
+      if (notifRef.current && !notifRef.current.contains(target)) {
         setIsNotifOpen(false);
       }
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(target)) {
         setIsProjectOpen(false);
       }
     };
@@ -685,8 +688,10 @@ export const TopNav: React.FC = () => {
             <button
               className={`icon-btn notif-btn-trigger ${isNotifOpen ? 'active' : ''}`}
               id="notifBtn"
+              data-testid="notif-btn"
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsNotifOpen((prev) => {
                   const next = !prev;
                   if (next) {
@@ -695,12 +700,17 @@ export const TopNav: React.FC = () => {
                   return next;
                 });
               }}
+              onMouseDown={(e) => e.stopPropagation()}
               aria-label="Thông báo"
               title={unreadNotifCount > 0 ? `${unreadNotifCount} thông báo mới` : 'Thông báo'}
             >
               <Bell size={18} />
               {hasUnseenBadge && unreadNotifCount > 0 && (
-                <span className="notif-badge-count" title={`${unreadNotifCount} thông báo mới`}>
+                <span
+                  className="notif-badge-count"
+                  style={{ pointerEvents: 'none' }}
+                  title={`${unreadNotifCount} thông báo mới`}
+                >
                   {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
                 </span>
               )}
