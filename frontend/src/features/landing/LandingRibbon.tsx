@@ -105,6 +105,8 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvas2dRef = useRef<HTMLCanvasElement>(null);
   const canvas3dRef = useRef<HTMLCanvasElement>(null);
+  const scrollProgressRef = useRef(scrollProgress);
+  scrollProgressRef.current = scrollProgress;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -126,7 +128,7 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
 
     const t0 = performance.now();
     let animId = 0;
-    let s = scrollProgress;
+    let s = scrollProgressRef.current;
     let W = 0;
     let H = 0;
     let col: { s: [number, number, number][]; line: string } | null = null;
@@ -298,7 +300,7 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
       group.position.set((xf - .5) * visW, (.5 - K.y) * visH, 0);
       group.rotation.set(.3 * Math.cos(s * 3.6), .42 * Math.sin(s * 5.2), (-K.a * Math.PI) / 180);
       group.scale.setScalar((K.w / .15) * (narrow ? .42 : .64) * (.85 + .15 * intro));
-      mat.uniforms.uOp.value = K.al * (narrow ? .55 : 1) * (.15 + .85 * intro);
+      mat.uniforms.uOp.value = K.al * (narrow ? .42 : 1) * (.15 + .85 * intro);
 
       const t = now / 1000;
       const ph = s * 6 + (reduce ? 0 : t * .2);
@@ -407,7 +409,7 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
 
     function loop(now: number) {
       animId = requestAnimationFrame(loop);
-      s += (scrollProgress - s) * .14;
+      s += (scrollProgressRef.current - s) * .14;
       if (gl) {
         draw3D(now);
       } else {
@@ -434,7 +436,7 @@ export const LandingRibbon: React.FC<LandingRibbonProps> = ({ scrollProgress }) 
       window.removeEventListener('resize', onResize);
       if (gl) gl.renderer.dispose();
     };
-  }, [scrollProgress]);
+  }, []);
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none">

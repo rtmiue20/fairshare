@@ -444,3 +444,42 @@
   70% { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+@media (hover: none) {
+  .notif-remove-btn {
+    opacity: 0.78;
+    padding: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .notif-popover-container {
+    position: fixed;
+    top: calc(var(--top-row1, 52px) + 8px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - var(--top-row1, 52px) - 24px);
+    padding: 14px 12px 12px;
+    border-radius: 18px;
+  }
+
+  .notif-popover-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .notif-cards-list {
+    max-height: calc(100dvh - var(--top-row1, 52px) - 120px);
+  }
+
+  .notif-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .notif-btn-row {
+    flex-wrap: wrap;
+  }
+}

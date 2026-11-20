@@ -23,6 +23,7 @@ import { CustomToolsPopup, ColumnItem } from './CustomToolsPopup';
 import { boardApi } from '../../api/board.api';
 import { getMemberAvatarGradient, getMemberInitials } from '../../utils/format';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useProjectStore } from '../../store/projectStore';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'completed' | string;
 
@@ -701,6 +702,8 @@ export const AllTasksSection: React.FC<{
 
         if (toColLower.includes('done') || toColLower.includes('complete') || toColLower.includes('hoàn thành')) {
           useNotificationStore.getState().addNotification({
+            teamId: teamId ?? useProjectStore.getState().activeTeamId ?? undefined,
+            source: 'manual',
             type: 'success',
             title: 'Hoàn thành task',
             message: `Task "${task.title}" đã được hoàn thành và cập nhật tiến độ 100%.`,
@@ -902,6 +905,8 @@ export const AllTasksSection: React.FC<{
         showToast.success(`Đã tạo và lưu công việc "${newTask.title}" vào DB!`, 'Database Saved');
 
         useNotificationStore.getState().addNotification({
+          teamId: teamId ?? useProjectStore.getState().activeTeamId ?? undefined,
+          source: 'manual',
           type: 'info',
           title: 'Công việc mới được tạo',
           message: `Nhiệm vụ "${newTask.title}" đã được thêm vào bảng task dự án.`,

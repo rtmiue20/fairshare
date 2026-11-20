@@ -17,6 +17,7 @@ public class TeamMemberDto {
     private Long userId;
     private String email;
     private String fullName;
+    private String avatarUrl;
     private MemberRole role;
     private boolean hasConsented;
     private LocalDateTime joinedAt;

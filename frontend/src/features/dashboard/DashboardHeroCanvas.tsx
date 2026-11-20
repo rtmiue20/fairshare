@@ -52,32 +52,6 @@ const FALLBACK_MEMBER_RGB: [number, number, number][] = [
   [169, 155, 255],
 ];
 
-/** Chạy queue marquee từ phải qua trái nếu text quá dài */
-const MarqueeText: React.FC<{ text: string; maxLen?: number }> = ({
-  text,
-  maxLen = 40,
-}) => {
-  if (!text) return null;
-  if (text.length <= maxLen) {
-    return <>{text}</>;
-  }
-  const doubled = text + '    •    ' + text;
-  return (
-    <span
-      className="marquee-wrap"
-      aria-label={text}
-      style={{
-        display: 'inline-block',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        verticalAlign: 'bottom',
-      }}
-    >
-      <span className="marquee-inner">{doubled}</span>
-    </span>
-  );
-};
-
 export interface DashboardHeroCanvasProps {
   teamId?: number;
   members?: HeroMemberItem[];
@@ -89,7 +63,6 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
   teamId: propTeamId,
   members: propMembers,
   totalEvents,
-  sprintLabel,
 }) => {
   const heroRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -231,7 +204,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
       cv.height = Math.round(H * dpr);
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const top = 64;
+      const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--top'), 10) || 64;
       narrow = W < 640;
       cx = W / 2;
       cy = top + (H - top) * (narrow ? 0.36 : 0.42);
@@ -437,7 +410,8 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
           ctx.textAlign = 'left';
           ctx.font = `500 ${narrow ? 11 : 13}px "Be Vietnam Pro",sans-serif`;
           ctx.fillStyle = rgba(fg, wC);
-          ctx.fillText(mItem.name, xs - labW, y + bh / 2 - (narrow ? 0 : 7));
+          const displayLabel = narrow && mItem.name.length > 11 ? `${mItem.name.slice(0, 10)}…` : mItem.name;
+          ctx.fillText(displayLabel, xs - labW, y + bh / 2 - (narrow ? 0 : 7));
           if (!narrow) {
             ctx.font = `400 11px "JetBrains Mono",monospace`;
             ctx.fillStyle = rgba(col.fg3, wC);
@@ -558,7 +532,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
         className="stage"
         id="stage"
         ref={stageRef}
-        style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}
+        style={{ position: 'sticky', top: 0, overflow: 'hidden' }}
       >
         <canvas
           ref={canvasRef}
@@ -567,15 +541,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
           role="img"
         />
 
-        <div className="hero-top pad">
-          <div className="crumb">
-            <span className="eyebrow">Dashboard</span>
-            <span className="chip">{sprintLabel || 'Sprint hiện tại'}</span>
-            <span className="chip acc">{courseName || 'Dữ liệu trực tiếp'}</span>
-          </div>
-        </div>
-
-        <div className="caps" style={{ bottom: 'calc(var(--nav-b, 0px) + 11.5vh)', height: '132px' }}>
+        <div className="caps" style={{ bottom: 'calc(var(--nav-b, 0px) + 11.5vh)', minHeight: '150px', height: 'auto' }}>
           <div
             className="cap"
             id="capA"
@@ -591,19 +557,17 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
 
             <h2
               style={{
-                fontSize: 'clamp(18px, 2.1vw, 25px)',
+                fontSize: 'clamp(16px, 2.1vw, 24px)',
                 fontWeight: 600,
-                maxWidth: '56ch',
+                maxWidth: 'min(92vw, 56ch)',
                 margin: '2px 0',
+                lineHeight: 1.35,
+                whiteSpace: 'normal',
+                overflowWrap: 'break-word',
               }}
             >
-              <MarqueeText
-                text={
-                  description ||
-                  'Ai làm gì, bao nhiêu, khi nào — minh bạch trên từng Sprint.'
-                }
-                maxLen={68}
-              />
+              {description ||
+                'Ai làm gì, bao nhiêu, khi nào — minh bạch trên từng Sprint.'}
             </h2>
 
             <p className="hero-invite-code" style={{ margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>

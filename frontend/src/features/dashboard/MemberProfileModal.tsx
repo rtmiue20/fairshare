@@ -177,7 +177,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             Thông tin dự án &amp; Chuyên môn
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5">
             {/* Cột 1: Dự án (Company) */}
             <div className="flex flex-col gap-1 min-w-0">
               <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -249,7 +249,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         </div>
 
         {/* ── FOOTER: THÔNG TIN TÀI KHOẢN & HÀNH ĐỘNG ── */}
-        <div className="pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-3">
+        <div className="pt-2 border-t border-slate-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="font-mono text-[11px] font-semibold">Mã: #{member.id}</span>
             {member.email && <span className="truncate max-w-[170px]">· {member.email}</span>}

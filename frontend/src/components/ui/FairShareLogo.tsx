@@ -53,7 +53,7 @@ export const FairShareLogo: React.FC<FairShareLogoProps> = ({
       {/* Brand Text: FAIRSHARE - Automatically switches between light & dark mode */}
       {showText && (
         <span
-          className={`font-bold tracking-widest ${textClassName}`}
+          className={`font-bold tracking-widest ${textClassName || 'inline-block'}`}
           style={{
             fontFamily: 'var(--f-display, var(--f-sans, system-ui, -apple-system, sans-serif))',
             fontSize: `${Math.max(13, size * 0.72)}px`,
@@ -62,7 +62,6 @@ export const FairShareLogo: React.FC<FairShareLogoProps> = ({
             color: 'var(--fg)',
             margin: 0,
             lineHeight: 1,
-            display: 'inline-block',
           }}
         >
           FAIRSHARE

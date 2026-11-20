@@ -986,7 +986,7 @@ export const BoardView: React.FC = () => {
       )}
 
       {/* Breadcrumb Navigation */}
-      <div className="flex items-center gap-2 text-xs text-zinc-500">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
         <Link to="/teams" className="hover:text-zinc-300 transition-colors">
           Danh sách nhóm
         </Link>
@@ -999,7 +999,7 @@ export const BoardView: React.FC = () => {
       </div>
 
       {/* Board Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 rounded-2xl bg-slate-900/60 dark:bg-[#0c1424]/80 backdrop-blur-xl border border-white/10 dark:border-cyan-500/15 shadow-2xl relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-cyan-400/40 before:to-transparent">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 sm:p-6 rounded-2xl bg-slate-900/60 dark:bg-[#0c1424]/80 backdrop-blur-xl border border-white/10 dark:border-cyan-500/15 shadow-2xl relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-cyan-400/40 before:to-transparent">
         <div className="space-y-1.5 z-10">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.2)]">
@@ -1132,7 +1132,7 @@ export const BoardView: React.FC = () => {
           {sortedColumns.map((column, colIdx) => (
             <div
               key={column.id}
-              className="flex flex-col rounded-2xl bg-slate-900/60 dark:bg-[#0c1424]/70 backdrop-blur-xl border border-white/10 dark:border-cyan-500/15 p-4 space-y-3 min-h-[500px] shadow-xl shadow-black/25 hover:border-white/15 transition-all duration-300"
+              className="flex flex-col rounded-2xl bg-slate-900/60 dark:bg-[#0c1424]/70 backdrop-blur-xl border border-white/10 dark:border-cyan-500/15 p-4 space-y-3 min-h-[220px] md:min-h-[500px] shadow-xl shadow-black/25 hover:border-white/15 transition-all duration-300"
             >
               {/* Column Header */}
               <div className="flex items-center justify-between pb-2 border-b border-white/10 dark:border-white/[0.08]">
@@ -1358,10 +1358,10 @@ export const BoardView: React.FC = () => {
             </div>
 
             {/* 2-Column Body */}
-            <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-zinc-800">
+            <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-y-auto md:overflow-hidden divide-y md:divide-y-0 md:divide-x divide-zinc-800">
               
               {/* LEFT COLUMN: Card Info & Edit Form (md:col-span-7) */}
-              <div className="md:col-span-7 flex flex-col p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-70px)]">
+              <div className="md:col-span-7 flex flex-col p-4 sm:p-6 space-y-4 overflow-y-auto max-h-none md:max-h-[calc(90dvh-70px)]">
                 {editError && (
                   <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-800/50 text-xs text-red-300 flex items-center gap-2">
                     <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
@@ -1396,7 +1396,7 @@ export const BoardView: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Assignee select */}
                     <div className="space-y-1">
                       <label className="text-zinc-400 font-medium flex items-center gap-1.5">
@@ -1444,7 +1444,7 @@ export const BoardView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Due date input */}
                     <div className="space-y-1">
                       <label className="text-zinc-400 font-medium flex items-center gap-1.5">
@@ -1908,7 +1908,7 @@ export const BoardView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-zinc-400 font-medium">Cột bắt đầu</label>
                   <select

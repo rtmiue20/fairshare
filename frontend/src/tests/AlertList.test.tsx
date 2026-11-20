@@ -332,4 +332,61 @@ describe('AlertList Component (CR-04 Rule-Based Alerts & Inactivity)', () => {
       expect(screen.getByText('Auto-Alert Active')).toBeInTheDocument();
     });
   });
+
+  it('does not fetch sample alerts or show sticky data for newly created account without project', async () => {
+    useProjectStore.setState({
+      initialized: true,
+      teams: [],
+      activeTeamId: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <AlertList />
+      </MemoryRouter>
+    );
+
+    expect(apiClient.get).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Cấu hình Redis Cache/i)).not.toBeInTheDocument();
+  });
+
+  it('renders clean empty state with real data when a new project has no tasks or alerts', async () => {
+    useProjectStore.setState({
+      initialized: true,
+      teams: [{ id: 10, name: 'NewProject', createdAt: '2026-11-20T10:00:00' }],
+      activeTeamId: 10,
+    });
+
+    vi.mocked(apiClient.get).mockImplementation((url: string) => {
+      if (url.includes('/inactivity')) {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                userId: 500,
+                userName: 'Tài Khoản Mới',
+                daysInactive: 0,
+                lastActivity: '2026-11-20T10:00:00',
+                exceeded: false,
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: true, data: [] } });
+    });
+
+    render(
+      <MemoryRouter>
+        <AlertList />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Không có cảnh báo tồn đọng')).toBeInTheDocument();
+      expect(screen.getByText('Tài Khoản Mới')).toBeInTheDocument();
+      expect(screen.getByText(/0 ngày \(Ổn\)/i)).toBeInTheDocument();
+    });
+  });
 });

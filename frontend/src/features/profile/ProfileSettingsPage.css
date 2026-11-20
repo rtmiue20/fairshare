@@ -34,6 +34,7 @@
 
 .ps-breadcrumb {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   font-size: 13.5px;
@@ -47,6 +48,7 @@
 
 .ps-top-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -102,8 +104,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   border: 0;
   background: none;
@@ -126,7 +128,7 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 6px 8px;
   font-family: var(--f-body, inherit);
 }
 
@@ -149,12 +151,18 @@
   right: 0;
   top: calc(100% + 6px);
   min-width: 220px;
+  max-width: calc(100vw - 32px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
   padding: 6px;
   z-index: 30;
+}
+
+:root:not([data-theme='light']) .ps-menu,
+[data-theme='dark'] .ps-menu {
+  background: #18181b;
 }
 
 .ps-menu button {
@@ -307,8 +315,8 @@
 }
 
 .ps-hero-info {
-  flex: 1;
-  min-width: 220px;
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
 .ps-name-row {
@@ -336,6 +344,7 @@
   letter-spacing: 0.2px;
 }
 
+:root:not([data-theme='light']) .ps-badge,
 [data-theme='dark'] .ps-badge {
   background: rgba(99, 102, 241, 0.25);
   color: #a5b4fc;
@@ -346,6 +355,8 @@
   font-size: 13px;
   color: var(--fg2);
   margin-top: 4px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .ps-meta {
@@ -465,6 +476,7 @@
 
 .ps-card-h {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -557,6 +569,7 @@
 
 .ps-list-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -655,21 +668,28 @@
 
 .ps-form-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .ps-grid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .ps-shell {
     padding: 18px 14px;
+  }
+  .ps-hero {
+    gap: 14px;
+  }
+  .ps-name-row h2 {
+    font-size: 20px;
   }
   .ps-info-grid,
   .ps-form-grid {
@@ -677,5 +697,12 @@
   }
   .ps-inline-input {
     flex-direction: column;
+  }
+  .ps-tabs button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .ps-card {
+    padding: 14px;
   }
 }

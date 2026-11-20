@@ -353,6 +353,8 @@ export const ManualContributionPage: React.FC = () => {
       await contributionApi.reviewManualContribution(item.id, currentUserId, 'APPROVE');
       showToast.success(`Đã phê duyệt minh chứng "${item.taskName}" (+${item.storyPoints} SP) thành công!`);
       useNotificationStore.getState().addNotification({
+        teamId: currentTeamId,
+        source: 'manual',
         type: 'success',
         title: 'Phê duyệt minh chứng',
         message: `Minh chứng "${item.taskName}" (+${item.storyPoints} SP) đã được duyệt và cộng vào điểm đóng góp.`,
@@ -507,14 +509,14 @@ export const ManualContributionPage: React.FC = () => {
         {/* Action controls on top right */}
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Time period / Sprint dropdown */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-xs">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-sm">
             <Calendar size={14} className="text-zinc-400" />
             <span className="text-zinc-400 font-normal">Time period:</span>
             <select
               aria-label="Chọn Sprint"
               value={selectedSprintId}
               onChange={(e) => setSelectedSprintId(Number(e.target.value))}
-              className="bg-transparent text-zinc-800 dark:text-zinc-200 font-semibold focus:outline-none cursor-pointer text-xs"
+              className="appearance-none bg-transparent text-zinc-800 dark:text-zinc-200 font-semibold focus:outline-none cursor-pointer text-xs max-w-[155px] sm:max-w-[240px] truncate"
             >
               {sprints.map((sp) => (
                 <option key={sp.id} value={sp.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
@@ -526,7 +528,7 @@ export const ManualContributionPage: React.FC = () => {
           </div>
 
           {/* Account switcher */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-xs">
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-sm">
             <UserCheck size={14} className="text-indigo-500 shrink-0" />
             <select
               aria-label="Tài khoản thực hiện"
@@ -546,7 +548,7 @@ export const ManualContributionPage: React.FC = () => {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-200 transition-colors shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-200 transition-colors shadow-sm cursor-pointer"
           >
             <Share2 size={13} />
             <span>Export</span>
@@ -557,7 +559,7 @@ export const ManualContributionPage: React.FC = () => {
             type="button"
             onClick={() => window.print()}
             title="In sổ cái Ledger"
-            className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-xs cursor-pointer"
+            className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm cursor-pointer"
           >
             <Printer size={15} />
           </button>
@@ -567,7 +569,7 @@ export const ManualContributionPage: React.FC = () => {
             type="button"
             onClick={handleExportCSV}
             title="Tải tệp dữ liệu"
-            className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-xs cursor-pointer"
+            className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm cursor-pointer"
           >
             <Download size={15} />
           </button>
@@ -675,7 +677,7 @@ export const ManualContributionPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 relative">
         {/* Left Chart: Overall points approved */}
         <div className="p-5 rounded-2xl bg-white dark:bg-[#1f1f23] backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm transition-all duration-200 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
               Overall points approved (Tích lũy SP)
             </h3>
@@ -726,7 +728,7 @@ export const ManualContributionPage: React.FC = () => {
 
         {/* Right Chart: Overall points pending */}
         <div className="p-5 rounded-2xl bg-white dark:bg-[#1f1f23] backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/35 shadow-sm transition-all duration-200 flex flex-col justify-between relative">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
               Overall points pending (Chờ thẩm định)
             </h3>
@@ -774,10 +776,10 @@ export const ManualContributionPage: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Floating Detail Card (Connected to selected contribution) */}
+          {/* Floating Detail Card (Connected to selected contribution - Desktop xl) */}
           {selectedItem && (
             <div
-              className="hidden sm:block absolute top-12 right-6 z-10 w-64 bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-700/80 rounded-2xl p-4 shadow-2xl transition-all animate-fadeIn"
+              className="hidden xl:block absolute top-12 right-6 z-10 w-64 bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-700/80 rounded-2xl p-4 shadow-2xl transition-all animate-fadeIn"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -791,7 +793,7 @@ export const ManualContributionPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedItem(null)}
-                  className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
                 >
                   <X size={13} />
                 </button>
@@ -820,7 +822,7 @@ export const ManualContributionPage: React.FC = () => {
                         href={selectedItem.evidenceLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center gap-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-750 transition-colors text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate max-w-[200px]"
+                        className="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center gap-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate max-w-[200px]"
                         title={selectedItem.evidenceLink}
                       >
                         <ExternalLink size={12} className="shrink-0" />
@@ -840,14 +842,14 @@ export const ManualContributionPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleApprove(selectedItem)}
-                      className="flex-1 py-1 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer"
+                      className="flex-1 py-2 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer"
                     >
                       Duyệt
                     </button>
                     <button
                       type="button"
                       onClick={() => handleReject(selectedItem)}
-                      className="flex-1 py-1 text-[11px] font-semibold bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors cursor-pointer"
+                      className="flex-1 py-2 text-[11px] font-semibold bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors cursor-pointer"
                     >
                       Từ chối
                     </button>
@@ -858,6 +860,77 @@ export const ManualContributionPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Inline Detail Card for Mobile & iPad/Tablet (< xl) */}
+      {selectedItem && (
+        <div className="xl:hidden bg-white dark:bg-[#1f1f23] border border-zinc-200/90 dark:border-zinc-700/80 rounded-2xl p-4 shadow-sm animate-fadeIn">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-pink-100 dark:bg-pink-950/60 text-pink-600 flex items-center justify-center shrink-0">
+                <Sparkles size={13} />
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-xs text-zinc-900 dark:text-white truncate">
+                  {selectedItem.taskName}
+                </h4>
+                <p className="font-mono text-[10px] text-zinc-400"># TASK-{selectedItem.id}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedItem(null)}
+              aria-label="Đóng chi tiết"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 shrink-0 cursor-pointer"
+            >
+              <X size={15} />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 text-xs">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1.5 font-medium text-zinc-700 dark:text-zinc-200">
+                <span className={`w-2 h-2 rounded-full ${
+                  selectedItem.status === 'APPROVED' ? 'bg-emerald-500' : selectedItem.status === 'REJECTED' ? 'bg-rose-500' : 'bg-amber-500'
+                }`} />
+                {selectedItem.userName || 'Thành viên'}
+              </span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                +{selectedItem.storyPoints} SP ({metrics.totalPoints > 0 ? Math.round((Number(selectedItem.storyPoints) / metrics.totalPoints) * 100) : 100}%)
+              </span>
+              {selectedItem.evidenceLink ? (
+                <a
+                  href={selectedItem.evidenceLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-medium"
+                >
+                  <ExternalLink size={12} />
+                  <span>Mở minh chứng</span>
+                </a>
+              ) : (
+                <span className="text-[11px] text-zinc-400">Chưa gắn URL</span>
+              )}
+            </div>
+            {selectedItem.status === 'PENDING' && (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => handleApprove(selectedItem)}
+                  className="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg cursor-pointer"
+                >
+                  Duyệt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReject(selectedItem)}
+                  className="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg cursor-pointer"
+                >
+                  Từ chối
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── BOTTOM SECTION: LEDGER DATA TABLE (Image 1 Style) ── */}
       <div className="p-5 rounded-2xl bg-white dark:bg-[#1f1f23] backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 dark:hover:border-cyan-500/25 shadow-sm space-y-4 transition-all duration-200">
@@ -871,14 +944,14 @@ export const ManualContributionPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search for transaction ID, date, category"
-              className="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-750 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           {/* Filters & Sort */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Filter status */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-750 text-xs text-zinc-700 dark:text-zinc-300">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300">
               <span className="text-zinc-400">Filters:</span>
               <select
                 aria-label="Lọc trạng thái"
@@ -894,27 +967,27 @@ export const ManualContributionPage: React.FC = () => {
             </div>
 
             {/* Sort order */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-750 text-xs text-zinc-700 dark:text-zinc-300">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300">
               <select
                 aria-label="Sắp xếp"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'recent' | 'oldest' | 'points')}
-                className="bg-transparent font-medium focus:outline-none cursor-pointer"
+                className="appearance-none bg-transparent font-medium focus:outline-none cursor-pointer pr-1"
               >
                 <option value="recent" className="bg-white dark:bg-zinc-900">Recent transactions</option>
                 <option value="oldest" className="bg-white dark:bg-zinc-900">Oldest transactions</option>
                 <option value="points" className="bg-white dark:bg-zinc-900">Highest points</option>
               </select>
-              <ChevronDown size={13} className="text-zinc-400" />
+              <ChevronDown size={13} className="text-zinc-400 pointer-events-none" />
             </div>
           </div>
         </div>
 
         {/* Ledger Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto pb-16">
+          <table className="w-full min-w-[780px] text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold text-zinc-400">
+              <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold text-zinc-400 whitespace-nowrap">
                 <th className="py-3 px-3 w-8">
                   <input
                     type="checkbox"
@@ -931,7 +1004,7 @@ export const ManualContributionPage: React.FC = () => {
                 <th className="py-3 px-3 text-center w-12"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-850">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-zinc-400">
@@ -947,7 +1020,7 @@ export const ManualContributionPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredContributions.map((item) => {
+                filteredContributions.map((item, idx) => {
                   const isChecked = selectedIds.includes(item.id);
                   const isSelected = selectedItem?.id === item.id;
                   const categoryMeta = getCategoryMeta(item.evidenceLink, item.taskName);
@@ -1000,10 +1073,10 @@ export const ManualContributionPage: React.FC = () => {
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-[10px] text-indigo-500 hover:underline mt-0.5 truncate max-w-xs"
+                            className="inline-flex items-center gap-1 text-[10px] text-indigo-500 hover:underline mt-0.5 max-w-[240px] sm:max-w-xs"
                           >
-                            <ExternalLink size={10} />
-                            <span>{item.evidenceLink}</span>
+                            <ExternalLink size={10} className="shrink-0" />
+                            <span className="truncate">{item.evidenceLink}</span>
                           </a>
                         )}
                       </td>
@@ -1062,7 +1135,8 @@ export const ManualContributionPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                          className="p-1 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                          aria-label="Thao tác"
+                          className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
                         >
                           <MoreVertical size={14} />
                         </button>
@@ -1070,7 +1144,9 @@ export const ManualContributionPage: React.FC = () => {
                         {/* Action Popup Dropdown */}
                         {activeMenuId === item.id && (
                           <div
-                            className="absolute right-3 top-10 z-30 w-44 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-750 shadow-xl py-1 text-xs text-left"
+                            className={`absolute right-3 ${
+                              idx >= filteredContributions.length - 2 ? 'bottom-10' : 'top-10'
+                            } z-30 w-44 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-xl py-1 text-xs text-left`}
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
@@ -1140,12 +1216,12 @@ export const ManualContributionPage: React.FC = () => {
       {/* ── MODAL KHAI BÁO ĐÓNG GÓP (SAVE TO DB) ── */}
       {isCreateModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-fadeIn overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsCreateModalOpen(false);
           }}
         >
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl max-w-xl w-full max-h-[90dvh] overflow-y-auto p-4 sm:p-7 shadow-2xl">
             {/* Embedded Multi-step Contribution Form connecting directly to DB */}
             <ManualContributionForm
               teamId={currentTeamId}
@@ -1158,6 +1234,8 @@ export const ManualContributionPage: React.FC = () => {
               onSuccess={(newItem) => {
                 showToast.success(`Đã lưu đóng góp "${newItem.taskName}" vào DB!`);
                 useNotificationStore.getState().addNotification({
+                  teamId: currentTeamId,
+                  source: 'manual',
                   type: 'info',
                   title: 'Khai báo đóng góp mới',
                   message: `Đóng góp "${newItem.taskName}" (+${newItem.storyPoints} SP) đã được gửi duyệt.`,

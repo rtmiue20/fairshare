@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   RadarChart,
@@ -41,7 +41,6 @@ import {
   Award,
   ChevronDown,
   X,
-  Trash2,
   ExternalLink,
   Plus,
   Crown,
@@ -100,11 +99,25 @@ const MEMBER_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#
 
 function getInitials(fullName: string): string {
   if (!fullName) return 'FS';
-  const parts = fullName.trim().split(/\s+/);
+  const clean = fullName.replace(/\s*\([^)]*\)/g, '').trim() || fullName.trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
     return (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-  return fullName.slice(0, 2).toUpperCase();
+  return clean.slice(0, 2).toUpperCase();
+}
+
+function getMemberAvatarBg(id: number | string): string {
+  const colors = [
+    'linear-gradient(135deg, #0ea5e9, #2563eb)',
+    'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    'linear-gradient(135deg, #10b981, #059669)',
+    'linear-gradient(135deg, #f59e0b, #d97706)',
+    'linear-gradient(135deg, #ec4899, #db2777)',
+    'linear-gradient(135deg, #06b6d4, #0284c7)',
+  ];
+  const num = typeof id === 'number' ? id : 0;
+  return colors[Math.abs(num) % colors.length];
 }
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -119,11 +132,12 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 // Circular percentage gauge matching reference image
-const CircularProgress: React.FC<{ pct: number; size?: number; stroke?: number; color?: string }> = ({
+const CircularProgress: React.FC<{ pct: number; size?: number; stroke?: number; color?: string; trackColor?: string }> = ({
   pct,
   size = 38,
   stroke = 3.5,
   color = '#10b981',
+  trackColor = 'rgba(148, 163, 184, 0.25)',
 }) => {
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
@@ -133,7 +147,7 @@ const CircularProgress: React.FC<{ pct: number; size?: number; stroke?: number; 
   return (
     <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} fill="transparent" />
+        <circle cx={size / 2} cy={size / 2} r={radius} stroke={trackColor} strokeWidth={stroke} fill="transparent" />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -197,13 +211,57 @@ export const ReportPage: React.FC = () => {
   const [leaderName, setLeaderName] = useState<string>('Nguyễn Hoàng Nam');
   const [members, setMembers] = useState<ReportMemberItem[]>([]);
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
-  const [downloading, setDownloading] = useState<boolean>(false);
+  const [downloading] = useState<boolean>(false);
+  // Chữ ký điện tử (data URL) cho Trưởng nhóm & Giảng viên
+  const [showSignModal, setShowSignModal] = useState<boolean>(false);
+  const [leaderSignature, setLeaderSignature] = useState<string | null>(() => {
+    try { return localStorage.getItem('fairshare_sig_leader'); } catch { return null; }
+  });
+  const [teacherSignature, setTeacherSignature] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Member Picker Dropdown & Filters
+  // Sprint, Member Picker & Sort Dropdowns + Filters
+  const [showSprintDropdown, setShowSprintDropdown] = useState<boolean>(false);
   const [showMemberPickerDropdown, setShowMemberPickerDropdown] = useState<boolean>(false);
+  const [showSortDropdown, setShowSortDropdown] = useState<boolean>(false);
   const [filterMemberIds, setFilterMemberIds] = useState<number[]>([]);
-  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
+  const sprintDropdownRef = useRef<HTMLDivElement>(null);
+  const memberDropdownRef = useRef<HTMLDivElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
+  const [radarSize, setRadarSize] = useState<number>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 520
+      ? Math.max(264, window.innerWidth - 76)
+      : 380
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      setRadarSize(window.innerWidth < 520 ? Math.max(264, window.innerWidth - 76) : 380);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (sprintDropdownRef.current && !sprintDropdownRef.current.contains(target)) {
+        setShowSprintDropdown(false);
+      }
+      if (memberDropdownRef.current && !memberDropdownRef.current.contains(target)) {
+        setShowMemberPickerDropdown(false);
+      }
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(target)) {
+        setShowSortDropdown(false);
+      }
+      if (filterPopoverRef.current && !filterPopoverRef.current.contains(target)) {
+        setShowFilterPopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Allocation Modal state
   const [showAllocationModal, setShowAllocationModal] = useState<boolean>(false);
@@ -505,26 +563,116 @@ export const ReportPage: React.FC = () => {
   }, [selectedUserId, loadIndividualData]);
 
   // Handle Download Official Backend PDF
-  const handleDownloadBackendPdf = async () => {
-    try {
-      setDownloading(true);
-      const blob = await reportApi.downloadPdfReport(currentTeamId, selectedSprintId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const sprintSlug = currentSprint ? currentSprint.name.replace(/[^a-zA-Z0-9]/g, '_') : `Sprint_${selectedSprintId}`;
-      a.download = `FairShare_BaoCao_${teamName.replace(/\s+/g, '_')}_${sprintSlug}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showToast('Đã tải thành công file PDF báo cáo chính thức từ hệ thống FairShare');
-    } catch {
-      showToast('Mở cửa sổ In / Lưu PDF từ trình duyệt...');
-      window.print();
-    } finally {
-      setDownloading(false);
+  const handleDownloadBackendPdf = () => {
+    setShowSignModal(true);
+  };
+
+  // Tách nền: biến nền trắng/sáng thành trong suốt, giữ nét mực, cắt gọn viền thừa
+  const removeSignatureBackground = (src: string): Promise<string> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxW = 600;
+          const scale = Math.min(1, maxW / img.width);
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(src);
+          ctx.drawImage(img, 0, 0, w, h);
+          const imageData = ctx.getImageData(0, 0, w, h);
+          const d = imageData.data;
+          let minX = w, minY = h, maxX = -1, maxY = -1;
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const i = (y * w + x) * 4;
+              const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              // Sáng > 235: trong suốt hoàn toàn; 150–235: mờ dần (khử răng cưa)
+              // Nền trắng/xám nhạt (kể cả ô caro "giả trong suốt") > 190 -> trong suốt; < 100 -> nét mực đặc
+              let alpha = lum >= 190 ? 0 : lum <= 100 ? 255 : Math.round(((190 - lum) / 90) * 255);
+              alpha = Math.min(alpha, d[i + 3]);
+              d[i + 3] = alpha;
+              if (alpha > 20) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+              }
+            }
+          }
+          if (maxX < 0) return resolve(src); // ảnh trống: giữ nguyên
+          ctx.putImageData(imageData, 0, 0);
+          const pad = 4;
+          const cx = Math.max(0, minX - pad);
+          const cy = Math.max(0, minY - pad);
+          const cw = Math.min(w - cx, maxX - minX + 1 + pad * 2);
+          const ch = Math.min(h - cy, maxY - minY + 1 + pad * 2);
+          const out = document.createElement('canvas');
+          out.width = cw;
+          out.height = ch;
+          out.getContext('2d')?.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
+          resolve(out.toDataURL('image/png'));
+        } catch {
+          resolve(src);
+        }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    });
+
+  // Xử lý lại chữ ký Nhóm trưởng đã lưu từ trước (có thể còn nền)
+  useEffect(() => {
+    if (!leaderSignature) return;
+    let cancelled = false;
+    removeSignatureBackground(leaderSignature).then((clean) => {
+      if (cancelled || clean === leaderSignature) return;
+      setLeaderSignature(clean);
+      try { localStorage.setItem('fairshare_sig_leader', clean); } catch { /* ignore */ }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSignatureFile = (role: 'leader' | 'teacher', file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Vui lòng chọn file ảnh chữ ký (PNG, JPG)');
+      return;
     }
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Ảnh chữ ký tối đa 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const data = await removeSignatureBackground(String(reader.result));
+      if (role === 'leader') {
+        setLeaderSignature(data);
+        try { localStorage.setItem('fairshare_sig_leader', data); } catch { /* ignore quota */ }
+      } else {
+        setTeacherSignature(data);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearSignature = (role: 'leader' | 'teacher') => {
+    if (role === 'leader') {
+      setLeaderSignature(null);
+      try { localStorage.removeItem('fairshare_sig_leader'); } catch { /* ignore */ }
+    } else {
+      setTeacherSignature(null);
+    }
+  };
+
+  // Áp chữ ký vào báo cáo rồi mở hộp thoại In / Lưu PDF
+  const handleConfirmSignAndExport = () => {
+    setShowSignModal(false);
+    showToast('Đã áp chữ ký điện tử. Chọn "Lưu dưới dạng PDF" trong cửa sổ In...');
+    setTimeout(() => window.print(), 400);
   };
 
   // Handle Send Individual Email
@@ -907,13 +1055,11 @@ export const ReportPage: React.FC = () => {
 
   return (
     <div
-      className="page pad"
+      className="page pad report-page-root"
       style={{
         maxWidth: '1440px',
         margin: '0 auto',
         width: '100%',
-        paddingTop: 'calc(var(--top, 64px) + 56px)',
-        paddingBottom: '80px',
         background: 'transparent',
         color: theme.textColor,
       }}
@@ -929,52 +1075,49 @@ export const ReportPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 700, margin: 0, color: theme.headingColor, letterSpacing: '-0.02em', lineHeight: 1.3 }}>
-                Bản đóng góp nộp cho giảng viên
-              </h1>
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {currentSprint && (
                 <span
                   style={{
-                    fontSize: '11.5px',
-                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                     padding: '3px 10px',
                     borderRadius: '999px',
-                    backgroundColor: currentSprint.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                    color: currentSprint.status === 'ACTIVE' ? '#34d399' : '#94a3b8',
-                    border: currentSprint.status === 'ACTIVE' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(148, 163, 184, 0.3)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    backgroundColor: currentSprint.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                    color: currentSprint.status === 'ACTIVE' ? (isLight ? '#047857' : '#34d399') : '#6366f1',
+                    border: currentSprint.status === 'ACTIVE' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(99, 102, 241, 0.3)',
                   }}
                 >
+                  <FileCheck size={13} />
                   {currentSprint.status === 'ACTIVE' ? 'Sprint đang diễn ra' : 'Sprint đã chốt'}
                 </span>
               )}
             </div>
-            <p style={{ margin: '5px 0 0', fontSize: '13.5px', color: theme.subTextColor, maxWidth: '640px', lineHeight: 1.5 }}>
+
+            <h1 style={{ fontSize: '26px', fontWeight: 700, margin: '8px 0 6px', color: theme.headingColor, letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+              Bản đóng góp nộp cho giảng viên
+            </h1>
+            <p style={{ margin: 0, fontSize: '13.5px', color: theme.subTextColor, maxWidth: '54ch', lineHeight: 1.5 }}>
               Tổng hợp tỷ lệ đóng góp và minh chứng minh bạch phục vụ đánh giá, nghiệm thu đồ án.
             </p>
           </div>
 
-          {/* Quick Header Actions: Sprint Selector, Print, Download PDF */}
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={16} color="#818cf8" />
+          {/* Quick Header Actions: Right-Aligned Pill Buttons matching AlertList */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', marginLeft: 'auto', flexShrink: 0 }}>
+            <div className="relative" ref={sprintDropdownRef}>
+              {/* Native Hidden Select for test suite compatibility */}
               <select
                 aria-label="Chọn Sprint xuất báo cáo"
                 value={selectedSprintId}
                 onChange={(e) => handleSprintChange(Number(e.target.value))}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '10px',
-                  backgroundColor: isLight ? '#ffffff' : '#27272a',
-                  color: theme.textColor,
-                  border: theme.panelBorder,
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  outline: 'none',
-                  cursor: 'pointer',
-                  maxWidth: '340px',
-                }}
+                className="sr-only"
+                tabIndex={-1}
               >
                 {sprintList.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -982,68 +1125,182 @@ export const ReportPage: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {/* Custom Sprint Trigger Button matching DashboardFilters & AlertList pill style */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSprintDropdown((prev) => !prev);
+                  setShowMemberPickerDropdown(false);
+                  setShowSortDropdown(false);
+                  setShowFilterPopover(false);
+                }}
+                className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+                  showSprintDropdown
+                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                    : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                <span className="truncate max-w-[175px] sm:max-w-[210px]">
+                  {currentSprint?.name ?? `Sprint ${selectedSprintId}`}
+                </span>
+                {currentSprint?.status === 'ACTIVE' ? (
+                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/25">
+                    Đang diễn ra
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-white/10">
+                    Đã đóng
+                  </span>
+                )}
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
+                    showSprintDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Custom Sprint Popover Menu matching DashboardFilters */}
+              {showSprintDropdown && (
+                <div
+                  className="absolute right-0 z-50 w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
+                  style={{
+                    top: 'calc(100% + 8px)',
+                    boxShadow:
+                      '0 24px 50px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.25)',
+                  }}
+                >
+                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                      DANH SÁCH SPRINT
+                    </span>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                      {sprintList.length} Sprints
+                    </span>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                    {sprintList.map((s) => {
+                      const isActive = s.id === selectedSprintId;
+                      const isCurrent = s.status === 'ACTIVE';
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            handleSprintChange(s.id);
+                            setShowSprintDropdown(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left cursor-pointer group ${
+                            isActive
+                              ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                              : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                          }`}
+                        >
+                          <span
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0 transition-transform group-hover:scale-105 ${
+                              isActive
+                                ? 'bg-cyan-600 text-white shadow-sm'
+                                : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            S{s.id}
+                          </span>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                              {s.name}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                              {isCurrent ? 'Sprint đang diễn ra' : `Sprint đã đóng · ID #${s.id}`}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isCurrent ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                Đang diễn ra
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-white/10">
+                                Đã đóng
+                              </span>
+                            )}
+                            {isActive && <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 stroke-[2.5]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
-              className="btn"
               type="button"
               onClick={() => window.print()}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '8px 15px',
-                borderRadius: '10px',
-                backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+                padding: '8px 14px',
+                borderRadius: '999px',
+                backgroundColor: isLight ? '#f1f5f9' : '#27272a',
                 color: theme.textColor,
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
-              <Printer size={15} /> Xem trước / In
+              <Printer size={14} /> Xem trước / In
             </button>
 
             <button
-              className="btn"
               type="button"
               onClick={handleDownloadBackendPdf}
               disabled={downloading}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                borderRadius: '10px',
-                backgroundColor: '#4f46e5',
+                gap: '7px',
+                padding: '8px 18px',
+                borderRadius: '999px',
+                background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
                 color: '#fff',
                 border: 'none',
                 fontSize: '13px',
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: downloading ? 'not-allowed' : 'pointer',
                 opacity: downloading ? 0.7 : 1,
-                boxShadow: '0 2px 10px rgba(79, 70, 229, 0.3)',
+                boxShadow: '0 6px 18px -4px rgba(79, 70, 229, 0.45)',
+                transition: 'all 0.15s ease',
               }}
             >
-              <Download size={15} /> {downloading ? 'Đang tạo PDF...' : 'Xuất PDF chính thức'}
+              <Download size={14} /> {downloading ? 'Đang tạo PDF...' : 'Xuất PDF chính thức'}
             </button>
 
             <button
+              type="button"
               onClick={loadReportData}
               title="Làm mới dữ liệu báo cáo"
               style={{
-                background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: theme.subTextColor,
-                padding: '8px 10px',
-                borderRadius: '10px',
+                background: isLight ? '#f1f5f9' : '#27272a',
+                border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                color: theme.textColor,
+                width: '36px',
+                height: '36px',
+                borderRadius: '999px',
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
               }}
             >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
@@ -1110,7 +1367,7 @@ export const ReportPage: React.FC = () => {
 
       {/* 3. THE MAIN UNIFIED FRAME CARD (Exact Model from Reference Image) */}
       <div
-        className="no-print"
+        className="no-print report-unified-frame"
         style={{
           borderRadius: '24px',
           backgroundColor: theme.panelBg,
@@ -1118,24 +1375,15 @@ export const ReportPage: React.FC = () => {
           WebkitBackdropFilter: 'blur(24px)',
           border: theme.panelBorder,
           boxShadow: theme.panelShadow,
-          display: 'flex',
-          minHeight: '780px',
-          overflow: 'hidden',
           marginBottom: '36px',
         }}
       >
         {/* ── Left Sidebar Inside the Frame (Model from Image) ── */}
         <aside
+          className="report-sidebar"
           style={{
-            width: '260px',
             backgroundColor: theme.sidebarBg,
             borderRight: theme.sidebarBorder,
-            padding: '20px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            flexShrink: 0,
-            overflowY: 'auto',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -1169,15 +1417,15 @@ export const ReportPage: React.FC = () => {
             </div>
 
             {/* Menu Items */}
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
+            <div className="report-sidebar-groups">
               {menuCategories.map((cat, catIdx) => (
-                <div key={catIdx}>
+                <div key={catIdx} className="report-sidebar-group">
                   {cat.group && (
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: theme.subTextColor, padding: '0 8px 6px 8px', letterSpacing: '0.05em' }}>
+                    <div className="report-sidebar-group-title" style={{ fontSize: '10px', fontWeight: 700, color: theme.subTextColor, padding: '0 8px 6px 8px', letterSpacing: '0.05em' }}>
                       {cat.group}
                     </div>
                   )}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div className="report-sidebar-group-items">
                     {cat.items.map((item) => {
                       const isActive = activeCategory === item.id;
                       return (
@@ -1243,6 +1491,7 @@ export const ReportPage: React.FC = () => {
 
           {/* Bottom Promo Card (FairShare AI Engine Hub Trigger) */}
           <div
+            className="report-sidebar-footer"
             onClick={() => setShowAiModal(true)}
             style={{
               marginTop: '16px',
@@ -1265,7 +1514,7 @@ export const ReportPage: React.FC = () => {
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: '#818cf8' }}>
                 <Sparkles size={14} /> FairShare AI Engine
               </div>
@@ -1273,10 +1522,11 @@ export const ReportPage: React.FC = () => {
                 v4.0
               </span>
             </div>
-            <div style={{ fontSize: '11px', color: theme.subTextColor, marginTop: '4px', lineHeight: 1.4 }}>
+            <div className="report-sidebar-footer-desc" style={{ fontSize: '11px', color: theme.subTextColor, marginTop: '4px', lineHeight: 1.4 }}>
               Mô hình đo lường 4 tầng Robust MAD tự động đối soát ActivityEvent.
             </div>
             <button
+              className="report-sidebar-footer-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowAiModal(true);
@@ -1306,9 +1556,9 @@ export const ReportPage: React.FC = () => {
         </aside>
 
         {/* ── Main Panel Right Area (Exact Model from Image) ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           {/* Panel Top: Title & Tabs */}
-          <div style={{ padding: '24px 28px 0 28px', borderBottom: theme.tableBorder }}>
+          <div style={{ padding: 'clamp(16px, 2.5vw, 24px) clamp(14px, 3vw, 28px) 0', borderBottom: theme.tableBorder }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {categoryMeta[activeCategory]?.icon || <Users size={20} color="#818cf8" />}
@@ -1386,7 +1636,7 @@ export const ReportPage: React.FC = () => {
             </p>
 
             {/* Navigation Tabs with Underline Indicator */}
-            <div style={{ display: 'flex', gap: '24px' }}>
+            <div style={{ display: 'flex', gap: '24px', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {[
                 { id: 'overview', label: 'Tổng quan (Overview)' },
                 { id: 'progress', label: 'Tiến độ & Báo cáo cá nhân & Email' },
@@ -1411,6 +1661,8 @@ export const ReportPage: React.FC = () => {
                       color: isActive ? '#818cf8' : theme.subTextColor,
                       borderBottom: isActive ? '2px solid #818cf8' : '2px solid transparent',
                       cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -1423,8 +1675,8 @@ export const ReportPage: React.FC = () => {
 
           {/* Sub-header Controls Bar (Matching sample image: Peoples dropdown, + Add Filter, Gauge, Search, Export) */}
           <div
+            className="report-panel-pad"
             style={{
-              padding: '16px 28px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -1435,249 +1687,271 @@ export const ReportPage: React.FC = () => {
               position: 'relative',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* 1. Member Picker Dropdown (Interactive) */}
-              <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* 1. Member Picker Dropdown (Synchronized with DashboardFilters UI - Image 2) */}
+              <div className="relative" ref={memberDropdownRef}>
                 <button
+                  type="button"
                   onClick={() => {
-                    setShowMemberPickerDropdown(!showMemberPickerDropdown);
+                    setShowMemberPickerDropdown((prev) => !prev);
+                    setShowSortDropdown(false);
                     setShowFilterPopover(false);
+                    setShowSprintDropdown(false);
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: showMemberPickerDropdown || (filterMemberIds.length > 0 && filterMemberIds.length < members.length) ? '#818cf8' : theme.headingColor,
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    backgroundColor: showMemberPickerDropdown || (filterMemberIds.length > 0 && filterMemberIds.length < members.length)
-                      ? 'rgba(99, 102, 241, 0.15)'
-                      : isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
-                    border: showMemberPickerDropdown || (filterMemberIds.length > 0 && filterMemberIds.length < members.length)
-                      ? '1px solid #6366f1'
-                      : theme.tableBorder,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+                    showMemberPickerDropdown || filterMemberIds.length > 0
+                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                      : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                  }`}
                 >
-                  <Users size={15} color={filterMemberIds.length > 0 && filterMemberIds.length < members.length ? '#818cf8' : theme.subTextColor} />
-                  <span>
-                    Thành viên {filterMemberIds.length > 0 && filterMemberIds.length < members.length
-                      ? `(${filterMemberIds.length}/${members.length})`
-                      : `(${members.length})`}
+                  <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span className="truncate max-w-[180px]">
+                    {filterMemberIds.length === 0
+                      ? 'Tất cả thành viên'
+                      : filterMemberIds.length === 1
+                      ? members.find((m) => m.userId === filterMemberIds[0])?.name ?? 'Thành viên'
+                      : `${filterMemberIds.length}/${members.length} thành viên`}
                   </span>
+                  {filterMemberIds.length === 1 && (() => {
+                    const picked = members.find((m) => m.userId === filterMemberIds[0]);
+                    return picked ? (
+                      <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                        {picked.isLeader ? 'Leader' : 'Thành viên'}
+                      </span>
+                    ) : null;
+                  })()}
                   <ChevronDown
-                    size={14}
-                    color={theme.subTextColor}
-                    style={{
-                      transform: showMemberPickerDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s ease',
-                    }}
+                    className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
+                      showMemberPickerDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                    }`}
                   />
                 </button>
 
-                {/* Member Picker Popover Dropdown */}
+                {/* Member Picker Popover Dropdown (Exact Match with DashboardFilters Image 2) */}
                 {showMemberPickerDropdown && (
                   <div
+                    className="absolute left-0 z-50 w-[320px] max-w-[calc(100vw-24px)] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
                     style={{
-                      position: 'absolute',
                       top: 'calc(100% + 8px)',
-                      left: 0,
-                      width: '320px',
-                      backgroundColor: isLight ? '#ffffff' : '#1f1f23',
-                      border: theme.panelBorder,
-                      borderRadius: '16px',
-                      padding: '14px',
-                      boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
-                      zIndex: 100,
+                      boxShadow:
+                        '0 24px 50px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.25)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor }}>
-                        Chọn thành viên hiển thị
+                    <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                      <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                        LỌC THEO THÀNH VIÊN
                       </span>
-                      <button
-                        onClick={() => setShowMemberPickerDropdown(false)}
-                        style={{ background: 'none', border: 'none', color: theme.subTextColor, cursor: 'pointer', padding: '2px' }}
-                      >
-                        <X size={15} />
-                      </button>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/25 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                        {members.length} Người
+                      </span>
                     </div>
 
-                    {/* Quick Action: Select all / Deselect all */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '12px' }}>
+                    <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                      {/* Option: Tất cả thành viên */}
                       <button
-                        onClick={() => setFilterMemberIds(members.map((m) => m.userId))}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#818cf8',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          padding: 0,
+                        type="button"
+                        onClick={() => {
+                          setFilterMemberIds([]);
+                          setShowMemberPickerDropdown(false);
                         }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                          filterMemberIds.length === 0
+                            ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
+                        }`}
                       >
-                        Chọn tất cả ({members.length})
+                        <span className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300">
+                          <Users className="w-4 h-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                            Tất cả thành viên
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                            Hiển thị toàn bộ nhóm
+                          </div>
+                        </div>
+                        {filterMemberIds.length === 0 && (
+                          <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 stroke-[2.5]" />
+                        )}
                       </button>
-                      <button
-                        onClick={() => setFilterMemberIds([])}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: theme.subTextColor,
-                          cursor: 'pointer',
-                          padding: 0,
-                        }}
-                      >
-                        Hiện toàn bộ
-                      </button>
-                    </div>
 
-                    {/* Member Search input */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)', padding: '5px 8px', borderRadius: '6px', marginBottom: '10px' }}>
-                      <Search size={12} color={theme.subTextColor} />
-                      <input
-                        type="text"
-                        placeholder="Tìm thành viên..."
-                        value={memberSearchQuery}
-                        onChange={(e) => setMemberSearchQuery(e.target.value)}
-                        style={{ background: 'transparent', border: 'none', outline: 'none', color: theme.textColor, fontSize: '11.5px', width: '100%' }}
-                      />
-                    </div>
+                      {/* Danh sách từng thành viên */}
+                      {members.map((m) => {
+                        const isActive = filterMemberIds.length === 1 && filterMemberIds[0] === m.userId;
+                        const initials = getInitials(m.name);
+                        const bg = getMemberAvatarBg(m.userId);
+                        const roleLabel = m.isLeader ? 'Leader' : 'Thành viên';
 
-                    {/* Members List */}
-                    <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {members
-                        .filter((m) => !memberSearchQuery || m.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || m.email.toLowerCase().includes(memberSearchQuery.toLowerCase()))
-                        .map((m) => {
-                          const isChecked = filterMemberIds.length === 0 || filterMemberIds.includes(m.userId);
-                          return (
-                            <div
-                              key={m.userId}
-                              onClick={() => {
-                                if (filterMemberIds.length === 0) {
-                                  setFilterMemberIds(members.map((x) => x.userId).filter((id) => id !== m.userId));
-                                } else if (filterMemberIds.includes(m.userId)) {
-                                  const updated = filterMemberIds.filter((id) => id !== m.userId);
-                                  setFilterMemberIds(updated.length === 0 ? [] : updated);
-                                } else {
-                                  const updated = [...filterMemberIds, m.userId];
-                                  setFilterMemberIds(updated.length === members.length ? [] : updated);
-                                }
-                              }}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                backgroundColor: isChecked ? (isLight ? '#f8fafc' : 'rgba(255,255,255,0.04)') : 'transparent',
-                                cursor: 'pointer',
-                                transition: 'background-color 0.1s',
-                              }}
+                        return (
+                          <button
+                            key={m.userId}
+                            type="button"
+                            onClick={() => {
+                              setFilterMemberIds([m.userId]);
+                              setShowMemberPickerDropdown(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                              isActive
+                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span
+                              className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-xs transition-transform group-hover:scale-105"
+                              style={{ background: bg }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {}}
-                                  style={{ accentColor: '#4f46e5', width: '14px', height: '14px', cursor: 'pointer' }}
-                                />
-                                <div
-                                  style={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: '50%',
-                                    backgroundColor: m.color || '#6366f1',
-                                    color: '#fff',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '10px',
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {getInitials(m.name)}
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '12px', fontWeight: 600, color: theme.headingColor }}>
-                                    {m.name}
-                                  </div>
-                                  <div style={{ fontSize: '10.5px', color: theme.subTextColor }}>
-                                    {m.role}
-                                  </div>
-                                </div>
+                              {initials}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                {m.name}
                               </div>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: isChecked ? '#10b981' : theme.subTextColor }}>
-                                {m.pct.toFixed(1)}%
-                              </span>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                {roleLabel}
+                              </div>
                             </div>
-                          );
-                        })}
-                    </div>
-
-                    {/* Footer */}
-                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', color: theme.subTextColor }}>
-                        Hiển thị {filterMemberIds.length === 0 ? members.length : filterMemberIds.length}/{members.length}
-                      </span>
-                      <button
-                        onClick={() => setShowMemberPickerDropdown(false)}
-                        style={{
-                          padding: '4px 10px',
-                          backgroundColor: '#4f46e5',
-                          color: '#fff',
-                          borderRadius: '6px',
-                          border: 'none',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Xong
-                      </button>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/60 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-white/10">
+                              {roleLabel}
+                            </span>
+                            {isActive && (
+                              <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 stroke-[2.5]" />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* 2. + Add Filter Button with Popover (Interactive) */}
-              <div style={{ position: 'relative' }}>
+              {/* 1b. Synchronized Custom Sort Dropdown (Matching DashboardFilters UI) */}
+              <div className="relative" ref={sortDropdownRef}>
                 <button
+                  type="button"
                   onClick={() => {
-                    setShowFilterPopover(!showFilterPopover);
+                    setShowSortDropdown((prev) => !prev);
                     setShowMemberPickerDropdown(false);
+                    setShowFilterPopover(false);
+                    setShowSprintDropdown(false);
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    backgroundColor: showFilterPopover || activeFilterCount > 0 ? 'rgba(99, 102, 241, 0.2)' : isLight ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
-                    color: showFilterPopover || activeFilterCount > 0 ? '#818cf8' : theme.headingColor,
-                    border: showFilterPopover || activeFilterCount > 0 ? '1px solid #6366f1' : theme.tableBorder,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+                    showSortDropdown || sortBy !== 'PCT'
+                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                      : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                  }`}
                 >
-                  <Filter size={14} />
-                  <span>Bộ lọc (Add Filter)</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                  <span className="truncate max-w-[170px]">
+                    {sortBy === 'PCT'
+                      ? '% Đóng góp (Cao → Thấp)'
+                      : sortBy === 'D1'
+                      ? 'D1 Sản lượng (Output)'
+                      : sortBy === 'D2'
+                      ? 'D2 Độ tin cậy'
+                      : sortBy === 'D3'
+                      ? 'D3 Phối hợp'
+                      : sortBy === 'D4'
+                      ? 'D4 Đánh giá chéo'
+                      : 'Tên thành viên (A → Z)'}
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
+                      showSortDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                    }`}
+                  />
+                </button>
+
+                {showSortDropdown && (
+                  <div
+                    className="absolute left-0 z-50 w-[300px] max-w-[calc(100vw-24px)] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
+                    style={{
+                      top: 'calc(100% + 8px)',
+                      boxShadow:
+                        '0 24px 50px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.25)',
+                    }}
+                  >
+                    <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                      <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                        SẮP XẾP THEO
+                      </span>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                        6 Tiêu chí
+                      </span>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                      {([
+                        { key: 'PCT', code: '%', title: '% Đóng góp (Cao → Thấp)', subtitle: 'Xếp theo tỷ lệ phân bổ cuối cùng' },
+                        { key: 'D1', code: 'D1', title: 'D1 Sản lượng (Output)', subtitle: 'Story points & nhiệm vụ hoàn thành' },
+                        { key: 'D2', code: 'D2', title: 'D2 Độ tin cậy (Reliability)', subtitle: 'Tỷ lệ đúng hạn & ít làm lại' },
+                        { key: 'D3', code: 'D3', title: 'D3 Phối hợp (Collaboration)', subtitle: 'Tương tác review & hỗ trợ nhóm' },
+                        { key: 'D4', code: 'D4', title: 'D4 Đánh giá chéo (Peer)', subtitle: 'Điểm chấm chéo ẩn danh 360°' },
+                        { key: 'NAME', code: 'AZ', title: 'Tên thành viên (A → Z)', subtitle: 'Sắp xếp theo thứ tự bảng chữ cái' },
+                      ] as const).map((opt) => {
+                        const isActive = sortBy === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() => {
+                              setSortBy(opt.key);
+                              setShowSortDropdown(false);
+                            }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                              isActive
+                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-mono font-bold shrink-0 transition-transform group-hover:scale-105 ${
+                                isActive
+                                  ? 'bg-cyan-600 text-white shadow-sm'
+                                  : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              {opt.code}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                                {opt.title}
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                {opt.subtitle}
+                              </div>
+                            </div>
+                            {isActive && (
+                              <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 stroke-[2.5]" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. + Add Filter Button with Popover (Synchronized with DashboardFilters UI) */}
+              <div className="relative" ref={filterPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFilterPopover((prev) => !prev);
+                    setShowMemberPickerDropdown(false);
+                    setShowSortDropdown(false);
+                    setShowSprintDropdown(false);
+                  }}
+                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+                    showFilterPopover || activeFilterCount > 0
+                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                      : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                  <span>Bộ lọc</span>
                   {activeFilterCount > 0 && (
-                    <span
-                      style={{
-                        backgroundColor: '#6366f1',
-                        color: '#fff',
-                        fontSize: '10px',
-                        padding: '1px 6px',
-                        borderRadius: '999px',
-                        fontWeight: 700,
-                      }}
-                    >
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-cyan-600 text-white">
                       {activeFilterCount}
                     </span>
                   )}
@@ -1686,26 +1960,23 @@ export const ReportPage: React.FC = () => {
                 {/* Filter Popover Dropdown */}
                 {showFilterPopover && (
                   <div
+                    className="report-popover absolute left-0 z-50 w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
                     style={{
-                      position: 'absolute',
                       top: 'calc(100% + 8px)',
-                      left: 0,
-                      width: '330px',
-                      backgroundColor: isLight ? '#ffffff' : '#1f1f23',
-                      border: theme.panelBorder,
-                      borderRadius: '16px',
-                      padding: '16px',
-                      boxShadow: '0 20px 48px rgba(0,0,0,0.45)',
-                      zIndex: 100,
+                      boxShadow:
+                        '0 24px 50px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08), 0 8px 24px -4px rgba(0, 0, 0, 0.25)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <SlidersHorizontal size={14} color="#818cf8" />
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: theme.headingColor }}>Bộ lọc nâng cao</span>
+                    <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                      <div className="flex items-center gap-1.5">
+                        <SlidersHorizontal size={13} className="text-cyan-600 dark:text-cyan-400" />
+                        <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                          BỘ LỌC NÂNG CAO
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={() => {
                             setFilterDimensions({ d1: true, d2: true, d3: true, d4: true, evidence: true });
                             setFilterStatus('ALL');
@@ -1714,185 +1985,159 @@ export const ReportPage: React.FC = () => {
                             setSortBy('PCT');
                           }}
                           title="Đặt lại bộ lọc về mặc định"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: theme.subTextColor,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11px',
-                          }}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-1 cursor-pointer bg-transparent border-0"
                         >
-                          <RotateCcw size={12} />
+                          <RotateCcw size={11} />
                           <span>Đặt lại</span>
                         </button>
-                        <button onClick={() => setShowFilterPopover(false)} style={{ background: 'none', border: 'none', color: theme.subTextColor, cursor: 'pointer' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowFilterPopover(false)}
+                          className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer bg-transparent border-0"
+                        >
                           <X size={15} />
                         </button>
                       </div>
                     </div>
 
-                    {/* Dimension Selection */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '12.5px' }}>
-                      <span style={{ color: theme.subTextColor }}>Chiều đo:</span>
-                      <span style={{ fontWeight: 600, color: '#818cf8', backgroundColor: 'rgba(99,102,241,0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px' }}>
-                        {Object.values(filterDimensions).filter(Boolean).length}/5 đã chọn
-                      </span>
-                      <button
-                        type="button"
-                        title="Bật lại toàn bộ chiều đo"
-                        onClick={() => setFilterDimensions({ d1: true, d2: true, d3: true, d4: true, evidence: true })}
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginLeft: 'auto', display: 'flex', alignItems: 'center' }}
-                      >
-                        <Trash2 size={13} color="#ef4444" />
-                      </button>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
-                      {[
-                        { key: 'd1', label: 'D1 Sản lượng (Story point & Tasks)' },
-                        { key: 'd2', label: 'D2 Độ tin cậy (Đúng hạn & Ít rework)' },
-                        { key: 'd3', label: 'D3 Phối hợp (Review & Trao đổi)' },
-                        { key: 'd4', label: 'D4 Đánh giá chéo (K-Anonymity)' },
-                        { key: 'evidence', label: 'Minh chứng công việc đã duyệt' },
-                      ].map((item) => (
-                        <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: theme.textColor, cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={filterDimensions[item.key]}
-                            onChange={() => setFilterDimensions((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
-                            style={{ accentColor: '#4f46e5', width: '14px', height: '14px' }}
-                          />
-                          <span>{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-
-                    {/* Filter by Tier & Status & Sort */}
-                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
-                      {/* Contribution Tier */}
+                    <div className="p-3.5 space-y-3 max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                      {/* Dimension Selection */}
                       <div>
-                        <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Mức độ đóng góp (%)</div>
-                        <select
-                          value={filterContributionTier}
-                          onChange={(e) => setFilterContributionTier(e.target.value as typeof filterContributionTier)}
-                          style={{
-                            width: '100%',
-                            backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
-                            color: theme.textColor,
-                            border: theme.tableBorder,
-                            borderRadius: '6px',
-                            padding: '6px 8px',
-                            fontSize: '12px',
-                          }}
-                        >
-                          <option value="ALL">Tất cả mức đóng góp</option>
-                          <option value="HIGH">Đóng góp cao (≥ 20%)</option>
-                          <option value="MED">Cân bằng (10% - 20%)</option>
-                          <option value="LOW">Cần hỗ trợ (&lt; 10%)</option>
-                        </select>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Chiều đo hiển thị
+                          </span>
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                            {Object.values(filterDimensions).filter(Boolean).length}/5 đã chọn
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {[
+                            { key: 'd1', label: 'D1 Sản lượng (Story point & Tasks)' },
+                            { key: 'd2', label: 'D2 Độ tin cậy (Đúng hạn & Ít rework)' },
+                            { key: 'd3', label: 'D3 Phối hợp (Review & Trao đổi)' },
+                            { key: 'd4', label: 'D4 Đánh giá chéo (K-Anonymity)' },
+                            { key: 'evidence', label: 'Minh chứng công việc đã duyệt' },
+                          ].map((item) => (
+                            <label
+                              key={item.key}
+                              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.05] text-xs text-slate-800 dark:text-slate-200 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={filterDimensions[item.key]}
+                                onChange={() => setFilterDimensions((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+                                style={{ accentColor: '#0891b2', width: '14px', height: '14px' }}
+                              />
+                              <span>{item.label}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Evidence Status */}
-                      <div>
-                        <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Trạng thái thẩm định</div>
-                        <select
-                          value={filterStatus}
-                          onChange={(e) => setFilterStatus(e.target.value)}
-                          style={{
-                            width: '100%',
-                            backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
-                            color: theme.textColor,
-                            border: theme.tableBorder,
-                            borderRadius: '6px',
-                            padding: '6px 8px',
-                            fontSize: '12px',
-                          }}
-                        >
-                          <option value="ALL">Tất cả trạng thái</option>
-                          <option value="SUFFICIENT">Đạt chuẩn (Sufficient)</option>
-                          <option value="INSUFFICIENT">Đang thẩm định (Insufficient)</option>
-                          <option value="SUSPICIOUS">Bất thường (Suspicious)</option>
-                        </select>
+                      {/* Contribution Tier Pills */}
+                      <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                          Mức độ đóng góp (%)
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {([
+                            { value: 'ALL', label: 'Tất cả mức' },
+                            { value: 'HIGH', label: 'Cao (≥ 20%)' },
+                            { value: 'MED', label: 'Cân bằng (10-20%)' },
+                            { value: 'LOW', label: 'Cần hỗ trợ (< 10%)' },
+                          ] as const).map((tier) => {
+                            const active = filterContributionTier === tier.value;
+                            return (
+                              <button
+                                key={tier.value}
+                                type="button"
+                                onClick={() => setFilterContributionTier(tier.value)}
+                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-left flex items-center justify-between cursor-pointer border transition-all ${
+                                  active
+                                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                                    : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
+                                }`}
+                              >
+                                <span className="truncate">{tier.label}</span>
+                                {active && <Check className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
-                      {/* Role Filter */}
+                      {/* Evidence Status Pills */}
+                      <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                          Trạng thái thẩm định
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { value: 'ALL', label: 'Tất cả trạng thái' },
+                            { value: 'SUFFICIENT', label: 'Đạt chuẩn' },
+                            { value: 'INSUFFICIENT', label: 'Đang thẩm định' },
+                            { value: 'SUSPICIOUS', label: 'Bất thường' },
+                          ].map((st) => {
+                            const active = filterStatus === st.value;
+                            return (
+                              <button
+                                key={st.value}
+                                type="button"
+                                onClick={() => setFilterStatus(st.value)}
+                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-left flex items-center justify-between cursor-pointer border transition-all ${
+                                  active
+                                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                                    : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
+                                }`}
+                              >
+                                <span className="truncate">{st.label}</span>
+                                {active && <Check className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Role Filter Pills */}
                       {availableRoles.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Vai trò (Role)</div>
-                          <select
-                            value={filterRole}
-                            onChange={(e) => setFilterRole(e.target.value)}
-                            style={{
-                              width: '100%',
-                              backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
-                              color: theme.textColor,
-                              border: theme.tableBorder,
-                              borderRadius: '6px',
-                              padding: '6px 8px',
-                              fontSize: '12px',
-                            }}
-                          >
-                            <option value="ALL">Tất cả vai trò</option>
-                            {availableRoles.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                            Vai trò (Role)
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {['ALL', ...availableRoles].map((r) => {
+                              const active = filterRole === r;
+                              return (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={() => setFilterRole(r)}
+                                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
+                                    active
+                                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                                      : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
+                                  }`}
+                                >
+                                  <span>{r === 'ALL' ? 'Tất cả vai trò' : r}</span>
+                                  {active && <Check className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
 
-                      {/* Sort Order */}
-                      <div>
-                        <div style={{ fontSize: '11px', color: theme.subTextColor, marginBottom: '4px' }}>Sắp xếp theo</div>
-                        <select
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                          style={{
-                            width: '100%',
-                            backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)',
-                            color: theme.textColor,
-                            border: theme.tableBorder,
-                            borderRadius: '6px',
-                            padding: '6px 8px',
-                            fontSize: '12px',
-                          }}
-                        >
-                          <option value="PCT">% Đóng góp (Cao → Thấp)</option>
-                          <option value="D1">D1 Sản lượng (Output)</option>
-                          <option value="D2">D2 Độ tin cậy (Reliability)</option>
-                          <option value="D3">D3 Phối hợp (Collaboration)</option>
-                          <option value="D4">D4 Đánh giá chéo (Peer)</option>
-                          <option value="NAME">Tên thành viên (A → Z)</option>
-                        </select>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowFilterPopover(false)}
+                        className="w-full py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer border-0 shadow-sm transition-all"
+                      >
+                        <Check size={14} />
+                        <span>Áp dụng ({filteredMembers.length} thành viên)</span>
+                      </button>
                     </div>
-
-                    <button
-                      onClick={() => setShowFilterPopover(false)}
-                      style={{
-                        marginTop: '14px',
-                        width: '100%',
-                        padding: '8px',
-                        backgroundColor: '#4f46e5',
-                        color: '#fff',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <Check size={14} />
-                      <span>Áp dụng ({filteredMembers.length} thành viên)</span>
-                    </button>
                   </div>
                 )}
               </div>
@@ -1945,36 +2190,38 @@ export const ReportPage: React.FC = () => {
             </div>
 
             {/* Right Controls: Search, Export Button */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: isLight ? '#fff' : '#27272a', padding: '6px 12px', borderRadius: '8px', border: theme.tableBorder, width: '220px' }}>
-                <Search size={14} color={theme.subTextColor} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', marginLeft: 'auto', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: isLight ? '#fff' : '#27272a', padding: '6px 14px', borderRadius: '999px', border: theme.tableBorder, width: '190px' }}>
+                <Search size={14} color={theme.subTextColor} style={{ flexShrink: 0 }} />
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: theme.textColor, outline: 'none', fontSize: '12.5px', width: '100%' }}
+                  style={{ background: 'transparent', border: 'none', color: theme.textColor, outline: 'none', fontSize: '12.5px', width: '100%', minWidth: 0 }}
                 />
               </div>
 
               <button
+                type="button"
                 onClick={handleDownloadBackendPdf}
                 disabled={downloading}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 16px',
-                  backgroundColor: '#4f46e5',
+                  padding: '8px 18px',
+                  background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
                   color: '#fff',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '999px',
                   fontSize: '13px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: downloading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)',
+                  boxShadow: '0 6px 18px -4px rgba(79, 70, 229, 0.45)',
                 }}
               >
+                <Download size={13} />
                 <span>Export</span>
               </button>
             </div>
@@ -1982,11 +2229,13 @@ export const ReportPage: React.FC = () => {
 
           {/* ── View 1: Overview Tab Table (Exact Styling from Image) ── */}
           {activeTab === 'overview' && (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
+            <div className="report-panel-pad" style={{ flex: 1, overflowY: 'auto' }}>
               {/* Inner Table Heading Banner */}
               <div
                 style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '10px 14px',
@@ -2072,9 +2321,9 @@ export const ReportPage: React.FC = () => {
 
                   {/* Leaderboard Table */}
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                           <th style={{ width: '60px', padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Thứ hạng</th>
                           <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tasks hoàn thành</th>
@@ -2183,9 +2432,9 @@ export const ReportPage: React.FC = () => {
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                           <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tasks hoàn thành</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Ước tính Story Points</th>
@@ -2273,9 +2522,9 @@ export const ReportPage: React.FC = () => {
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                           <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D2 (Reliability)</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Trạng thái hồ sơ</th>
@@ -2370,9 +2619,9 @@ export const ReportPage: React.FC = () => {
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                           <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D3 (Collab)</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Hoạt động ghi nhận (Events)</th>
@@ -2484,9 +2733,9 @@ export const ReportPage: React.FC = () => {
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                           <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Thành viên</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm D4 (Peer Score)</th>
                           <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm sao trung bình (★)</th>
@@ -2744,9 +2993,9 @@ export const ReportPage: React.FC = () => {
                 activeCategory !== 'd4-peer' &&
                 activeCategory !== 'evidence' && (
                   <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor }}>
+                    <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                       <th style={{ width: '38px', padding: '12px 10px', textAlign: 'center' }}>
                         <input
                           type="checkbox"
@@ -2949,7 +3198,7 @@ export const ReportPage: React.FC = () => {
 
           {/* ── View 2: Progress & 4D Radar Tab ── */}
           {activeTab === 'progress' && (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+            <div className="report-panel-pad" style={{ flex: 1, overflowY: 'auto' }}>
               {/* Member Picker Pills */}
               <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '20px' }}>
                 {members.map((m) => {
@@ -2996,17 +3245,19 @@ export const ReportPage: React.FC = () => {
               </div>
 
               {selectedMember && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '24px' }}>
                   {/* Radar Chart */}
                   <div
                     style={{
                       backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.03)',
                       border: theme.tableBorder,
                       borderRadius: '16px',
-                      padding: '20px',
+                      padding: 'clamp(12px, 2.5vw, 20px)',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
+                      minWidth: 0,
+                      overflow: 'hidden',
                     }}
                   >
                     <div style={{ width: '100%', marginBottom: '12px' }}>
@@ -3018,10 +3269,58 @@ export const ReportPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ width: '100%', height: 260, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <RadarChart width={320} height={250} cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                    <div style={{ width: '100%', height: Math.round(radarSize * 0.72) + 8, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <RadarChart
+                        width={radarSize}
+                        height={Math.round(radarSize * 0.72)}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={radarSize < 340 ? '52%' : '60%'}
+                        margin={{
+                          top: 16,
+                          right: radarSize < 340 ? 48 : 66,
+                          bottom: 16,
+                          left: radarSize < 340 ? 52 : 70,
+                        }}
+                        data={radarData}
+                      >
                         <PolarGrid stroke={isLight ? '#cbd5e1' : 'rgba(255,255,255,0.15)'} />
-                        <PolarAngleAxis dataKey="dimension" tick={{ fill: theme.subTextColor, fontSize: 11 }} />
+                        <PolarAngleAxis
+                          dataKey="dimension"
+                          tick={(props) => {
+                            const { x, y, textAnchor, payload } = props as {
+                              x: number;
+                              y: number;
+                              textAnchor: 'start' | 'middle' | 'end' | 'inherit';
+                              payload?: { value?: string };
+                            };
+                            const raw = String(payload?.value || '');
+                            const splitIdx = raw.indexOf('(');
+                            const hasParen = splitIdx > 0;
+                            const line1 = hasParen ? raw.slice(0, splitIdx).trim() : raw;
+                            const line2 = hasParen ? raw.slice(splitIdx).trim() : '';
+                            const isTopOrBottom = textAnchor === 'middle';
+                            return (
+                              <text
+                                x={x}
+                                y={y}
+                                textAnchor={textAnchor}
+                                fill={theme.subTextColor}
+                                fontSize={radarSize < 340 ? 10 : 11}
+                                fontWeight={500}
+                              >
+                                {isTopOrBottom || !line2 ? (
+                                  <tspan x={x} dy="0.35em">{raw}</tspan>
+                                ) : (
+                                  <>
+                                    <tspan x={x} dy="-0.15em">{line1}</tspan>
+                                    <tspan x={x} dy="1.2em">{line2}</tspan>
+                                  </>
+                                )}
+                              </text>
+                            );
+                          }}
+                        />
                         <PolarRadiusAxis angle={30} domain={[0, 1]} tick={{ fill: theme.subTextColor, fontSize: 10 }} />
                         <Radar
                           name={selectedMember.name}
@@ -3145,7 +3444,7 @@ export const ReportPage: React.FC = () => {
 
           {/* ── View 3: Export Tab Quick Controls ── */}
           {activeTab === 'export' && (
-            <div style={{ padding: '24px 28px', borderBottom: theme.tableBorder }}>
+            <div className="report-panel-pad" style={{ borderBottom: theme.tableBorder }}>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <button
                   onClick={handleDownloadBackendPdf}
@@ -3200,7 +3499,6 @@ export const ReportPage: React.FC = () => {
           color: theme.paperColor,
           borderRadius: '16px',
           border: theme.paperBorder,
-          padding: '42px 46px',
           boxShadow: theme.paperShadow,
           maxWidth: '100%',
           boxSizing: 'border-box',
@@ -3209,7 +3507,7 @@ export const ReportPage: React.FC = () => {
         }}
       >
         {/* Document Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: theme.paperHeaderBorder, paddingBottom: '16px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: theme.paperHeaderBorder, paddingBottom: '16px', marginBottom: '20px' }}>
           <div>
             <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', color: theme.paperSubText, textTransform: 'uppercase' }}>
               FAIRSHARE · HỆ THỐNG ĐO LƯỜNG ĐÓNG GÓP ĐỒ ÁN NHÓM
@@ -3234,10 +3532,8 @@ export const ReportPage: React.FC = () => {
 
         {/* Metadata Grid */}
         <div
+          className="report-paper-grid-2"
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px 24px',
             backgroundColor: theme.paperCardBg,
             border: theme.paperCardBorder,
             borderRadius: '8px',
@@ -3268,9 +3564,9 @@ export const ReportPage: React.FC = () => {
 
         {/* Members Table */}
         <div style={{ overflowX: 'auto', marginBottom: '22px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
-              <tr style={{ borderBottom: theme.paperHeaderBorder, backgroundColor: theme.paperTableHeaderBg }}>
+              <tr style={{ borderBottom: theme.paperHeaderBorder, backgroundColor: theme.paperTableHeaderBg, whiteSpace: 'nowrap' }}>
                 <th style={{ textAlign: 'center', padding: '10px 8px', color: theme.paperTableHeaderText, fontWeight: 700, width: '40px' }}>STT</th>
                 <th style={{ textAlign: 'left', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700 }}>Thành viên &amp; Vai trò</th>
                 <th style={{ textAlign: 'left', padding: '10px 12px', color: theme.paperTableHeaderText, fontWeight: 700, width: '220px' }}>Tỷ lệ đóng góp (%)</th>
@@ -3432,28 +3728,40 @@ export const ReportPage: React.FC = () => {
         </div>
 
         {/* Official Signatures Section */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', pageBreakInside: 'avoid' }}>
+        <div className="report-paper-grid-2" style={{ gap: '24px 40px', pageBreakInside: 'avoid' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: theme.paperHeading, textTransform: 'uppercase' }}>
               ĐẠI DIỆN TRƯỞNG NHÓM ĐỒ ÁN
             </div>
-            <div style={{ fontSize: '11px', color: theme.paperSubText, fontStyle: 'italic', marginBottom: '40px' }}>
+            <div style={{ fontSize: '11px', color: theme.paperSubText, fontStyle: 'italic' }}>
               (Ký và ghi rõ họ tên)
+            </div>
+            <div style={{ height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {leaderSignature && (
+                <img src={leaderSignature} alt="Chữ ký Trưởng nhóm" style={{ maxHeight: '60px', maxWidth: '180px', objectFit: 'contain' }} />
+              )}
             </div>
             <div style={{ fontWeight: 700, color: theme.paperHeading, fontSize: '14px' }}>
               {leaderName}
             </div>
-            <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>
-              [Đã xác thực chữ ký điện tử FairShare]
-            </div>
+            {leaderSignature && (
+              <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginTop: '2px' }}>
+                [Đã xác thực chữ ký điện tử FairShare]
+              </div>
+            )}
           </div>
 
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: theme.paperHeading, textTransform: 'uppercase' }}>
               GIẢNG VIÊN HƯỚNG DẪN / HỘI ĐỒNG BẢO VỆ
             </div>
-            <div style={{ fontSize: '11px', color: theme.paperSubText, fontStyle: 'italic', marginBottom: '40px' }}>
+            <div style={{ fontSize: '11px', color: theme.paperSubText, fontStyle: 'italic' }}>
               (Nghiệm thu năng suất &amp; Cho điểm đồ án)
+            </div>
+            <div style={{ height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {teacherSignature && (
+                <img src={teacherSignature} alt="Chữ ký Giảng viên" style={{ maxHeight: '60px', maxWidth: '180px', objectFit: 'contain' }} />
+              )}
             </div>
             <div style={{ borderBottom: isLight ? '1px dotted #94a3b8' : '1px dotted rgba(255, 255, 255, 0.25)', width: '200px', margin: '0 auto 8px auto' }} />
             <div style={{ fontSize: '12px', color: theme.paperTableHeaderText }}>
@@ -3462,6 +3770,68 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal chữ ký điện tử trước khi xuất PDF */}
+      {showSignModal && (
+        <div className="no-print" onClick={() => setShowSignModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', color: '#0f172a', borderRadius: '16px', padding: 'clamp(16px, 3vw, 22px)', width: '100%', maxWidth: '620px', maxHeight: '92dvh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>Ký điện tử báo cáo</h3>
+            <p style={{ margin: '4px 0 16px', fontSize: '12.5px', color: '#64748b' }}>
+              Tải ảnh chữ ký cho từng vai trò (nền trắng sẽ được tự động tách). Chữ ký sẽ được đặt đúng vị trí ký trong báo cáo. Có thể bỏ trống nếu chưa cần ký.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 220px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>Nhóm trưởng</div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '10px' }}>Đại diện trưởng nhóm đồ án</div>
+                <div style={{ height: '90px', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', marginBottom: '10px' }}>
+                  {leaderSignature ? (
+                    <img src={leaderSignature} alt="Nhóm trưởng" style={{ maxHeight: '82px', maxWidth: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>Chưa có chữ ký</span>
+                  )}
+                </div>
+                <label style={{ display: 'inline-block', padding: '7px 12px', borderRadius: '8px', backgroundColor: '#4f46e5', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                  Tải ảnh chữ ký
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { handleSignatureFile('leader', e.target.files?.[0]); e.target.value = ''; }} />
+                </label>
+                {leaderSignature && (
+                  <button type="button" onClick={() => clearSignature('leader')} style={{ marginLeft: '6px', padding: '7px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '12px', cursor: 'pointer', color: '#475569' }}>
+                    Xóa
+                  </button>
+                )}
+              </div>
+              <div style={{ flex: '1 1 220px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>Giảng viên</div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '10px' }}>Giảng viên hướng dẫn / Hội đồng</div>
+                <div style={{ height: '90px', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', marginBottom: '10px' }}>
+                  {teacherSignature ? (
+                    <img src={teacherSignature} alt="Giảng viên" style={{ maxHeight: '82px', maxWidth: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>Chưa có chữ ký</span>
+                  )}
+                </div>
+                <label style={{ display: 'inline-block', padding: '7px 12px', borderRadius: '8px', backgroundColor: '#4f46e5', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                  Tải ảnh chữ ký
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { handleSignatureFile('teacher', e.target.files?.[0]); e.target.value = ''; }} />
+                </label>
+                {teacherSignature && (
+                  <button type="button" onClick={() => clearSignature('teacher')} style={{ marginLeft: '6px', padding: '7px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '12px', cursor: 'pointer', color: '#475569' }}>
+                    Xóa
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '8px', marginTop: '18px' }}>
+              <button type="button" onClick={() => setShowSignModal(false)} style={{ padding: '9px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                Hủy
+              </button>
+              <button type="button" onClick={handleConfirmSignAndExport} style={{ padding: '9px 16px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                Áp chữ ký &amp; Xuất PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal nộp minh chứng ngoài hệ thống */}
       <ManualContributionModal
@@ -3489,7 +3859,7 @@ export const ReportPage: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            padding: '20px',
+            padding: '12px',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowAllocationModal(false);
@@ -3502,10 +3872,10 @@ export const ReportPage: React.FC = () => {
               borderRadius: '20px',
               width: '100%',
               maxWidth: '680px',
-              maxHeight: '90vh',
+              maxHeight: '92dvh',
               overflowY: 'auto',
               boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
-              padding: '24px 28px',
+              padding: 'clamp(14px, 3vw, 24px) clamp(14px, 3vw, 28px)',
               color: theme.textColor,
             }}
           >
@@ -3551,7 +3921,7 @@ export const ReportPage: React.FC = () => {
             </div>
 
             {/* 3 Metric Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '20px' }}>
               <div
                 style={{
                   padding: '14px',
@@ -3658,7 +4028,7 @@ export const ReportPage: React.FC = () => {
               <div style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor, marginBottom: '8px' }}>
                 Trọng số 4 Chiều Vector Đóng góp (FairShare Standard)
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '8px' }}>
                 {[
                   { label: 'D1 Sản lượng', weight: '40%', desc: 'Tasks & SP hoàn thành', color: '#6366f1' },
                   { label: 'D2 Độ tin cậy', weight: '25%', desc: 'Đúng hạn, ít rework, CI', color: '#06b6d4' },
@@ -3689,10 +4059,10 @@ export const ReportPage: React.FC = () => {
               <div style={{ fontSize: '12.5px', fontWeight: 700, color: theme.headingColor, marginBottom: '8px' }}>
                 Chi tiết đóng góp so với mức bình quân nhóm ({(100 / (members.length || 1)).toFixed(1)}%)
               </div>
-              <div style={{ maxHeight: '200px', overflowY: 'auto', border: theme.tableBorder, borderRadius: '10px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <div style={{ maxHeight: '200px', overflowX: 'auto', overflowY: 'auto', border: theme.tableBorder, borderRadius: '10px' }}>
+                <table style={{ width: '100%', minWidth: '520px', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
-                    <tr style={{ borderBottom: theme.tableBorder, backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.04)', color: theme.subTextColor }}>
+                    <tr style={{ borderBottom: theme.tableBorder, backgroundColor: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.04)', color: theme.subTextColor, whiteSpace: 'nowrap' }}>
                       <th style={{ textAlign: 'left', padding: '8px 12px' }}>Thành viên</th>
                       <th style={{ textAlign: 'left', padding: '8px 12px' }}>Vai trò</th>
                       <th style={{ textAlign: 'center', padding: '8px 12px' }}>Tasks</th>
@@ -3729,7 +4099,7 @@ export const ReportPage: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 onClick={() => {
                   setShowAllocationModal(false);
@@ -3780,7 +4150,7 @@ export const ReportPage: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            padding: '20px',
+            padding: '12px',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowAiModal(false);
@@ -3793,7 +4163,7 @@ export const ReportPage: React.FC = () => {
               borderRadius: '24px',
               width: '100%',
               maxWidth: '840px',
-              maxHeight: '92vh',
+              maxHeight: '92dvh',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 30px 70px rgba(0,0,0,0.6)',
@@ -3804,17 +4174,18 @@ export const ReportPage: React.FC = () => {
             {/* AI Modal Header */}
             <div
               style={{
-                padding: '20px 24px',
+                padding: 'clamp(14px, 3vw, 20px) clamp(14px, 3vw, 24px)',
                 borderBottom: theme.tableBorder,
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'space-between',
+                gap: '12px',
                 background: isLight
                   ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(168, 85, 247, 0.06) 100%)'
                   : 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                 <div
                   style={{
                     width: 44,
@@ -3825,13 +4196,14 @@ export const ReportPage: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    flexShrink: 0,
                     boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
                   }}
                 >
                   <Brain size={24} />
                 </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: theme.headingColor }}>
                       FairShare AI Engine Hub
                     </h3>
@@ -3853,6 +4225,7 @@ export const ReportPage: React.FC = () => {
                   cursor: 'pointer',
                   padding: '6px',
                   borderRadius: '8px',
+                  flexShrink: 0,
                 }}
               >
                 <X size={20} />
@@ -3864,9 +4237,11 @@ export const ReportPage: React.FC = () => {
               style={{
                 display: 'flex',
                 gap: '8px',
-                padding: '12px 24px',
+                padding: '10px clamp(14px, 3vw, 24px)',
                 borderBottom: theme.tableBorder,
                 backgroundColor: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.02)',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
               }}
             >
               {[
@@ -3891,6 +4266,8 @@ export const ReportPage: React.FC = () => {
                       color: isActive ? '#ffffff' : theme.textColor,
                       border: isActive ? '1px solid #4f46e5' : theme.tableBorder,
                       cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -3902,12 +4279,12 @@ export const ReportPage: React.FC = () => {
             </div>
 
             {/* AI Modal Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '22px 24px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: 'clamp(14px, 3vw, 22px) clamp(14px, 3vw, 24px)' }}>
               {/* TAB 1: DIAGNOSTIC & HEALTH CHECK */}
               {aiActiveTab === 'diagnostic' && (
                 <div>
                   {/* Top 3 AI Metric Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '22px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px', marginBottom: '22px' }}>
                     <div
                       style={{
                         padding: '16px',
@@ -4123,7 +4500,7 @@ export const ReportPage: React.FC = () => {
                           borderLeft: `4px solid ${layer.color}`,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <span style={{ fontSize: '13px', fontWeight: 800, color: layer.color }}>
                             {layer.step}: {layer.name}
                           </span>
@@ -4144,9 +4521,9 @@ export const ReportPage: React.FC = () => {
                       Bảng Ma trận Vector 4D của các thành viên
                     </div>
                     <div style={{ border: theme.tableBorder, borderRadius: '12px', overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <table style={{ width: '100%', minWidth: '580px', borderCollapse: 'collapse', fontSize: '12px' }}>
                         <thead>
-                          <tr style={{ backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)', color: theme.subTextColor, borderBottom: theme.tableBorder }}>
+                          <tr style={{ backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.05)', color: theme.subTextColor, borderBottom: theme.tableBorder, whiteSpace: 'nowrap' }}>
                             <th style={{ textAlign: 'left', padding: '8px 12px' }}>Thành viên</th>
                             <th style={{ textAlign: 'center', padding: '8px 10px' }}>D1 Sản lượng</th>
                             <th style={{ textAlign: 'center', padding: '8px 10px' }}>D2 Tin cậy</th>
@@ -4190,7 +4567,7 @@ export const ReportPage: React.FC = () => {
 
               {/* TAB 3: AI ADVISOR CHAT */}
               {aiActiveTab === 'chat' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '420px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', height: 'min(420px, 52dvh)' }}>
                   {/* Quick prompts */}
                   <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '10px' }}>
                     {[
@@ -4323,6 +4700,7 @@ export const ReportPage: React.FC = () => {
                       }}
                       style={{
                         flex: 1,
+                        minWidth: 0,
                         padding: '10px 14px',
                         borderRadius: '10px',
                         backgroundColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
@@ -4410,7 +4788,7 @@ export const ReportPage: React.FC = () => {
           .report-print-document code {
             background-color: #f1f5f9 !important;
           }
-          .no-print, nav, header, aside, .dock-container, .page-head, button {
+          .no-print, nav, header, aside, .dock-container, .page-head, button, [class*="fs-toast"], [class*="toast"] {
             display: none !important;
           }
           .page.pad {

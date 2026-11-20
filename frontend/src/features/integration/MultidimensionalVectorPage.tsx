@@ -411,9 +411,19 @@ export const MultidimensionalVectorPage: React.FC = () => {
       }}
     >
       {/* 1. Collapsible Timeline Scrubber (Kept in DOM for testing & easy toggle) */}
+      {/* 1. Left Collapsible Timeline Scrubber (Slide-over on mobile/tablet, docked on lg+) */}
+      {!isTimelineCollapsed && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsTimelineCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
       <div
-        className={`h-full transition-all duration-300 relative z-30 ${
-          isTimelineCollapsed ? 'w-0 -translate-x-full overflow-hidden' : 'w-64 shrink-0'
+        className={`transition-all duration-300 ${
+          isTimelineCollapsed
+            ? 'h-full w-0 -translate-x-full overflow-hidden relative z-30'
+            : 'fixed lg:relative z-50 lg:z-30 left-0 top-[var(--top,64px)] bottom-0 lg:top-0 lg:bottom-auto lg:h-full w-64 max-w-[82vw] shrink-0 shadow-2xl lg:shadow-none'
         }`}
       >
         <TimelineScrubber
@@ -428,7 +438,11 @@ export const MultidimensionalVectorPage: React.FC = () => {
         type="button"
         title={isTimelineCollapsed ? 'Mở thanh Sprint' : 'Thu gọn thanh Sprint'}
         onClick={() => setIsTimelineCollapsed((prev) => !prev)}
-        className="absolute left-2 top-4 z-40 p-2 rounded-xl border border-zinc-200/90 dark:border-white/10 bg-white/90 dark:bg-[#1f1f23]/90 backdrop-blur-md transition shadow-lg text-zinc-700 dark:text-zinc-300 hover:text-cyan-600 dark:hover:text-white"
+        className={`p-2 rounded-xl border border-zinc-200/90 dark:border-white/10 bg-white/90 dark:bg-[#1f1f23]/90 backdrop-blur-md transition-all shadow-lg text-zinc-700 dark:text-zinc-300 hover:text-cyan-600 dark:hover:text-white ${
+          isTimelineCollapsed
+            ? 'absolute left-2 top-4 z-40'
+            : 'fixed lg:absolute left-[min(264px,calc(82vw+8px))] top-[calc(var(--top,64px)+12px)] lg:left-[264px] lg:top-4 z-50'
+        }`}
       >
         {isTimelineCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
       </button>
@@ -478,11 +492,18 @@ export const MultidimensionalVectorPage: React.FC = () => {
 
       {/* 3. Right Glassmorphism Detail Drawer / Formula 4 Tầng Inspector */}
       {/* Mounted in DOM with CSS translate so tests can query and user can inspect */}
+      {viewMode === 'detail' && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setViewMode('overview')}
+          aria-hidden="true"
+        />
+      )}
       <div
-        className={`h-full transition-transform duration-500 ease-in-out shrink-0 z-40 ${
+        className={`transition-transform duration-500 ease-in-out shrink-0 ${
           viewMode === 'detail'
-            ? 'w-[420px] max-w-[34vw] translate-x-0 relative shadow-2xl'
-            : 'translate-x-full fixed right-0 top-0 bottom-0 pointer-events-none opacity-0'
+            ? 'fixed lg:relative z-50 lg:z-40 right-0 top-[var(--top,64px)] bottom-0 lg:top-0 lg:bottom-auto lg:h-full w-full max-w-[min(420px,92vw)] lg:w-[420px] lg:max-w-[34vw] translate-x-0 shadow-2xl'
+            : 'h-full translate-x-full fixed right-0 top-0 bottom-0 pointer-events-none opacity-0 z-40'
         }`}
       >
         <InspectorDrawer

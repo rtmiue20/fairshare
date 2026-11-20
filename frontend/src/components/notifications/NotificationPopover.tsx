@@ -28,11 +28,8 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
     } else if (n.targetLink) {
       navigate(n.targetLink);
       onClose();
-    } else if (n.type === 'warning') {
+    } else if (n.type === 'warning' || n.type === 'error') {
       navigate('/alerts');
-      onClose();
-    } else if (n.type === 'info') {
-      navigate('/peer-review');
       onClose();
     } else {
       navigate('/teams');
@@ -46,7 +43,7 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
     if (n.actionSecondary?.onClick) {
       n.actionSecondary.onClick();
     } else {
-      showToast('Đã lưu lời mời để xử lý sau');
+      showToast('Đã ẩn thông báo');
     }
   };
 

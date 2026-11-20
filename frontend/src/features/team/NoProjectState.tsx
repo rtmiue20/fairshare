@@ -108,7 +108,9 @@ export const NoProjectState: React.FC<NoProjectStateProps> = ({
                 key={team.id}
                 onClick={() => setSelectedTeamId(team.id)}
                 style={{
-                  width: '180px',
+                  flex: '1 1 150px',
+                  maxWidth: '200px',
+                  minWidth: '140px',
                   minHeight: '210px',
                   padding: '1.5rem 1rem',
                   borderRadius: '24px',
@@ -191,7 +193,9 @@ export const NoProjectState: React.FC<NoProjectStateProps> = ({
               }
             }}
             style={{
-              width: '180px',
+              flex: '1 1 150px',
+              maxWidth: '200px',
+              minWidth: '140px',
               minHeight: '210px',
               padding: '1.5rem 1rem',
               borderRadius: '24px',
@@ -265,7 +269,9 @@ export const NoProjectState: React.FC<NoProjectStateProps> = ({
               }
             }}
             style={{
-              width: '180px',
+              flex: '1 1 150px',
+              maxWidth: '200px',
+              minWidth: '140px',
               minHeight: '210px',
               padding: '1.5rem 1rem',
               borderRadius: '24px',

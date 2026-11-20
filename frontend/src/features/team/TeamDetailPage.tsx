@@ -230,7 +230,7 @@ export const TeamDetailPage: React.FC = () => {
             <span className="text-zinc-300">{currentTeam.name}</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex flex-wrap items-center gap-2 sm:gap-3">
             <span>{currentTeam.name}</span>
             <span className="text-xs font-mono font-medium px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
               {currentTeam.courseName || 'Học kỳ 1 • 2026-2027'}
@@ -242,18 +242,18 @@ export const TeamDetailPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Action Buttons: Linear Solid White & Minimalist Border */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Action Buttons: Right-aligned pill buttons matching AlertList */}
+        <div className="flex flex-wrap items-center justify-end gap-2.5 ml-auto flex-shrink-0">
           <Link
             to={`/teams/${currentTeam.id}/board`}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 hover:text-white hover:bg-indigo-800/50 transition-colors shadow-xs"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-indigo-900/40 border border-indigo-700/50 text-indigo-300 hover:text-white hover:bg-indigo-800/50 transition-colors shadow-xs"
           >
             <Kanban size={13} className="text-indigo-400" />
             <span>Task Board</span>
           </Link>
           <button
             onClick={() => setIsConsentOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <ShieldCheck size={13} className="text-emerald-400" />
             <span>Cài đặt Consent</span>
@@ -262,7 +262,11 @@ export const TeamDetailPage: React.FC = () => {
           {isLeader && (
             <button
               onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-white transition-all shadow-sm cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                boxShadow: '0 6px 18px -4px rgba(79, 70, 229, 0.45)',
+              }}
             >
               <UserPlus size={13} />
               <span>+ Mời thành viên</span>
@@ -272,7 +276,7 @@ export const TeamDetailPage: React.FC = () => {
       </div>
 
       {/* 2. Linear Metric Cards (Dynamic data, border-zinc-800, Monospace Typography) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Team Members */}
         <div className="p-4 sm:p-5 rounded-xl bg-[#121318] border border-zinc-800/80 hover:border-zinc-700/80 transition-colors shadow-xs">
           <div className="flex items-center justify-between">
@@ -427,11 +431,11 @@ export const TeamDetailPage: React.FC = () => {
       </div>
 
       {/* 3. Linear Segmented Tabs Navigation */}
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-zinc-900 border border-zinc-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-zinc-900 border border-zinc-800 max-w-full overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('members')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`whitespace-nowrap shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'members'
                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/60 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -443,7 +447,7 @@ export const TeamDetailPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('sprints')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`whitespace-nowrap shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'sprints'
                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/60 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -455,7 +459,7 @@ export const TeamDetailPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('consent')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`whitespace-nowrap shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'consent'
                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/60 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
@@ -470,7 +474,7 @@ export const TeamDetailPage: React.FC = () => {
       {/* Tab 1: Member Table */}
       {activeTab === 'members' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold text-zinc-100">
                 Thành viên tham gia đồ án

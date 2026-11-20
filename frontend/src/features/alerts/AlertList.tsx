@@ -488,194 +488,18 @@ function buildBoardRiskAlerts(tasks: TaskCandidate[]): AlertItem[] {
   return result;
 }
 
-function buildFallbackDataForTeam(teamId: number, thresholdDays: number): {
-  alerts: AlertItem[];
-  inactivity: MemberInactivityDto[];
-  tasks: TaskCandidate[];
-} {
-  if (teamId === 2) {
-    // EKLA
-    const inactivity: MemberInactivityDto[] = [
-      { userId: 112, userName: 'Phạm Minh Đức (DevOps)', daysInactive: 6, lastActivity: '2026-11-11T09:00:00', exceeded: 6 >= thresholdDays },
-      { userId: 111, userName: 'Lê Quốc Bảo (Backend Dev)', daysInactive: 3, lastActivity: '2026-11-14T15:00:00', exceeded: 3 >= thresholdDays },
-      { userId: 110, userName: 'Trần Thu Trang (Frontend Dev)', daysInactive: 2, lastActivity: '2026-11-15T10:30:00', exceeded: 2 >= thresholdDays },
-      { userId: 109, userName: 'Nguyễn Hoàng Nam (Trưởng nhóm)', daysInactive: 1, lastActivity: '2026-11-16T14:00:00', exceeded: 1 >= thresholdDays },
-      { userId: 1, userName: 'Minh Triều (Product Owner)', daysInactive: 0, lastActivity: '2026-11-17T09:00:00', exceeded: false },
-    ];
-    const tasks: TaskCandidate[] = [
-      { id: 205, title: 'API FastAPI phục vụ gợi ý thời gian thực & caching Redis', columnName: 'Review', dueDate: '2026-11-18T18:00:00', assigneeId: 109, assigneeName: 'Nguyễn Hoàng Nam (Trưởng nhóm)', riskStatus: 'due_soon', daysDiff: 1 },
-      { id: 203, title: 'Huấn luyện mô hình LightGCN cho hệ thống gợi ý khóa học', columnName: 'In Progress', dueDate: '2026-11-19T18:00:00', assigneeId: 1, assigneeName: 'Minh Triều (Product Owner)', riskStatus: 'due_soon', daysDiff: 2 },
-      { id: 201, title: 'Tích hợp Pipeline OCR trích xuất đề cương môn học', columnName: 'To Do', dueDate: '2026-11-22T18:00:00', assigneeId: 111, assigneeName: 'Lê Quốc Bảo (Backend Dev)', riskStatus: 'todo' },
-      { id: 202, title: 'Thiết lập Grafana Dashboard giám sát độ trễ Inference', columnName: 'To Do', dueDate: '2026-11-23T18:00:00', assigneeId: 112, assigneeName: 'Phạm Minh Đức (DevOps)', riskStatus: 'todo' },
-    ];
-    const alerts: AlertItem[] = [
-      {
-        id: 2001,
-        level: 'warning',
-        title: formatAlertTitle('DUE_SOON_TASK'),
-        desc: 'Công việc "API FastAPI phục vụ gợi ý thời gian thực & caching Redis" (Review) do Nguyễn Hoàng Nam phụ trách sắp đến hạn chót (còn 1 ngày — 18/11/2026).',
-        timeAgo: 'Tự động quét hôm nay',
-        userId: 109,
-        userName: 'Nguyễn Hoàng Nam (Trưởng nhóm)',
-        alertType: 'DUE_SOON_TASK',
-        taskTitle: 'API FastAPI phục vụ gợi ý thời gian thực & caching Redis',
-        autoDispatched: true,
-      },
-      {
-        id: 2002,
-        level: 'warning',
-        title: formatAlertTitle('INACTIVITY_WARNING'),
-        desc: `Thành viên Phạm Minh Đức (DevOps) không có hoạt động trong 6 ngày liên tiếp (vượt ngưỡng ${thresholdDays} ngày).`,
-        timeAgo: 'Tự động quét hôm nay',
-        userId: 112,
-        userName: 'Phạm Minh Đức (DevOps)',
-        alertType: 'INACTIVITY_WARNING',
-        autoDispatched: true,
-      },
-      {
-        id: 2003,
-        level: 'info',
-        title: formatAlertTitle('TASK_TODO'),
-        desc: 'Công việc "Tích hợp Pipeline OCR trích xuất đề cương môn học" đang ở cột To Do cần Lê Quốc Bảo bắt đầu thực hiện.',
-        timeAgo: 'Tự động quét hôm nay',
-        userId: 111,
-        userName: 'Lê Quốc Bảo (Backend Dev)',
-        alertType: 'TASK_TODO',
-        taskTitle: 'Tích hợp Pipeline OCR trích xuất đề cương môn học',
-        autoDispatched: true,
-      },
-    ];
-    return { alerts, inactivity, tasks };
-  }
-
-  if (teamId === 3) {
-    // KINGSHA
-    const inactivity: MemberInactivityDto[] = [
-      { userId: 111, userName: 'Lê Quốc Bảo (Backend Dev)', daysInactive: 5, lastActivity: '2026-11-12T10:00:00', exceeded: 5 >= thresholdDays },
-      { userId: 113, userName: 'Đặng Thảo Vy (QA Engineer)', daysInactive: 2, lastActivity: '2026-11-15T14:00:00', exceeded: 2 >= thresholdDays },
-      { userId: 110, userName: 'Trần Thu Trang (Frontend Dev)', daysInactive: 1, lastActivity: '2026-11-16T11:00:00', exceeded: 1 >= thresholdDays },
-      { userId: 109, userName: 'Nguyễn Hoàng Nam (Trưởng nhóm)', daysInactive: 1, lastActivity: '2026-11-16T15:00:00', exceeded: 1 >= thresholdDays },
-      { userId: 1, userName: 'Minh Triều (Product Owner)', daysInactive: 0, lastActivity: '2026-11-17T08:30:00', exceeded: false },
-    ];
-    const tasks: TaskCandidate[] = [
-      { id: 2, title: 'Kiểm tra bảo mật phân quyền Bác sĩ & Dược sĩ (RBAC HIPAA)', columnName: 'Review', dueDate: '2026-11-17T18:00:00', assigneeId: 1, assigneeName: 'Minh Triều (Product Owner)', riskStatus: 'due_soon', daysDiff: 0 },
-      { id: 304, title: 'Kiểm thử hộp đen API Đơn thuốc Điện tử & Xuất PDF chuẩn Bộ Y tế', columnName: 'Review', dueDate: '2026-11-18T18:00:00', assigneeId: 113, assigneeName: 'Đặng Thảo Vy (QA Engineer)', riskStatus: 'due_soon', daysDiff: 1 },
-      { id: 301, title: 'Tích hợp máy quét mã vạch GS1-128 cho kho thuốc trung tâm', columnName: 'To Do', dueDate: '2026-11-22T18:00:00', assigneeId: 111, assigneeName: 'Lê Quốc Bảo (Backend Dev)', riskStatus: 'todo' },
-    ];
-    const alerts: AlertItem[] = [
-      {
-        id: 3001,
-        level: 'warning',
-        title: formatAlertTitle('DUE_SOON_TASK'),
-        desc: 'Công việc "Kiểm tra bảo mật phân quyền Bác sĩ & Dược sĩ (RBAC HIPAA)" đến hạn hôm nay (17/11/2026).',
-        timeAgo: 'Tự động quét hôm nay',
-        userId: 1,
-        userName: 'Minh Triều (Product Owner)',
-        alertType: 'DUE_SOON_TASK',
-        taskTitle: 'Kiểm tra bảo mật phân quyền Bác sĩ & Dược sĩ (RBAC HIPAA)',
-        autoDispatched: true,
-      },
-      {
-        id: 3002,
-        level: 'info',
-        title: formatAlertTitle('TASK_TODO'),
-        desc: 'Công việc "Tích hợp máy quét mã vạch GS1-128 cho kho thuốc trung tâm" đang ở cột To Do cần Lê Quốc Bảo bắt đầu thực hiện.',
-        timeAgo: 'Tự động quét hôm nay',
-        userId: 111,
-        userName: 'Lê Quốc Bảo (Backend Dev)',
-        alertType: 'TASK_TODO',
-        taskTitle: 'Tích hợp máy quét mã vạch GS1-128 cho kho thuốc trung tâm',
-        autoDispatched: true,
-      },
-      {
-        id: 3003,
-        level: 'success',
-        title: formatAlertTitle('MILESTONE_PROGRESS'),
-        desc: 'Audit Trail chuẩn HIPAA và kiểm thử UAT đạt 100% tiêu chí an toàn dữ liệu.',
-        timeAgo: 'Hôm qua',
-        userId: 1,
-        userName: 'Minh Triều (Product Owner)',
-        alertType: 'MILESTONE_PROGRESS',
-      },
-    ];
-    return { alerts, inactivity, tasks };
-  }
-
-  // Team 1: EduConnect (default)
-  const inactivity: MemberInactivityDto[] = [
-    { userId: 110, userName: 'Trần Thu Trang (Frontend Dev)', daysInactive: 5, lastActivity: '2026-11-12T15:00:00', exceeded: 5 >= thresholdDays },
-    { userId: 112, userName: 'Phạm Minh Đức (DevOps)', daysInactive: 5, lastActivity: '2026-11-12T20:00:00', exceeded: 5 >= thresholdDays },
-    { userId: 111, userName: 'Lê Quốc Bảo (Backend Dev)', daysInactive: 2, lastActivity: '2026-11-15T11:00:00', exceeded: 2 >= thresholdDays },
-    { userId: 113, userName: 'Đặng Thảo Vy (QA Engineer)', daysInactive: 1, lastActivity: '2026-11-16T14:00:00', exceeded: 1 >= thresholdDays },
-    { userId: 109, userName: 'Nguyễn Hoàng Nam (Trưởng nhóm)', daysInactive: 1, lastActivity: '2026-11-16T18:00:00', exceeded: 1 >= thresholdDays },
-    { userId: 1, userName: 'Minh Triều (Product Owner)', daysInactive: 0, lastActivity: '2026-11-17T09:00:00', exceeded: false },
-  ];
-  const tasks: TaskCandidate[] = [
-    { id: 103, title: 'Giao diện đọc tài liệu PDF và highlight nội dung', columnName: 'In Progress', dueDate: '2026-11-15T18:00:00', assigneeId: 110, assigneeName: 'Trần Thu Trang (Frontend Dev)', riskStatus: 'overdue', daysDiff: 2 },
-    { id: 105, title: 'Đặc tả API phân quyền RBAC & middleware JWT', columnName: 'Review', dueDate: '2026-11-16T20:00:00', assigneeId: 111, assigneeName: 'Lê Quốc Bảo (Backend Dev)', riskStatus: 'overdue', daysDiff: 1 },
-    { id: 104, title: 'Cấu hình Redis Cache cho danh mục môn học', columnName: 'In Progress', dueDate: '2026-11-18T18:00:00', assigneeId: 112, assigneeName: 'Phạm Minh Đức (DevOps)', riskStatus: 'due_soon', daysDiff: 1 },
-    { id: 116, title: 'Hoàn thiện màn hình Thống kê & Xuất báo cáo PDF cá nhân', columnName: 'Review', dueDate: '2026-11-17T20:00:00', assigneeId: 1, assigneeName: 'Minh Triều (Product Owner)', riskStatus: 'due_soon', daysDiff: 0 },
-    { id: 101, title: 'Tích hợp cổng thanh toán VNPay Sandbox', columnName: 'To Do', dueDate: '2026-11-19T18:00:00', assigneeId: 111, assigneeName: 'Lê Quốc Bảo (Backend Dev)', riskStatus: 'due_soon', daysDiff: 2 },
-    { id: 114, title: 'Thiết lập Webhook thông báo nhắc nhở tự động CR-04', columnName: 'To Do', dueDate: '2026-11-21T18:00:00', assigneeId: 1, assigneeName: 'Minh Triều (Product Owner)', riskStatus: 'todo' },
-  ];
-  const alerts: AlertItem[] = [
-    {
-      id: 1001,
-      level: 'error',
-      title: formatAlertTitle('OVERDUE_TASK'),
-      desc: 'Công việc "Giao diện đọc tài liệu PDF và highlight nội dung" do Trần Thu Trang (Frontend Dev) phụ trách đã quá hạn chót 2 ngày (Hạn: 15/11/2026).',
-      timeAgo: 'Tự động quét hôm nay',
-      userId: 110,
-      userName: 'Trần Thu Trang (Frontend Dev)',
-      alertType: 'OVERDUE_TASK',
-      taskTitle: 'Giao diện đọc tài liệu PDF và highlight nội dung',
-      autoDispatched: true,
-    },
-    {
-      id: 1002,
-      level: 'warning',
-      title: formatAlertTitle('DUE_SOON_TASK'),
-      desc: 'Công việc "Cấu hình Redis Cache cho danh mục môn học" (In Progress) do Phạm Minh Đức phụ trách sắp đến hạn chót (còn 1 ngày — 18/11/2026).',
-      timeAgo: 'Tự động quét hôm nay',
-      userId: 112,
-      userName: 'Phạm Minh Đức (DevOps)',
-      alertType: 'DUE_SOON_TASK',
-      taskTitle: 'Cấu hình Redis Cache cho danh mục môn học',
-      autoDispatched: true,
-    },
-    {
-      id: 1003,
-      level: 'info',
-      title: formatAlertTitle('TASK_TODO'),
-      desc: 'Công việc "Thiết lập Webhook thông báo nhắc nhở tự động CR-04" đang ở cột To Do cần Minh Triều bắt đầu thực hiện.',
-      timeAgo: 'Tự động quét hôm nay',
-      userId: 1,
-      userName: 'Minh Triều (Product Owner)',
-      alertType: 'TASK_TODO',
-      taskTitle: 'Thiết lập Webhook thông báo nhắc nhở tự động CR-04',
-      autoDispatched: true,
-    },
-    {
-      id: 1004,
-      level: 'success',
-      title: formatAlertTitle('ON_TIME_COMPLETION'),
-      desc: '100% các thẻ Done trong Sprint 3 đều hoàn thành đúng thời hạn cam kết.',
-      timeAgo: 'Hôm qua',
-      userId: 109,
-      userName: 'Nguyễn Hoàng Nam (Trưởng nhóm)',
-      alertType: 'ON_TIME_COMPLETION',
-    },
-  ];
-  return { alerts, inactivity, tasks };
-}
-
 export const AlertList: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
   const { user: currentUser } = useAuthStore();
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const removeNotification = useNotificationStore((s) => s.removeNotification);
   const [searchParams] = useSearchParams();
   const urlTeamId = Number(searchParams.get('teamId'));
-  const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
+  const validActiveTeamId =
+    activeTeamId && (teams.length === 0 || teams.some((t) => t.id === activeTeamId))
+      ? activeTeamId
+      : teams[0]?.id;
+  const currentTeamId = urlTeamId > 0 ? urlTeamId : (validActiveTeamId ?? 0);
 
   useEffect(() => {
     if (!initialized) {
@@ -721,7 +545,7 @@ export const AlertList: React.FC = () => {
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [selectedTemplate, setSelectedTemplate] = useState<AlertTemplateKey>('warning');
   const [senderRole, setSenderRole] = useState<'Nhóm trưởng' | 'Thành viên liên quan'>('Nhóm trưởng');
-  const [senderName, setSenderName] = useState<string>(currentUser?.fullName || 'Nguyễn Hoàng Nam');
+  const [senderName, setSenderName] = useState<string>(currentUser?.fullName || currentUser?.email || '');
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined);
   const [selectedTaskTitle, setSelectedTaskTitle] = useState<string>('');
   const [customTitle, setCustomTitle] = useState<string>(ALERT_TEMPLATES.warning.defaultTitle);
@@ -732,8 +556,10 @@ export const AlertList: React.FC = () => {
   useEffect(() => {
     if (currentUser?.fullName) {
       setSenderName(currentUser.fullName);
+    } else if (currentUser?.email) {
+      setSenderName(currentUser.email);
     }
-  }, [currentUser?.fullName]);
+  }, [currentUser?.fullName, currentUser?.email]);
 
   const dispatchAutoNotifications = useCallback(
     (items: AlertItem[], showSummaryToast = false) => {
@@ -746,34 +572,62 @@ export const AlertList: React.FC = () => {
         memberCount: uniqueMembers.size,
       });
 
+      const canSyncBellStore =
+        currentTeamId > 0 && currentTeamId === activeTeamId && Boolean(currentUser);
       let newlyDispatched = 0;
-      for (const item of riskItems) {
-        const key = `${currentTeamId}::${item.alertType}::${item.userName}::${item.desc.slice(0, 48)}`;
-        if (dispatchedKeysRef.current.has(key)) continue;
-        dispatchedKeysRef.current.add(key);
-        newlyDispatched += 1;
 
-        const existingNotifs = useNotificationStore.getState().notifications;
-        const alreadyInStore = existingNotifs.some(
-          (n) => n.title.includes(item.userName) && n.message === item.desc
-        );
-        if (!alreadyInStore) {
-          addNotification({
-            type: item.level,
-            title: `[Tự động] ${item.title} · ${item.userName}`,
-            message: item.desc,
-            authorName: 'Hệ thống giám sát CR-04',
-            authorRole: 'Auto Monitor',
-            avatarBg:
-              item.level === 'error'
-                ? 'linear-gradient(135deg, #ef4444, #be123c)'
-                : item.level === 'warning'
-                ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                : 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-            avatarText: 'CR',
-            triggerToast: false,
-            actionPrimary: { label: 'Xem cảnh báo' },
-          });
+      if (canSyncBellStore) {
+        // Dọn dẹp thông báo tự động cũ của đúng nhóm hiện tại khi không còn trong danh sách cảnh báo
+        const activeNotifIds = new Set(riskItems.map((r) => `alert-${currentTeamId}-${r.id}`));
+        const activeDescriptions = new Set(riskItems.map((r) => r.desc));
+        const currentStoreNotifs = useNotificationStore.getState().notifications;
+        for (const n of currentStoreNotifs) {
+          if (n.teamId !== currentTeamId) continue;
+          const isTeamBackendAlert = n.id.startsWith(`alert-${currentTeamId}-`);
+          const isAutoMonitorNotif =
+            n.source === 'auto_monitor' ||
+            n.authorRole === 'Auto Monitor' ||
+            n.id.startsWith('auto-alert-');
+          if (isTeamBackendAlert && !activeNotifIds.has(n.id)) {
+            removeNotification(n.id);
+          } else if (isAutoMonitorNotif && !activeDescriptions.has(n.message)) {
+            removeNotification(n.id);
+          }
+        }
+
+        for (const item of riskItems) {
+          const key = `${currentTeamId}::${item.alertType}::${item.userName}::${item.desc.slice(0, 48)}`;
+          if (dispatchedKeysRef.current.has(key)) continue;
+          dispatchedKeysRef.current.add(key);
+          newlyDispatched += 1;
+
+          const notifId = `alert-${currentTeamId}-${item.id}`;
+          const existingNotifs = useNotificationStore.getState().notifications;
+          const alreadyInStore = existingNotifs.some(
+            (n) => n.id === notifId || (n.title.includes(item.userName) && n.message === item.desc)
+          );
+          if (!alreadyInStore) {
+            addNotification({
+              id: notifId,
+              teamId: currentTeamId,
+              source: 'auto_monitor',
+              type: item.level,
+              title: `[Tự động] ${item.title} · ${item.userName}`,
+              message: item.desc,
+              authorName: 'Hệ thống giám sát CR-04',
+              authorRole: 'Auto Monitor',
+              avatarBg:
+                item.level === 'error'
+                  ? 'linear-gradient(135deg, #ef4444, #be123c)'
+                  : item.level === 'warning'
+                  ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                  : 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+              avatarText: 'CR',
+              triggerToast: false,
+              link: '/alerts',
+              actionPrimary: { label: 'Xem cảnh báo', link: '/alerts' },
+            });
+          }
         }
       }
 
@@ -793,11 +647,20 @@ export const AlertList: React.FC = () => {
         }
       }
     },
-    [addNotification, currentTeamId]
+    [addNotification, removeNotification, currentTeamId, activeTeamId, currentUser]
   );
 
   const fetchAlertsData = useCallback(
     async (threshold: number, notifySummary = false) => {
+      if (!currentTeamId || (initialized && teams.length === 0 && !urlTeamId)) {
+        setAlerts([]);
+        setInactivityList([]);
+        setTaskCandidates([]);
+        setTeamMembersRaw([]);
+        setAutoDispatchStats({ alertCount: 0, memberCount: 0 });
+        return;
+      }
+
       setLoading(true);
       try {
         const [alertsRes, inactivityRes, boardsRes, teamRes] = await Promise.allSettled([
@@ -810,8 +673,6 @@ export const AlertList: React.FC = () => {
           apiClient.get<ApiResponse<Board[]>>(`/boards/team/${currentTeamId}`),
           apiClient.get<ApiResponse<Team>>(`/teams/${currentTeamId}`),
         ]);
-
-        const fallback = buildFallbackDataForTeam(currentTeamId, threshold);
 
         // 1. Parse real boards if valid Board[]
         const extractedTasks: TaskCandidate[] = [];
@@ -841,19 +702,38 @@ export const AlertList: React.FC = () => {
         }
 
         // 2. Parse team members if valid Team
-        let extractedMembers: { userId: number; userName: string }[] = [];
+        let extractedMembers: { userId: number; userName: string; joinedAt?: string }[] = [];
         if (teamRes.status === 'fulfilled') {
           const tData = teamRes.value?.data?.data;
           if (tData && typeof tData === 'object' && !Array.isArray(tData) && Array.isArray(tData.members)) {
             extractedMembers = tData.members.map((m) => ({
               userId: m.user?.id ?? m.userId ?? m.id,
               userName: m.user?.fullName ?? m.fullName ?? m.email ?? `Thành viên #${m.id}`,
+              joinedAt: m.joinedAt,
             }));
           }
         }
         setTeamMembersRaw(extractedMembers);
 
-        // 3. Parse alerts
+        // 3. Parse inactivity from real backend data (or real team members if inactivity API returned empty)
+        let finalInactivity: MemberInactivityDto[] = [];
+        const inactivityOk =
+          inactivityRes.status === 'fulfilled' &&
+          Array.isArray(inactivityRes.value?.data?.data);
+
+        if (inactivityOk) {
+          finalInactivity = inactivityRes.value.data.data || [];
+        } else if (extractedMembers.length > 0) {
+          finalInactivity = extractedMembers.map((m) => ({
+            userId: m.userId,
+            userName: m.userName,
+            daysInactive: 0,
+            lastActivity: m.joinedAt || '',
+            exceeded: false,
+          }));
+        }
+
+        // 4. Parse alerts from real backend data
         let finalAlerts: AlertItem[] = [];
         const alertsOk =
           alertsRes.status === 'fulfilled' &&
@@ -863,25 +743,25 @@ export const AlertList: React.FC = () => {
           finalAlerts = (alertsRes.value.data.data || []).map(mapBackendAlert);
         }
 
-        // Synthesize board-detected alerts when API failed or when real board has cards but alerts are empty
-        if (!alertsOk) {
-          finalAlerts = hasValidBoard && extractedTasks.length > 0
-            ? buildBoardRiskAlerts(extractedTasks)
-            : fallback.alerts;
-        } else if (finalAlerts.length === 0 && hasValidBoard && extractedTasks.length > 0) {
+        // Synthesize board-detected alerts when real board has cards but alerts list is empty
+        if ((!alertsOk || finalAlerts.length === 0) && hasValidBoard && extractedTasks.length > 0) {
           finalAlerts = buildBoardRiskAlerts(extractedTasks);
         }
 
-        // 4. Parse inactivity
-        let finalInactivity: MemberInactivityDto[] = [];
-        const inactivityOk =
-          inactivityRes.status === 'fulfilled' &&
-          Array.isArray(inactivityRes.value?.data?.data);
-
-        if (inactivityOk) {
-          finalInactivity = inactivityRes.value.data.data || [];
-        } else {
-          finalInactivity = fallback.inactivity;
+        // Loại bỏ các cảnh báo INACTIVITY_WARNING còn dính lại nếu thành viên thực tế không vượt ngưỡng (daysInactive < threshold)
+        if (finalInactivity.length > 0) {
+          const nonExceededUserIds = new Set(
+            finalInactivity.filter((m) => !m.exceeded).map((m) => m.userId)
+          );
+          const nonExceededNames = new Set(
+            finalInactivity.filter((m) => !m.exceeded).map((m) => m.userName.toLowerCase())
+          );
+          finalAlerts = finalAlerts.filter((a) => {
+            if (a.alertType !== 'INACTIVITY_WARNING') return true;
+            if (a.userId && nonExceededUserIds.has(a.userId)) return false;
+            if (a.userName && nonExceededNames.has(a.userName.toLowerCase())) return false;
+            return true;
+          });
         }
 
         // 5. Ensure inactivity alerts from finalInactivity are synchronized into finalAlerts
@@ -906,8 +786,7 @@ export const AlertList: React.FC = () => {
           }
         });
 
-        const resolvedTasks = extractedTasks.length > 0 ? extractedTasks : fallback.tasks;
-        setTaskCandidates(resolvedTasks);
+        setTaskCandidates(extractedTasks);
         setAlerts(finalAlerts);
         setInactivityList(finalInactivity);
         dispatchAutoNotifications(finalAlerts, notifySummary);
@@ -915,15 +794,42 @@ export const AlertList: React.FC = () => {
         setLoading(false);
       }
     },
-    [currentTeamId, dispatchAutoNotifications]
+    [currentTeamId, initialized, teams.length, urlTeamId, dispatchAutoNotifications]
   );
+
+  useEffect(() => {
+    dispatchedKeysRef.current.clear();
+  }, [currentTeamId, thresholdDays]);
 
   useEffect(() => {
     fetchAlertsData(thresholdDays);
   }, [fetchAlertsData, thresholdDays]);
 
   const handleResolve = async (id: number, title: string) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
+    const targetAlert = alerts.find((a) => a.id === id);
+    const nextAlerts = alerts.filter((a) => a.id !== id);
+    setAlerts(nextAlerts);
+
+    const remainingRisk = nextAlerts.filter(
+      (a) => a.level === 'error' || a.level === 'warning' || a.alertType === 'TASK_TODO'
+    );
+    const uniqueMembers = new Set(remainingRisk.map((a) => a.userName).filter(Boolean));
+    setAutoDispatchStats({
+      alertCount: remainingRisk.length,
+      memberCount: uniqueMembers.size,
+    });
+
+    removeNotification(`alert-${currentTeamId}-${id}`);
+    removeNotification(`alert-${id}`);
+    if (targetAlert) {
+      const currentNotifs = useNotificationStore.getState().notifications;
+      for (const n of currentNotifs) {
+        if (n.message === targetAlert.desc) {
+          removeNotification(n.id);
+        }
+      }
+    }
+
     try {
       await apiClient.put(`/alerts/${id}/resolve`);
       showToast(`Đã giải quyết cảnh báo: ${title}`);
@@ -940,14 +846,18 @@ export const AlertList: React.FC = () => {
       showToast(`Đã gửi thông báo nhắc nhở đến ${userName}`);
     }
     addNotification({
+      teamId: currentTeamId,
+      source: 'manual',
       type: 'warning',
       title: 'Đã gửi lời nhắc tiến độ',
       message: `Lời nhắc Inactivity đã được chuyển tới thành viên ${userName}.`,
       authorName: 'Hệ thống Cảnh báo',
       avatarText: 'CB',
       avatarBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      link: '/alerts',
       actionPrimary: {
         label: 'Xem cảnh báo',
+        link: '/alerts',
       },
       triggerToast: false,
     });
@@ -1176,6 +1086,9 @@ export const AlertList: React.FC = () => {
       setAlerts((prev) => [createdAlert, ...prev]);
 
       addNotification({
+        id: `alert-${currentTeamId}-${createdAlert.id}`,
+        teamId: currentTeamId,
+        source: 'backend_alert',
         type: selectedTemplate,
         title: `${finalTitle} → ${selectedRecipient.userName}`,
         message: finalDesc,
@@ -1183,7 +1096,8 @@ export const AlertList: React.FC = () => {
         authorRole: senderRole,
         avatarText: getInitials(senderName.trim() || 'FS'),
         triggerToast: false,
-        actionPrimary: { label: 'Xem chi tiết' },
+        link: '/alerts',
+        actionPrimary: { label: 'Xem chi tiết', link: '/alerts' },
       });
 
       showToast({
@@ -1385,7 +1299,7 @@ export const AlertList: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.textColor }}>
-            <Sparkles size={15} color="#6366f1" />
+            <Sparkles size={15} color="#6366f1" style={{ flexShrink: 0 }} />
             <span>
               Đã phát hiện <b>{autoDispatchStats.alertCount} cảnh báo</b> và tự động gửi thông báo tới <b>{autoDispatchStats.memberCount} thành viên</b>.
             </span>
@@ -1407,15 +1321,15 @@ export const AlertList: React.FC = () => {
       )}
 
       {/* 2. Main Layout: 2 Columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.8fr) minmax(0, 1.2fr)', gap: '22px' }}>
+      <div className="alerts-main-grid">
         {/* Left Column: Alert Feed */}
         <div
+          className="alerts-panel-card"
           style={{
             background: theme.cardBg,
             border: theme.cardBorder,
             borderRadius: theme.cardRadius,
             boxShadow: theme.cardShadow,
-            padding: '24px',
           }}
         >
           {/* Header of alerts panel */}
@@ -1454,7 +1368,7 @@ export const AlertList: React.FC = () => {
                       color: isActive ? '#ffffff' : theme.subTextColor,
                       border: 'none',
                       borderRadius: '8px',
-                      padding: '5px 10px',
+                      padding: '7px 11px',
                       fontSize: '12px',
                       fontWeight: isActive ? 600 : 500,
                       cursor: 'pointer',
@@ -1541,6 +1455,8 @@ export const AlertList: React.FC = () => {
                                 borderRadius: '6px',
                                 background: palette.chipBg,
                                 color: palette.titleColor,
+                                wordBreak: 'break-word',
+                                maxWidth: '100%',
                               }}
                             >
                               Task: {a.taskTitle}
@@ -1555,6 +1471,8 @@ export const AlertList: React.FC = () => {
                                 borderRadius: '6px',
                                 background: palette.chipBg,
                                 color: palette.titleColor,
+                                wordBreak: 'break-word',
+                                maxWidth: '100%',
                               }}
                             >
                               Gửi bởi: {a.senderLabel}
@@ -1599,7 +1517,7 @@ export const AlertList: React.FC = () => {
                       <span style={{ color: palette.titleColor, fontWeight: 700 }}>{a.userName}</span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       <button
                         type="button"
                         onClick={() => handleRemind(a.id, a.userName)}
@@ -1608,7 +1526,7 @@ export const AlertList: React.FC = () => {
                           color: palette.titleColor,
                           border: palette.border,
                           borderRadius: '10px',
-                          padding: '6px 12px',
+                          padding: '8px 12px',
                           fontSize: '12px',
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -1629,7 +1547,7 @@ export const AlertList: React.FC = () => {
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '10px',
-                          padding: '6px 14px',
+                          padding: '8px 14px',
                           fontSize: '12px',
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -1672,15 +1590,15 @@ export const AlertList: React.FC = () => {
         </div>
 
         {/* Right Column: Inactivity Threshold Config & Real Team Breakdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
           {/* Threshold Slider Card */}
           <div
+            className="alerts-panel-card"
             style={{
               background: theme.cardBg,
               border: theme.cardBorder,
               borderRadius: theme.cardRadius,
               boxShadow: theme.cardShadow,
-              padding: '24px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -1691,7 +1609,7 @@ export const AlertList: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '13.5px', color: theme.subTextColor, fontWeight: 500 }}>
                   Số ngày không hoạt động:
                 </span>
@@ -1724,7 +1642,7 @@ export const AlertList: React.FC = () => {
                   borderRadius: '3px',
                 }}
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: theme.subTextColor, marginTop: '4px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '4px 8px', fontSize: '11px', color: theme.subTextColor, marginTop: '4px' }}>
                 <span>2 ngày (Nghiêm ngặt)</span>
                 <span>5 ngày (Tiêu chuẩn)</span>
                 <span>10 ngày (Nới lỏng)</span>
@@ -1774,12 +1692,12 @@ export const AlertList: React.FC = () => {
 
           {/* Member Inactivity Real Breakdown Card */}
           <div
+            className="alerts-panel-card"
             style={{
               background: theme.cardBg,
               border: theme.cardBorder,
               borderRadius: theme.cardRadius,
               boxShadow: theme.cardShadow,
-              padding: '24px',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -1815,12 +1733,13 @@ export const AlertList: React.FC = () => {
                       borderRadius: '12px',
                       padding: '10px 14px',
                       display: 'flex',
+                      flexWrap: 'wrap',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       gap: '10px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 160px' }}>
                       <div
                         style={{
                           width: '32px',
@@ -1902,8 +1821,8 @@ export const AlertList: React.FC = () => {
                         title={`Gửi cảnh báo cho ${member.userName}`}
                         onClick={() => openWizard(member.userId, quickPresetTemplate)}
                         style={{
-                          width: '28px',
-                          height: '28px',
+                          width: '34px',
+                          height: '34px',
                           borderRadius: '8px',
                           border: theme.rowBorder,
                           background: isLight ? '#eef2ff' : 'rgba(99, 102, 241, 0.16)',
@@ -1963,11 +1882,11 @@ export const AlertList: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '610px',
-              maxHeight: 'calc(100dvh - 2.5rem)',
+              maxHeight: '92dvh',
               margin: 'auto',
               borderRadius: '26px',
               border: '1px solid var(--line)',
-              background: 'var(--surface)',
+              background: isLight ? '#ffffff' : '#18181b',
               color: 'var(--fg)',
               boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.42), 0 0 0 1px var(--glass-line)',
               display: 'flex',
@@ -2148,12 +2067,12 @@ export const AlertList: React.FC = () => {
               {wizardStep === 2 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {/* Reporter Role & Name */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div className="alerts-wizard-grid-2">
                     <div>
                       <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--fg)' }}>
                         Vai trò người báo
                       </label>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {(['Nhóm trưởng', 'Thành viên liên quan'] as const).map((roleOption) => {
                           const active = senderRole === roleOption;
                           return (
@@ -2410,18 +2329,18 @@ export const AlertList: React.FC = () => {
                       gap: '0.75rem',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0.35rem 1rem' }}>
                       <span style={{ fontSize: '0.8rem', color: 'var(--fg3)' }}>Thành viên nhận (có nguy cơ):</span>
                       <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--fg)' }}>{selectedRecipient.userName}</span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.65rem', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.65rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0.35rem 1rem' }}>
                       <span style={{ fontSize: '0.8rem', color: 'var(--fg3)' }}>Người gửi báo cáo:</span>
                       <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--fg)' }}>
                         {senderRole}{senderName.trim() ? ` (${senderName.trim()})` : ''}
                       </span>
                     </div>
                     {selectedTaskTitle && (
-                      <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.65rem', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                      <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.65rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0.35rem 1rem' }}>
                         <span style={{ fontSize: '0.8rem', color: 'var(--fg3)' }}>Công việc liên quan:</span>
                         <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--fg)', textAlign: 'right' }}>{selectedTaskTitle}</span>
                       </div>
@@ -2438,9 +2357,10 @@ export const AlertList: React.FC = () => {
                 borderTop: '1px solid var(--line)',
                 background: 'var(--surface2)',
                 display: 'flex',
+                flexWrap: 'wrap',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '1rem',
+                gap: '0.75rem 1rem',
                 flexShrink: 0,
               }}
             >
@@ -2469,7 +2389,7 @@ export const AlertList: React.FC = () => {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem' }}>
                 {wizardStep > 1 ? (
                   <button
                     type="button"

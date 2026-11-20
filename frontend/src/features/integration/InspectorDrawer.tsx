@@ -170,7 +170,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
 
   return (
     <aside
-      className="w-96 h-full flex flex-col justify-between z-20 backdrop-blur-2xl border-l select-none transition-all duration-300 relative"
+      className="w-full max-w-full h-full flex flex-col justify-between z-20 backdrop-blur-2xl border-l select-none transition-all duration-300 relative overflow-x-hidden"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--line)',
@@ -179,17 +179,17 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
     >
       {/* 1. Header Toolbar */}
       <div
-        className="p-4 border-b shrink-0 flex items-start justify-between"
+        className="p-3.5 sm:p-4 border-b shrink-0 flex items-start justify-between gap-2"
         style={{ borderColor: 'var(--line)' }}
       >
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] font-mono">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4] shrink-0" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] font-mono truncate">
               Vector Đa Chiều · Mô Hình 4 Tầng
             </span>
           </div>
-          <h2 className="text-base font-bold leading-tight" style={{ color: 'var(--fg)' }}>
+          <h2 className="text-base font-bold leading-tight truncate" style={{ color: 'var(--fg)' }}>
             {networkData.focusedUserName}
           </h2>
           <p className="text-[11px] mt-0.5" style={{ color: 'var(--fg3)' }}>
@@ -197,7 +197,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             title="Khai báo tác động ngoại cảnh"
@@ -240,7 +240,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
 
       {/* 2. Scrollable Body Content */}
       <div
-        className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-4 space-y-4"
         style={{
           scrollbarWidth: 'thin',
           scrollbarColor: 'var(--line) transparent',
@@ -1131,7 +1131,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium mb-1" style={{ color: 'var(--fg2)' }}>
                     Phân loại tác động

@@ -85,6 +85,21 @@ public class UserService {
         return toDto(userRepository.save(user));
     }
 
+    /** Cập nhật đường dẫn ảnh đại diện; trả về đường dẫn cũ để controller xóa file cũ. */
+    @Transactional
+    public String updateAvatar(String email, String newAvatarUrl) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Email is required");
+        }
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + normalizedEmail));
+        String old = user.getAvatarUrl();
+        user.setAvatarUrl(newAvatarUrl);
+        userRepository.save(user);
+        return old;
+    }
+
     private static String normalize(String value, int max) {
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : limit(trimmed, max);
@@ -105,6 +120,7 @@ public class UserService {
                 .teamRole(user.getTeamRole())
                 .bio(user.getBio())
                 .githubUsername(user.getGithubUsername())
+                .avatarUrl(user.getAvatarUrl())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

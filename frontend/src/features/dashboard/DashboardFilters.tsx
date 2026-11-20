@@ -84,7 +84,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   return (
     <div
       data-testid="dashboard-filters"
-      className="w-fit max-w-full inline-flex flex-wrap items-center gap-2 sm:gap-2.5 p-1.5 sm:p-2 rounded-2xl transition-all shadow-xs"
+      className="w-full sm:w-fit max-w-full flex sm:inline-flex flex-wrap items-center gap-2 sm:gap-2.5 p-2 rounded-2xl transition-all shadow-sm"
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--line)',
@@ -94,7 +94,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     >
       {/* Label Bộ lọc */}
       <div
-        className="flex items-center gap-1.5 pl-2.5 pr-1 text-xs font-bold uppercase tracking-wider"
+        className="flex items-center gap-1.5 pl-1.5 sm:pl-2.5 pr-1 text-xs font-bold uppercase tracking-wider"
         style={{ color: 'var(--fg3)', fontFamily: 'var(--f-mono)' }}
       >
         <Filter className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
@@ -102,7 +102,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       </div>
 
       {/* ───────── BỘ CHỌN SPRINT (CUSTOM BEAUTIFUL DROPDOWN) ───────── */}
-      <div className="relative" ref={sprintRef}>
+      <div className="relative w-full sm:w-auto" ref={sprintRef}>
         {/* Native Hidden Select for test suite compatibility */}
         <select
           data-testid="sprint-select"
@@ -129,18 +129,18 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             setIsSprintOpen((prev) => !prev);
             setIsMemberOpen(false);
           }}
-          className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+          className={`w-full sm:w-auto justify-between sm:justify-start h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
             isSprintOpen
               ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
               : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
           } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
-          <span className="truncate max-w-[200px] sm:max-w-[260px]">
+          <span className="flex-1 text-left sm:flex-none truncate max-w-full sm:max-w-[240px]">
             {currentSprint?.name ?? `Sprint ${selectedSprintId}`}
           </span>
           {currentSprint?.isCurrent && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/25">
+            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/25">
               Hiện tại
             </span>
           )}
@@ -154,7 +154,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
         {/* Custom Popover Menu */}
         {isSprintOpen && (
           <div
-            className="absolute left-0 z-50 w-[340px] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+            className="absolute left-0 z-50 w-full sm:w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
             style={{
               top: 'calc(100% + 8px)',
               boxShadow:
@@ -229,7 +229,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       </div>
 
       {/* ───────── BỘ CHỌN THÀNH VIÊN (CUSTOM BEAUTIFUL DROPDOWN) ───────── */}
-      <div className="relative" ref={memberRef}>
+      <div className="relative w-full sm:w-auto" ref={memberRef}>
         {/* Native Hidden Select for test suite compatibility */}
         <select
           data-testid="member-select"
@@ -260,20 +260,20 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             setIsMemberOpen((prev) => !prev);
             setIsSprintOpen(false);
           }}
-          className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
+          className={`w-full sm:w-auto justify-between sm:justify-start h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
             isMemberOpen
               ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
               : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
           } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-          <span className="truncate max-w-[150px] sm:max-w-[190px]">
+          <span className="flex-1 text-left sm:flex-none truncate max-w-full sm:max-w-[190px]">
             {selectedUserId === 'ALL'
               ? 'Tất cả thành viên'
               : currentMember?.name ?? 'Thành viên'}
           </span>
           {currentMember?.role && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
               {currentMember.role}
             </span>
           )}
@@ -287,7 +287,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
         {/* Custom Popover Menu */}
         {isMemberOpen && (
           <div
-            className="absolute left-0 z-50 w-[320px] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+            className="absolute left-0 z-50 w-full sm:w-[320px] max-w-[calc(100vw-24px)] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
             style={{
               top: 'calc(100% + 8px)',
               boxShadow:

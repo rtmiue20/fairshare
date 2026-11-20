@@ -19,5 +19,6 @@ public class UserDto {
     private String teamRole;
     private String bio;
     private String githubUsername;
+    private String avatarUrl;
     private java.time.LocalDateTime createdAt;
 }

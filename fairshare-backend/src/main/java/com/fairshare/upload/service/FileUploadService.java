@@ -24,6 +24,66 @@ public class FileUploadService {
     private String uploadDir;
 
     private static final long MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final String AVATAR_SUBDIR = "avatars";
+    private static final java.util.Set<String> AVATAR_EXTENSIONS = java.util.Set.of(".jpg", ".jpeg", ".png", ".webp", ".gif");
+
+    /** Lưu ảnh đại diện vào uploads/avatars và trả về URL công khai /uploads/avatars/xxx */
+    public FileUploadResponse uploadAvatar(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("Vui lòng chọn ảnh đại diện hợp lệ");
+        }
+        if (file.getSize() > MAX_AVATAR_SIZE) {
+            throw new BusinessException("Ảnh đại diện không được vượt quá 5MB");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new BusinessException("Tệp tải lên phải là hình ảnh (PNG, JPG, WEBP, GIF)");
+        }
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "avatar");
+        String ext = "";
+        int dotIdx = originalFilename.lastIndexOf('.');
+        if (dotIdx >= 0) {
+            ext = originalFilename.substring(dotIdx).toLowerCase();
+        }
+        if (!AVATAR_EXTENSIONS.contains(ext)) {
+            throw new BusinessException("Định dạng ảnh không được hỗ trợ (chỉ PNG, JPG, WEBP, GIF)");
+        }
+        String storedName = System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + ext;
+        try {
+            Path targetDir = Paths.get(uploadDir, AVATAR_SUBDIR).toAbsolutePath().normalize();
+            Files.createDirectories(targetDir);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, targetDir.resolve(storedName), StandardCopyOption.REPLACE_EXISTING);
+            }
+            return FileUploadResponse.builder()
+                    .url("/uploads/" + AVATAR_SUBDIR + "/" + storedName)
+                    .fileName(originalFilename)
+                    .fileSize(file.getSize())
+                    .contentType(contentType)
+                    .build();
+        } catch (IOException e) {
+            log.error("Failed to store avatar {}", originalFilename, e);
+            throw new BusinessException("Không thể lưu ảnh đại diện: " + e.getMessage());
+        }
+    }
+
+    /** Xóa file ảnh đại diện cũ (chỉ trong uploads/avatars). */
+    public void deleteAvatar(String publicUrl) {
+        String prefix = "/uploads/" + AVATAR_SUBDIR + "/";
+        if (publicUrl == null || !publicUrl.startsWith(prefix)) {
+            return;
+        }
+        try {
+            Path dir = Paths.get(uploadDir, AVATAR_SUBDIR).toAbsolutePath().normalize();
+            Path file = dir.resolve(publicUrl.substring(prefix.length())).normalize();
+            if (file.startsWith(dir)) {
+                Files.deleteIfExists(file);
+            }
+        } catch (IOException e) {
+            log.warn("Could not delete old avatar {}", publicUrl, e);
+        }
+    }
 
     public FileUploadResponse uploadFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
