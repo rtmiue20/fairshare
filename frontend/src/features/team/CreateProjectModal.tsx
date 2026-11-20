@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   FolderPlus,
@@ -12,7 +13,9 @@ import {
   Kanban,
   Users,
   Check,
+  CalendarDays,
 } from 'lucide-react';
+import { TimelinePicker, toYmd, startOfDay, formatTimelineDate, countTimelineDays } from './TimelinePicker';
 import { useProjectStore } from '../../store/projectStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,6 +43,11 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const [courseName, setCourseName] = useState('');
   const [description, setDescription] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [startDate, setStartDate] = useState<Date>(() => startOfDay(new Date()));
+  const [endDate, setEndDate] = useState<Date>(() => {
+    const s = startOfDay(new Date());
+    return new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6 * 7 - 1);
+  });
 
   // Status states
   const [loading, setLoading] = useState(false);
@@ -53,13 +61,16 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       setStep(1);
       setError(null);
       setSuccessMsg(null);
+      const s = startOfDay(new Date());
+      setStartDate(s);
+      setEndDate(new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6 * 7 - 1));
     }
   }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
   // Total steps depending on mode
-  const totalSteps = mode === 'create' ? 3 : 2;
+  const totalSteps = mode === 'create' ? 4 : 2;
 
   // Handle Step Forward
   const handleNext = () => {
@@ -76,6 +87,14 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           return;
         }
         setStep(3);
+        return;
+      }
+      if (step === 3) {
+        if (endDate.getTime() < startDate.getTime()) {
+          setError('Ngày kết thúc phải sau ngày bắt đầu');
+          return;
+        }
+        setStep(4);
       }
     }
   };
@@ -102,11 +121,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         name: projectName.trim(),
         courseName: courseName.trim() || undefined,
         description: description.trim() || undefined,
+        startDate: toYmd(startDate),
+        endDate: toYmd(endDate),
       });
       setSuccessMsg(`Khởi tạo dự án "${team.name}" thành công!`);
       setTimeout(() => {
         onClose();
-        navigate(`/teams/${team.id}`);
+        navigate('/teams');
       }, 1000);
     } catch (err: unknown) {
       const msg =
@@ -131,7 +152,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       setSuccessMsg(`Đã tham gia dự án "${team.name}" thành công!`);
       setTimeout(() => {
         onClose();
-        navigate(`/teams/${team.id}`);
+        navigate('/teams');
       }, 1000);
     } catch (err: unknown) {
       const msg =
@@ -143,14 +164,14 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 100,
+        zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -178,6 +199,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           flexDirection: 'column',
           position: 'relative',
           overflow: 'hidden',
+          maxHeight: 'calc(100dvh - 2.5rem)',
           transition: 'all 0.25s ease',
         }}
       >
@@ -204,7 +226,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             >
               {step === 1 && 'Bắt đầu với đồ án của bạn'}
               {step === 2 && mode === 'create' && 'Thông tin đề tài đồ án'}
-              {step === 3 && mode === 'create' && 'Xác nhận & Khởi tạo'}
+              {step === 3 && mode === 'create' && 'Lịch trình dự án'}
+              {step === 4 && mode === 'create' && 'Xác nhận & Khởi tạo'}
               {step === 2 && mode === 'join' && 'Nhập mã mời nhóm'}
             </h2>
             <p
@@ -217,7 +240,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             >
               {step === 1 && 'Chọn tạo một dự án mới hoặc tham gia nhóm đã có sẵn.'}
               {step === 2 && mode === 'create' && 'Điền tên đề tài và môn học để thiết lập không gian nhóm.'}
-              {step === 3 && mode === 'create' && 'Kiểm tra lại thông tin trước khi tạo không gian làm việc.'}
+              {step === 3 && mode === 'create' && 'Chọn ngày bắt đầu và kết thúc để hệ thống dựng lịch tuần & Sprint 1.'}
+              {step === 4 && mode === 'create' && 'Kiểm tra lại thông tin trước khi tạo không gian làm việc.'}
               {step === 2 && mode === 'join' && 'Dán mã mời do Nhóm trưởng (Leader) chia sẻ để tham gia.'}
             </p>
           </div>
@@ -256,7 +280,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div style={{ padding: '1.25rem 1.75rem 1.5rem' }}>
+        <div style={{ padding: '1.25rem 1.75rem 1.5rem', overflowY: 'auto', minHeight: 0, flex: 1 }}>
           {/* Error Message */}
           {error && (
             <div
@@ -561,8 +585,20 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             </div>
           )}
 
-          {/* ──────────────── STEP 3 (CREATE): CONFIRMATION & REVIEW ──────────────── */}
+          {/* ──────────────── STEP 3 (CREATE): PROJECT CALENDAR ──────────────── */}
           {step === 3 && mode === 'create' && (
+            <TimelinePicker
+              start={startDate}
+              end={endDate}
+              onChange={(s, e) => {
+                setStartDate(s);
+                setEndDate(e);
+              }}
+            />
+          )}
+
+          {/* ──────────────── STEP 4 (CREATE): CONFIRMATION & REVIEW ──────────────── */}
+          {step === 4 && mode === 'create' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
               {/* Summary Card */}
               <div
@@ -595,6 +631,16 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     </div>
                   </div>
                 )}
+
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.65rem' }}>
+                  <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--fg3)', fontWeight: 600 }}>
+                    Lịch dự án
+                  </div>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--fg)', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <CalendarDays size={15} style={{ color: 'var(--accent)' }} />
+                    {formatTimelineDate(startDate)} → {formatTimelineDate(endDate)} ({Math.ceil(countTimelineDays(startDate, endDate) / 7)} tuần)
+                  </div>
+                </div>
 
                 {description && (
                   <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.65rem' }}>
@@ -889,6 +935,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

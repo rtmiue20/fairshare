@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Key } from 'lucide-react';
 import { useProjectStore } from '../../store/projectStore';
 
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -606,8 +607,8 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
             </h2>
 
             <p className="hero-invite-code" style={{ margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span className="hero-invite-label" style={{ color: 'var(--accent)', fontWeight: 500 }}>
-                🔑 Mã mời:
+              <span className="hero-invite-label" style={{ color: 'var(--accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Key size={14} /> Mã mời:
               </span>
               <code
                 style={{

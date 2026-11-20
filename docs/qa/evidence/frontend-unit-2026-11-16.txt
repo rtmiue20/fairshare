@@ -1,0 +1,37 @@
+# Unit test frontend – master @ f18a705 – 16/11/2026 23:23 (GMT+7)
+# Lệnh: docker run node:20-alpine (giống Frontend CI): npm ci && npx vitest run
+# Ghi chú: trên máy Windows Node 24, vitest 1.6.1 không nạp được file test (TypeError ... reading 'on') -> lỗi môi trường, chạy bằng Node 20 như CI
+# Kết quả: 20 file, 86/86 test PASS
+
+ ✓ src/tests/DashboardFilters.test.tsx  (4 tests) 326ms
+ ✓ src/tests/MemberRadarChart.test.tsx  (4 tests) 348ms
+ ✓ src/tests/PendingContributionsList.test.tsx  (4 tests) 795ms
+ ✓ src/tests/ManualContributionForm.test.tsx  (4 tests) 928ms
+ ✓ src/tests/EvidenceTraceabilityModal.test.tsx  (5 tests) 747ms
+ ✓ src/tests/peerreview/ReviewForm.test.tsx  (3 tests) 1131ms
+stderr | src/tests/ProfileSettingsPage.test.tsx > ProfileSettingsPage Component Tests > renders page without hardcoded UEH text and initializes blank fields for new user
+ ✓ src/tests/ProfileSettingsPage.test.tsx  (3 tests) 1337ms
+ ✓ src/tests/auth/RegisterPage.test.tsx  (3 tests) 1405ms
+ ✓ src/tests/auth/LoginPage.test.tsx  (4 tests) 1582ms
+ ✓ src/tests/AlertList.test.tsx  (5 tests) 1988ms
+stderr | src/tests/MultidimensionalVectorPage.test.tsx > MultidimensionalVectorPage Component Tests > renders the 4-tier multidimensional model and timeline scrubber
+ ✓ src/tests/MultidimensionalVectorPage.test.tsx  (1 test) 1834ms
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > renders LoginPage with email, password inputs and demo login button
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > validates empty email on LoginPage submit
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > renders RegisterPage with required fields
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > ContributionDashboard teamId handling (DEF-22) > fetches contribution data using prop teamId when provided
+stderr | src/tests/ContributionDashboard.test.tsx > M1 Frontend Core & Layout Tests > ContributionDashboard teamId handling (DEF-22) > fetches contribution data using URL search param teamId
+ ✓ src/tests/ContributionDashboard.test.tsx  (7 tests) 1361ms
+ ✓ src/tests/ReportPage.test.tsx  (6 tests) 2557ms
+ ✓ src/tests/auth/authStore.test.ts  (3 tests) 15ms
+ ✓ src/tests/BoardRolePermission.test.tsx  (3 tests) 3072ms
+stderr | src/tests/BoardRolePermission.test.tsx > BoardView Role-Based Permissions & UI Locking Tests (M1) > renders Leader role with "Thêm cột" button and full card editing access
+ ✓ src/tests/auth/apiClient.test.ts  (3 tests) 84ms
+ ✓ src/tests/auth/ProtectedRoute.test.tsx  (3 tests) 163ms
+ ✓ src/tests/EvidenceTable.test.tsx  (5 tests) 379ms
+ ✓ src/tests/MemberTable.test.tsx  (3 tests) 432ms
+ ✓ src/tests/BoardView.test.tsx  (13 tests) 4373ms
+ Test Files  20 passed (20)
+      Tests  86 passed (86)
+   Start at  16:23:14
+   Duration  9.08s (transform 5.48s, setup 11.35s, collect 20.01s, tests 24.86s, environment 31.21s, prepare 10.41s)

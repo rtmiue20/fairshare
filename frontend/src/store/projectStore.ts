@@ -9,7 +9,7 @@ interface ProjectState {
   initialized: boolean;
   fetchTeams: () => Promise<Team[]>;
   setActiveTeamId: (id: number | null) => void;
-  createProject: (payload: { name: string; courseName?: string; description?: string }) => Promise<Team>;
+  createProject: (payload: { name: string; courseName?: string; description?: string; startDate?: string; endDate?: string }) => Promise<Team>;
   joinProject: (inviteCode: string) => Promise<Team>;
 }
 

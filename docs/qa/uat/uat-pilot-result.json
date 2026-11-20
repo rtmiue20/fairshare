@@ -1,8 +1,8 @@
 {
-  "run": "1794714565",
+  "run": "1794845842",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-15T10:49:27",
-  "passed": 14,
+  "executed_at": "2026-11-16T23:17:24",
+  "passed": 20,
   "total": 24,
   "cases": [
     {
@@ -18,8 +18,8 @@
       "area": "M2",
       "name": "Tạo nhóm: người tạo là LEADER, sinh mã mời 6–8 ký tự",
       "expected": "HTTP 201/200, inviteCode 6–8 ký tự",
-      "actual": "HTTP 201, inviteCode='FS7E4793EFBB'",
-      "result": "FAIL"
+      "actual": "HTTP 201, inviteCode='FS71E5A4'",
+      "result": "PASS"
     },
     {
       "id": "UAT-M2-02a",
@@ -34,8 +34,8 @@
       "area": "M2",
       "name": "Thành viên thường không mời được người khác",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "UAT-M2-02b",
@@ -74,7 +74,7 @@
       "area": "M2",
       "name": "Leader tạo sprint mới",
       "expected": "HTTP 200/201",
-      "actual": "HTTP 201, sprintId=27",
+      "actual": "HTTP 201, sprintId=6",
       "result": "PASS"
     },
     {
@@ -82,8 +82,8 @@
       "area": "M2",
       "name": "Sprint có ngày kết thúc trước ngày bắt đầu bị từ chối",
       "expected": "HTTP 400",
-      "actual": "HTTP 201",
-      "result": "FAIL"
+      "actual": "HTTP 400",
+      "result": "PASS"
     },
     {
       "id": "UAT-M2-05c",
@@ -130,7 +130,7 @@
       "area": "Core",
       "name": "Leader xuất PDF nhóm A",
       "expected": "HTTP 200, file %PDF",
-      "actual": "HTTP 200, 71192 byte",
+      "actual": "HTTP 200, 70820 byte",
       "result": "PASS"
     },
     {
@@ -138,23 +138,23 @@
       "area": "Sec",
       "name": "Người ngoài nhóm xem danh sách sprint của nhóm A",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "UAT-SEC-02",
       "area": "Sec",
       "name": "Người ngoài nhóm xem board của nhóm A",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "UAT-SEC-03",
       "area": "Sec",
       "name": "Người ngoài nhóm xem khai báo đóng góp của nhóm A",
       "expected": "HTTP 403",
-      "actual": "HTTP 200, 11 mục",
+      "actual": "HTTP 200, 1 mục",
       "result": "FAIL"
     },
     {
@@ -162,7 +162,7 @@
       "area": "Sec",
       "name": "uat02 khai báo đóng góp đứng tên uat03 (giả danh)",
       "expected": "HTTP 403",
-      "actual": "HTTP 201, người được ghi = 35",
+      "actual": "HTTP 201, người được ghi = 117",
       "result": "FAIL"
     },
     {
@@ -194,8 +194,8 @@
       "area": "Sec",
       "name": "Người ngoài nhóm tự thêm mình vào nhóm với vai trò LEADER",
       "expected": "HTTP 403, không trở thành thành viên",
-      "actual": "HTTP 200, vai trò trong nhóm = LEADER",
-      "result": "FAIL"
+      "actual": "HTTP 403, vai trò trong nhóm = None",
+      "result": "PASS"
     }
   ]
 }

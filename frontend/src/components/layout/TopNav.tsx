@@ -1,14 +1,79 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { FairShareIcon } from '../ui/Icons';
 import { FairShareLogo } from '../ui/FairShareLogo';
 import { showToast } from '../ui/Toast';
-import { ChevronDown, Check, Plus } from 'lucide-react';
+import {
+  ChevronDown,
+  Check,
+  Plus,
+  LayoutDashboard,
+  FolderKanban,
+  FilePlus2,
+  Scale,
+  Network,
+  AlertTriangle,
+  FileBarChart,
+  Bell,
+  Moon,
+  Sun,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
 import { CreateProjectModal } from '../../features/team/CreateProjectModal';
 import { NotificationPopover } from '../notifications/NotificationPopover';
+
+interface NavLinkItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  hasDot?: boolean;
+}
+
+const NAV_LINKS: NavLinkItem[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/teams', label: 'Dự án', icon: FolderKanban },
+  { to: '/contributions/manual', label: 'Đóng góp', icon: FilePlus2 },
+  { to: '/peer-review', label: 'Chấm chéo', icon: Scale },
+  { to: '/integration', label: 'Tích hợp', icon: Network },
+  { to: '/alerts', label: 'Cảnh báo', icon: AlertTriangle, hasDot: true },
+  { to: '/report', label: 'Báo cáo', icon: FileBarChart },
+];
+
+const isNavItemActive = (to: string, pathname: string): boolean => {
+  if (to === '/dashboard') {
+    return (
+      pathname === '/dashboard' ||
+      pathname.startsWith('/dashboard/') ||
+      pathname === '/contributions' ||
+      pathname === '/dong-gop' ||
+      pathname.startsWith('/dong-gop/')
+    );
+  }
+  if (to === '/teams') {
+    return pathname.startsWith('/teams') || pathname.startsWith('/board');
+  }
+  if (to === '/contributions/manual') {
+    return pathname.startsWith('/contributions/manual');
+  }
+  if (to === '/peer-review') {
+    return pathname.startsWith('/peer-review');
+  }
+  if (to === '/integration') {
+    return pathname.startsWith('/integration') || pathname.startsWith('/tich-hop');
+  }
+  if (to === '/alerts') {
+    return pathname.startsWith('/alerts');
+  }
+  if (to === '/report') {
+    return pathname.startsWith('/report');
+  }
+  return pathname === to;
+};
+
+const LENS_PAD_X = 0;
 
 export const TopNav: React.FC = () => {
   const location = useLocation();
@@ -27,6 +92,38 @@ export const TopNav: React.FC = () => {
   );
   const notifRef = useRef<HTMLDivElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
+
+  const navRef = useRef<HTMLElement>(null);
+  const lensRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const tabMetricsRef = useRef<Array<{ left: number; width: number }>>([]);
+  const suppressClickRef = useRef(false);
+  const hoveredIdxRef = useRef<number | null>(null);
+  const activeIdxRef = useRef<number>(-1);
+
+  const physicsRef = useRef({
+    x: 0,
+    w: 0,
+    vx: 0,
+    vw: 0,
+    targetX: 0,
+    targetW: 0,
+    initialized: false,
+    visible: false,
+    isDragging: false,
+    dragMoved: false,
+    dragStartClientX: 0,
+    dragLensStartX: 0,
+    dragTargetX: 0,
+    rafId: 0,
+    lastTime: 0,
+  });
+
+  const activeIdx = useMemo(
+    () => NAV_LINKS.findIndex((item) => isNavItemActive(item.to, location.pathname)),
+    [location.pathname]
+  );
+  activeIdxRef.current = activeIdx;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -77,15 +174,279 @@ export const TopNav: React.FC = () => {
     showToast(`Đã chuyển sang giao diện ${nextTheme === 'dark' ? 'tối' : 'sáng'}`);
   };
 
-  const navLinks = [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/teams', label: 'Dự án' },
-    { to: '/contributions/manual', label: 'Đóng góp' },
-    { to: '/peer-review', label: 'Chấm chéo' },
-    { to: '/integration', label: 'Tích hợp' },
-    { to: '/alerts', label: 'Cảnh báo', hasDot: true },
-    { to: '/report', label: 'Báo cáo' },
-  ];
+  const measureTabs = useCallback(() => {
+    tabMetricsRef.current = NAV_LINKS.map((_, i) => {
+      const el = itemRefs.current[i];
+      if (!el) return { left: 0, width: 0 };
+      return { left: el.offsetLeft, width: el.offsetWidth };
+    });
+  }, []);
+
+  const applyLensStyles = useCallback(
+    (x: number, w: number, vx: number, visible: boolean, isDragging: boolean) => {
+      const lens = lensRef.current;
+      if (lens) {
+        if (!visible || w <= 0) {
+          lens.style.opacity = '0';
+        } else {
+          const speed = Math.abs(vx);
+          const stretch = Math.min(0.04, speed / 4200);
+          const dragBoost = isDragging ? 0.02 : 0;
+          const scaleX = 1 + stretch + dragBoost;
+          const scaleY = 1 - stretch * 0.35 + dragBoost;
+          const glossShift = Math.max(-18, Math.min(18, -vx * 0.014));
+
+          lens.style.opacity = '1';
+          lens.style.width = `${w.toFixed(2)}px`;
+          lens.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})`;
+          lens.style.setProperty('--lens-gloss-x', `${(50 + glossShift).toFixed(1)}%`);
+        }
+      }
+
+      const lensCenter = x + w / 2;
+      const lensHalf = w / 2;
+      tabMetricsRef.current.forEach((m, i) => {
+        const el = itemRefs.current[i];
+        if (!el) return;
+        if (!visible || w <= 0 || m.width <= 0) {
+          el.style.setProperty('--lens-focus', '0');
+          return;
+        }
+        const tabCenter = m.left + m.width / 2;
+        const dist = Math.abs(tabCenter - lensCenter);
+        const reach = Math.max(1, lensHalf + m.width * 0.25);
+        const proximity = Math.max(0, Math.min(1, 1 - dist / reach));
+        el.style.setProperty('--lens-focus', proximity.toFixed(3));
+      });
+    },
+    []
+  );
+
+  const startSpringLoop = useCallback(() => {
+    const p = physicsRef.current;
+    if (p.rafId) return;
+    p.lastTime = 0;
+
+    const step = (now: number) => {
+      const dt = p.lastTime ? Math.min(0.032, Math.max(0.004, (now - p.lastTime) / 1000)) : 1 / 60;
+      p.lastTime = now;
+
+      if (p.isDragging && p.dragMoved) {
+        const prevX = p.x;
+        p.x += (p.dragTargetX - p.x) * 0.45;
+        p.vx = Math.max(-1800, Math.min(1800, ((p.x - prevX) / dt) * 0.35));
+
+        const lensCenter = p.x + p.w / 2;
+        let nearestW = p.targetW;
+        let bestDist = Infinity;
+        tabMetricsRef.current.forEach((m) => {
+          if (m.width <= 0) return;
+          const dist = Math.abs(m.left + m.width / 2 - lensCenter);
+          if (dist < bestDist) {
+            bestDist = dist;
+            nearestW = m.width + LENS_PAD_X * 2;
+          }
+        });
+        p.w += (nearestW - p.w) * 0.25;
+
+        applyLensStyles(p.x, p.w, p.vx, p.visible, true);
+        p.rafId = window.requestAnimationFrame(step);
+        return;
+      }
+
+      // Smooth glass pill spring physics
+      const stiffness = 240;
+      const damping = 22;
+      const stiffnessW = 260;
+      const dampingW = 24;
+
+      const ax = (p.targetX - p.x) * stiffness - p.vx * damping;
+      p.vx += ax * dt;
+      p.x += p.vx * dt;
+
+      const aw = (p.targetW - p.w) * stiffnessW - p.vw * dampingW;
+      p.vw += aw * dt;
+      p.w += p.vw * dt;
+
+      const settled =
+        Math.abs(p.targetX - p.x) < 0.15 &&
+        Math.abs(p.vx) < 0.5 &&
+        Math.abs(p.targetW - p.w) < 0.15 &&
+        Math.abs(p.vw) < 0.5;
+
+      if (settled) {
+        p.x = p.targetX;
+        p.w = p.targetW;
+        p.vx = 0;
+        p.vw = 0;
+        p.rafId = 0;
+        applyLensStyles(p.x, p.w, 0, p.visible, false);
+        return;
+      }
+
+      applyLensStyles(p.x, p.w, p.vx, p.visible, false);
+      p.rafId = window.requestAnimationFrame(step);
+    };
+
+    p.rafId = window.requestAnimationFrame(step);
+  }, [applyLensStyles]);
+
+  const syncLensTarget = useCallback(
+    (snapImmediate = false) => {
+      measureTabs();
+      const idx = activeIdxRef.current;
+      const p = physicsRef.current;
+
+      if (idx < 0 || !tabMetricsRef.current[idx] || tabMetricsRef.current[idx].width <= 0) {
+        p.visible = false;
+        applyLensStyles(p.x, p.w, 0, false, false);
+        return;
+      }
+
+      const m = tabMetricsRef.current[idx];
+      let targetX = m.left - LENS_PAD_X;
+      const targetW = m.width + LENS_PAD_X * 2;
+
+      const hIdx = hoveredIdxRef.current;
+      if (hIdx !== null && hIdx !== idx && tabMetricsRef.current[hIdx]?.width > 0) {
+        const hm = tabMetricsRef.current[hIdx];
+        const dir = Math.sign(hm.left + hm.width / 2 - (m.left + m.width / 2));
+        targetX += dir * 3.5;
+      }
+
+      p.targetX = targetX;
+      p.targetW = targetW;
+      p.visible = true;
+
+      if (!p.initialized || snapImmediate) {
+        if (p.rafId) {
+          window.cancelAnimationFrame(p.rafId);
+          p.rafId = 0;
+        }
+        p.x = targetX;
+        p.w = targetW;
+        p.vx = 0;
+        p.vw = 0;
+        p.initialized = true;
+        applyLensStyles(p.x, p.w, 0, true, false);
+      } else {
+        startSpringLoop();
+      }
+    },
+    [applyLensStyles, measureTabs, startSpringLoop]
+  );
+
+  useEffect(() => {
+    syncLensTarget(false);
+  }, [activeIdx, syncLensTarget]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const physics = physicsRef.current;
+    const handleResize = () => syncLensTarget(true);
+    window.addEventListener('resize', handleResize);
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && navRef.current) {
+      ro = new ResizeObserver(() => syncLensTarget(true));
+      ro.observe(navRef.current);
+    }
+
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready
+        .then(() => {
+          if (!cancelled) syncLensTarget(true);
+        })
+        .catch(() => undefined);
+    }
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('resize', handleResize);
+      ro?.disconnect();
+      if (physics.rafId) {
+        window.cancelAnimationFrame(physics.rafId);
+        physics.rafId = 0;
+      }
+    };
+  }, [syncLensTarget]);
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      const p = physicsRef.current;
+      if (!p.isDragging) return;
+      const dx = e.clientX - p.dragStartClientX;
+      if (!p.dragMoved && Math.abs(dx) > 6) {
+        p.dragMoved = true;
+        navRef.current?.classList.add('is-scrubbing');
+        startSpringLoop();
+      }
+      if (p.dragMoved && navRef.current) {
+        const navW = navRef.current.offsetWidth;
+        const minX = 4;
+        const maxX = Math.max(minX, navW - p.w - 4);
+        p.dragTargetX = Math.max(minX, Math.min(maxX, p.dragLensStartX + dx));
+      }
+    };
+
+    const handlePointerEnd = () => {
+      const p = physicsRef.current;
+      if (!p.isDragging) return;
+      const wasMoved = p.dragMoved;
+      p.isDragging = false;
+      p.dragMoved = false;
+      navRef.current?.classList.remove('is-scrubbing');
+
+      if (!wasMoved) return;
+
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 60);
+
+      const lensCenter = p.x + p.w / 2;
+      let nearestIdx = activeIdxRef.current;
+      let bestDist = Infinity;
+      tabMetricsRef.current.forEach((m, i) => {
+        if (m.width <= 0) return;
+        const dist = Math.abs(m.left + m.width / 2 - lensCenter);
+        if (dist < bestDist) {
+          bestDist = dist;
+          nearestIdx = i;
+        }
+      });
+
+      if (nearestIdx >= 0 && nearestIdx !== activeIdxRef.current) {
+        const target = tabMetricsRef.current[nearestIdx];
+        p.targetX = target.left - LENS_PAD_X;
+        p.targetW = target.width + LENS_PAD_X * 2;
+        startSpringLoop();
+        navigate(NAV_LINKS[nearestIdx].to);
+      } else {
+        syncLensTarget(false);
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+    };
+  }, [navigate, startSpringLoop, syncLensTarget]);
+
+  const handleNavPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || activeIdxRef.current < 0) return;
+    const p = physicsRef.current;
+    p.isDragging = true;
+    p.dragMoved = false;
+    p.dragStartClientX = e.clientX;
+    p.dragLensStartX = p.x;
+    p.dragTargetX = p.x;
+  };
 
   const getProjectPalette = (id: number) => {
     const palettes = [
@@ -194,6 +555,7 @@ export const TopNav: React.FC = () => {
                                 setActiveTeamId(t.id);
                                 setIsProjectOpen(false);
                                 showToast(`Đã chuyển sang dự án: ${t.name}`);
+                                navigate(`${location.pathname}?teamId=${t.id}`);
                               }}
                               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
                                 isActive
@@ -259,26 +621,65 @@ export const TopNav: React.FC = () => {
           )}
         </div>
 
-        {/* Main navigation links */}
-        <nav className="links" id="nav" aria-label="Chính">
-          {navLinks.map((item) => {
-            const isActive =
-              item.to === '/teams'
-                ? location.pathname.startsWith('/teams')
-                : location.pathname === item.to;
+        {/* Main navigation links - 3D Liquid Glass Capsule */}
+        <div className="liquid-nav-outer">
+          <nav
+            ref={navRef}
+            className="links liquid-nav-track"
+            id="nav"
+            aria-label="Chính"
+            onPointerDown={handleNavPointerDown}
+            onPointerLeave={() => {
+              if (hoveredIdxRef.current !== null) {
+                hoveredIdxRef.current = null;
+                syncLensTarget(false);
+              }
+            }}
+          >
+            <div ref={lensRef} className="liquid-glass-lens" aria-hidden="true">
+              <div className="liquid-glass-lens-backdrop" />
+              <div className="liquid-glass-lens-rim" />
+              <div className="liquid-glass-lens-shine" />
+            </div>
 
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                {item.label}
-                {item.hasDot && <span className="dot" title="1 cảnh báo mới" />}
-              </Link>
-            );
-          })}
-        </nav>
+            {NAV_LINKS.map((item, index) => {
+              const Icon = item.icon;
+              const isActive = index === activeIdx;
+
+              return (
+                <Link
+                  key={item.to}
+                  ref={(el) => {
+                    itemRefs.current[index] = el;
+                  }}
+                  to={item.to}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`liquid-nav-item ${isActive ? 'is-active' : ''}`}
+                  onPointerEnter={() => {
+                    if (!physicsRef.current.isDragging && hoveredIdxRef.current !== index) {
+                      hoveredIdxRef.current = index;
+                      syncLensTarget(false);
+                    }
+                  }}
+                  onClick={(e) => {
+                    if (suppressClickRef.current) {
+                      e.preventDefault();
+                      suppressClickRef.current = false;
+                    }
+                  }}
+                >
+                  <Icon
+                    className="liquid-nav-icon"
+                    size={14}
+                    strokeWidth={isActive ? 2.2 : 1.75}
+                  />
+                  <span className="liquid-nav-label">{item.label}</span>
+                  {item.hasDot && <span className="dot" title="1 cảnh báo mới" />}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
         {/* Action buttons */}
         <div className="acts">
@@ -303,7 +704,7 @@ export const TopNav: React.FC = () => {
               aria-label="Thông báo"
               title={unreadNotifCount > 0 ? `${unreadNotifCount} thông báo mới` : 'Thông báo'}
             >
-              <FairShareIcon name="bell" />
+              <Bell size={18} />
               {hasUnseenBadge && unreadNotifCount > 0 && (
                 <span
                   className="notif-badge-count"
@@ -328,7 +729,7 @@ export const TopNav: React.FC = () => {
             aria-label="Đổi giao diện sáng/tối"
             title="Đổi giao diện sáng/tối"
           >
-            <FairShareIcon name={theme === 'dark' ? 'moon' : 'sun'} />
+            {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
 
           <Link
@@ -339,7 +740,7 @@ export const TopNav: React.FC = () => {
             title="Cài đặt và hồ sơ"
             aria-current={location.pathname === '/profile' ? 'page' : undefined}
           >
-            <FairShareIcon name="set" />
+            <Settings size={18} />
           </Link>
 
           {isAuthenticated && user ? (

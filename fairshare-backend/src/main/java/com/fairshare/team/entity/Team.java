@@ -31,4 +31,10 @@ public class Team extends BaseEntity {
 
     @Column(name = "sprint_count")
     private Integer sprintCount;
+
+    @Column(name = "start_date")
+    private java.time.LocalDate startDate;
+
+    @Column(name = "end_date")
+    private java.time.LocalDate endDate;
 }
