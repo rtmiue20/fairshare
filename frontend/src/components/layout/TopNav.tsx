@@ -813,8 +813,8 @@ export const TopNav: React.FC = () => {
               Đăng xuất
             </button>
           ) : (
-            <Link className="btn sm hidden md:inline-flex" to="/dashboard">
-              Dùng thử
+            <Link className="btn sm hidden md:inline-flex" to="/login">
+              Đăng nhập
             </Link>
           )}
 
@@ -918,11 +918,11 @@ export const TopNav: React.FC = () => {
                   </>
                 ) : (
                   <Link
-                    to="/dashboard"
+                    to="/login"
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="btn w-full justify-center min-h-[44px]"
                   >
-                    Dùng thử
+                    Đăng nhập
                   </Link>
                 )}
               </div>
