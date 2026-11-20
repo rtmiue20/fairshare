@@ -559,10 +559,22 @@ export const ProfileSettingsPage: React.FC = () => {
   );
 
   const consentRows = [
-    ['Chia sẻ lịch sử Git commits & PRs', 'Cho phép hệ thống đọc hash commit và thống kê đóng góp mã nguồn'],
-    ['Đồng bộ trạng thái thẻ Task Board nội bộ (CR-02)', 'Ghi nhận tiến độ hoàn thành task theo từng sprint qua sự kiện bất biến'],
-    ['Hiển thị tỷ lệ đóng góp trong nhóm', 'Công khai chỉ số đóng góp đa chiều trên Dashboard đối soát nội bộ'],
-    ['Tham gia chấm chéo ẩn danh (Peer Review)', 'Đánh giá chéo thành viên khách quan, ẩn danh tính người chấm'],
+    [
+      'Ghi nhận lịch sử mã nguồn (Git Commits & PRs)',
+      'Đồng bộ mã hash commit, pull requests và tần suất đóng góp kỹ thuật từ các kho lưu trữ được liên kết.',
+    ],
+    [
+      'Theo dõi tiến độ thẻ công việc (Task Board)',
+      'Ghi nhận thời gian tạo, phân công, chuyển trạng thái và hoàn thành nhiệm vụ trên bảng công việc của dự án.',
+    ],
+    [
+      'Minh bạch hóa chỉ số đóng góp đa chiều',
+      'Công khai tỷ lệ đóng góp, khối lượng hoàn thành và dữ liệu đối soát trên Dashboard chung của dự án.',
+    ],
+    [
+      'Bảo mật đánh giá chéo ẩn danh (Peer Review)',
+      'Áp dụng cơ chế ẩn danh bảo vệ thông tin danh tính cá nhân khi tham gia gửi và nhận đánh giá năng lực đồng nghiệp.',
+    ],
   ];
 
   return (
@@ -913,7 +925,6 @@ export const ProfileSettingsPage: React.FC = () => {
                   onEdit={() => startEdit('github')}
                   extra={<span className={`ps-chip ${connections.github ? 'ok' : ''}`}>{connections.github ? 'Đã kết nối' : 'Chưa liên kết'}</span>}
                 />
-                <p className="ps-desc">Đồng bộ commits, pull requests và code review qua GitHub Webhook.</p>
                 {editing === 'github' || !connections.github ? (
                   <label className="ps-field">
                     <span>Tài khoản GitHub (Username)</span>
@@ -944,10 +955,10 @@ export const ProfileSettingsPage: React.FC = () => {
             </div>
             <div className="ps-col">
               <div className="ps-card">
-                <CardHeader title="Task Board Nội Bộ (CR-02)" extra={<span className="ps-chip ok">Đang kích hoạt</span>} />
+                <CardHeader title="Bảng Quản lý Công việc (Task Board)" extra={<span className="ps-chip ok">Đang kích hoạt</span>} />
                 <div className="ps-inline ps-desc">
                   <Kanban size={18} />
-                  <span>Tự động ghi nhận sự kiện tạo/kéo thẻ Kanban nội bộ phục vụ chấm điểm D1–D3.</span>
+                  <span>Tự động ghi nhận các sự kiện tạo, cập nhật tiến độ và hoàn thành nhiệm vụ phục vụ phân tích đóng góp.</span>
                 </div>
               </div>
             </div>
@@ -975,21 +986,74 @@ export const ProfileSettingsPage: React.FC = () => {
             </div>
             <div className="ps-col">
               <div className="ps-card">
-                <CardHeader title="Cam kết Nghị định 13/2023/NĐ-CP" />
-                <p className="ps-desc">
-                  Đồng thuận cho phép FairShare thu thập minh chứng đóng góp của bạn trong dự án{' '}
-                  <strong>{activeTeam?.name || '—'}</strong>. Bạn có thể rút lại bất cứ lúc nào.
-                </p>
-                <div className="ps-form-actions" style={{ justifyContent: 'flex-start' }}>
-                  <button
-                    type="button"
-                    className={`ps-btn ${consentOk ? 'ps-btn-danger' : 'ps-btn-primary'}`}
-                    onClick={toggleConsent}
-                    disabled={consentBusy || !activeTeam}
+                <CardHeader
+                  title="Thỏa thuận Bảo vệ Dữ liệu Cá nhân"
+                  extra={
+                    <span className={`ps-chip ${consentOk ? 'ok' : 'warn'}`}>
+                      {consentOk ? 'Tuân thủ NĐ 13/2023/NĐ-CP' : 'Chưa kích hoạt'}
+                    </span>
+                  }
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+                  <p className="ps-desc" style={{ margin: 0, lineHeight: 1.6 }}>
+                    Hệ thống xử lý dữ liệu hoạt động làm việc kỹ thuật số nhằm phân tích tiến độ, minh bạch hóa minh chứng và tính điểm đóng góp công bằng trong không gian dự án{' '}
+                    <strong>{activeTeam?.name || 'được chỉ định'}</strong>.
+                  </p>
+
+                  <div
+                    style={{
+                      background: 'var(--surface2, rgba(255, 255, 255, 0.04))',
+                      border: '1px solid var(--line)',
+                      borderRadius: '8px',
+                      padding: '12px 14px',
+                      fontSize: '12.5px',
+                      lineHeight: 1.55,
+                      color: 'var(--fg2)',
+                    }}
                   >
-                    <ShieldCheck size={14} />
-                    {consentBusy ? 'Đang xử lý...' : consentOk ? 'Rút đồng thuận' : 'Ký đồng thuận'}
-                  </button>
+                    <div style={{ fontWeight: 600, color: 'var(--fg)', marginBottom: '6px' }}>
+                      Cam kết pháp lý &amp; Quyền của chủ thể dữ liệu (Điều 9 NĐ 13/2023):
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <li><strong>Minh bạch:</strong> Toàn bộ dữ liệu tính toán đều có thể truy vết nguồn gốc (Audit Traceability).</li>
+                      <li><strong>Bảo mật:</strong> Đánh giá chéo đồng nghiệp được ẩn danh hoàn toàn (K-Anonymity).</li>
+                      <li><strong>Quyền rút đồng thuận:</strong> Bạn có quyền rút lại đồng thuận bất kỳ lúc nào mà không ảnh hưởng đến tài khoản.</li>
+                    </ul>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: consentOk ? 'var(--ps-ok, #10b981)' : 'var(--fg3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    {consentOk ? (
+                      <>
+                        <ShieldCheck size={15} />
+                        <span>Trạng thái: Dữ liệu cá nhân được bảo vệ theo Nghị định 13/2023/NĐ-CP.</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={15} />
+                        <span>Trạng thái: Chưa cấp quyền. Vui lòng ký đồng thuận để hệ thống ghi nhận đóng góp của bạn.</span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="ps-form-actions" style={{ justifyContent: 'flex-start', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      className={`ps-btn ${consentOk ? 'ps-btn-danger' : 'ps-btn-primary'}`}
+                      onClick={toggleConsent}
+                      disabled={consentBusy || !activeTeam}
+                    >
+                      <ShieldCheck size={14} />
+                      {consentBusy ? 'Đang xử lý...' : consentOk ? 'Rút đồng thuận' : 'Ký đồng thuận'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from './NoProjectState';
 import { CreateProjectModal } from './CreateProjectModal';
@@ -9,6 +9,8 @@ import { AllTasksSection } from './AllTasksSection';
 import { FolderPlus, Users, BarChart3, Award, Key } from 'lucide-react';
 
 export const TeamListPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const urlTeamId = Number(searchParams.get('teamId'));
   const { teams, activeTeamId, fetchTeams, setActiveTeamId, initialized } = useProjectStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'join'>('create');
@@ -17,6 +19,12 @@ export const TeamListPage: React.FC = () => {
   useEffect(() => {
     fetchTeams();
   }, [fetchTeams]);
+
+  useEffect(() => {
+    if (urlTeamId && !isNaN(urlTeamId) && urlTeamId !== activeTeamId) {
+      setActiveTeamId(urlTeamId);
+    }
+  }, [urlTeamId, activeTeamId, setActiveTeamId]);
 
   const currentTeam = teams.find((t) => t.id === activeTeamId) || teams[0];
 

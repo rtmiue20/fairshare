@@ -222,6 +222,15 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   // State cho Modal Hồ sơ chi tiết thành viên (Profile Information & AI Summary)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
+  const handleCloseProfileModal = () => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('memberId')) {
+      url.searchParams.delete('memberId');
+      window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''));
+    }
+    setIsProfileModalOpen(false);
+  };
+
   // State cho Tab hiển thị chi tiết bên dưới Bento Grid
   const [dashboardViewTab, setDashboardViewTab] = useState<'members' | 'radar' | 'audit'>('members');
 
@@ -263,13 +272,14 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
     // 3. Đồng bộ lại điểm 4D & Audit Trail thật từ Backend MariaDB
     try {
+      const targetEvidenceUserId = typeof selectedUserId === 'number' && selectedUserId > 0 ? selectedUserId : (currentUserId > 0 ? currentUserId : 109);
       const [scoresRes, summaryRes, evidenceRes] = await Promise.allSettled([
         contributionApi.getContributions(currentTeamId, selectedSprintId),
         contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
         contributionApi.getEvidenceTraceability(
           currentTeamId,
           selectedSprintId,
-          typeof selectedUserId === 'number' ? selectedUserId : currentUserId
+          targetEvidenceUserId
         ),
       ]);
 
@@ -298,11 +308,13 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   useEffect(() => {
     setIsLoading(true);
 
+    const targetEvidenceUserId = typeof selectedUserId === 'number' && selectedUserId > 0 ? selectedUserId : (currentUserId > 0 ? currentUserId : 109);
+
     // Gọi API thật từ backend
     Promise.allSettled([
       contributionApi.getContributions(currentTeamId, selectedSprintId),
       contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
-      contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, typeof selectedUserId === 'number' ? selectedUserId : currentUserId),
+      contributionApi.getEvidenceTraceability(currentTeamId, selectedSprintId, targetEvidenceUserId),
       contributionApi.getPendingManualContributions?.(currentTeamId, selectedSprintId),
     ])
       .then(([scoresRes, summaryRes, evidenceRes, pendingRes]) => {
@@ -413,6 +425,19 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       };
     });
   }, [summaryItems, isSprintEmpty]);
+
+  // Deep-linking cho Modal Hồ sơ thành viên (?memberId=xxx)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const memberIdParam = params.get('memberId');
+    if (memberIdParam) {
+      const mId = Number(memberIdParam);
+      if (!isNaN(mId) && mId > 0) {
+        setActiveRadarUserId(mId);
+        setIsProfileModalOpen(true);
+      }
+    }
+  }, [safeSummaryItems]);
 
   // Lọc danh sách thành viên hiển thị
   const filteredSummaryItems = useMemo(() => {
@@ -925,7 +950,12 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
                     <button
                       type="button"
-                      onClick={() => setIsProfileModalOpen(true)}
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('memberId', String(featuredMember.id));
+                        window.history.replaceState(null, '', url.toString());
+                        setIsProfileModalOpen(true);
+                      }}
                       className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-[#252836] text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-white/10 shadow-xs hover:bg-slate-100 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0"
                     >
                       <span>Chi tiết</span>
@@ -1619,6 +1649,8 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             onClose={() => setIsManualModalOpen(false)}
             teamId={currentTeamId}
             sprintId={selectedSprintId}
+            sprintName={availableSprints.find((s) => s.id === selectedSprintId)?.name}
+            sprints={availableSprints}
             currentUserId={currentUserId}
             onContributionApproved={handleContributionApproved}
           />
@@ -1632,7 +1664,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           {/* Modal Hồ sơ thành viên trực quan hóa (Profile Information & AI Summary) */}
           <MemberProfileModal
             isOpen={isProfileModalOpen}
-            onClose={() => setIsProfileModalOpen(false)}
+            onClose={handleCloseProfileModal}
             member={featuredMember}
             projectName={teams.find((t) => t.id === currentTeamId)?.name || 'EduConnect'}
             courseName={teams.find((t) => t.id === currentTeamId)?.courseName || 'Quản lý Dự án Công nghệ Thông tin'}

@@ -376,11 +376,11 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           }}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wider" style={{ color: 'var(--fg)' }}>
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wider text-amber-600 dark:text-amber-300">
+              <Zap className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               Tác Động Lên Neuron Này
             </span>
-            <span className="text-[10px] font-mono text-cyan-300">
+            <span className="text-[10px] font-mono text-cyan-700 dark:text-cyan-300 font-semibold">
               Ngày {cutDay}/{maxDays}
             </span>
           </div>
@@ -388,99 +388,99 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           <div className="space-y-2 text-[11px]">
             {/* D1 */}
             <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-300 shrink-0">
-                <i className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                <i className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_6px_#34d399]" />
                 Sản lượng
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                  className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 160))}%` }}
                 />
               </div>
-              <span className="w-14 text-right font-mono text-emerald-400 font-bold">
+              <span className="w-14 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                 +{((networkData.finalPct || 0.22) * 40).toFixed(1)}pp
               </span>
             </div>
 
             {/* D2 */}
             <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-300 shrink-0">
-                <i className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                <i className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
                 Tin cậy
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                  className="h-full rounded-full bg-cyan-500 dark:bg-cyan-400 transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 120))}%` }}
                 />
               </div>
-              <span className="w-14 text-right font-mono text-cyan-400 font-bold">
+              <span className="w-14 text-right font-mono text-cyan-600 dark:text-cyan-400 font-bold">
                 +{((networkData.finalPct || 0.22) * 20).toFixed(1)}pp
               </span>
             </div>
 
             {/* D3 */}
             <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-300 shrink-0">
-                <i className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_6px_#a78bfa]" />
+              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                <i className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400 shadow-[0_0_6px_#a78bfa]" />
                 Phối hợp
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-purple-400 transition-all duration-500"
+                  className="h-full rounded-full bg-purple-500 dark:bg-purple-400 transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 110))}%` }}
                 />
               </div>
-              <span className="w-14 text-right font-mono text-purple-400 font-bold">
+              <span className="w-14 text-right font-mono text-purple-600 dark:text-purple-400 font-bold">
                 +{((networkData.finalPct || 0.22) * 15).toFixed(1)}pp
               </span>
             </div>
 
             {/* D4 */}
             <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-300 shrink-0">
-                <i className="w-2 h-2 rounded-full bg-pink-400 shadow-[0_0_6px_#f472b6]" />
+              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                <i className="w-2 h-2 rounded-full bg-pink-500 dark:bg-pink-400 shadow-[0_0_6px_#f472b6]" />
                 Chấm chéo
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-pink-400 transition-all duration-500"
+                  className="h-full rounded-full bg-pink-500 dark:bg-pink-400 transition-all duration-500"
                   style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 130))}%` }}
                 />
               </div>
-              <span className="w-14 text-right font-mono text-pink-400 font-bold">
+              <span className="w-14 text-right font-mono text-pink-600 dark:text-pink-400 font-bold">
                 +{((networkData.finalPct || 0.22) * 25).toFixed(1)}pp
               </span>
             </div>
 
             {/* Rework penalty */}
             <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-rose-300 shrink-0">
-                <i className="w-2 h-2 rounded-full bg-rose-400 shadow-[0_0_6px_#f87171]" />
+              <span className="w-20 flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-300 font-medium shrink-0">
+                <i className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400 shadow-[0_0_6px_#f87171]" />
                 Rework/trễ*
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full rounded-full bg-rose-400/80 transition-all duration-500" style={{ width: '18%' }} />
+              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                <div className="h-full rounded-full bg-rose-500 dark:bg-rose-400/80 transition-all duration-500" style={{ width: '18%' }} />
               </div>
-              <span className="w-14 text-right font-mono text-rose-400 font-bold">
+              <span className="w-14 text-right font-mono text-rose-600 dark:text-rose-400 font-bold">
                 -0.8pp
               </span>
             </div>
 
             {/* Availability bonus */}
             <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-amber-300 shrink-0">
-                <i className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
+              <span className="w-20 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 font-medium shrink-0">
+                <i className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
                 Bù khả dụng
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-amber-400 transition-all duration-500"
+                  className="h-full rounded-full bg-amber-500 dark:bg-amber-400 transition-all duration-500"
                   style={{ width: `${Math.round((1 - networkData.availabilityFactor) * 150)}%` }}
                 />
               </div>
-              <span className="w-14 text-right font-mono text-amber-300 font-bold">
+              <span className="w-14 text-right font-mono text-amber-700 dark:text-amber-300 font-bold">
                 +{((1 - networkData.availabilityFactor) * 12).toFixed(1)}pp
               </span>
             </div>
@@ -489,19 +489,19 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
 
         {/* Sự kiện đang chọn (Event Traceability & Audit) */}
         <div
-          className="rounded-2xl p-3.5 border text-xs space-y-2"
+          className="rounded-2xl p-3.5 border text-xs space-y-2.5 shadow-xs"
           style={{
             background: 'var(--surface2)',
             borderColor: selectedEvent ? 'rgba(245, 194, 100, 0.5)' : 'var(--line)',
           }}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wider text-amber-300">
-              <Activity className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wider text-amber-600 dark:text-amber-300">
+              <Activity className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
               Sự Kiện Đang Chọn (Minh Chứng Gốc)
             </span>
             {selectedEvent && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-semibold">
                 {selectedEvent.src}
               </span>
             )}
@@ -509,45 +509,45 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
 
           {selectedEvent ? (
             <div className="space-y-2 mt-1 animate-in fade-in">
-              <h5 className="font-bold text-slate-100 text-xs leading-snug">
+              <h5 className="font-bold text-slate-900 dark:text-slate-100 text-xs leading-snug">
                 {selectedEvent.title}
               </h5>
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-                <span className="px-1.5 py-0.2 rounded bg-white/10 text-slate-200">{selectedEvent.src}</span>
+              <div className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                <span className="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-white/10 text-slate-800 dark:text-slate-200 font-semibold">{selectedEvent.src}</span>
                 <span>Ngày {selectedEvent.day} ({selectedEvent.time})</span>
-                <span className="text-cyan-300 font-bold">{selectedEvent.axis}</span>
+                <span className="text-cyan-700 dark:text-cyan-300 font-bold">{selectedEvent.axis}</span>
               </div>
 
               {/* Full Audit Evidence text */}
-              <div className="p-2.5 rounded-xl bg-black/40 border-l-2 border-amber-400 text-[11px] leading-relaxed text-slate-200">
+              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-black/40 border-l-2 border-amber-500 text-[11px] leading-relaxed text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-white/5">
                 {selectedEvent.evid}
               </div>
 
               {/* 4-Grid Metric Breakdown */}
               <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
-                <div className="p-2 rounded-lg bg-black/25">
-                  <span className="text-slate-400 block">Tác động lên p_i:</span>
+                <div className="p-2 rounded-lg bg-slate-100/90 dark:bg-black/25 border border-slate-200/60 dark:border-white/5">
+                  <span className="text-slate-500 dark:text-slate-400 block font-medium">Tác động lên p_i:</span>
                   <strong
-                    className="font-mono text-xs block mt-0.5"
+                    className="font-mono text-xs block mt-0.5 font-bold"
                     style={{
-                      color: selectedEvent.axis === 'IMP' ? '#fcd34d' : (selectedEvent.dp || 0) < 0 ? '#fca5a5' : '#5eead4',
+                      color: selectedEvent.axis === 'IMP' ? '#d97706' : (selectedEvent.dp || 0) < 0 ? '#ef4444' : '#0d9488',
                     }}
                   >
                     {selectedEvent.axis === 'IMP' ? `+${selectedEvent.impact}ng` : `${(selectedEvent.dp || 0) >= 0 ? '+' : ''}${(selectedEvent.dp || 0).toFixed(2)} pp`}
                   </strong>
                 </div>
 
-                <div className="p-2 rounded-lg bg-black/25">
-                  <span className="text-slate-400 block">Nếu loại sự kiện này:</span>
-                  <strong className="font-mono text-xs block mt-0.5 text-white">
+                <div className="p-2 rounded-lg bg-slate-100/90 dark:bg-black/25 border border-slate-200/60 dark:border-white/5">
+                  <span className="text-slate-500 dark:text-slate-400 block font-medium">Nếu loại sự kiện này:</span>
+                  <strong className="font-mono text-xs block mt-0.5 text-slate-900 dark:text-white font-bold">
                     {Math.max(0, (networkData.finalPct || 0.22) * 100 - (selectedEvent.dp || 1.2)).toFixed(1)}%
                   </strong>
                 </div>
 
-                <div className="p-2 rounded-lg bg-black/25">
-                  <span className="text-slate-400 block">Tầng ảnh hưởng:</span>
-                  <strong className="font-mono text-xs block mt-0.5 text-indigo-300">
+                <div className="p-2 rounded-lg bg-slate-100/90 dark:bg-black/25 border border-slate-200/60 dark:border-white/5">
+                  <span className="text-slate-500 dark:text-slate-400 block font-medium">Tầng ảnh hưởng:</span>
+                  <strong className="font-mono text-xs block mt-0.5 text-indigo-600 dark:text-indigo-300 font-bold">
                     {selectedEvent.axis === 'D1'
                       ? 'Tầng 1 · 2'
                       : selectedEvent.axis === 'D2'
@@ -558,17 +558,17 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                   </strong>
                 </div>
 
-                <div className="p-2 rounded-lg bg-black/25">
-                  <span className="text-slate-400 block">Điểm gốc:</span>
-                  <strong className="font-mono text-xs block mt-0.5 text-emerald-400">
+                <div className="p-2 rounded-lg bg-slate-100/90 dark:bg-black/25 border border-slate-200/60 dark:border-white/5">
+                  <span className="text-slate-500 dark:text-slate-400 block font-medium">Điểm gốc:</span>
+                  <strong className="font-mono text-xs block mt-0.5 text-emerald-600 dark:text-emerald-400 font-bold">
                     {selectedEvent.impact >= 0 ? `+${selectedEvent.impact}` : selectedEvent.impact}
                   </strong>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-3 rounded-xl border border-dashed border-cyan-500/25 flex items-start gap-2.5 text-slate-400 text-[11px] leading-relaxed">
-              <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-xl border border-dashed border-cyan-500/25 flex items-start gap-2.5 text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+              <Info className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
               <span>
                 Chọn một sự kiện trong danh sách bên trái để xem <strong>nó tác động thế nào</strong> lên p_i, tầng nào bị ảnh hưởng và bằng chứng gốc.
               </span>

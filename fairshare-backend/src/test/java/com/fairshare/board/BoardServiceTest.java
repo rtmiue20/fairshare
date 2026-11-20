@@ -552,6 +552,31 @@ class BoardServiceTest {
     }
 
     @Test
+    @DisplayName("Unassigning card succeeds when assigneeId is 0 or negative")
+    void testUnassignCardSuccess() {
+        Card card = new Card();
+        card.setId(50L);
+        card.setBoard(sampleBoard);
+        card.setColumn(colTodo);
+        card.setTitle("Implement JWT");
+        card.setAssignee(sampleUser);
+
+        UpdateAssigneeRequest request = UpdateAssigneeRequest.builder()
+                .assigneeId(0L)
+                .build();
+
+        when(cardRepository.findById(50L)).thenReturn(Optional.of(card));
+        when(cardRepository.save(any(Card.class))).thenReturn(card);
+        when(sprintRepository.findByTeamId(10L)).thenReturn(Collections.emptyList());
+
+        var dto = boardService.updateAssignee(50L, request, 100L);
+
+        assertNotNull(dto);
+        assertNull(dto.getAssigneeId());
+        verify(cardRepository).save(argThat(c -> c.getAssignee() == null));
+    }
+
+    @Test
     @DisplayName("Updating story points succeeds when value is positive integer and logs old -> new value")
     void testUpdateStoryPointsSuccess() {
         Card card = new Card();

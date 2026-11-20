@@ -73,8 +73,10 @@ public class ContributionController {
         if (teamSecurityService != null && authentication != null) {
             teamSecurityService.assertTeamMember(teamId, authentication);
         }
-        List<EvidenceItemDto> evidence = contributionService.getEvidenceTraceability(teamId, sprintId, userId);
-        return ResponseEntity.ok(evidence);
+        List<EvidenceItemDto> evidence = contributionService != null
+                ? contributionService.getEvidenceTraceability(teamId, sprintId, userId)
+                : List.of();
+        return ResponseEntity.ok(evidence != null ? evidence : List.of());
     }
 
     public ResponseEntity<List<EvidenceItemDto>> getEvidenceTraceability(Long teamId, Long sprintId, Long userId) {

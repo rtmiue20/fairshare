@@ -3428,7 +3428,7 @@ export const ReportPage: React.FC = () => {
 
         {/* Legal & Audit Notes */}
         <div style={{ fontSize: '12px', color: theme.paperSubText, lineHeight: 1.5, borderTop: theme.paperDivider, paddingTop: '12px', marginBottom: '32px' }}>
-          * <strong>Ghi chú kiểm soát đóng góp:</strong> Mọi con số đóng góp được truy vết tự động từ ActivityEvent log bất biến (Task Board nội bộ CR-02, Git commits và Minh chứng công việc thủ công đã duyệt). Cơ chế chấm chéo tuân thủ thuật toán K-Anonymity (Nghị định 13/2023/NĐ-CP). Báo cáo này là cơ sở duy nhất để giảng viên phân bổ điểm đồ án cá nhân.
+          * <strong>Ghi chú kiểm soát đóng góp:</strong> Mọi con số đóng góp được truy vết tự động từ ActivityEvent log bất biến (Task Board hệ thống, Git commits và Minh chứng công việc đã duyệt). Cơ chế chấm chéo tuân thủ thuật toán K-Anonymity (Nghị định 13/2023/NĐ-CP). Báo cáo này là cơ sở đối soát minh bạch đóng góp cá nhân.
         </div>
 
         {/* Official Signatures Section */}
@@ -3469,6 +3469,8 @@ export const ReportPage: React.FC = () => {
         onClose={() => setIsManualModalOpen(false)}
         teamId={currentTeamId}
         sprintId={selectedSprintId}
+        sprintName={sprintList.find((s) => s.id === selectedSprintId)?.name}
+        sprints={sprintList}
         currentUserId={currentUserId}
         onContributionApproved={() => {
           loadReportData();
