@@ -52,9 +52,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   courseName = 'Quản lý Dự án Công nghệ Thông tin',
   sprintLabel = 'Sprint 3',
 }) => {
-  if (!isOpen) return null;
-
   const [copied, setCopied] = useState(false);
+
+  if (!isOpen) return null;
 
   const handleShareMember = () => {
     try {
