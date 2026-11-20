@@ -1,0 +1,6 @@
+# uat-seed – 16/11/2026 23:24 +0700 – master @ f18a705, sau khi chạy test 16/11 (reset sạch)
+== UAT seed trên http://localhost:8081
+   12 tài khoản sẵn sàng (uat01..uat12, id 115..126)
+   Nhóm A id 2: sprint 4, board 2, 10 card, đợt chấm 4 (OPEN)
+   Đã ghi docs/qa/uat/uat-accounts.md và .uat-credentials.local
+exit=0

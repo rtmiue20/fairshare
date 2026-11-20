@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Minus, Copy, Check, Loader2, ShieldAlert } from 'lucide-react';
 import { TeamMember } from '../../types/team';
 import { teamApi } from '../../api/team.api';
@@ -271,9 +272,9 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
     });
   };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.45)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -281,12 +282,11 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
     >
       {/* Modal Dialog Card matching Image 2 */}
       <div
-        className="w-full bg-white dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100 shadow-2xl transition-all"
+        className="w-full bg-white dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100 shadow-2xl transition-all max-h-[90dvh] overflow-y-auto p-5 sm:p-7"
         style={{
           maxWidth: '490px',
           borderRadius: '24px',
           border: '1px solid rgba(228, 228, 231, 0.8)',
-          padding: '28px 28px 24px',
           position: 'relative',
         }}
       >
@@ -320,7 +320,7 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
           <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
             Email
           </label>
-          <form onSubmit={handleInvite} className="flex items-center gap-2.5">
+          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row sm:items-center gap-2.5">
             {/* Input field with chips inside */}
             <div
               className="flex-1 flex items-center flex-wrap gap-1.5 px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl transition-all focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 dark:focus-within:ring-indigo-900/30 min-h-[44px]"
@@ -420,11 +420,21 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
                         }}
                       >
                         {member.user?.avatarUrl ? (
-                          <img
-                            src={member.user.avatarUrl}
-                            alt={memberName}
-                            className="w-full h-full object-cover"
-                          />
+                          <>
+                            <img
+                              src={member.user.avatarUrl}
+                              alt=""
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                                const fallback = e.currentTarget.parentElement?.querySelector('.member-memoji-fallback');
+                                if (fallback) (fallback as HTMLElement).style.display = 'block';
+                              }}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="member-memoji-fallback w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+                              {memojiRenderer()}
+                            </div>
+                          </>
                         ) : (
                           memojiRenderer()
                         )}
@@ -545,4 +555,9 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };

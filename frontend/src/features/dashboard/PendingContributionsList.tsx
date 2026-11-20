@@ -134,7 +134,7 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
   return (
     <div
       data-testid="pending-contributions-container"
-      className="flex flex-col gap-4 rounded-xl border border-zinc-800/80 bg-[#121318] p-5 sm:p-6 shadow-sm"
+      className="flex flex-col gap-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#1f1f23] p-5 sm:p-6 shadow-sm"
     >
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
@@ -206,9 +206,9 @@ export const PendingContributionsList: React.FC<PendingContributionsListProps> =
       ) : (
         /* Danh sách items */
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs" data-testid="pending-contributions-table">
+          <table className="w-full min-w-[680px] text-left text-xs" data-testid="pending-contributions-table">
             <thead>
-              <tr className="border-b border-zinc-800 text-[11px] font-semibold text-zinc-400">
+              <tr className="border-b border-zinc-800 text-[11px] font-semibold text-zinc-400 whitespace-nowrap">
                 <th className="pb-2.5 pl-2">Người khai báo</th>
                 <th className="pb-2.5">Tên công việc & Minh chứng</th>
                 <th className="pb-2.5 text-center">Story Points</th>

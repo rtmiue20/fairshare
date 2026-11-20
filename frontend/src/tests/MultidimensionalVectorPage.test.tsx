@@ -30,7 +30,7 @@ vi.mock('../store/projectStore', () => ({
 
 vi.mock('../store/authStore', () => ({
   useAuthStore: () => ({
-    user: { id: 1, fullName: 'Minh Triệu', email: 'trieu@ueh.edu.vn' },
+    user: { id: 1, fullName: 'Nguyễn Văn Minh Triệu', email: 'trieu@ueh.edu.vn' },
     isAuthenticated: true,
   }),
 }));
@@ -60,6 +60,7 @@ beforeEach(() => {
     restore: vi.fn(),
     scale: vi.fn(),
     translate: vi.fn(),
+    setTransform: vi.fn(),
     measureText: vi.fn().mockReturnValue({ width: 50 }),
     fillText: vi.fn(),
     createRadialGradient: vi.fn().mockReturnValue({
@@ -77,7 +78,7 @@ describe('MultidimensionalVectorPage Component Tests', () => {
     vi.mocked(teamApi.getMembers).mockResolvedValue({
       success: true,
       message: 'OK',
-      data: [{ id: 1, fullName: 'Minh Triệu', email: 'trieu@ueh.edu.vn' }],
+      data: [{ id: 1, fullName: 'Nguyễn Văn Minh Triệu', email: 'trieu@ueh.edu.vn' }],
     } as never);
 
     vi.mocked(contributionApi.getNetworkGraph).mockResolvedValue({
@@ -88,7 +89,7 @@ describe('MultidimensionalVectorPage Component Tests', () => {
         sprintId: 4,
         sprintName: 'Sprint 4: Tích hợp Đa chiều & Bằng chứng',
         focusedUserId: 1,
-        focusedUserName: 'Minh Triệu',
+        focusedUserName: 'Nguyễn Văn Minh Triệu',
         finalPct: 0.36,
         score: 36.0,
         d1Output: 0.82,
@@ -115,7 +116,7 @@ describe('MultidimensionalVectorPage Component Tests', () => {
           finalPercentage: 0.36,
         },
         nodes: [
-          { id: 'root-1', label: 'Minh Triệu', type: 'ROOT', category: 'MEMBER', weight: 68.4, color: '#6366f1' },
+          { id: 'root-1', label: 'Nguyễn Văn Minh Triệu', type: 'ROOT', category: 'MEMBER', weight: 68.4, color: '#6366f1' },
           { id: 'dim-d1', label: 'D1 - Sản lượng (Output)', type: 'DIMENSION', category: 'D1', weight: 0.82, color: '#10b981' },
           { id: 'cat-impediments', label: 'Yếu tố tác động & Rào cản', type: 'CATEGORY', category: 'IMPEDIMENT', weight: 1.0, color: '#f59e0b' },
         ],
@@ -126,7 +127,7 @@ describe('MultidimensionalVectorPage Component Tests', () => {
           { id: 4, name: 'Sprint 4: Tích hợp Đa chiều & Bằng chứng', isCurrent: true, status: 'ACTIVE' },
         ],
       },
-    });
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
 
     render(<MultidimensionalVectorPage />);
 

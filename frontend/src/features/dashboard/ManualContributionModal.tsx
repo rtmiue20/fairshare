@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ManualContributionForm } from './ManualContributionForm';
 import { PendingContributionsList } from './PendingContributionsList';
 import { ManualContributionItem } from '../../types/contribution';
@@ -9,6 +10,8 @@ export interface ManualContributionModalProps {
   onClose: () => void;
   teamId: number;
   sprintId: number;
+  sprintName?: string;
+  sprints?: { id: number; name: string; isCurrent?: boolean }[];
   currentUserId: number;
   onContributionApproved?: (item: ManualContributionItem) => void;
 }
@@ -18,6 +21,8 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
   onClose,
   teamId,
   sprintId,
+  sprintName,
+  sprints,
   currentUserId,
   onContributionApproved,
 }) => {
@@ -38,12 +43,14 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
     }
   };
 
-  return (
+  if (!isOpen) return null;
+
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       data-testid="manual-contribution-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4"
     >
       {/* Backdrop */}
       <div
@@ -52,23 +59,23 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
       />
 
       {/* Modal Dialog Content */}
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900 shadow-2xl">
+      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#18181b] shadow-2xl">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/90 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 text-indigo-400">
+        <div className="flex items-start sm:items-center justify-between gap-3 border-b border-[rgba(255,255,255,0.08)] bg-[#18181b] px-4 sm:px-6 py-3.5 sm:py-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 text-indigo-400">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-white">
                   Khai báo & Xét duyệt đóng góp thủ công
                 </h2>
                 <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
-                  Sprint {sprintId}
+                  {sprintName || `Sprint ${sprintId}`}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 mt-0.5">
                 Ghi nhận minh chứng nghiên cứu, thiết kế Figma, SRS ngoài Task Board kèm xác nhận chống gian lận
               </p>
             </div>
@@ -76,18 +83,18 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
 
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 px-6 pt-3">
+        <div className="flex overflow-x-auto no-scrollbar whitespace-nowrap border-b border-[rgba(255,255,255,0.08)] bg-[#1f1f23] px-4 sm:px-6 pt-2.5">
           <button
             onClick={() => setActiveTab('REVIEW')}
             data-testid="tab-review"
-            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition ${
+            className={`flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 text-xs font-semibold transition ${
               activeTab === 'REVIEW'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -100,7 +107,7 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
           <button
             onClick={() => setActiveTab('SUBMIT')}
             data-testid="tab-submit"
-            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition ${
+            className={`flex shrink-0 items-center gap-2 border-b-2 px-3 sm:px-4 py-2.5 text-xs font-semibold transition ${
               activeTab === 'SUBMIT'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -112,7 +119,7 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {/* Anti-Fraud Banner */}
           <div className="flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-2.5 text-xs text-slate-300">
             <ShieldCheck className="h-4 w-4 shrink-0 text-indigo-400" />
@@ -133,6 +140,8 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
             <ManualContributionForm
               teamId={teamId}
               sprintId={sprintId}
+              sprintName={sprintName}
+              sprints={sprints}
               userId={currentUserId}
               onSuccess={handleFormSuccess}
             />
@@ -140,11 +149,11 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-slate-800 bg-slate-900/90 px-6 py-3 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(255,255,255,0.08)] bg-[#18181b] px-4 sm:px-6 py-3 text-xs text-slate-400">
           <span>Người dùng đang đăng nhập: <strong>User #{currentUserId}</strong></span>
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-1.5 font-medium text-slate-200 hover:bg-slate-700 hover:text-white"
+            className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#27272a] px-4 py-1.5 font-medium text-slate-200 hover:bg-[#3f3f46] hover:text-white"
           >
             Đóng
           </button>
@@ -152,4 +161,6 @@ export const ManualContributionModal: React.FC<ManualContributionModalProps> = (
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

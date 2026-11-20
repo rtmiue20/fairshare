@@ -58,7 +58,7 @@ describe('PendingContributionsList Component - Card 9 (Anti-Fraud Gate & Review)
 
     // Kiểm tra header và các row
     expect(await screen.findByText(/Danh sách đóng góp đang chờ duyệt/i)).toBeInTheDocument();
-    expect(screen.getByText('Nghiên cứu tài liệu Figma UI kit và thiết kế bảng tra cứu bằng chứng')).toBeInTheDocument();
+    expect(await screen.findByText('Nghiên cứu tài liệu Figma UI kit và thiết kế bảng tra cứu bằng chứng')).toBeInTheDocument();
     expect(screen.getByText('Biên soạn tài liệu đặc tả phi chức năng (NFR) và quy trình chấm chéo')).toBeInTheDocument();
   });
 

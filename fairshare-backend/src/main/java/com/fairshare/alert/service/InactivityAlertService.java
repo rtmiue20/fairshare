@@ -3,6 +3,7 @@ package com.fairshare.alert.service;
 import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.repository.ActivityEventRepository;
 import com.fairshare.alert.dto.AlertDto;
+import com.fairshare.alert.dto.CreateAlertRequest;
 import com.fairshare.alert.dto.MemberInactivityDto;
 import com.fairshare.alert.entity.Alert;
 import com.fairshare.alert.repository.AlertRepository;
@@ -14,8 +15,10 @@ import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.team.repository.TeamRepository;
 import com.fairshare.user.entity.User;
+import com.fairshare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,9 @@ public class InactivityAlertService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final ActivityEventRepository activityEventRepository;
+
+    @Autowired(required = false)
+    private UserRepository userRepository;
 
     @Transactional
     public List<AlertDto> getAlertsByTeam(Long teamId, boolean includeResolved, int thresholdDays) {
@@ -67,84 +73,303 @@ public class InactivityAlertService {
         return 3;
     }
 
+    private static final Set<String> TASK_RULE_ALERT_TYPES = Set.of(
+            "OVERDUE_TASK", "DUE_SOON_TASK", "TASK_TODO"
+    );
+
+    private static final Set<String> LEGACY_SAMPLE_ALERT_TYPES = Set.of(
+            "MILESTONE_PROGRESS", "ON_TIME_COMPLETION", "AVAILABILITY_ADJUSTED",
+            "OVERDUE_WARNING", "SPRINT_CLOSED", "PEER_REVIEW_SUFFICIENT"
+    );
+
     @Transactional
     public void scanRuleBasedAlerts(Long teamId, int thresholdDays) {
         Team team = teamRepository.findById(teamId).orElse(null);
         if (team == null) return;
 
         LocalDate today = LocalDate.now();
-
-        // Rule 1: Thẻ công việc In Progress đã quá hạn chót (CR-04 Mức Đỏ / Critical)
+        List<Alert> existingAlerts = new ArrayList<>();
         try {
-            List<Card> teamCards = cardRepository.findByBoardTeamId(teamId);
-            for (Card c : teamCards) {
-                if (c.getColumn() != null && "In Progress".equalsIgnoreCase(c.getColumn().getName())
-                        && c.getDueDate() != null && c.getDueDate().toLocalDate().isBefore(today)
-                        && c.getAssignee() != null) {
+            List<Alert> loaded = alertRepository.findByTeamId(teamId);
+            if (loaded != null) {
+                existingAlerts.addAll(loaded);
+            }
+        } catch (Exception e) {
+            log.debug("Could not load existing alerts for cleanup: {}", e.getMessage());
+        }
 
-                    long daysOverdue = ChronoUnit.DAYS.between(c.getDueDate().toLocalDate(), today);
-                    if (daysOverdue >= 1) {
-                        boolean exists = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
-                                teamId, c.getAssignee().getId(), "OVERDUE_TASK"
-                        );
-                        if (!exists) {
-                            Alert alert = new Alert();
-                            alert.setTeam(team);
-                            alert.setUser(c.getAssignee());
-                            alert.setAlertType("OVERDUE_TASK");
-                            alert.setSeverity("CRITICAL");
-                            alert.setMessage(String.format("Công việc \"%s\" do %s phụ trách đã quá hạn chót %d ngày (Hạn: %s) nhưng chưa hoàn thành.",
+        // Xóa các cảnh báo mẫu (sample/seed) hoặc trùng lặp từ trigger cũ
+        Iterator<Alert> sampleIt = existingAlerts.iterator();
+        while (sampleIt.hasNext()) {
+            Alert a = sampleIt.next();
+            String type = a.getAlertType() != null ? a.getAlertType().trim().toUpperCase() : "";
+            if (LEGACY_SAMPLE_ALERT_TYPES.contains(type)) {
+                alertRepository.delete(a);
+                sampleIt.remove();
+            }
+        }
+
+        // Rule 1, 2, 3: Tự động quét và đồng bộ công việc thực tế từ Kanban Board (OVERDUE_TASK, DUE_SOON_TASK, TASK_TODO)
+        try {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            List<Card> teamCards = cardRepository.findByBoardTeamId(teamId);
+            Set<Long> matchedUnresolvedTaskAlertIds = new HashSet<>();
+            Set<String> doneCardTitles = new HashSet<>();
+
+            for (Card c : teamCards) {
+                String colName = c.getColumn() != null && c.getColumn().getName() != null
+                        ? c.getColumn().getName().trim()
+                        : "";
+                boolean isDone = colName.equalsIgnoreCase("Done")
+                        || colName.equalsIgnoreCase("Hoàn thành")
+                        || colName.equalsIgnoreCase("Completed");
+                if (isDone) {
+                    if (c.getTitle() != null && !c.getTitle().isBlank()) {
+                        doneCardTitles.add(c.getTitle().trim());
+                    }
+                    continue;
+                }
+                if (c.getAssignee() == null || c.getTitle() == null || c.getTitle().isBlank()) {
+                    continue;
+                }
+
+                String expectedType = null;
+                String expectedSeverity = null;
+                String expectedMessage = null;
+
+                boolean triggeredDeadlineRule = false;
+                if (c.getDueDate() != null) {
+                    LocalDate dueLocal = c.getDueDate().toLocalDate();
+                    if (dueLocal.isBefore(today)) {
+                        long daysOverdue = ChronoUnit.DAYS.between(dueLocal, today);
+                        if (daysOverdue >= 1) {
+                            triggeredDeadlineRule = true;
+                            expectedType = "OVERDUE_TASK";
+                            expectedSeverity = "CRITICAL";
+                            expectedMessage = String.format("Công việc \"%s\" do %s phụ trách đã quá hạn chót %d ngày (Hạn: %s) nhưng chưa hoàn thành.",
                                     c.getTitle(),
                                     c.getAssignee().getFullName(),
                                     daysOverdue,
-                                    c.getDueDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+                                    c.getDueDate().format(fmt));
+                        }
+                    } else {
+                        long daysUntilDue = ChronoUnit.DAYS.between(today, dueLocal);
+                        if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+                            triggeredDeadlineRule = true;
+                            String timeHint = daysUntilDue == 0 ? "hôm nay" : "còn " + daysUntilDue + " ngày";
+                            expectedType = "DUE_SOON_TASK";
+                            expectedSeverity = "WARNING";
+                            expectedMessage = String.format("Công việc \"%s\" (%s) do %s phụ trách sắp đến hạn chót (%s — %s). Hệ thống đã tự động gửi cảnh báo.",
+                                    c.getTitle(),
+                                    colName.isEmpty() ? "Đang mở" : colName,
+                                    c.getAssignee().getFullName(),
+                                    timeHint,
+                                    c.getDueDate().format(fmt));
+                        }
+                    }
+                }
+
+                // Rule 3: Thẻ đang ở cột To Do / Backlog cần bắt đầu thực hiện (INFO)
+                boolean isTodoColumn = colName.equalsIgnoreCase("To Do")
+                        || colName.equalsIgnoreCase("Backlog")
+                        || colName.equalsIgnoreCase("Cần làm");
+                if (!triggeredDeadlineRule && isTodoColumn) {
+                    String dueSuffix = c.getDueDate() != null
+                            ? " (Hạn chót: " + c.getDueDate().format(fmt) + ")"
+                            : "";
+                    expectedType = "TASK_TODO";
+                    expectedSeverity = "INFO";
+                    expectedMessage = String.format("Công việc \"%s\" đang ở cột %s cần %s bắt đầu thực hiện%s.",
+                            c.getTitle(),
+                            colName,
+                            c.getAssignee().getFullName(),
+                            dueSuffix);
+                }
+
+                if (expectedType != null) {
+                    String quotedTitle = "\"" + c.getTitle() + "\"";
+                    Alert matchedUnresolved = null;
+                    boolean alreadyResolvedForSameState = false;
+
+                    for (Alert existing : existingAlerts) {
+                        String exType = existing.getAlertType() != null ? existing.getAlertType().trim().toUpperCase() : "";
+                        if (!TASK_RULE_ALERT_TYPES.contains(exType)) continue;
+                        String exMsg = existing.getMessage() != null ? existing.getMessage() : "";
+                        if (exMsg.contains(quotedTitle)) {
+                            if (existing.isResolved()) {
+                                if (expectedType.equals(exType)) {
+                                    alreadyResolvedForSameState = true;
+                                }
+                            } else if (matchedUnresolved == null) {
+                                matchedUnresolved = existing;
+                            }
+                        }
+                    }
+
+                    if (alreadyResolvedForSameState) {
+                        continue;
+                    }
+
+                    if (matchedUnresolved != null) {
+                        if (matchedUnresolved.getId() != null) {
+                            matchedUnresolvedTaskAlertIds.add(matchedUnresolved.getId());
+                        }
+                        boolean changed = !expectedType.equalsIgnoreCase(matchedUnresolved.getAlertType())
+                                || !expectedSeverity.equalsIgnoreCase(matchedUnresolved.getSeverity())
+                                || !expectedMessage.equals(matchedUnresolved.getMessage())
+                                || (matchedUnresolved.getUser() == null || !Objects.equals(matchedUnresolved.getUser().getId(), c.getAssignee().getId()));
+                        if (changed) {
+                            matchedUnresolved.setUser(c.getAssignee());
+                            matchedUnresolved.setAlertType(expectedType);
+                            matchedUnresolved.setSeverity(expectedSeverity);
+                            matchedUnresolved.setMessage(expectedMessage);
+                            alertRepository.save(matchedUnresolved);
+                        }
+                    } else {
+                        boolean existsByType = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
+                                teamId, c.getAssignee().getId(), expectedType
+                        );
+                        if (!existsByType || !existingAlerts.isEmpty()) {
+                            Alert alert = new Alert();
+                            alert.setTeam(team);
+                            alert.setUser(c.getAssignee());
+                            alert.setAlertType(expectedType);
+                            alert.setSeverity(expectedSeverity);
+                            alert.setMessage(expectedMessage);
                             alert.setResolved(false);
-                            alertRepository.save(alert);
-                            log.info("CR-04 Created OVERDUE_TASK alert for user: {} on card: {}", c.getAssignee().getId(), c.getId());
+                            Alert saved = alertRepository.save(alert);
+                            if (saved != null) {
+                                existingAlerts.add(saved);
+                                if (saved.getId() != null) {
+                                    matchedUnresolvedTaskAlertIds.add(saved.getId());
+                                }
+                            }
+                            log.info("CR-04 Created {} alert for user: {} on card: {}", expectedType, c.getAssignee().getId(), c.getId());
+                        }
+                    }
+                }
+            }
+
+            // Dọn dẹp các cảnh báo task cũ không còn khớp với trạng thái thực tế trên Kanban Board
+            if (!existingAlerts.isEmpty()) {
+                Iterator<Alert> it = existingAlerts.iterator();
+                while (it.hasNext()) {
+                    Alert existing = it.next();
+                    if (existing.isResolved()) continue;
+                    String exType = existing.getAlertType() != null ? existing.getAlertType().trim().toUpperCase() : "";
+                    String exMsg = existing.getMessage() != null ? existing.getMessage() : "";
+
+                    if (TASK_RULE_ALERT_TYPES.contains(exType)) {
+                        if (existing.getId() == null || !matchedUnresolvedTaskAlertIds.contains(existing.getId())) {
+                            alertRepository.delete(existing);
+                            it.remove();
+                        }
+                    } else if (exType.startsWith("CUSTOM_")) {
+                        for (String doneTitle : doneCardTitles) {
+                            if (exMsg.contains("Công việc: " + doneTitle) || exMsg.contains("\"" + doneTitle + "\"")) {
+                                alertRepository.delete(existing);
+                                it.remove();
+                                break;
+                            }
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            log.warn("Error scanning overdue tasks: {}", e.getMessage());
+            log.warn("Error scanning overdue/due-soon/todo tasks: {}", e.getMessage());
         }
 
-        // Rule 2: Thành viên không hoạt động nhiều ngày liên tiếp (CR-04 Mức Vàng / Warning)
+        // Rule 4: Thành viên không hoạt động nhiều ngày liên tiếp (CR-04 Mức Vàng / Warning)
         try {
             List<TeamMember> members = teamMemberRepository.findByTeamIdWithUser(teamId);
+            Set<Long> activeMemberIds = new HashSet<>();
+
             for (TeamMember tm : members) {
                 User u = tm.getUser();
                 if (u == null) continue;
+                activeMemberIds.add(u.getId());
 
                 List<ActivityEvent> events = activityEventRepository.findByTeamIdAndUserId(teamId, u.getId());
                 LocalDateTime lastAct = null;
-                for (ActivityEvent ae : events) {
-                    LocalDateTime dt = ae.getOccurredAt() != null ? ae.getOccurredAt() : ae.getCreatedAt();
-                    if (dt != null && (lastAct == null || dt.isAfter(lastAct))) {
-                        lastAct = dt;
+                if (events != null) {
+                    for (ActivityEvent ae : events) {
+                        LocalDateTime dt = ae.getOccurredAt() != null ? ae.getOccurredAt() : ae.getCreatedAt();
+                        if (dt != null && (lastAct == null || dt.isAfter(lastAct))) {
+                            lastAct = dt;
+                        }
                     }
                 }
 
-                if (lastAct != null) {
-                    long daysInactive = ChronoUnit.DAYS.between(lastAct.toLocalDate(), today);
-                    if (daysInactive >= thresholdDays) {
-                        boolean exists = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
-                                teamId, u.getId(), "INACTIVITY_WARNING"
-                        );
-                        if (!exists) {
-                            Alert alert = new Alert();
-                            alert.setTeam(team);
-                            alert.setUser(u);
-                            alert.setAlertType("INACTIVITY_WARNING");
-                            alert.setSeverity("WARNING");
-                            alert.setMessage(String.format("Thành viên %s không có hoạt động trong %d ngày liên tiếp (vượt ngưỡng %d ngày cảnh báo theo CR-04).",
-                                    u.getFullName(),
-                                    daysInactive,
-                                    thresholdDays));
-                            alert.setResolved(false);
-                            alertRepository.save(alert);
-                            log.info("CR-04 Created INACTIVITY_WARNING alert for user: {} ({} days inactive)", u.getId(), daysInactive);
+                // Tài khoản / thành viên mới tạo chưa có phát sinh sự kiện hoạt động sẽ tính 0 ngày (không gán giả định 7 ngày)
+                long daysInactive = lastAct != null
+                        ? Math.max(0, ChronoUnit.DAYS.between(lastAct.toLocalDate(), today))
+                        : 0L;
+
+                List<Alert> memberInactivityAlerts = existingAlerts.stream()
+                        .filter(a -> "INACTIVITY_WARNING".equalsIgnoreCase(a.getAlertType())
+                                && a.getUser() != null
+                                && Objects.equals(a.getUser().getId(), u.getId()))
+                        .toList();
+
+                if (daysInactive >= thresholdDays) {
+                    String expectedMsg = String.format(
+                            "Thành viên %s không có hoạt động trong %d ngày liên tiếp (vượt ngưỡng %d ngày cảnh báo theo CR-04).",
+                            u.getFullName(),
+                            daysInactive,
+                            thresholdDays
+                    );
+
+                    List<Alert> unresolvedForMember = memberInactivityAlerts.stream()
+                            .filter(a -> !a.isResolved())
+                            .toList();
+
+                    if (!unresolvedForMember.isEmpty()) {
+                        Alert primary = unresolvedForMember.get(0);
+                        if (!expectedMsg.equals(primary.getMessage())) {
+                            primary.setMessage(expectedMsg);
+                            alertRepository.save(primary);
                         }
+                        for (int i = 1; i < unresolvedForMember.size(); i++) {
+                            alertRepository.delete(unresolvedForMember.get(i));
+                        }
+                    } else {
+                        boolean resolvedToday = memberInactivityAlerts.stream()
+                                .anyMatch(a -> a.isResolved()
+                                        && a.getResolvedAt() != null
+                                        && a.getResolvedAt().toLocalDate().equals(today));
+                        if (!resolvedToday) {
+                            boolean exists = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
+                                    teamId, u.getId(), "INACTIVITY_WARNING"
+                            );
+                            if (!exists) {
+                                Alert alert = new Alert();
+                                alert.setTeam(team);
+                                alert.setUser(u);
+                                alert.setAlertType("INACTIVITY_WARNING");
+                                alert.setSeverity("WARNING");
+                                alert.setMessage(expectedMsg);
+                                alert.setResolved(false);
+                                alertRepository.save(alert);
+                                log.info("CR-04 Created INACTIVITY_WARNING alert for user: {} ({} days inactive)", u.getId(), daysInactive);
+                            }
+                        }
+                    }
+                } else {
+                    // Khi thành viên không vượt ngưỡng (hoặc người dùng chỉnh tăng ngưỡng cảnh báo), xóa các cảnh báo im lặng cũ còn dính lại
+                    for (Alert staleInact : memberInactivityAlerts) {
+                        if (!staleInact.isResolved()) {
+                            alertRepository.delete(staleInact);
+                        }
+                    }
+                }
+            }
+
+            // Xóa cảnh báo inactivity của user không còn trong nhóm
+            for (Alert a : existingAlerts) {
+                if (!a.isResolved() && "INACTIVITY_WARNING".equalsIgnoreCase(a.getAlertType())) {
+                    Long uid = a.getUser() != null ? a.getUser().getId() : null;
+                    if (uid == null || !activeMemberIds.contains(uid)) {
+                        alertRepository.delete(a);
                     }
                 }
             }
@@ -165,22 +390,28 @@ public class InactivityAlertService {
 
             List<ActivityEvent> events = activityEventRepository.findByTeamIdAndUserId(teamId, u.getId());
             LocalDateTime lastAct = null;
-            for (ActivityEvent ae : events) {
-                LocalDateTime dt = ae.getOccurredAt() != null ? ae.getOccurredAt() : ae.getCreatedAt();
-                if (dt != null && (lastAct == null || dt.isAfter(lastAct))) {
-                    lastAct = dt;
+            if (events != null) {
+                for (ActivityEvent ae : events) {
+                    LocalDateTime dt = ae.getOccurredAt() != null ? ae.getOccurredAt() : ae.getCreatedAt();
+                    if (dt != null && (lastAct == null || dt.isAfter(lastAct))) {
+                        lastAct = dt;
+                    }
                 }
             }
 
             long daysInactive = lastAct != null
                     ? Math.max(0, ChronoUnit.DAYS.between(lastAct.toLocalDate(), today))
-                    : 7L;
+                    : 0L;
+
+            LocalDateTime displayLastActivity = lastAct != null
+                    ? lastAct
+                    : (tm.getCreatedAt() != null ? tm.getCreatedAt() : u.getCreatedAt());
 
             list.add(MemberInactivityDto.builder()
                     .userId(u.getId())
                     .userName(u.getFullName())
                     .daysInactive(daysInactive)
-                    .lastActivity(lastAct)
+                    .lastActivity(displayLastActivity)
                     .exceeded(daysInactive >= thresholdDays)
                     .build());
         }
@@ -206,5 +437,139 @@ public class InactivityAlertService {
         String userName = alert.getUser() != null ? alert.getUser().getFullName() : "thành viên";
         log.info("Reminder sent to member: {} for alert: {}", userName, alertId);
         return "Đã gửi thông báo nhắc nhở đến " + userName;
+    }
+
+    @Transactional
+    public AlertDto createManualAlert(Long teamId, CreateAlertRequest request) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
+
+        List<TeamMember> members = teamMemberRepository.findByTeamIdWithUser(teamId);
+        User targetUser = resolveTargetUser(members, request);
+        if (targetUser == null) {
+            throw new ResourceNotFoundException("Target member not found for team: " + teamId);
+        }
+
+        String template = resolveTemplateType(request);
+        String dbSeverity = mapTemplateToDbSeverity(template, request != null ? request.getSeverity() : null);
+
+        String alertType = (request != null && request.getAlertType() != null && !request.getAlertType().isBlank())
+                ? request.getAlertType().trim().toUpperCase()
+                : "CUSTOM_" + template;
+
+        String formattedMessage = buildFormattedAlertMessage(request);
+
+        Alert alert = new Alert();
+        alert.setTeam(team);
+        alert.setUser(targetUser);
+        alert.setAlertType(alertType);
+        alert.setSeverity(dbSeverity);
+        alert.setMessage(formattedMessage);
+        alert.setResolved(false);
+
+        Alert saved = alertRepository.save(alert);
+        log.info("Manual alert ({}) created for user {} in team {}", alertType, targetUser.getId(), teamId);
+        return AlertDto.from(saved);
+    }
+
+    private User resolveTargetUser(List<TeamMember> members, CreateAlertRequest request) {
+        if (request != null && request.getUserId() != null) {
+            for (TeamMember tm : members) {
+                if (tm.getUser() != null && request.getUserId().equals(tm.getUser().getId())) {
+                    return tm.getUser();
+                }
+            }
+            if (userRepository != null) {
+                User found = userRepository.findById(request.getUserId()).orElse(null);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+
+        if (request != null && request.getUserName() != null && !request.getUserName().isBlank()) {
+            String targetName = request.getUserName().trim().toLowerCase();
+            for (TeamMember tm : members) {
+                User u = tm.getUser();
+                if (u != null && u.getFullName() != null && u.getFullName().toLowerCase().contains(targetName)) {
+                    return u;
+                }
+            }
+        }
+
+        for (TeamMember tm : members) {
+            if (tm.getUser() != null) {
+                return tm.getUser();
+            }
+        }
+        return null;
+    }
+
+    private String resolveTemplateType(CreateAlertRequest request) {
+        if (request == null) {
+            return "INFO";
+        }
+        String t = request.getTemplateType() != null ? request.getTemplateType().trim().toUpperCase() : "";
+        if ("INFO".equals(t) || "WARNING".equals(t) || "SUCCESS".equals(t) || "ERROR".equals(t)) {
+            return t;
+        }
+        String sev = request.getSeverity() != null ? request.getSeverity().trim().toUpperCase() : "";
+        if ("CRITICAL".equals(sev) || "ERROR".equals(sev)) {
+            return "ERROR";
+        }
+        if ("WARNING".equals(sev) || "WARN".equals(sev)) {
+            return "WARNING";
+        }
+        if ("SUCCESS".equals(sev)) {
+            return "SUCCESS";
+        }
+        return "INFO";
+    }
+
+    private String mapTemplateToDbSeverity(String template, String requestedSeverity) {
+        if ("ERROR".equals(template) || "CRITICAL".equalsIgnoreCase(requestedSeverity)) {
+            return "CRITICAL";
+        }
+        if ("WARNING".equals(template) || "WARNING".equalsIgnoreCase(requestedSeverity)) {
+            return "WARNING";
+        }
+        // MariaDB chk_alerts_severity allows ('INFO', 'WARNING', 'CRITICAL')
+        return "INFO";
+    }
+
+    private String buildFormattedAlertMessage(CreateAlertRequest request) {
+        if (request == null) {
+            return "Thông báo cảnh báo tiến độ từ thành viên nhóm.";
+        }
+        String title = request.getTitle() != null ? request.getTitle().trim() : "";
+        String body = request.getMessage() != null ? request.getMessage().trim() : "";
+        String taskTitle = request.getTaskTitle() != null ? request.getTaskTitle().trim() : "";
+        String senderName = request.getSenderName() != null ? request.getSenderName().trim() : "";
+        String senderRole = request.getSenderRole() != null ? request.getSenderRole().trim() : "";
+
+        StringBuilder sb = new StringBuilder();
+        if (!title.isEmpty()) {
+            sb.append("[").append(title).append("] ");
+        }
+        if (!body.isEmpty()) {
+            sb.append(body);
+        } else {
+            sb.append("Cảnh báo tiến độ cần được kiểm tra và phản hồi sớm.");
+        }
+        if (!taskTitle.isEmpty()) {
+            sb.append(" | Công việc: ").append(taskTitle);
+        }
+        if (!senderName.isEmpty() || !senderRole.isEmpty()) {
+            sb.append(" | Người báo: ");
+            if (!senderRole.isEmpty()) {
+                sb.append(senderRole);
+                if (!senderName.isEmpty()) {
+                    sb.append(" (").append(senderName).append(")");
+                }
+            } else {
+                sb.append(senderName);
+            }
+        }
+        return sb.toString();
     }
 }

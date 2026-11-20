@@ -34,6 +34,9 @@ export const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isLight, setIsLight] = useState(() =>
+    typeof document !== 'undefined' ? document.documentElement.dataset.theme === 'light' : false
+  );
 
   const { register, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -94,9 +97,9 @@ export const RegisterPage: React.FC = () => {
     const next = cur === 'dark' ? 'light' : 'dark';
     r.dataset.theme = next;
     localStorage.setItem('fs-theme', next);
+    setIsLight(next === 'light');
   };
 
-  const isLight = document.documentElement.dataset.theme === 'light';
   const displayError = validationError || error;
 
   return (
@@ -117,7 +120,7 @@ export const RegisterPage: React.FC = () => {
 
       {/* Top minimal header bar */}
       <header
-        className="relative z-10 w-full flex items-center justify-between px-6 sm:px-12 py-4"
+        className="relative z-10 w-full flex items-center justify-between px-4 sm:px-12 py-3 sm:py-4"
         style={{
           borderBottom: '1px solid var(--line)',
           background: 'var(--glass)',
@@ -126,7 +129,7 @@ export const RegisterPage: React.FC = () => {
         }}
       >
         <Link to="/" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
-          <FairShareLogo size={24} />
+          <FairShareLogo size={22} textClassName="hidden min-[360px]:inline-block" />
         </Link>
 
         <div className="flex items-center gap-3">
@@ -148,7 +151,7 @@ export const RegisterPage: React.FC = () => {
       </header>
 
       {/* Main Register Workspace */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+      <main className="relative z-10 flex-1 flex items-center justify-center px-3.5 py-6 sm:py-10 sm:px-8">
         <div className="w-full max-w-md">
           <div
             className="rounded-3xl p-6 sm:p-8 transition-all"

@@ -1,0 +1,78 @@
+{
+  "run": "1794845941",
+  "base": "http://localhost:8081",
+  "results": [
+    {
+      "id": "RT-38a",
+      "defect": "DEF-38",
+      "name": "C kéo thẻ của B vào Review 6 lần chỉ sinh 1 REVIEW_CARD",
+      "expected": "1 sự kiện REVIEW_CARD của C cho thẻ này",
+      "actual": "1 sự kiện; HTTP [200]",
+      "result": "PASS"
+    },
+    {
+      "id": "RT-38b",
+      "defect": "DEF-38",
+      "name": "Tỷ lệ đóng góp của C không tăng khi kéo lặp",
+      "expected": "finalPct sau 6 lần = sau 1 lần",
+      "actual": "sau 1 lần 0.0%, sau 6 lần 0.0%",
+      "result": "PASS"
+    },
+    {
+      "id": "RT-38c",
+      "defect": "DEF-38",
+      "name": "Đổi tiêu đề thẻ rồi kéo lại vào Review không sinh thêm REVIEW_CARD",
+      "expected": "vẫn 1 sự kiện REVIEW_CARD của C cho thẻ này",
+      "actual": "đổi tên HTTP 200; 2 sự kiện REVIEW_CARD",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT-41a",
+      "defect": "mới",
+      "name": "D kéo thẻ 5 SP của mình To Do <-> In Progress 10 vòng: tổng SP của CARD_MOVED không tăng",
+      "expected": "tổng storyPoints CARD_MOVED của D không đổi",
+      "actual": "21 CARD_MOVED, tổng SP 5.0 -> 105.0",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT-41b",
+      "defect": "mới",
+      "name": "Tỷ lệ đóng góp của D không tăng khi chỉ kéo qua lại, chưa hoàn thành thẻ",
+      "expected": "finalPct không đổi",
+      "actual": "50.0% -> 91.67%",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT-19",
+      "defect": "DEF-19",
+      "name": "Thành viên thường tạo đợt chấm bị chặn bằng 403",
+      "expected": "HTTP 403",
+      "actual": "HTTP 400: Only a team leader can manage review rounds",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT-40a",
+      "defect": "DEF-40",
+      "name": "Migration không được chèn tài khoản demo vào CSDL thật",
+      "expected": "0 tài khoản id 109..113 do migration tạo",
+      "actual": "V23 đã chạy: 1; tài khoản demo: 5",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT-40b",
+      "defect": "DEF-40",
+      "name": "Không đăng nhập được bằng tài khoản demo có mật khẩu công khai trong repo",
+      "expected": "HTTP 401",
+      "actual": "HTTP 200",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT-40c",
+      "defect": "DEF-40",
+      "name": "Migration không gắn thành viên/dữ liệu demo vào nhóm id 1 (nhóm thật đầu tiên)",
+      "expected": "0 thành viên demo trong team 1",
+      "actual": "5 thành viên demo trong team 1",
+      "result": "FAIL"
+    }
+  ]
+}

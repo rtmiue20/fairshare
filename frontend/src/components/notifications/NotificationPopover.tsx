@@ -2,84 +2,106 @@ import React, { useState } from 'react';
 import { useNotificationStore, NotificationItem } from '../../store/notificationStore';
 import { Check, CheckCheck, Trash2, Bell, MessageSquare, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../ui/Toast';
+import './NotificationPopover.css';
 
 export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const navigate = useNavigate();
   const { notifications, markAsRead, markAllAsRead, removeNotification } = useNotificationStore();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const filteredList = notifications.filter((n) => {
     if (filter === 'unread') return !n.read;
     return true;
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleActionPrimary = (n: NotificationItem) => {
+  const handleActionPrimary = (e: React.MouseEvent, n: NotificationItem) => {
+    e.stopPropagation();
     markAsRead(n.id);
     if (n.actionPrimary?.onClick) {
       n.actionPrimary.onClick();
-    } else if (n.type === 'info') {
-      navigate('/peer-review');
+    } else if (n.actionPrimary?.link) {
+      navigate(n.actionPrimary.link);
       onClose();
-    } else if (n.type === 'warning') {
+    } else if (n.targetLink) {
+      navigate(n.targetLink);
+      onClose();
+    } else if (n.type === 'warning' || n.type === 'error') {
       navigate('/alerts');
       onClose();
     } else {
-      navigate('/dashboard');
+      navigate('/teams');
       onClose();
     }
   };
 
-  const handleActionSecondary = (n: NotificationItem) => {
+  const handleActionSecondary = (e: React.MouseEvent, n: NotificationItem) => {
+    e.stopPropagation();
     markAsRead(n.id);
     if (n.actionSecondary?.onClick) {
       n.actionSecondary.onClick();
+    } else {
+      showToast('Đã ẩn thông báo');
+    }
+  };
+
+  const handleCardClick = (n: NotificationItem) => {
+    if (!n.read) {
+      markAsRead(n.id);
+    }
+    if (n.targetLink) {
+      navigate(n.targetLink);
+      onClose();
     }
   };
 
   const renderBadgeIcon = (type: NotificationItem['type']) => {
     switch (type) {
       case 'success':
-        return <Check size={11} strokeWidth={3} />;
+        return <Check size={10} strokeWidth={3} />;
       case 'warning':
       case 'error':
-        return <AlertTriangle size={11} strokeWidth={3} />;
+        return <AlertTriangle size={10} strokeWidth={3} />;
       case 'info':
       default:
-        return <MessageSquare size={11} strokeWidth={2.5} />;
+        return <MessageSquare size={10} strokeWidth={2.5} />;
     }
   };
 
   return (
     <div
-      className="notif-popover"
+      className="notif-popover-container notif-popover"
+      id="notifPopover"
+      data-testid="notif-popover"
       role="dialog"
       aria-label="Hộp thư thông báo"
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="notif-header">
-        <div className="notif-header-title">
+      <div className="notif-popover-header">
+        <div className="notif-title-group">
           <h3>Thông báo</h3>
           {unreadCount > 0 && (
             <span className="notif-unread-pill">{unreadCount} mới</span>
           )}
         </div>
 
-        <div className="notif-header-actions">
+        <div className="notif-actions-group">
           {/* Filter tabs */}
-          <div className="notif-filter-tabs">
+          <div className="notif-filter-pill">
             <button
               type="button"
-              className={`notif-tab ${filter === 'all' ? 'active' : ''}`}
+              className={`notif-tab-btn ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
             >
               Tất cả
             </button>
             <button
               type="button"
-              className={`notif-tab ${filter === 'unread' ? 'active' : ''}`}
+              className={`notif-tab-btn ${filter === 'unread' ? 'active' : ''}`}
               onClick={() => setFilter('unread')}
             >
               Chưa đọc
@@ -89,66 +111,67 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
           {unreadCount > 0 && (
             <button
               type="button"
-              className="notif-mark-all"
+              className="notif-mark-read-all"
               onClick={markAllAsRead}
               title="Đánh dấu tất cả đã đọc"
+              aria-label="Đánh dấu tất cả đã đọc"
             >
-              <CheckCheck size={15} />
+              <CheckCheck size={17} />
             </button>
           )}
         </div>
       </div>
 
-      {/* List */}
-      <div className="notif-list">
+      {/* Cards List */}
+      <div className="notif-cards-list">
         {filteredList.length === 0 ? (
-          <div className="notif-empty">
-            <div className="notif-empty-icon">
-              <Bell size={28} opacity={0.4} />
+          <div className="notif-empty-state">
+            <div className="notif-empty-icon-wrap">
+              <Bell size={24} opacity={0.6} />
             </div>
-            <p>Không có thông báo nào {filter === 'unread' ? 'chưa đọc' : ''}.</p>
+            <p>
+              {filter === 'unread'
+                ? 'Tuyệt vời! Bạn không còn thông báo nào chưa đọc.'
+                : 'Hiện chưa có thông báo nào.'}
+            </p>
           </div>
         ) : (
           filteredList.map((item) => (
             <div
               key={item.id}
-              className={`notif-item ${!item.read ? 'unread' : ''}`}
-              onClick={() => markAsRead(item.id)}
+              className={`notif-card ${item.read ? 'is-read' : 'is-unread'}`}
+              onClick={() => handleCardClick(item)}
+              title={item.read ? 'Nhấp để xem chi tiết' : 'Nhấp để đánh dấu đã đọc'}
             >
-              {/* Avatar + Sub-badge */}
-              <div className="notif-avatar-wrap">
-                <div
-                  className="notif-avatar"
-                  style={{ background: item.avatarBg || 'var(--accent)' }}
-                >
-                  {item.avatarText || item.authorName?.substring(0, 2).toUpperCase() || 'FS'}
-                </div>
-                <div className={`notif-avatar-badge notif-avatar-badge--${item.type}`}>
+              {/* Avatar with Sub-badge */}
+              <div
+                className="notif-avatar-box"
+                style={{ background: item.avatarBg || 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}
+              >
+                {item.avatarText || item.authorName?.substring(0, 2).toUpperCase() || 'FS'}
+                <div className={`notif-badge-overlay notif-badge-overlay--${item.type}`}>
                   {renderBadgeIcon(item.type)}
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="notif-item-content">
-                <div className="notif-item-top">
-                  <span className="notif-author">{item.authorName || 'Hệ thống'}</span>
-                  <span className="notif-time">{item.timeAgo}</span>
+              {/* Content Box */}
+              <div className="notif-content-box">
+                <div className="notif-content-header">
+                  <span className="notif-author-name">{item.authorName || 'Hệ thống'}</span>
+                  <span className="notif-time-ago">{item.timeAgo}</span>
                 </div>
 
-                <div className="notif-item-title">{item.title}</div>
-                <p className="notif-item-msg">{item.message}</p>
+                <div className="notif-card-title">{item.title}</div>
+                <p className="notif-card-message">{item.message}</p>
 
-                {/* Actions (if available, like [Từ chối] [Chấp nhận]) */}
+                {/* Action buttons (e.g. [Xem task], [Chấp nhận], [Để sau], [Nhắc nhở]) */}
                 {(item.actionPrimary || item.actionSecondary) && (
-                  <div className="notif-item-actions">
+                  <div className="notif-btn-row">
                     {item.actionSecondary && (
                       <button
                         type="button"
-                        className="notif-btn notif-btn--secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleActionSecondary(item);
-                        }}
+                        className="notif-pill-btn-secondary"
+                        onClick={(e) => handleActionSecondary(e, item)}
                       >
                         {item.actionSecondary.label}
                       </button>
@@ -156,11 +179,8 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
                     {item.actionPrimary && (
                       <button
                         type="button"
-                        className="notif-btn notif-btn--primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleActionPrimary(item);
-                        }}
+                        className="notif-pill-btn-primary"
+                        onClick={(e) => handleActionPrimary(e, item)}
                       >
                         {item.actionPrimary.label}
                       </button>
@@ -169,17 +189,17 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
                 )}
               </div>
 
-              {/* Status indicator: Unread green dot */}
-              <div className="notif-item-status">
-                {!item.read && <span className="notif-unread-dot" title="Chưa đọc" />}
+              {/* Status Indicator: Green dot if unread */}
+              <div className="notif-status-col">
+                {!item.read && <span className="notif-green-dot" title="Chưa đọc" />}
                 <button
                   type="button"
-                  className="notif-delete-btn"
+                  className="notif-remove-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     removeNotification(item.id);
                   }}
-                  title="Xóa thông báo"
+                  title="Xóa thông báo này"
                 >
                   <Trash2 size={13} />
                 </button>

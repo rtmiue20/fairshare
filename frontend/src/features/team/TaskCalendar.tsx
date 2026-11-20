@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   MoreHorizontal,
   ChevronLeft,
@@ -7,18 +7,35 @@ import {
   Database,
 } from 'lucide-react';
 import { ProjectTimelineModal } from './ProjectTimelineModal';
-import { TaskDetailModal } from './TaskDetailModal';
+import { TaskDetailModal, parseChecklistFromDescription } from './TaskDetailModal';
 import { TaskItem } from './AllTasksSection';
 import { showToast } from '../../components/ui/Toast';
 import { boardApi } from '../../api/board.api';
+import { teamApi } from '../../api/team.api';
+import { toYmd, fromYmd, startOfDay } from './TimelinePicker';
+import { getMemberAvatarGradient, getMemberInitials } from '../../utils/format';
 
 export interface CalendarPill {
   id: string;
+  cardId?: number;
   dayIndex: number; // 0..7
   dateLabel: string;
   title: string;
   lane: number; // 0, 1, 2
   isFocus?: boolean;
+}
+
+interface DbCalendarCard {
+  id: number;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  columnId: number;
+  columnName: string;
+  assigneeName?: string;
+  assigneeId?: number;
+  storyPoints?: number;
+  difficultyLevel?: number;
 }
 
 const MONTH_NAMES_SHORT = [
@@ -41,82 +58,140 @@ const isSameDate = (d1: Date, d2: Date) =>
   d1.getMonth() === d2.getMonth() &&
   d1.getDate() === d2.getDate();
 
+function mapColumnProgress(colName: string, description?: string): number {
+  const { items } = parseChecklistFromDescription(description);
+  if (items.length > 0) {
+    return Math.round((items.filter((x) => x.completed).length / items.length) * 100);
+  }
+  const lower = colName.toLowerCase();
+  if (lower.includes('done') || lower.includes('complete') || lower.includes('hoàn thành')) return 100;
+  if (lower.includes('review') || lower.includes('đánh giá')) return 75;
+  if (lower.includes('progress') || lower.includes('đang')) return 40;
+  return 0;
+}
+
 export const TaskCalendar: React.FC<{
   onSelectTask?: (title: string) => void;
   teamId?: number;
   projectName?: string;
-}> = ({ onSelectTask, teamId, projectName = 'KINGSHA' }) => {
-  // Khoảng thời gian dự án (Mặc định 10 Feb 2027 đến 30 Jun 2027)
-  const [projectStart, setProjectStart] = useState<Date>(new Date(2027, 1, 10));
-  const [projectEnd, setProjectEnd] = useState<Date>(new Date(2027, 5, 30));
+}> = ({ onSelectTask, teamId, projectName = 'EduConnect' }) => {
+  // Khoảng thời gian dự án: lấy từ DB (teams.start_date / end_date). Dự án cũ chưa có lịch sẽ tự căn theo hạn chót thẻ.
+  const [projectStart, setProjectStart] = useState<Date>(() => startOfDay(new Date()));
+  const [projectEnd, setProjectEnd] = useState<Date>(() => {
+    const s = startOfDay(new Date());
+    return new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6 * 7 - 1);
+  });
+  const hasCustomTimelineRef = useRef<boolean>(false);
+
+  // Thời gian thực: cập nhật mỗi 30 giây để highlight luôn đúng ngày hôm nay (kể cả qua nửa đêm)
+  const [now, setNow] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Trạng thái đồng bộ Database
   const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
-  const [dbCards, setDbCards] = useState<
-    { id: number; title: string; dueDate?: string; columnId: number }[]
-  >([]);
+  const [dbCards, setDbCards] = useState<DbCalendarCard[]>([]);
 
   // Task Detail Modal State
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Tải khoảng thời gian đã lưu theo teamId từ Storage/DB
+  // Tải lịch dự án từ Database theo teamId (teams.start_date / end_date)
   useEffect(() => {
+    hasCustomTimelineRef.current = false;
+    setDbCards([]);
+    setIsDbConnected(false);
+    if (!teamId) return;
+    let cancelled = false;
+    teamApi
+      .getTeamById(teamId)
+      .then((res) => {
+        if (cancelled) return;
+        const team = res.data;
+        if (team?.startDate && team?.endDate) {
+          setProjectStart(fromYmd(team.startDate));
+          setProjectEnd(fromYmd(team.endDate));
+          hasCustomTimelineRef.current = true;
+        }
+      })
+      .catch(() => {
+        // Giữ khoảng thời gian mặc định nếu không tải được
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId]);
+
+  // ── KẾT NỐI DB: Lấy dữ liệu Cards đầy đủ từ Database qua boardApi ──
+  const fetchBoardCards = useCallback(async () => {
     if (!teamId) return;
     try {
-      const saved = localStorage.getItem(`fairshare_timeline_${teamId}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.start && parsed.end) {
-          setProjectStart(new Date(parsed.start));
-          setProjectEnd(new Date(parsed.end));
+      const res = await boardApi.getBoardsByTeam(teamId);
+      if (res.data && res.data.length > 0) {
+        const boardRes = await boardApi.getBoardById(res.data[0].id);
+        const board = boardRes.data;
+
+        if (board.columns) {
+          const cardsList: DbCalendarCard[] = [];
+          board.columns.forEach((col) => {
+            if (col.cards) {
+              col.cards.forEach((card) => {
+                cardsList.push({
+                  id: card.id,
+                  title: card.title,
+                  description: card.description,
+                  dueDate: card.dueDate,
+                  columnId: col.id,
+                  columnName: col.name,
+                  assigneeName: card.assigneeName,
+                  assigneeId: card.assigneeId,
+                  storyPoints: card.storyPoints,
+                  difficultyLevel: card.difficultyLevel,
+                });
+              });
+            }
+          });
+          setDbCards(cardsList);
+          setIsDbConnected(true);
+
+          // Tự động căn chỉnh khung tuần mặc định theo ngày due_date thực tế trong DB nếu người dùng chưa tự cấu hình
+          if (!hasCustomTimelineRef.current) {
+            const datedTimes = cardsList
+              .map((c) => (c.dueDate ? new Date(c.dueDate).getTime() : NaN))
+              .filter((t) => !isNaN(t))
+              .sort((a, b) => a - b);
+
+            if (datedTimes.length > 0) {
+              const latest = startOfDay(new Date(datedTimes[datedTimes.length - 1]));
+              const earliest = startOfDay(new Date(datedTimes[0]));
+              const today = startOfDay(new Date());
+              const startCandidate = earliest.getTime() < today.getTime() ? earliest : today;
+              const minEnd = new Date(startCandidate.getFullYear(), startCandidate.getMonth(), startCandidate.getDate() + 6 * 7 - 1);
+              setProjectStart(startCandidate);
+              setProjectEnd(latest.getTime() > minEnd.getTime() ? latest : minEnd);
+            }
+          }
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('TaskCalendar DB fetch fallback:', err);
     }
   }, [teamId]);
 
-  // ── KẾT NỐI DB: Lấy dữ liệu Cards từ Database qua boardApi ──
   useEffect(() => {
-    if (!teamId) return;
-
-    let mounted = true;
-    const fetchBoardCards = async () => {
-      try {
-        const res = await boardApi.getBoardsByTeam(teamId);
-        if (res.data && res.data.length > 0) {
-          const boardRes = await boardApi.getBoardById(res.data[0].id);
-          const board = boardRes.data;
-
-          if (board.columns && mounted) {
-            const cardsList: { id: number; title: string; dueDate?: string; columnId: number }[] = [];
-            board.columns.forEach((col) => {
-              if (col.cards) {
-                col.cards.forEach((card) => {
-                  cardsList.push({
-                    id: card.id,
-                    title: card.title,
-                    dueDate: card.dueDate,
-                    columnId: col.id,
-                  });
-                });
-              }
-            });
-            setDbCards(cardsList);
-            setIsDbConnected(true);
-          }
-        }
-      } catch (err) {
-        console.warn('TaskCalendar DB fetch fallback:', err);
-      }
-    };
-
     fetchBoardCards();
-    return () => {
-      mounted = false;
+  }, [fetchBoardCards]);
+
+  // Tự động đồng bộ lại lịch khi Kanban / AllTasksSection cập nhật thẻ
+  useEffect(() => {
+    const handleBoardUpdated = () => {
+      fetchBoardCards();
     };
-  }, [teamId]);
+    window.addEventListener('fairshare:board-updated', handleBoardUpdated);
+    return () => window.removeEventListener('fairshare:board-updated', handleBoardUpdated);
+  }, [fetchBoardCards]);
 
   // Modal chọn khoảng thời gian
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
@@ -124,8 +199,8 @@ export const TaskCalendar: React.FC<{
   // Chỉ số tuần hiện tại (0 là Tuần 1, 1 là Tuần 2,...)
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
 
-  // Vị trí chuột hover (0..7) để hiển thị Vertical Time Scrubber Cursor Line
-  const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(4);
+  // Vị trí chuột hover (0..7) cho Vertical Time Scrubber; null = bám theo ngày hôm nay
+  const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(null);
 
   // Kéo chuột / vuốt để đổi tuần (Kéo trái: lùi 1 tuần; Kéo phải: tới 1 tuần)
   const [dragStartX, setDragStartX] = useState<number | null>(null);
@@ -139,6 +214,14 @@ export const TaskCalendar: React.FC<{
   );
   const totalWeeks = Math.max(1, Math.ceil(totalDays / 7));
 
+  // Mỗi khi lịch dự án thay đổi (tải từ DB / lưu mới), nhảy tới tuần chứa ngày hôm nay
+  useEffect(() => {
+    const diff = Math.floor((startOfDay(new Date()).getTime() - startOfDay(projectStart).getTime()) / (24 * 3600 * 1000));
+    const idx = Math.floor(diff / 7);
+    setCurrentWeekIndex(Math.min(Math.max(0, idx), totalWeeks - 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectStart, projectEnd]);
+
   // Đảm bảo currentWeekIndex không vượt quá totalWeeks
   useEffect(() => {
     if (currentWeekIndex >= totalWeeks) {
@@ -147,16 +230,18 @@ export const TaskCalendar: React.FC<{
   }, [totalWeeks, currentWeekIndex]);
 
   // Tính 8 ngày của tuần đang chọn (Ngày 0..7)
-  const weekStartMs = projectStart.getTime() + currentWeekIndex * 7 * 24 * 3600 * 1000;
+  const weekStartMs = startOfDay(projectStart).getTime();
+  const todayKey = toYmd(now);
   const weekDays = useMemo(() => {
     return Array.from({ length: 8 }).map((_, i) => {
-      const d = new Date(weekStartMs + i * 24 * 3600 * 1000);
+      const base = startOfDay(projectStart);
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + currentWeekIndex * 7 + i);
       const dayOfWeek = d.getDay(); // 0: CN
       const isOffDay = dayOfWeek === 0;
       const label = `${d.getDate()} ${MONTH_NAMES_SHORT[d.getMonth()]}`;
 
-      // Highlight ngày trọng tâm (ngày thứ 4 giữa tuần)
-      const isToday = i === 4;
+      // Highlight đúng ngày hôm nay (thời gian thực)
+      const isToday = toYmd(d) === todayKey;
 
       return {
         date: d,
@@ -166,65 +251,43 @@ export const TaskCalendar: React.FC<{
         dayIndex: i,
       };
     });
-  }, [weekStartMs]);
+  }, [weekStartMs, currentWeekIndex, todayKey]);
+
+  const todayIdx = weekDays.findIndex((w) => w.isToday);
+  const indicatorIdx = hoveredDayIdx ?? (todayIdx >= 0 ? todayIdx : null);
 
   // ── ĐỒNG BỘ THẺ TASK VÀ NHÃN NGÀY VỚI THỜI GIAN THỰC TẾ TRÊN BẢNG ──
   const currentWeekPills = useMemo<CalendarPill[]>(() => {
     const matchedPills: CalendarPill[] = [];
-    const usedLanes: Record<number, number> = {};
+    const dayLanes: Record<number, number[]> = {};
 
-    // 1. Ghép thẻ từ DB nếu có hạn chót khớp với ngày trong tuần
-    if (dbCards.length > 0) {
-      dbCards.forEach((card) => {
-        if (card.dueDate) {
-          try {
-            const cardDate = new Date(card.dueDate);
-            const dayIdx = weekDays.findIndex((w) => isSameDate(w.date, cardDate));
-            if (dayIdx >= 0 && dayIdx < 8) {
-              const lane = (usedLanes[dayIdx] || 0) % 3;
-              usedLanes[dayIdx] = (usedLanes[dayIdx] || 0) + 1;
-              matchedPills.push({
-                id: `db-card-${card.id}`,
-                dayIndex: dayIdx,
-                dateLabel: weekDays[dayIdx].label, // Luôn đồng bộ nhãn ngày của cột
-                title: card.title,
-                lane,
-                isFocus: dayIdx === 4,
-              });
-            }
-          } catch {
-            // ignore
-          }
-        }
+    // Chỉ hiển thị task THẬT từ Database (hạn chót = due_date của thẻ)
+    const sorted = [...dbCards]
+      .filter((c) => Boolean(c.dueDate))
+      .sort((a, b) => new Date(a.dueDate as string).getTime() - new Date(b.dueDate as string).getTime());
+
+    sorted.forEach((card) => {
+      const cardDate = new Date(card.dueDate as string);
+      const dayIdx = weekDays.findIndex((w) => isSameDate(w.date, cardDate));
+      if (dayIdx < 0) return;
+      // Pill rộng ~1.35 cột nên tránh trùng lane với pill của ngày liền trước
+      const taken = new Set<number>([...(dayLanes[dayIdx] || []), ...(dayLanes[dayIdx - 1] || [])]);
+      let lane = 0;
+      while (taken.has(lane)) lane++;
+      dayLanes[dayIdx] = [...(dayLanes[dayIdx] || []), lane];
+      matchedPills.push({
+        id: `db-card-${card.id}`,
+        cardId: card.id,
+        dayIndex: dayIdx,
+        dateLabel: weekDays[dayIdx].label,
+        title: card.title,
+        lane,
+        isFocus: weekDays[dayIdx].isToday,
       });
-    }
+    });
 
-    if (matchedPills.length > 0) {
-      return matchedPills;
-    }
-
-    // 2. Nếu DB chưa có ngày cụ thể, phân bổ các task với nhãn ngày ĐỒNG BỘ 100% THEO CỘT NGÀY THỰC TẾ
-    const scheduleTemplate: { offset: number; title: string; lane: number; isFocus?: boolean }[] = [
-      { offset: 1, title: 'Submit Final Screens', lane: 0 },
-      { offset: 1, title: 'Client Feedback', lane: 1 },
-      { offset: 1, title: 'Draft Client Proposal', lane: 2 },
-      { offset: 2, title: 'Client Feedback Meeting', lane: 2 },
-      { offset: 3, title: 'UI Testing', lane: 1 },
-      { offset: 4, title: 'Prototype Testing', lane: 0, isFocus: true },
-      { offset: 5, title: 'Finalize UI Screens', lane: 2 },
-      { offset: 7, title: 'Update Style', lane: 1 },
-    ];
-
-    return scheduleTemplate.map((p, idx) => ({
-      id: `pill-dynamic-${currentWeekIndex}-${idx}`,
-      dayIndex: p.offset,
-      // Date label lấy CHÍNH XÁC từ nhãn ngày của cột đó (VD: 29 Jan, 1 Feb,...)
-      dateLabel: weekDays[p.offset]?.label || '',
-      title: p.title,
-      lane: p.lane,
-      isFocus: p.isFocus,
-    }));
-  }, [dbCards, weekDays, currentWeekIndex]);
+    return matchedPills;
+  }, [dbCards, weekDays]);
 
   // Chuyển tuần (Kéo trái: lùi 1 tuần; Kéo phải: tới 1 tuần)
   const handlePrevWeek = () => {
@@ -273,51 +336,81 @@ export const TaskCalendar: React.FC<{
     setDragOffset(0);
   };
 
-  // Lưu khoảng thời gian vào Storage và DB
-  const handleSaveTimeline = (start: Date, end: Date) => {
-    setProjectStart(start);
-    setProjectEnd(end);
-    setCurrentWeekIndex(0); // Quay về tuần đầu tiên của khoảng thời gian mới
+  // Lưu khoảng thời gian vào Storage
+  const handleSaveTimeline = async (start: Date, end: Date) => {
+    if (end.getTime() < start.getTime()) {
+      showToast.error('Ngày kết thúc phải sau ngày bắt đầu', 'Timeline');
+      throw new Error('invalid range');
+    }
 
+    // Lưu vào Database (teams.start_date / end_date)
     if (teamId) {
       try {
-        localStorage.setItem(
-          `fairshare_timeline_${teamId}`,
-          JSON.stringify({ start: start.toISOString(), end: end.toISOString() })
-        );
-      } catch {
-        // ignore
+        await teamApi.updateTeam(teamId, { startDate: toYmd(start), endDate: toYmd(end) });
+      } catch (err) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          'Không thể lưu lịch vào cơ sở dữ liệu';
+        showToast.error(msg, 'Timeline');
+        throw err;
       }
     }
+
+    hasCustomTimelineRef.current = true;
+    setProjectStart(start);
+    setProjectEnd(end);
 
     const startLabel = `${start.getDate()} ${MONTH_NAMES_SHORT[start.getMonth()]}`;
     const endLabel = `${end.getDate()} ${MONTH_NAMES_SHORT[end.getMonth()]}`;
     showToast.success(
       `Đã thiết lập lịch dự án: ${startLabel} - ${endLabel} (${Math.ceil(
         Math.abs(end.getTime() - start.getTime()) / (1000 * 3600 * 24 * 7)
-      )} tuần) và lưu vào DB!`,
-      'Database Synced'
+      )} tuần) và đồng bộ lịch!`,
+      'Timeline Updated'
     );
   };
 
   const handlePillClick = (pill: CalendarPill) => {
     onSelectTask?.(pill.title);
 
-    // Mở Task Detail Modal
-    setSelectedTask({
-      id: pill.id,
-      projectTag: `${projectName} Dashboard`,
-      title: pill.title,
-      dueDate: pill.dateLabel,
-      status: 'in_progress',
-      progress: pill.isFocus ? 50 : 25,
-      commentsCount: 2,
-      linksCount: 1,
-      assignees: [
-        { name: 'Minh Triều', avatarText: 'MT', bg: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-        { name: 'Lan Anh', avatarText: 'LA', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
-      ],
-    });
+    const matchedCard = pill.cardId ? dbCards.find((c) => c.id === pill.cardId) : undefined;
+    if (matchedCard) {
+      setSelectedTask({
+        id: String(matchedCard.id),
+        projectTag: `${projectName} · ${matchedCard.columnName}`,
+        title: matchedCard.title,
+        description: matchedCard.description,
+        dueDate: pill.dateLabel,
+        status: String(matchedCard.columnId),
+        progress: mapColumnProgress(matchedCard.columnName, matchedCard.description),
+        storyPoints: matchedCard.storyPoints,
+        difficultyLevel: matchedCard.difficultyLevel,
+        assigneeId: matchedCard.assigneeId,
+        commentsCount: 0,
+        linksCount: 0,
+        assignees: matchedCard.assigneeName
+          ? [
+              {
+                name: matchedCard.assigneeName,
+                avatarText: getMemberInitials(matchedCard.assigneeName),
+                bg: getMemberAvatarGradient(matchedCard.assigneeName),
+              },
+            ]
+          : [],
+      });
+    } else {
+      setSelectedTask({
+        id: pill.id,
+        projectTag: `${projectName} Dashboard`,
+        title: pill.title,
+        dueDate: pill.dateLabel,
+        status: 'in_progress',
+        progress: pill.isFocus ? 50 : 25,
+        commentsCount: 0,
+        linksCount: 0,
+        assignees: [],
+      });
+    }
     setIsDetailOpen(true);
   };
 
@@ -408,10 +501,11 @@ export const TaskCalendar: React.FC<{
           <div
             className={`task-calendar-grid can-drag ${isDragging ? 'is-dragging' : ''}`}
             style={{
+              minHeight: `${Math.max(155, 48 + (Math.max(-1, ...currentWeekPills.map((p) => p.lane)) + 1) * 36 + 16)}px`,
               transform: isDragging ? `translateX(${dragOffset * 0.3}px)` : 'none',
               transition: isDragging ? 'none' : 'transform 0.25s ease-out',
             }}
-            onMouseLeave={() => setHoveredDayIdx(4)}
+            onMouseLeave={() => setHoveredDayIdx(null)}
           >
             {weekDays.map((day, idx) => (
               <div
@@ -436,17 +530,34 @@ export const TaskCalendar: React.FC<{
             ))}
 
             {/* Vertical Time Scrubber Cursor Line */}
-            {hoveredDayIdx !== null && (
+            {indicatorIdx !== null && (
               <div
                 className="calendar-time-indicator"
                 style={{
-                  left: `calc(${hoveredDayIdx * (100 / weekDays.length)}% + ${
+                  left: `calc(${indicatorIdx * (100 / weekDays.length)}% + ${
                     100 / weekDays.length / 2
                   }%)`,
                 }}
               >
                 <div className="calendar-time-marker" />
                 <div className="calendar-time-line" />
+              </div>
+            )}
+
+            {isDbConnected && currentWeekPills.length === 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 70,
+                  textAlign: 'center',
+                  fontSize: 12.5,
+                  color: 'var(--fg3, #94a3b8)',
+                  pointerEvents: 'none',
+                }}
+              >
+                Chưa có task nào đến hạn trong tuần này
               </div>
             )}
 
@@ -496,7 +607,11 @@ export const TaskCalendar: React.FC<{
       <TaskDetailModal
         isOpen={isDetailOpen}
         task={selectedTask}
+        teamId={teamId}
         onClose={() => setIsDetailOpen(false)}
+        onTaskUpdated={() => {
+          fetchBoardCards();
+        }}
       />
     </>
   );

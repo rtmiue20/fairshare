@@ -1,11 +1,11 @@
 {
-  "run": "1794711733",
+  "run": "1795068233",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-15T10:02:22",
+  "executed_at": "2026-11-19T13:03:59",
   "ids": {
-    "team": 5,
-    "sprint": 9,
-    "board": 8
+    "team": 7,
+    "sprint": 11,
+    "board": 10
   },
   "passed": 26,
   "total": 30,
@@ -34,43 +34,43 @@
   "pdf_performance": [
     {
       "sprint": 1,
-      "events": 100,
-      "cold_s": 0.03,
-      "p50_s": 0.041,
-      "p95_s": 0.07,
-      "max_s": 0.07,
-      "size_kb": 70.4,
+      "events": 132,
+      "cold_s": 0.153,
+      "p50_s": 0.069,
+      "p95_s": 0.102,
+      "max_s": 0.102,
+      "size_kb": 71.4,
       "status": 200
     },
     {
       "sprint": 2,
-      "events": 100,
-      "cold_s": 0.078,
-      "p50_s": 0.037,
-      "p95_s": 0.046,
-      "max_s": 0.046,
-      "size_kb": 70.8,
+      "events": 134,
+      "cold_s": 0.073,
+      "p50_s": 0.053,
+      "p95_s": 0.083,
+      "max_s": 0.083,
+      "size_kb": 71.7,
       "status": 200
     },
     {
       "sprint": 3,
-      "events": 100,
-      "cold_s": 0.057,
-      "p50_s": 0.036,
-      "p95_s": 0.049,
-      "max_s": 0.049,
-      "size_kb": 70.6,
+      "events": 135,
+      "cold_s": 0.06,
+      "p50_s": 0.056,
+      "p95_s": 0.078,
+      "max_s": 0.078,
+      "size_kb": 71.7,
       "status": 200
     },
     {
       "sprint": 4,
       "events": 100,
-      "cold_s": 0.024,
-      "p50_s": 0.031,
-      "p95_s": 0.043,
-      "max_s": 0.043,
-      "size_kb": 70.8,
-      "status": 200
+      "cold_s": 0.019,
+      "p50_s": 0.012,
+      "p95_s": 0.018,
+      "max_s": 0.018,
+      "size_kb": 0.1,
+      "status": 404
     }
   ],
   "cases": [
@@ -135,7 +135,7 @@
       "group": "SCR",
       "name": "Hai nguồn điểm thống nhất: ScoringEngine (/calculate) và routine (/summary) xếp cùng người đứng đầu",
       "expected": "Người có điểm cao nhất giống nhau",
-      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=0.0, Bích=19.57, Cường=19.57, Dũng=8.7, Én=19.57, Phú=32.61)",
+      "actual": "Engine: Phú ; routine: Phú (routine: Ánh=3.58, Bích=23.78, Cường=9.17, Dũng=9.87, Én=23.78, Phú=29.83)",
       "result": "PASS"
     },
     {
@@ -237,7 +237,7 @@
     {
       "id": "TRL-02",
       "group": "TRL",
-      "name": "Router frontend không còn route integration / ConnectTrelloPage",
+      "name": "Frontend không còn tham chiếu ConnectTrelloPage / API tích hợp Trello",
       "expected": "0 file tham chiếu",
       "actual": "0 file: -",
       "result": "PASS"
@@ -255,15 +255,15 @@
       "group": "PDF",
       "name": "G4: xuất PDF nhóm 6 người, 4 sprint dữ liệu seed (500 sự kiện), 11 lần/sprint",
       "expected": "Mọi lần HTTP 200, file %PDF hợp lệ, chậm nhất < 10 s",
-      "actual": "chậm nhất 0.078s; p50 theo sprint = [0.041, 0.037, 0.036, 0.031]s",
-      "result": "PASS"
+      "actual": "chậm nhất 0.153s; p50 theo sprint = [0.069, 0.053, 0.056, 0.012]s",
+      "result": "FAIL"
     },
     {
       "id": "PDF-02",
       "group": "PDF",
       "name": "PDF có phần đóng góp của đủ 6 thành viên",
       "expected": "Đủ 6 tên trong PDF",
-      "actual": "thiếu 6: ['Nguyen Van Minh Trieu (Leader)', 'Le Phuc Vuong (M1 - Platform)', 'Ha Ngoc Thien (M2 - BA)', 'Ngo Trong Phuc (M3 - Data/DB)', 'Trieu Nguyen Huynh Khang (M4 - PeerReview)', 'Nguyen Nam Anh (M5 - QA/Deploy)']",
+      "actual": "thiếu 11: ['Nguyen Van Minh Trieu (Leader)', 'Le Phuc Vuong (M1 - Platform)', 'Ha Ngoc Thien (M2 - BA)', 'Ngo Trong Phuc (M3 - Data/DB)', 'Trieu Nguyen Huynh Khang (M4 - PeerReview)', 'Nguyen Nam Anh (M5 - QA/Deploy)', 'Nguyễn Hoàng Nam (Trưởng nhóm)', 'Trần Thu Trang (Frontend Dev)', 'Lê Quốc Bảo (Backend Dev)', 'Phạm Minh Đức (DevOps)', 'Đặng Thảo Vy (QA Engineer)']",
       "result": "FAIL"
     },
     {
@@ -287,8 +287,8 @@
       "group": "PDF",
       "name": "Tiếng Việt có dấu hiển thị đúng trong PDF (tên thành viên)",
       "expected": "Đủ 6 tên có dấu, vd. 'Trần Thị Bích'",
-      "actual": "HTTP 200; đúng 0/6; ví dụ dòng trong PDF: ''",
-      "result": "FAIL"
+      "actual": "HTTP 200; đúng 6/6; ví dụ dòng trong PDF: 'Trần Thị Bích'",
+      "result": "PASS"
     },
     {
       "id": "PDF-06",

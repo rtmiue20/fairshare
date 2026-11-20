@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ShieldCheck, X, CheckCircle2, AlertCircle, Check, GitCommit, Trello, FileText } from 'lucide-react';
 import { teamApi } from '../../api/team.api';
 
@@ -53,9 +54,9 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
-      <div className="bg-[#121318] border border-zinc-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+  const dialogContent = (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
+      <div className="bg-[#121318] border border-zinc-800 rounded-xl max-w-lg w-full max-h-[90dvh] overflow-y-auto p-4 sm:p-6 shadow-2xl space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
           <div className="flex items-center gap-2">
@@ -156,7 +157,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
             </div>
 
             {/* Rights Summary */}
-            <div className="flex items-center justify-between px-1 text-[11px] text-zinc-500 font-mono">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-zinc-500 font-mono">
               <span className="flex items-center gap-1 text-emerald-400">
                 <Check size={11} /> 4/4 quyền theo NĐ 13/2023
               </span>
@@ -186,4 +187,6 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(dialogContent, document.body);
 };

@@ -25,4 +25,16 @@ public class Team extends BaseEntity {
 
     @Column(name = "invite_code", unique = true)
     private String inviteCode;
+
+    @Column(name = "lecturer")
+    private String lecturer;
+
+    @Column(name = "sprint_count")
+    private Integer sprintCount;
+
+    @Column(name = "start_date")
+    private java.time.LocalDate startDate;
+
+    @Column(name = "end_date")
+    private java.time.LocalDate endDate;
 }

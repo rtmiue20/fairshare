@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   AlertCircle,
-  CheckCircle2,
   Eye,
   EyeOff,
   Lock,
@@ -10,6 +9,9 @@ import {
   Moon,
   Sparkles,
   Sun,
+  Layers,
+  Cpu,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from './useAuth';
 import { Button } from '../../components/ui/Button';
@@ -22,6 +24,9 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isLight, setIsLight] = useState(() =>
+    typeof document !== 'undefined' ? document.documentElement.dataset.theme === 'light' : false
+  );
 
   const { login, loginDemo, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -87,9 +92,9 @@ export const LoginPage: React.FC = () => {
     const next = cur === 'dark' ? 'light' : 'dark';
     r.dataset.theme = next;
     localStorage.setItem('fs-theme', next);
+    setIsLight(next === 'light');
   };
 
-  const isLight = document.documentElement.dataset.theme === 'light';
   const displayError = validationError || error;
 
   return (
@@ -110,7 +115,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Top minimal header bar matching FairShare UI */}
       <header
-        className="relative z-10 w-full flex items-center justify-between px-6 sm:px-12 py-4"
+        className="relative z-10 w-full flex items-center justify-between px-4 sm:px-12 py-3 sm:py-4"
         style={{
           borderBottom: '1px solid var(--line)',
           background: 'var(--glass)',
@@ -119,7 +124,7 @@ export const LoginPage: React.FC = () => {
         }}
       >
         <Link to="/" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
-          <FairShareLogo size={24} />
+          <FairShareLogo size={22} textClassName="hidden min-[360px]:inline-block" />
         </Link>
 
         <div className="flex items-center gap-3">
@@ -142,65 +147,143 @@ export const LoginPage: React.FC = () => {
       </header>
 
       {/* Main Login Workspace */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+      <main className="relative z-10 flex-1 flex items-center justify-center px-3.5 py-6 sm:py-10 sm:px-8">
         <div
-          className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center"
+          className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center"
         >
           {/* Left Hero Overview */}
-          <div className="lg:col-span-7 flex flex-col gap-6 text-left">
-            <span
-              className="eyebrow"
-              style={{
-                font: '500 11px/1 var(--f-mono)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.14em',
-                color: 'var(--fg3)',
-              }}
-            >
-              Dành cho đồ án nhóm
-            </span>
+          <div className="order-2 lg:order-1 lg:col-span-7 flex flex-col gap-5 sm:gap-6 text-left">
+            <div className="flex items-center gap-2">
+              <span
+                className="eyebrow inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase backdrop-blur-md"
+                style={{
+                  fontFamily: 'var(--f-mono)',
+                  color: '#38bdf8',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  boxShadow: '0 0 16px rgba(56, 189, 248, 0.12)',
+                }}
+              >
+                <Sparkles size={12} className="text-cyan-400" />
+                Nền tảng đo lường đóng góp đồ án nhóm
+              </span>
+            </div>
 
             <h1
-              className="h-xl font-light text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-tight"
+              className="h-xl font-light text-3xl sm:text-4xl lg:text-5xl tracking-tight leading-[1.18]"
               style={{ color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
             >
               Chia điểm{' '}
-              <em
-                className="it"
+              <span
+                className="it font-normal italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400"
                 style={{
                   fontFamily: 'var(--f-serif)',
-                  fontStyle: 'italic',
-                  color: 'var(--ital)',
                 }}
               >
                 công bằng
-              </em>
+              </span>
               , dựa trên bằng chứng.
             </h1>
 
             <p
               className="lede text-sm sm:text-base leading-relaxed"
-              style={{ color: 'var(--fg2)', maxWidth: '520px' }}
+              style={{ color: 'var(--fg2)', maxWidth: '530px' }}
             >
-              FairShare tự ghi nhận ai làm gì, bao nhiêu, khi nào, từ Trello và Google Docs. Giải quyết triệt để tình trạng free-rider bằng dữ liệu hoạt động thực tế.
+              FairShare tự động ghi nhận ai làm gì, bao nhiêu, khi nào thông qua Phân hệ Task Board nội bộ, Git commits và khai báo minh chứng có duyệt chéo. Loại bỏ triệt để tình trạng free-rider bằng dữ liệu thực tế và mô hình toán học 4 tầng minh bạch.
             </p>
 
-            <div className="flex flex-col gap-3 text-xs sm:text-sm" style={{ color: 'var(--fg)' }}>
+            <div className="flex flex-col gap-3 mt-1" style={{ maxWidth: '530px' }}>
               {[
-                'Tự động đồng bộ thẻ công việc hoàn thành từ Trello & Docs',
-                'Minh chứng truy vết chi tiết từng thành viên theo Sprint',
-                'Chấm chéo ẩn danh chuẩn hóa đa chiều (Output, Reliability, Peer)',
-              ].map((feat) => (
-                <div key={feat} className="flex items-center gap-2.5">
-                  <CheckCircle2 size={16} style={{ color: 'var(--ok)', flexShrink: 0 }} />
-                  <span>{feat}</span>
-                </div>
-              ))}
+                {
+                  icon: Layers,
+                  title: 'Task Board nội bộ & Truy vết tự động',
+                  desc: 'Ghi nhận sự kiện thời gian thực từ Board Kanban, commits Git và đóng góp thủ công có duyệt chéo.',
+                  accent: {
+                    gradient: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(59, 130, 246, 0.25))',
+                    border: 'rgba(56, 189, 248, 0.4)',
+                    color: '#38bdf8',
+                    shadow: '0 0 16px rgba(56, 189, 248, 0.25)',
+                  },
+                },
+                {
+                  icon: Cpu,
+                  title: 'Mô hình toán học 4 tầng chống gian lận',
+                  desc: 'Chuẩn hóa Robust z-score triệt tiêu chia nhỏ task, bù trừ khả dụng a_i và phát hiện bất thường.',
+                  accent: {
+                    gradient: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(99, 102, 241, 0.25))',
+                    border: 'rgba(168, 85, 247, 0.4)',
+                    color: '#c084fc',
+                    shadow: '0 0 16px rgba(168, 85, 247, 0.25)',
+                  },
+                },
+                {
+                  icon: ShieldCheck,
+                  title: 'Chấm chéo ẩn danh đa chiều D1–D4',
+                  desc: 'Tổng hợp khách quan 4 trục: Sản lượng (D1), Tin cậy (D2), Phối hợp (D3) và Đánh giá đồng đội (D4).',
+                  accent: {
+                    gradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(20, 184, 166, 0.25))',
+                    border: 'rgba(16, 185, 129, 0.4)',
+                    color: '#34d399',
+                    shadow: '0 0 16px rgba(16, 185, 129, 0.25)',
+                  },
+                },
+              ].map((feat, idx) => {
+                const IconComponent = feat.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="group flex items-start gap-3.5 p-3 rounded-2xl transition-all duration-200"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = feat.accent.border;
+                      e.currentTarget.style.transform = 'translateX(4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    {/* Aesthetic Glowing Badge */}
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110"
+                      style={{
+                        background: feat.accent.gradient,
+                        border: `1px solid ${feat.accent.border}`,
+                        boxShadow: feat.accent.shadow,
+                        color: feat.accent.color,
+                      }}
+                    >
+                      <IconComponent size={18} strokeWidth={2.2} />
+                    </div>
+
+                    {/* Text Details */}
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span
+                        className="text-xs sm:text-sm font-semibold tracking-tight"
+                        style={{ color: 'var(--fg, #ffffff)' }}
+                      >
+                        {feat.title}
+                      </span>
+                      <span
+                        className="text-[11px] sm:text-xs leading-relaxed"
+                        style={{ color: 'var(--fg3, #94a3b8)' }}
+                      >
+                        {feat.desc}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Right Card: Login Form */}
-          <div className="lg:col-span-5 w-full">
+          <div className="order-1 lg:order-2 lg:col-span-5 w-full">
             <div
               className="rounded-3xl p-6 sm:p-8 transition-all"
               style={{
@@ -326,7 +409,7 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
                   <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--fg2)' }}>
                     <input
                       type="checkbox"

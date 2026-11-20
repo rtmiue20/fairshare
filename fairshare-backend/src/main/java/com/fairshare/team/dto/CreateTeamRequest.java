@@ -17,4 +17,12 @@ public class CreateTeamRequest {
     private String courseName;
 
     private String description;
+
+    private String lecturer;
+
+    private Integer sprintCount;
+
+    private java.time.LocalDate startDate;
+
+    private java.time.LocalDate endDate;
 }

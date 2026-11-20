@@ -9,11 +9,13 @@ interface ProjectState {
   initialized: boolean;
   fetchTeams: () => Promise<Team[]>;
   setActiveTeamId: (id: number | null) => void;
-  createProject: (payload: { name: string; courseName?: string; description?: string }) => Promise<Team>;
+  resetProjects: () => void;
+  createProject: (payload: { name: string; courseName?: string; description?: string; startDate?: string; endDate?: string }) => Promise<Team>;
   joinProject: (inviteCode: string) => Promise<Team>;
 }
 
 const ACTIVE_TEAM_KEY = 'fairshare_active_team_id';
+let fetchTeamsSeq = 0;
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   teams: [],
@@ -22,9 +24,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   initialized: false,
 
   fetchTeams: async () => {
+    const reqSeq = ++fetchTeamsSeq;
     set({ loading: true });
     try {
       const res = await teamApi.getTeams();
+      if (reqSeq !== fetchTeamsSeq) {
+        return [];
+      }
       const list = Array.isArray(res?.data) ? res.data : [];
       const currentActive = get().activeTeamId;
 
@@ -55,6 +61,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       });
       return list;
     } catch {
+      if (reqSeq !== fetchTeamsSeq) {
+        return [];
+      }
       set({ loading: false, initialized: true });
       return [];
     }
@@ -67,6 +76,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       localStorage.removeItem(ACTIVE_TEAM_KEY);
     }
     set({ activeTeamId: id });
+  },
+
+  resetProjects: () => {
+    fetchTeamsSeq++;
+    try {
+      localStorage.removeItem(ACTIVE_TEAM_KEY);
+    } catch {
+      // Ignore storage error
+    }
+    set({ teams: [], activeTeamId: null, loading: false, initialized: false });
   },
 
   createProject: async (payload) => {

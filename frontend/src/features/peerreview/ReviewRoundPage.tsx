@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   peerReviewApi,
@@ -12,6 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { showToast } from '../../components/ui/Toast';
+import { useNotificationStore } from '../../store/notificationStore';
 import {
   Star,
   Users,
@@ -31,11 +33,15 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Calendar,
   Check,
   CheckSquare,
   Sparkles,
   Award,
+  AlertTriangle,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
 
 interface TeamMemberItem {
@@ -103,27 +109,27 @@ export const ReviewRoundPage: React.FC = () => {
   const theme = useMemo(() => {
     return {
       isLight,
-      pageColor: isLight ? '#f8fafc' : '#0b0c10',
+      pageColor: isLight ? '#f8fafc' : '#07090e',
       textColor: isLight ? '#0f172a' : '#f8fafc',
       headingColor: isLight ? '#0f172a' : '#ffffff',
       subTextColor: isLight ? '#64748b' : '#94a3b8',
-      cardBg: isLight ? '#ffffff' : '#14151b',
+      cardBg: isLight ? '#ffffff' : '#1f1f23',
       cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
-      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 10px 30px rgba(0, 0, 0, 0.35)',
-      cardRadius: '22px',
-      inputBg: isLight ? '#f8fafc' : '#0c0d12',
-      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
+      cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+      cardRadius: '20px',
+      inputBg: isLight ? '#f8fafc' : '#27272a',
+      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
       inputColor: isLight ? '#0f172a' : '#f8fafc',
-      pillBg: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+      pillBg: isLight ? '#f1f5f9' : '#27272a',
       pillBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
       pillText: isLight ? '#334155' : '#cbd5e1',
-      reviewCardBg: isLight ? '#ffffff' : '#14151b',
+      reviewCardBg: isLight ? '#ffffff' : '#1f1f23',
       reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(255, 255, 255, 0.08)',
-      modalBg: isLight ? '#ffffff' : '#14151b',
-      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.12)',
-      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 25px 50px rgba(0, 0, 0, 0.6)',
+      modalBg: isLight ? '#ffffff' : '#18181b',
+      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
+      modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 4px 24px rgba(0, 0, 0, 0.4)',
       filterBadgeBg: (active: boolean) =>
-        active ? '#6366f1' : isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)',
+        active ? '#6366f1' : isLight ? '#f1f5f9' : '#27272a',
       filterBadgeColor: (active: boolean) =>
         active ? '#ffffff' : isLight ? '#475569' : '#94a3b8',
     };
@@ -144,6 +150,26 @@ export const ReviewRoundPage: React.FC = () => {
 
   // Filter by selected reviewee (0 = Tất cả thành viên)
   const [selectedMemberId, setSelectedMemberId] = useState<number>(0);
+  const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState<boolean>(false);
+  const [isRoundDropdownOpen, setIsRoundDropdownOpen] = useState<boolean>(false);
+  const memberDropdownRef = useRef<HTMLDivElement>(null);
+  const roundDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close custom dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (memberDropdownRef.current && !memberDropdownRef.current.contains(event.target as Node)) {
+        setIsMemberDropdownOpen(false);
+      }
+      if (roundDropdownRef.current && !roundDropdownRef.current.contains(event.target as Node)) {
+        setIsRoundDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Filter by Star Rating (0 = All, 5, 4, 3, 2, 1)
   const [selectedStarFilter, setSelectedStarFilter] = useState<number>(0);
@@ -407,6 +433,16 @@ export const ReviewRoundPage: React.FC = () => {
     };
   }, [reviews]);
 
+  const selectedMember = useMemo(
+    () => members.find((m) => m.id === selectedMemberId),
+    [members, selectedMemberId]
+  );
+
+  const currentRound = useMemo(
+    () => rounds.find((r) => r.id === activeRoundId) || rounds[0],
+    [rounds, activeRoundId]
+  );
+
   // Handle Like — calls real API with optimistic local update
   const handleToggleLike = async (reviewId: number, currentLikes: number) => {
     const wasLiked = Boolean(userLikedMap[reviewId]);
@@ -478,6 +514,21 @@ export const ReviewRoundPage: React.FC = () => {
       });
 
       showToast({ message: 'Đã gửi phiếu chấm điểm đồng đội thành công!', type: 'success' });
+      useNotificationStore.getState().addNotification({
+        teamId: activeTeamId ?? currentTeamId,
+        source: 'manual',
+        type: 'success',
+        title: 'Hoàn thành phiếu chấm chéo',
+        message: 'Bạn đã hoàn tất đánh giá và gửi điểm chấm chéo cho đồng đội thành công.',
+        authorName: 'Chấm chéo',
+        avatarText: 'CC',
+        avatarBg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+        actionPrimary: {
+          label: 'Xem kết quả',
+          link: '/peer-review',
+        },
+        triggerToast: false,
+      });
       setShowReviewModal(false);
       loadReviews();
     } catch (err: unknown) {
@@ -574,8 +625,11 @@ export const ReviewRoundPage: React.FC = () => {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         backgroundColor: theme.pageColor,
+        backgroundImage: isLight
+          ? 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.05), transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.04), transparent 60%)'
+          : 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.08), transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.06), transparent 60%)',
         color: theme.textColor,
         paddingTop: 'calc(var(--top, 64px) + 24px)',
         paddingBottom: '60px',
@@ -710,25 +764,19 @@ export const ReviewRoundPage: React.FC = () => {
       </div>
 
       {/* 2. Main 2-Column Layout */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'clamp(280px, 28%, 340px) 1fr',
-          gap: '24px',
-          alignItems: 'start',
-        }}
-      >
+      <div className="peer-review-layout">
         {/* ==================== LEFT COLUMN: CUSTOMER REVIEWS ==================== */}
         <div
+          className="alerts-panel-card"
           style={{
             backgroundColor: theme.cardBg,
             border: theme.cardBorder,
             borderRadius: theme.cardRadius,
             boxShadow: theme.cardShadow,
-            padding: '24px',
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
+            minWidth: 0,
           }}
         >
           {/* Header Icon & Title */}
@@ -998,46 +1046,174 @@ export const ReviewRoundPage: React.FC = () => {
           </div>
 
           {/* Member Filter Section */}
-          <div style={{ borderTop: isLight ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+          <div
+            ref={memberDropdownRef}
+            className="relative"
+            style={{
+              borderTop: isLight ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.06)',
+              paddingTop: '16px',
+            }}
+          >
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.subTextColor, marginBottom: '8px' }}>
               Xem đánh giá theo thành viên:
             </label>
-            <select
-              value={selectedMemberId}
-              onChange={(e) => setSelectedMemberId(Number(e.target.value))}
-              style={{
-                width: '100%',
-                backgroundColor: theme.inputBg,
-                color: theme.inputColor,
-                border: theme.inputBorder,
-                borderRadius: '10px',
-                padding: '9px 12px',
-                fontSize: '13px',
-                outline: 'none',
-              }}
+
+            {/* Custom Popover Dropdown Trigger */}
+            <button
+              type="button"
+              onClick={() => setIsMemberDropdownOpen((prev) => !prev)}
+              className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                isMemberDropdownOpen
+                  ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-slate-50 dark:bg-zinc-800'
+                  : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-white dark:bg-zinc-900/80'
+              }`}
             >
-              <option value={0}>Tất cả thành viên trong nhóm</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} · {m.role}
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center gap-2.5 min-w-0">
+                {selectedMember ? (
+                  <span
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm text-white"
+                    style={{ backgroundColor: selectedMember.color }}
+                  >
+                    {getInitials(selectedMember.name)}
+                  </span>
+                ) : (
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm bg-gradient-to-br from-indigo-500 to-cyan-500 text-white">
+                    <Users className="w-3.5 h-3.5" />
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100">
+                    {selectedMember ? selectedMember.name : 'Tất cả thành viên trong nhóm'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                    {selectedMember
+                      ? `${selectedMember.role}${selectedMember.isLeader ? ' · Trưởng nhóm' : ''}`
+                      : 'Xem toàn bộ đánh giá'}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200 ${
+                  isMemberDropdownOpen ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                }`}
+              />
+            </button>
+
+            {/* Custom Popover Menu */}
+            {isMemberDropdownOpen && (
+              <div
+                className="absolute left-0 right-0 z-[100] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden shadow-2xl"
+                style={{
+                  top: 'calc(100% + 8px)',
+                  boxShadow: isLight
+                    ? '0 20px 45px -12px rgba(15, 23, 42, 0.22), 0 6px 18px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)'
+                    : '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                }}
+              >
+                {/* Header */}
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                  <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                    THÀNH VIÊN TRONG NHÓM
+                  </span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                    {members.length + 1}
+                  </span>
+                </div>
+
+                {/* List */}
+                <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                  {/* All members option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMemberId(0);
+                      setIsMemberDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                      selectedMemberId === 0
+                        ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-sm'
+                        : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                    }`}
+                  >
+                    <span className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm bg-gradient-to-br from-indigo-500 to-cyan-500 text-white transition-transform group-hover:scale-105">
+                      <Users className="w-3.5 h-3.5" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                        Tất cả thành viên trong nhóm
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Xem toàn bộ đánh giá của nhóm
+                      </div>
+                    </div>
+                    {selectedMemberId === 0 && (
+                      <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                    )}
+                  </button>
+
+                  {/* Individual members */}
+                  {members.map((m) => {
+                    const isActive = selectedMemberId === m.id;
+                    const initials = getInitials(m.name);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMemberId(m.id);
+                          setIsMemberDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                          isActive
+                            ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-sm'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                        }`}
+                      >
+                        <span
+                          className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm text-white transition-transform group-hover:scale-105"
+                          style={{ backgroundColor: m.color }}
+                        >
+                          {initials}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                            {m.name}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                            {m.role} {m.isLeader ? '· Trưởng nhóm' : '· Thành viên'}
+                          </div>
+                        </div>
+                        {isActive && (
+                          <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* ==================== RIGHT COLUMN: HERO BANNER & REVIEWS ==================== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Top Banner (Purple Gradient with Connected Avatars & Anonymous Toggle) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+          {/* Top Banner (Glassmorphic Subtle Indigo - Mờ ảo xám đen đồng bộ với trang Đóng góp) */}
           <div
+            className="peer-hero-banner"
             style={{
               position: 'relative',
               borderRadius: theme.cardRadius,
-              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%)',
-              color: '#ffffff',
-              padding: '24px 28px',
+              background: isLight
+                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.95) 100%)'
+                : 'linear-gradient(135deg, rgba(31, 31, 35, 0.75) 0%, rgba(24, 24, 27, 0.88) 100%)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              color: isLight ? '#0f172a' : '#ffffff',
               overflow: 'hidden',
-              boxShadow: '0 12px 32px rgba(79, 70, 229, 0.28)',
+              border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: isLight
+                ? '0 10px 30px rgba(0, 0, 0, 0.04)'
+                : '0 12px 32px rgba(0, 0, 0, 0.35), inset 0 0 60px rgba(99, 102, 241, 0.06)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -1045,24 +1221,55 @@ export const ReviewRoundPage: React.FC = () => {
               gap: '16px',
             }}
           >
+            {/* Ambient Purple/Cyan Glow Aura (Mờ ảo như trang Đóng góp) */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '40px',
+                width: '280px',
+                height: '200px',
+                background: isLight
+                  ? 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-30px',
+                left: '20px',
+                width: '220px',
+                height: '140px',
+                background: isLight
+                  ? 'radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, transparent 70%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+
             {/* Banner Left: Team Info */}
             <div style={{ zIndex: 2, maxWidth: '340px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+                <h3 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', color: isLight ? '#0f172a' : '#ffffff' }}>
                   {activeTeam?.name || 'KINGSHA'}
                 </h3>
-                <span style={{ fontSize: '14px' }}>✨</span>
+                <Sparkles size={16} className="text-amber-400" />
               </div>
-              <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
+              <div style={{ fontSize: '13px', color: isLight ? '#64748b' : '#a1a1aa', marginTop: '4px' }}>
                 {stats.totalReviews > 0 ? `(${stats.totalReviews}) ${stats.avgScore.toFixed(1)} Ratings` : 'Hệ thống đánh giá đồng đội'}
               </div>
-              <div style={{ fontSize: '11px', opacity: 0.75, marginTop: '6px' }}>
+              <div style={{ fontSize: '11px', color: isLight ? '#6366f1' : '#c084fc', marginTop: '6px', fontWeight: 600 }}>
                 Đợt chấm: {activeRound?.name || 'Đợt hiện tại'} · K-Anonymity
               </div>
             </div>
 
             {/* Banner Center: Floating avatar network nodes */}
             <div
+              className="peer-hero-avatars"
               style={{
                 position: 'relative',
                 width: '180px',
@@ -1103,7 +1310,7 @@ export const ReviewRoundPage: React.FC = () => {
                       width: pos.size,
                       height: pos.size,
                       borderRadius: '50%',
-                      border: idx === 2 ? '2px solid #ffffff' : '2px solid rgba(255,255,255,0.85)',
+                      border: idx === 2 ? '2px solid #6366f1' : '2px solid rgba(255,255,255,0.7)',
                       backgroundColor: ('color' in member && member.color) ? member.color : pos.bg,
                       color: '#fff',
                       fontWeight: 700,
@@ -1124,21 +1331,21 @@ export const ReviewRoundPage: React.FC = () => {
             <div
               style={{
                 zIndex: 2,
-                backgroundColor: 'rgba(0, 0, 0, 0.22)',
+                backgroundColor: isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(0, 0, 0, 0.4)',
                 backdropFilter: 'blur(10px)',
                 borderRadius: '16px',
                 padding: '12px 18px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 gap: '8px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {isAnonymous ? <EyeOff size={18} color="#a7f3d0" /> : <Eye size={18} color="#fed7aa" />}
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>
+                  {isAnonymous ? <EyeOff size={18} color={isLight ? '#059669' : '#a7f3d0'} /> : <Eye size={18} color={isLight ? '#d97706' : '#fed7aa'} />}
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
                     Chế độ Ẩn danh:
                   </span>
                 </div>
@@ -1151,7 +1358,7 @@ export const ReviewRoundPage: React.FC = () => {
                     width: '48px',
                     height: '26px',
                     borderRadius: '13px',
-                    backgroundColor: isAnonymous ? '#10b981' : 'rgba(255, 255, 255, 0.35)',
+                    backgroundColor: isAnonymous ? '#10b981' : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255, 255, 255, 0.25)'),
                     border: 'none',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s ease',
@@ -1178,7 +1385,7 @@ export const ReviewRoundPage: React.FC = () => {
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: isAnonymous ? '#a7f3d0' : '#fed7aa',
+                  color: isAnonymous ? (isLight ? '#059669' : '#a7f3d0') : (isLight ? '#d97706' : '#fed7aa'),
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
@@ -1207,39 +1414,138 @@ export const ReviewRoundPage: React.FC = () => {
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: theme.subTextColor }}>
+            <div ref={roundDropdownRef} className="relative flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
                 Đợt chấm:
               </span>
-              <select
-                value={activeRoundId}
-                onChange={(e) => setActiveRoundId(Number(e.target.value))}
-                style={{
-                  backgroundColor: theme.cardBg,
-                  color: theme.headingColor,
-                  border: theme.cardBorder,
-                  borderRadius: '10px',
-                  padding: '7px 12px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  outline: 'none',
-                  boxShadow: theme.cardShadow,
-                }}
+              <button
+                type="button"
+                onClick={() => setIsRoundDropdownOpen((prev) => !prev)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-left cursor-pointer ${
+                  isRoundDropdownOpen
+                    ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-slate-50 dark:bg-zinc-800'
+                    : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-white dark:bg-zinc-900/80'
+                }`}
+                style={{ boxShadow: theme.cardShadow }}
               >
-                {rounds.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} ({r.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'})
-                  </option>
-                ))}
-              </select>
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    currentRound?.status === 'OPEN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400 dark:bg-slate-500'
+                  }`}
+                />
+                <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[165px] sm:max-w-[280px] truncate">
+                  {currentRound ? currentRound.name : 'Chọn đợt chấm'}
+                </span>
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                    currentRound?.status === 'OPEN'
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                  }`}
+                >
+                  {currentRound?.status === 'OPEN' ? 'Đang mở' : 'Đã đóng'}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200 ${
+                    isRoundDropdownOpen ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Popover Menu */}
+              {isRoundDropdownOpen && (
+                <div
+                  className="absolute left-0 z-[100] w-[min(360px,calc(100vw-32px))] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden shadow-2xl"
+                  style={{
+                    top: 'calc(100% + 8px)',
+                    boxShadow: isLight
+                      ? '0 20px 45px -12px rgba(15, 23, 42, 0.22), 0 6px 18px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)'
+                      : '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)',
+                  }}
+                >
+                  {/* Header */}
+                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                    <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                      ĐỢT CHẤM CHÉO
+                    </span>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                      {rounds.length}
+                    </span>
+                  </div>
+
+                  {/* List */}
+                  <div className="max-h-64 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                    {rounds.map((r, idx) => {
+                      const isActive = activeRoundId === r.id;
+                      const isOpen = r.status === 'OPEN';
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveRoundId(r.id);
+                            setIsRoundDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                            isActive
+                              ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-sm'
+                              : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                          }`}
+                        >
+                          <span
+                            className={`w-7 h-7 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
+                              isOpen
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                            }`}
+                          >
+                            R{idx + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                              {r.name}
+                            </div>
+                            <div className="text-[10px] flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isOpen ? 'bg-emerald-500' : 'bg-slate-400'
+                                }`}
+                              />
+                              {isOpen ? 'Đang hoạt động (Đang mở)' : 'Đã kết thúc (Đã đóng)'}
+                            </div>
+                          </div>
+                          {isActive && (
+                            <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bottom Action: Create new round */}
+                  <div className="p-2 border-t border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-black/30">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRoundDropdownOpen(false);
+                        openCreateModal();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/10 rounded-xl transition cursor-pointer border border-dashed border-cyan-500/30 hover:border-cyan-500/60"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Tạo đợt chấm mới...
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Star Filters */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
               <button
                 onClick={() => setSelectedStarFilter(0)}
                 style={{
-                  padding: '5px 10px',
+                  padding: '7px 12px',
                   borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: 600,
@@ -1256,7 +1562,7 @@ export const ReviewRoundPage: React.FC = () => {
                   key={star}
                   onClick={() => setSelectedStarFilter(star)}
                   style={{
-                    padding: '5px 10px',
+                    padding: '7px 12px',
                     borderRadius: '8px',
                     fontSize: '12px',
                     fontWeight: 600,
@@ -1360,9 +1666,11 @@ export const ReviewRoundPage: React.FC = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'flex-start',
+                        flexWrap: 'wrap',
+                        gap: '10px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
                         <div
                           style={{
                             width: 44,
@@ -1382,8 +1690,8 @@ export const ReviewRoundPage: React.FC = () => {
                           {avatarText}
                         </div>
 
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                             <h4
                               style={{
                                 fontSize: '15px',
@@ -1419,7 +1727,7 @@ export const ReviewRoundPage: React.FC = () => {
                       </div>
 
                       {/* Top Right Stars */}
-                      <div style={{ display: 'flex', gap: '3px', color: '#f59e0b' }}>
+                      <div style={{ display: 'flex', gap: '3px', color: '#f59e0b', flexShrink: 0 }}>
                         {[1, 2, 3, 4, 5].map((s) => (
                           <Star
                             key={s}
@@ -1490,7 +1798,8 @@ export const ReviewRoundPage: React.FC = () => {
                             color: '#10b981',
                           }}
                         >
-                          ✅ Thẻ hoàn thành: {review.cardTitle}
+                          <CheckCircle2 size={12} strokeWidth={2.5} />
+                          <span>Thẻ hoàn thành: {review.cardTitle}</span>
                         </span>
                       </div>
                     )}
@@ -1529,7 +1838,8 @@ export const ReviewRoundPage: React.FC = () => {
                             gap: '5px',
                             background: 'none',
                             border: 'none',
-                            padding: 0,
+                            padding: '6px 10px',
+                            borderRadius: '8px',
                             fontSize: '12px',
                             fontWeight: 600,
                             color: theme.subTextColor,
@@ -1552,7 +1862,8 @@ export const ReviewRoundPage: React.FC = () => {
                             gap: '5px',
                             background: 'none',
                             border: 'none',
-                            padding: 0,
+                            padding: '6px 10px',
+                            borderRadius: '8px',
                             fontSize: '12px',
                             fontWeight: 600,
                             color: theme.subTextColor,
@@ -1573,7 +1884,7 @@ export const ReviewRoundPage: React.FC = () => {
                           gap: '6px',
                           background: 'none',
                           border: 'none',
-                          padding: '4px 8px',
+                          padding: '6px 12px',
                           borderRadius: '8px',
                           fontSize: '13px',
                           fontWeight: 700,
@@ -1602,22 +1913,25 @@ export const ReviewRoundPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* ==================== MULTI-STEP MODAL: CHẤM ĐIỂM (4 BƯỚC) ==================== */}
       {/* ========================================================================= */}
-      {showReviewModal && (
+      {showReviewModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
         <div
           role="dialog"
           aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '0.75rem',
             background: 'rgba(0, 0, 0, 0.72)',
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             animation: 'fadeIn 0.2s ease-out',
+            overflowY: 'auto',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !submittingReview) setShowReviewModal(false);
@@ -1628,9 +1942,11 @@ export const ReviewRoundPage: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '620px',
+              maxHeight: '92dvh',
+              margin: 'auto',
               borderRadius: '26px',
               border: '1px solid var(--line)',
-              background: 'var(--surface)',
+              background: isLight ? '#ffffff' : '#18181b',
               color: 'var(--fg)',
               boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--glass-line)',
               display: 'flex',
@@ -1643,11 +1959,12 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Header */}
             <div
               style={{
-                padding: '1.5rem 1.75rem 0.5rem',
+                padding: '1.25rem 1.5rem 0.5rem',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 position: 'relative',
+                flexShrink: 0,
               }}
             >
               <div style={{ flex: 1, paddingRight: '1.5rem' }}>
@@ -1707,7 +2024,7 @@ export const ReviewRoundPage: React.FC = () => {
             </div>
 
             {/* Modal Content Body */}
-            <div style={{ padding: '1.25rem 1.75rem 1.25rem', maxHeight: '68vh', overflowY: 'auto' }}>
+            <div style={{ padding: '1rem 1.5rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {/* ==================== BƯỚC 1: SPRINT & REVIEWEE ==================== */}
               {reviewStep === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -1716,7 +2033,14 @@ export const ReviewRoundPage: React.FC = () => {
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)', marginBottom: '8px' }}>
                       1. Chọn Sprint / Tuần làm việc:
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: sprints.length > 1 ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                    <div
+                      className={sprints.length > 1 ? 'pr-grid-2' : undefined}
+                      style={
+                        sprints.length > 1
+                          ? { gap: '10px' }
+                          : { display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }
+                      }
+                    >
                       {sprints.map((sp) => {
                         const isSelected = modalSprintId === sp.id;
                         return (
@@ -1835,8 +2159,9 @@ export const ReviewRoundPage: React.FC = () => {
                           );
                         })}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
-                      ⚠️ Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--fg3)', marginTop: '8px' }}>
+                      <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                      <span>Cơ chế Anti-Self-Review: Hệ thống tự động loại trừ chính bạn khỏi danh sách đánh giá.</span>
                     </div>
                   </div>
                 </div>
@@ -1859,6 +2184,8 @@ export const ReviewRoundPage: React.FC = () => {
                       border: modalCardId === 0 ? '2px solid #6366f1' : '1px solid var(--line)',
                       cursor: 'pointer',
                       display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '12px',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       transition: 'all 0.15s ease',
@@ -1943,8 +2270,8 @@ export const ReviewRoundPage: React.FC = () => {
                       border: '1px solid var(--line)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 200px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
                           1. Chất lượng công việc (Quality)
                         </div>
@@ -1952,7 +2279,7 @@ export const ReviewRoundPage: React.FC = () => {
                           Code sạch, ít bug, kiến trúc chặt chẽ, hoàn thiện đúng yêu cầu
                         </div>
                       </div>
-                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#6366f1' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#6366f1', flexShrink: 0 }}>
                         {modalQuality} / 5 ★
                       </span>
                     </div>
@@ -1971,7 +2298,7 @@ export const ReviewRoundPage: React.FC = () => {
                         margin: '8px 0',
                       }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
+                    <div className="pr-scale-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
                       <span>1★ Kém</span>
                       <span>2★ Trung bình</span>
                       <span>3★ Đạt yêu cầu</span>
@@ -1992,8 +2319,8 @@ export const ReviewRoundPage: React.FC = () => {
                       border: '1px solid var(--line)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 200px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
                           2. Tiến độ &amp; Đúng hạn (Punctuality)
                         </div>
@@ -2001,7 +2328,7 @@ export const ReviewRoundPage: React.FC = () => {
                           Bàn giao task đúng hạn deadline cam kết, không làm nghẽn tiến độ sprint
                         </div>
                       </div>
-                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#10b981' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#10b981', flexShrink: 0 }}>
                         {modalPunctuality} / 5 ★
                       </span>
                     </div>
@@ -2020,7 +2347,7 @@ export const ReviewRoundPage: React.FC = () => {
                         margin: '8px 0',
                       }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
+                    <div className="pr-scale-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
                       <span>1★ Rất trễ</span>
                       <span>2★ Chậm trễ</span>
                       <span>3★ Đúng hẹn</span>
@@ -2041,8 +2368,8 @@ export const ReviewRoundPage: React.FC = () => {
                       border: '1px solid var(--line)',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 200px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--fg)' }}>
                           3. Tinh thần hợp tác &amp; Giao tiếp (Cooperation)
                         </div>
@@ -2050,7 +2377,7 @@ export const ReviewRoundPage: React.FC = () => {
                           Hỗ trợ đồng đội gỡ blocker, tham gia trao đổi tích cực trong daily meeting
                         </div>
                       </div>
-                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#f59e0b' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: '#f59e0b', flexShrink: 0 }}>
                         {modalCooperation} / 5 ★
                       </span>
                     </div>
@@ -2069,7 +2396,7 @@ export const ReviewRoundPage: React.FC = () => {
                         margin: '8px 0',
                       }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
+                    <div className="pr-scale-labels" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--fg3)', fontWeight: 600 }}>
                       <span>1★ Thụ động</span>
                       <span>2★ Ít giao tiếp</span>
                       <span>3★ Hợp tác tốt</span>
@@ -2114,6 +2441,8 @@ export const ReviewRoundPage: React.FC = () => {
                       background: modalIsAnonymous ? 'rgba(99, 102, 241, 0.08)' : 'var(--surface2)',
                       border: modalIsAnonymous ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid var(--line)',
                       display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '12px',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                     }}
@@ -2207,22 +2536,29 @@ export const ReviewRoundPage: React.FC = () => {
                     </div>
 
                     {/* Linked Done Card */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Thẻ nhiệm vụ:</span>
-                      <span style={{ fontWeight: 600, color: '#10b981' }}>
-                        {selectedCard ? `✅ ${selectedCard.title}` : 'Đánh giá chung toàn sprint'}
+                      <span style={{ fontWeight: 600, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        {selectedCard ? (
+                          <>
+                            <CheckCircle2 size={13} strokeWidth={2.5} />
+                            <span>{selectedCard.title}</span>
+                          </>
+                        ) : (
+                          'Đánh giá chung toàn sprint'
+                        )}
                       </span>
                     </div>
 
                     {/* Scores preview */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Điểm bình quân:</span>
                       <span style={{ fontWeight: 800, fontSize: '15px', color: '#6366f1' }}>
                         {((modalQuality + modalPunctuality + modalCooperation) / 3).toFixed(2)} / 5.0 ★
                       </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '11px', marginTop: '4px' }}>
+                    <div className="pr-grid-3" style={{ fontSize: '11px', marginTop: '4px' }}>
                       <div style={{ padding: '6px 8px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
                         Chất lượng: <strong>{modalQuality}★</strong>
                       </div>
@@ -2243,10 +2579,20 @@ export const ReviewRoundPage: React.FC = () => {
                     </div>
 
                     {/* Identity Mode */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)' }}>
                       <span style={{ color: 'var(--fg3)' }}>Chế độ hiển thị:</span>
-                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1' }}>
-                        {modalIsAnonymous ? '🕶️ Ẩn danh (Anonymous K-Anonymity)' : '👤 Công khai tên thật'}
+                      <span style={{ fontWeight: 600, color: modalIsAnonymous ? '#10b981' : '#6366f1', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        {modalIsAnonymous ? (
+                          <>
+                            <ShieldCheck size={14} />
+                            <span>Ẩn danh (Anonymous K-Anonymity)</span>
+                          </>
+                        ) : (
+                          <>
+                            <User size={14} />
+                            <span>Công khai tên thật</span>
+                          </>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -2257,12 +2603,15 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Step Footer with Progress Bar */}
             <div
               style={{
-                padding: '0.9rem 1.75rem 1.25rem',
+                padding: '0.85rem 1.5rem 1rem',
                 borderTop: '1px solid var(--line)',
                 display: 'flex',
+                flexWrap: 'wrap',
+                gap: '10px',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'var(--surface)',
+                background: isLight ? '#ffffff' : '#18181b',
+                flexShrink: 0,
               }}
             >
               {/* Progress indicator */}
@@ -2392,28 +2741,32 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* ==================== MULTI-STEP MODAL: TẠO ĐỢT MỚI (3 BƯỚC) ==================== */}
       {/* ========================================================================= */}
-      {showCreateModal && (
+      {showCreateModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
         <div
           role="dialog"
           aria-modal="true"
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 100,
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.25rem',
+            padding: '0.75rem',
             background: 'rgba(0, 0, 0, 0.72)',
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             animation: 'fadeIn 0.2s ease-out',
+            overflowY: 'auto',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !creatingRound) setShowCreateModal(false);
@@ -2424,9 +2777,11 @@ export const ReviewRoundPage: React.FC = () => {
             style={{
               width: '100%',
               maxWidth: '540px',
+              maxHeight: '92dvh',
+              margin: 'auto',
               borderRadius: '26px',
               border: '1px solid var(--line)',
-              background: 'var(--surface)',
+              background: isLight ? '#ffffff' : '#18181b',
               color: 'var(--fg)',
               boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--glass-line)',
               display: 'flex',
@@ -2439,11 +2794,12 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Header */}
             <div
               style={{
-                padding: '1.5rem 1.75rem 0.5rem',
+                padding: '1.25rem 1.5rem 0.5rem',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 position: 'relative',
+                flexShrink: 0,
               }}
             >
               <div style={{ flex: 1, paddingRight: '1.5rem' }}>
@@ -2499,7 +2855,7 @@ export const ReviewRoundPage: React.FC = () => {
             </div>
 
             {/* Modal Content Body */}
-            <div style={{ padding: '1.25rem 1.75rem 1.25rem' }}>
+            <div style={{ padding: '1rem 1.5rem 1.25rem', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {createRoundStep === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--fg)' }}>
@@ -2567,7 +2923,7 @@ export const ReviewRoundPage: React.FC = () => {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="pr-grid-2">
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--fg3)', marginBottom: '6px' }}>
                         Ngày bắt đầu mở cổng:
@@ -2625,15 +2981,15 @@ export const ReviewRoundPage: React.FC = () => {
                       gap: '10px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Tên đợt:</span>
                       <strong style={{ color: 'var(--fg)' }}>{newRoundName}</strong>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Sprint:</span>
                       <span>{sprints.find((s) => s.id === newRoundSprintId)?.name}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <span style={{ color: 'var(--fg3)', minWidth: '90px' }}>Thời hạn:</span>
                       <span>
                         {newRoundStartDate ? new Date(newRoundStartDate).toLocaleDateString('vi-VN') : 'Ngay sau khi tạo'} → {newRoundEndDate ? new Date(newRoundEndDate).toLocaleDateString('vi-VN') : 'Vô thời hạn'}
@@ -2650,12 +3006,15 @@ export const ReviewRoundPage: React.FC = () => {
             {/* Modal Step Footer with Progress Bar */}
             <div
               style={{
-                padding: '0.9rem 1.75rem 1.25rem',
+                padding: '0.85rem 1.5rem 1rem',
                 borderTop: '1px solid var(--line)',
                 display: 'flex',
+                flexWrap: 'wrap',
+                gap: '10px',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'var(--surface)',
+                background: isLight ? '#ffffff' : '#18181b',
+                flexShrink: 0,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -2779,7 +3138,8 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

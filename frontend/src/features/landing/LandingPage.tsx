@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { LandingRibbon } from './LandingRibbon';
-import { FairShareIcon } from '../../components/ui/Icons';
 import { TopNav } from '../../components/layout/TopNav';
 import { ToastContainer } from '../../components/ui/Toast';
+import { Plug, BarChart3, Scale, Bell } from 'lucide-react';
 
 const CHAPTERS = [
   { name: 'Mở đầu' },
@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
                   Chia điểm <em className="it">công bằng</em>, dựa trên bằng chứng.
                 </h1>
                 <p className="hero-side">
-                  FairShare tự ghi nhận ai làm gì, bao nhiêu, khi nào, từ Trello và Google Docs.
+                  FairShare tự ghi nhận ai làm gì, bao nhiêu, khi nào, từ Task Board nội bộ, Git commits và minh chứng có duyệt chéo.
                 </p>
                 <div className="btns">
                   <Link className="btn" to="/dashboard">
@@ -101,28 +101,28 @@ export const LandingPage: React.FC = () => {
                 <div className="cards c4">
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="plug" />
+                      <Plug size={20} />
                     </span>
-                    <h3>Tích hợp tự động</h3>
-                    <p>Nối Trello và Google Docs, task hoàn thành và chỉnh sửa tài liệu tự được ghi lại.</p>
+                    <h3>Ghi nhận tự động</h3>
+                    <p>Task Board Kanban nội bộ, Git commit logs và khai báo thủ công được tự động lưu vết minh chứng bất biến.</p>
                   </div>
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="chart" />
+                      <BarChart3 size={20} />
                     </span>
                     <h3>Bảng đóng góp</h3>
                     <p>Biểu đồ tỷ lệ từng người, mở ra thấy ai làm gì và lúc nào.</p>
                   </div>
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="vote" />
+                      <Scale size={20} />
                     </span>
                     <h3>Chấm chéo ẩn danh</h3>
                     <p>Cuối mỗi sprint, thành viên đánh giá nhau theo chất lượng, đúng hạn, hợp tác.</p>
                   </div>
                   <div className="glass fcard">
                     <span className="ico">
-                      <FairShareIcon name="bell" />
+                      <Bell size={20} />
                     </span>
                     <h3>Cảnh báo sớm</h3>
                     <p>Nhắc nhóm khi có người không hoạt động trong thời gian dài.</p>
@@ -137,7 +137,7 @@ export const LandingPage: React.FC = () => {
                   Một bảng cho <em className="it">mọi đóng góp</em>
                 </h2>
                 <p className="sub">
-                  Dữ liệu từ Trello, Google Docs và phiếu chấm chéo gom về một Dashboard, sẵn sàng xuất PDF cho giảng viên.
+                  Dữ liệu từ Task Board, Git commits, đóng góp thủ công và phiếu chấm chéo gom về một Dashboard, sẵn sàng xuất PDF cho giảng viên.
                 </p>
                 <div className="glass mock">
                   <div className="mock-bar">
@@ -263,8 +263,8 @@ export const LandingPage: React.FC = () => {
                 <div className="steps">
                   <div className="step">
                     <span className="n">01</span>
-                    <h3>Kết nối</h3>
-                    <p>Cấp quyền đọc cho bảng Trello và các tài liệu Google Docs của nhóm.</p>
+                    <h3>Thiết lập nhóm</h3>
+                    <p>Khởi tạo Task Board nội bộ, kết nối kho lưu trữ Git và mời các thành viên tham gia.</p>
                   </div>
                   <div className="step">
                     <span className="n">02</span>
@@ -352,15 +352,13 @@ export const LandingPage: React.FC = () => {
               <details className="q">
                 <summary>Làm sao biết số liệu không bị làm giả?</summary>
                 <p>
-                  Mỗi ghi nhận lấy từ lịch sử của Trello và Google Docs, kèm thời điểm. Những lần chỉnh sửa hàng
-                  loạt sát hạn chót sẽ được đánh dấu để nhóm xem lại.
+                  Mọi sự kiện được ghi nhận bất biến trong cơ sở dữ liệu (Task Board, Git commits, đóng góp duyệt chéo). ScoringEngine áp dụng mô hình toán học Robust z-score và thuật toán phát hiện bất thường để triệt tiêu gian lận chia nhỏ task hay spam.
                 </p>
               </details>
               <details className="q">
                 <summary>Cần chuẩn bị gì để bắt đầu?</summary>
                 <p>
-                  Một bảng Trello và các tài liệu Google Docs của nhóm. Bạn chỉ cần cấp quyền đọc, không phải nhập
-                  tay.
+                  Chỉ cần tạo nhóm trên FairShare. Nhóm có sẵn hệ thống Task Board Kanban tích hợp, đồng bộ Git commits và form khai báo minh chứng duyệt chéo nhanh chóng.
                 </p>
               </details>
               <details className="q">

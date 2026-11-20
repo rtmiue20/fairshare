@@ -10,6 +10,18 @@ spring:
     username: ${DB_USER:root}
     # password: lấy từ application-secret.yaml
     driver-class-name: org.mariadb.jdbc.Driver
+    hikari:
+      pool-name: FairShareHikariPool
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,6 +29,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 20MB
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}

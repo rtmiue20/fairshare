@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Key } from 'lucide-react';
 import { useProjectStore } from '../../store/projectStore';
 
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -24,37 +25,45 @@ interface Particle {
   w: number;
 }
 
-/** Chạy queue marquee từ phải qua trái nếu text quá dài */
-const MarqueeText: React.FC<{ text: string; maxLen?: number }> = ({
-  text,
-  maxLen = 40,
-}) => {
-  if (!text) return null;
-  if (text.length <= maxLen) {
-    return <>{text}</>;
-  }
-  const doubled = text + '    •    ' + text;
-  return (
-    <span
-      className="marquee-wrap"
-      aria-label={text}
-      style={{
-        display: 'inline-block',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        verticalAlign: 'bottom',
-      }}
-    >
-      <span className="marquee-inner">{doubled}</span>
-    </span>
-  );
-};
+export interface HeroMemberItem {
+  id: string | number;
+  name: string;
+  ini: string;
+  role: string;
+  pct: number;
+  tasks: number;
+  edits: number;
+  peer: number;
+}
+
+const DEFAULT_HERO_MEMBERS: HeroMemberItem[] = [
+  { id: 'm1', name: 'Minh Triều', ini: 'MT', role: 'Leader', pct: 34, tasks: 31, edits: 412, peer: 4.3 },
+  { id: 'm2', name: 'Lan Anh', ini: 'LA', role: 'Backend', pct: 27, tasks: 26, edits: 338, peer: 4.1 },
+  { id: 'm3', name: 'Quốc Bảo', ini: 'QB', role: 'Frontend', pct: 24, tasks: 22, edits: 301, peer: 3.9 },
+  { id: 'm4', name: 'Thu Hà', ini: 'TH', role: 'Tài liệu', pct: 15, tasks: 9, edits: 197, peer: 3.2 },
+];
+
+const FALLBACK_MEMBER_RGB: [number, number, number][] = [
+  [91, 141, 239],
+  [192, 107, 224],
+  [232, 163, 61],
+  [63, 191, 168],
+  [76, 195, 138],
+  [169, 155, 255],
+];
 
 export interface DashboardHeroCanvasProps {
   teamId?: number;
+  members?: HeroMemberItem[];
+  totalEvents?: number;
+  sprintLabel?: string;
 }
 
-export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId: propTeamId }) => {
+export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({
+  teamId: propTeamId,
+  members: propMembers,
+  totalEvents,
+}) => {
   const heroRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,21 +77,39 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
   const targetId = propTeamId || activeTeamId;
   const currentTeam = teams.find((t) => t.id === targetId) ?? teams[0] ?? null;
 
-  // Tên hiển thị trên Canvas: chữ to chính giữa
-  const projectLabel = (currentTeam?.name ?? 'FAIRSHARE').toUpperCase();
-  // Invite code
+  // Tên hiển thị trên Canvas: giữ gọn phần mã / tên dự án chính để kích thước chữ hạt particle lớn và sắc nét
+  const rawTeamName = currentTeam?.name?.trim() || 'FAIRSHARE';
+  const shortBrand = rawTeamName.split(/\s*[—–-]\s*/)[0]?.trim() || rawTeamName;
+  const projectLabel = shortBrand.toUpperCase().slice(0, 14);
   const inviteCode = currentTeam?.inviteCode ?? null;
-  // Môn học & Mô tả
   const courseName = currentTeam?.courseName ?? null;
   const description = currentTeam?.description ?? null;
 
-  // MEMBERS hiện tại từ team (nếu có), nếu chưa có dùng mẫu
-  const MEMBERS = [
-    { id: 'm1', name: 'Minh Triều', ini: 'MT', role: 'Leader', pct: 34, tasks: 31, edits: 412, peer: 4.3 },
-    { id: 'm2', name: 'Lan Anh', ini: 'LA', role: 'Backend', pct: 27, tasks: 26, edits: 338, peer: 4.1 },
-    { id: 'm3', name: 'Quốc Bảo', ini: 'QB', role: 'Frontend', pct: 24, tasks: 22, edits: 301, peer: 3.9 },
-    { id: 'm4', name: 'Thu Hà', ini: 'TH', role: 'Tài liệu', pct: 15, tasks: 9, edits: 197, peer: 3.2 },
-  ];
+  // Chuẩn hóa danh sách thành viên (tối đa 6 người) với reference ổn định tránh flicker khi scroll
+  const membersKey = JSON.stringify(propMembers ?? []);
+  const activeMembers = useMemo<HeroMemberItem[]>(() => {
+    try {
+      const parsed = JSON.parse(membersKey) as HeroMemberItem[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.slice(0, 6);
+      }
+    } catch {
+      // Fallback sang mẫu mặc định
+    }
+    return DEFAULT_HERO_MEMBERS;
+  }, [membersKey]);
+
+  const computedActivities = activeMembers.reduce(
+    (sum, m) => sum + (m.edits || 0) + (m.tasks || 0),
+    0
+  );
+  const totalActivities =
+    totalEvents && totalEvents > 0
+      ? totalEvents
+      : computedActivities > 0
+        ? computedActivities
+        : 1248;
+  const totalActivitiesLabel = totalActivities.toLocaleString('vi-VN');
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -93,9 +120,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
     const ctx = cv.getContext('2d');
     if (!ctx) return;
 
-    // Lấy tên dự án tại thời điểm mount (effect chạy lại khi projectLabel thay đổi)
     const LABEL = projectLabel;
-
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let W = 0;
     let H = 0;
@@ -125,38 +150,45 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
       line: [48, 48, 48],
       acc: [91, 141, 239],
       guide: [181, 54, 201],
-      m: [
-        [91, 141, 239],
-        [91, 141, 239],
-        [91, 141, 239],
-        [91, 141, 239],
-      ],
+      m: FALLBACK_MEMBER_RGB,
     };
     let ready = false;
     let animId = 0;
+    let lastUiScroll = -1;
+    let lastTab: 0 | 1 | 2 = 0;
 
-    const hex = (c: string): [number, number, number] => {
+    const parseColor = (c: string, fallback: ColorRGB): ColorRGB => {
       const clean = c.trim();
-      return [
-        parseInt(clean.slice(1, 3), 16),
-        parseInt(clean.slice(3, 5), 16),
-        parseInt(clean.slice(5, 7), 16),
-      ];
+      if (/^#[0-9a-fA-F]{6}$/.test(clean)) {
+        return [
+          parseInt(clean.slice(1, 3), 16),
+          parseInt(clean.slice(3, 5), 16),
+          parseInt(clean.slice(5, 7), 16),
+        ];
+      }
+      const rgbMatch = clean.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+      if (rgbMatch) {
+        return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+      }
+      return fallback;
     };
 
-    const rgba = (c: [number, number, number], a: number) =>
+    const rgba = (c: ColorRGB, a: number) =>
       `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 
     function getColors() {
       const cs = getComputedStyle(document.documentElement);
       const g = (n: string) => cs.getPropertyValue(n).trim();
+      const memberVars = ['--m1', '--m2', '--m3', '--m4', '--ok', '--ital'];
       col = {
-        fg: hex(g('--fg') || '#f4f4f2'),
-        fg3: hex(g('--fg3') || '#74746f'),
-        line: hex(g('--line') || '#303030'),
-        acc: hex(g('--accent') || '#5b8def'),
-        guide: hex(g('--guide') || '#b536c9'),
-        m: ['--m1', '--m2', '--m3', '--m4'].map((n) => hex(g(n) || '#5b8def')),
+        fg: parseColor(g('--fg'), [244, 244, 242]),
+        fg3: parseColor(g('--fg3'), [116, 116, 111]),
+        line: parseColor(g('--line'), [48, 48, 48]),
+        acc: parseColor(g('--accent'), [91, 141, 239]),
+        guide: parseColor(g('--guide'), [181, 54, 201]),
+        m: memberVars.map((n, idx) =>
+          parseColor(g(n), FALLBACK_MEMBER_RGB[idx % FALLBACK_MEMBER_RGB.length])
+        ),
       };
       dirty = true;
     }
@@ -172,7 +204,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
       cv.height = Math.round(H * dpr);
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const top = 64;
+      const top = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--top'), 10) || 64;
       narrow = W < 640;
       cx = W / 2;
       cy = top + (H - top) * (narrow ? 0.36 : 0.42);
@@ -213,12 +245,17 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
       }
       A.sort((a, b) => a.x - b.x || a.y - b.y);
 
+      const pctSum = activeMembers.reduce((sum, item) => sum + Math.max(0, item.pct), 0);
+      const weights = activeMembers.map((item) =>
+        pctSum > 0 ? Math.max(0, item.pct) / pctSum : 1 / activeMembers.length
+      );
+
       const N = A.length;
       let acc = 0;
       const own: { m: number; k: number; n: number }[] = [];
-      MEMBERS.forEach((mItem, i) => {
-        const n = i === MEMBERS.length - 1 ? N - acc : Math.round((N * mItem.pct) / 100);
-        for (let k = 0; k < n; k++) own.push({ m: i, k, n });
+      activeMembers.forEach((_, i) => {
+        const n = i === activeMembers.length - 1 ? Math.max(0, N - acc) : Math.round(N * weights[i]);
+        for (let k = 0; k < n; k++) own.push({ m: i, k, n: Math.max(1, n) });
         acc += n;
       });
 
@@ -226,31 +263,35 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
       const ri = R * 0.66;
       ring = { R, ri, arcs: [] };
       let f = 0;
-      const gap = 0.012;
-      MEMBERS.forEach((mItem) => {
-        ring.arcs.push([f + gap / 2, f + mItem.pct / 100 - gap / 2]);
-        f += mItem.pct / 100;
+      const gap = activeMembers.length > 4 ? 0.01 : 0.012;
+      weights.forEach((w) => {
+        const start = f + gap / 2;
+        const end = Math.max(start + 0.01, f + w - gap / 2);
+        ring.arcs.push([start, end]);
+        f += w;
       });
 
+      const count = activeMembers.length;
       const bh = Math.min(34, H * 0.055);
-      const bg = bh * 0.9;
-      const tot = 4 * bh + 3 * bg;
-      const labW = narrow ? 78 : 156;
-      const pctW = narrow ? 44 : 60;
+      const bg = bh * (count > 4 ? 0.62 : 0.9);
+      const tot = count * bh + Math.max(0, count - 1) * bg;
+      const labW = narrow ? 88 : 168;
+      const pctW = narrow ? 48 : 64;
       const barMax = Math.min(W - labW - pctW - (narrow ? 32 : 220), 600);
-      const K = barMax / 0.4;
+      const maxPct = Math.max(40, ...activeMembers.map((item) => item.pct));
+      const K = barMax / (maxPct / 100);
       const xs = cx - (labW + barMax + pctW) / 2 + labW;
-      const ys = cy - tot / 2;
+      const ys = cy - tot / 2 - (count > 4 ? 14 : 0);
       bars = { bh, bg, K, xs, ys, labW, pctW };
 
       pts = A.map((a, i) => {
         const o2 = own[i] || { m: 0, k: 0, n: 1 };
-        const mItem = MEMBERS[o2.m];
+        const mItem = activeMembers[o2.m] || activeMembers[0];
         const [a0, a1] = ring.arcs[o2.m] || [0, 0.25];
-        const ff = a0 + ((o2.k + 0.5) / o2.n) * (a1 - a0);
+        const ff = a0 + ((o2.k + 0.5) / Math.max(1, o2.n)) * (a1 - a0);
         const th = -Math.PI / 2 - ff * Math.PI * 2;
         const rr = ri + Math.random() * (R - ri);
-        const bw = (K * mItem.pct) / 100;
+        const bw = (K * Math.max(2, mItem.pct)) / 100;
 
         return {
           ax: a.x,
@@ -260,7 +301,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
           sy: cy + (Math.random() - 0.5) * Math.min(160, H * 0.3),
           bx: cx + rr * Math.cos(th),
           by: cy + rr * Math.sin(th),
-          cx: xs + ((o2.k + Math.random()) / o2.n) * bw,
+          cx: xs + ((o2.k + Math.random()) / Math.max(1, o2.n)) * bw,
           cy: ys + o2.m * (bh + bg) + Math.random() * bh,
           d: Math.random(),
           d1: Math.random(),
@@ -288,9 +329,9 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
       const wB = sm(0.3, 0.42, s) * (1 - sm(0.52, 0.62, s));
       const wC = sm(0.8, 0.92, s);
 
-      const fg = col.fg || [244, 244, 242];
-      const acc = col.acc || [91, 141, 239];
-      const gd = col.guide || [181, 54, 201];
+      const fg = col.fg;
+      const acc = col.acc;
+      const gd = col.guide;
 
       if (wGuide > 0.01) {
         ctx.lineWidth = 1;
@@ -324,21 +365,25 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
         ctx.lineWidth = R - ri;
         ctx.lineCap = 'butt';
         arcs.forEach((a, i) => {
+          const mc = col.m[i % col.m.length];
           ctx.beginPath();
-          ctx.strokeStyle = rgba(col.m[i], 0.17 * wB);
+          ctx.strokeStyle = rgba(mc, 0.18 * wB);
           ctx.arc(cx, cy, mid, -Math.PI / 2 - a[0] * Math.PI * 2, -Math.PI / 2 - a[1] * Math.PI * 2, true);
           ctx.stroke();
         });
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `400 ${Math.round(R * 0.2)}px "Krona One",sans-serif`;
+        ctx.font = `400 ${Math.round(R * 0.19)}px "Krona One",sans-serif`;
         ctx.fillStyle = rgba(fg, wB);
-        ctx.fillText('1.248', cx, cy - 4);
+        ctx.fillText(totalActivitiesLabel, cx, cy - 4);
         ctx.font = `500 11px "JetBrains Mono",monospace`;
         ctx.fillStyle = rgba(col.fg3, wB);
-        ctx.fillText('HOẠT ĐỘNG', cx, cy + R * 0.16);
+        ctx.fillText('HOẠT ĐỘNG', cx, cy + R * 0.17);
 
         arcs.forEach((a, i) => {
+          const mc = col.m[i % col.m.length];
+          const mItem = activeMembers[i];
+          if (!mItem) return;
           const th = -Math.PI / 2 - a[0] * Math.PI * 2;
           const hx = cx + R * Math.cos(th);
           const hy = cy + R * Math.sin(th);
@@ -348,31 +393,33 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
           const lx = cx + (R + 26) * Math.cos(mt);
           const ly = cy + (R + 26) * Math.sin(mt);
           ctx.font = `500 12px "JetBrains Mono",monospace`;
-          ctx.fillStyle = rgba(col.m[i], wB);
-          ctx.fillText(MEMBERS[i].pct + '%', lx, ly);
+          ctx.fillStyle = rgba(mc, wB);
+          ctx.fillText(`${Math.round(mItem.pct)}%`, lx, ly);
         });
       }
 
       if (wC > 0.01) {
         const { bh, bg, K, xs, ys, labW } = bars;
         ctx.textBaseline = 'middle';
-        MEMBERS.forEach((mItem, i) => {
+        activeMembers.forEach((mItem, i) => {
+          const mc = col.m[i % col.m.length];
           const y = ys + i * (bh + bg);
-          const bw = (K * mItem.pct) / 100;
-          ctx.fillStyle = rgba(col.m[i], 0.14 * wC);
+          const bw = Math.max(8, (K * mItem.pct) / 100);
+          ctx.fillStyle = rgba(mc, 0.16 * wC);
           ctx.fillRect(xs, y, bw, bh);
           ctx.textAlign = 'left';
           ctx.font = `500 ${narrow ? 11 : 13}px "Be Vietnam Pro",sans-serif`;
           ctx.fillStyle = rgba(fg, wC);
-          ctx.fillText(mItem.name, xs - labW, y + bh / 2 - (narrow ? 0 : 7));
+          const displayLabel = narrow && mItem.name.length > 11 ? `${mItem.name.slice(0, 10)}…` : mItem.name;
+          ctx.fillText(displayLabel, xs - labW, y + bh / 2 - (narrow ? 0 : 7));
           if (!narrow) {
             ctx.font = `400 11px "JetBrains Mono",monospace`;
             ctx.fillStyle = rgba(col.fg3, wC);
-            ctx.fillText(mItem.tasks + ' task · ' + mItem.edits + ' sửa', xs - labW, y + bh / 2 + 9);
+            ctx.fillText(`${mItem.tasks} task · ${mItem.edits} hoạt động`, xs - labW, y + bh / 2 + 9);
           }
           ctx.font = `500 12px "JetBrains Mono",monospace`;
-          ctx.fillStyle = rgba(col.m[i], wC);
-          ctx.fillText(mItem.pct + '%', xs + bw + 10, y + bh / 2);
+          ctx.fillStyle = rgba(mc, wC);
+          ctx.fillText(`${Number(mItem.pct.toFixed(1))}%`, xs + bw + 10, y + bh / 2);
         });
       }
 
@@ -392,8 +439,8 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
         y = y + (p.cy - y) * ec;
         y += Math.sin(Math.PI * ec) * p.w * 0.5;
 
-        const mc = col.m[p.m];
-        const c: [number, number, number] = [
+        const mc = col.m[p.m % col.m.length];
+        const c: ColorRGB = [
           fg[0] + (mc[0] - fg[0]) * eb,
           fg[1] + (mc[1] - fg[1]) * eb,
           fg[2] + (mc[2] - fg[2]) * eb,
@@ -420,10 +467,15 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
         dirty = true;
       }
 
-      setScrollS(s);
-      if (s < 0.25) setActiveTab(0);
-      else if (s < 0.7) setActiveTab(1);
-      else setActiveTab(2);
+      if (Math.abs(s - lastUiScroll) > 0.002) {
+        lastUiScroll = s;
+        setScrollS(s);
+      }
+      const nextTab: 0 | 1 | 2 = s < 0.25 ? 0 : s < 0.7 ? 1 : 2;
+      if (nextTab !== lastTab) {
+        lastTab = nextTab;
+        setActiveTab(nextTab);
+      }
 
       const introRunning = !reduce && now - t0 < 2450;
       if (dirty || introRunning) {
@@ -437,13 +489,28 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
     animId = requestAnimationFrame(loop);
 
     const handleResize = () => build();
+    const handleScroll = () => {
+      dirty = true;
+    };
     window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    mq.addEventListener('change', getColors);
+    const mo = new MutationObserver(getColors);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
 
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+      mq.removeEventListener('change', getColors);
+      mo.disconnect();
     };
-  }, [projectLabel]);
+  }, [projectLabel, activeMembers, totalActivitiesLabel]);
 
   const scrollToPhase = (targetS: number) => {
     if (!heroRef.current) return;
@@ -461,17 +528,20 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
 
   return (
     <div className="hero" id="hero" ref={heroRef}>
-      <div className="stage" id="stage" ref={stageRef}>
+      <div
+        className="stage"
+        id="stage"
+        ref={stageRef}
+        style={{ position: 'sticky', top: 0, overflow: 'hidden' }}
+      >
         <canvas
           ref={canvasRef}
           id="cv"
-          aria-label="Biểu đồ điểm neo chuyển động theo thanh cuộn: tên FairShare, tỷ lệ đóng góp, bằng chứng từng người"
+          aria-label="Biểu đồ điểm neo chuyển động theo thanh cuộn: tên dự án, tỷ lệ đóng góp, bằng chứng từng người"
           role="img"
         />
 
-        {/* ── BREADCRUMB ĐÃ XÓA theo yêu cầu ── */}
-
-        <div className="caps">
+        <div className="caps" style={{ bottom: 'calc(var(--nav-b, 0px) + 11.5vh)', minHeight: '150px', height: 'auto' }}>
           <div
             className="cap"
             id="capA"
@@ -481,32 +551,28 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
               pointerEvents: a > 0.5 ? 'auto' : 'none',
             }}
           >
-            {/* Hàng 1: Eyebrow DỰ ÁN ĐỒ ÁN • TÊN DỰ ÁN */}
             <span className="eyebrow">
-              DỰ ÁN ĐỒ ÁN • {currentTeam?.name ? currentTeam.name.toUpperCase() : 'FAIRSHARE'}
+              DỰ ÁN ĐỒ ÁN • {(courseName || projectLabel).toUpperCase()}
             </span>
 
-            {/* Hàng 2: Tên đề tài / dự án */}
-            <h2 className="hero-project-name" style={{ fontSize: 'clamp(28px, 3.8vw, 48px)', margin: '4px 0 2px', fontWeight: 600 }}>
-              <MarqueeText text={currentTeam?.name || 'FairShare'} maxLen={35} />
+            <h2
+              style={{
+                fontSize: 'clamp(16px, 2.1vw, 24px)',
+                fontWeight: 600,
+                maxWidth: 'min(92vw, 56ch)',
+                margin: '2px 0',
+                lineHeight: 1.35,
+                whiteSpace: 'normal',
+                overflowWrap: 'break-word',
+              }}
+            >
+              {description ||
+                'Ai làm gì, bao nhiêu, khi nào — minh bạch trên từng Sprint.'}
             </h2>
 
-            {/* Hàng 3: Mô tả tóm tắt hoặc Môn học (hàng đợi marquee nếu dài) */}
-            <p className="hero-project-sub" style={{ margin: '0 0 6px', color: 'var(--fg2)', fontSize: '15px', maxWidth: '640px' }}>
-              <MarqueeText
-                text={
-                  description
-                    ? (courseName ? `${description} (${courseName})` : description)
-                    : (courseName || 'Dự án phân công công việc và đo lường đóng góp đồ án nhóm.')
-                }
-                maxLen={50}
-              />
-            </p>
-
-            {/* Hàng cuối cùng: Mã mời tự sinh 12 ký tự */}
-            <p className="hero-invite-code" style={{ margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span className="hero-invite-label" style={{ color: 'var(--accent)', fontWeight: 500 }}>
-                🔑 Mã mời:
+            <p className="hero-invite-code" style={{ margin: '2px 0 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span className="hero-invite-label" style={{ color: 'var(--accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Key size={14} /> Mã mời:
               </span>
               <code
                 style={{
@@ -539,8 +605,8 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
             }}
           >
             <span className="eyebrow">Tỷ lệ đóng góp</span>
-            <h2>1.248 hoạt động chia cho 4 người</h2>
-            <p>Tỷ lệ tính từ task hoàn thành, chỉnh sửa tài liệu và điểm chấm chéo.</p>
+            <h2>{totalActivitiesLabel} hoạt động chia cho {activeMembers.length} thành viên</h2>
+            <p>Tỷ lệ tính từ task hoàn thành, điểm ngoài board, phối hợp và đánh giá chéo.</p>
           </div>
 
           <div
@@ -554,7 +620,7 @@ export const DashboardHeroCanvas: React.FC<DashboardHeroCanvasProps> = ({ teamId
           >
             <span className="eyebrow">Bằng chứng truy vết</span>
             <h2>Mỗi thanh có thể mở ra từng hành động</h2>
-            <p>Cuộn tiếp để xem hoạt động mới nhất và cảnh báo sớm.</p>
+            <p>Cuộn tiếp để xem bảng tỷ lệ từng người, hoạt động mới nhất và cảnh báo sớm.</p>
           </div>
         </div>
 
