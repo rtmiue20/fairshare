@@ -74,9 +74,9 @@ public class ContributionService {
 
     /**
      * Truy xuất danh sách bằng chứng đóng góp (sự kiện gốc) của thành viên theo sprint và team.
-     * Tự động dự phòng truy vấn JPA nếu Stored Procedure chưa sẵn sàng hoặc gặp sự cố ánh xạ.
+     * Không gắn @Transactional chung để mỗi truy vấn dùng connection/transaction ngắn riêng biệt,
+     * tránh việc kết nối hỏng từ Stored Procedure làm sập JPA fallback (Unable to rollback against JDBC Connection).
      */
-    @Transactional(readOnly = true)
     public List<EvidenceItemDto> getEvidenceTraceability(Long teamId, Long sprintId, Long userId) {
         try {
             List<EvidenceItemDto> results = contributionScoreRepository.getEvidenceTraceability(teamId, sprintId, userId);
@@ -92,43 +92,59 @@ public class ContributionService {
         // Robust JPA Fallback to prevent HTTP 500 under any circumstances
         List<EvidenceItemDto> fallbackList = new ArrayList<>();
         try {
-            List<ActivityEvent> events = sprintId != null
-                    ? activityEventRepository.findBySprintIdAndUserId(sprintId, userId)
-                    : activityEventRepository.findByTeamIdAndUserId(teamId, userId);
-            for (ActivityEvent ae : events) {
-                String status = "DONE";
-                if (ae.getEventType() != null) {
-                    String et = ae.getEventType().toUpperCase();
-                    if (et.contains("COMPLETED")) status = "DONE";
-                    else if (et.contains("MOVED")) status = "IN_PROGRESS";
-                    else if (et.contains("CREATED")) status = "TODO";
-                    else status = ae.getEventType();
+            if (activityEventRepository != null) {
+                List<ActivityEvent> events;
+                if (teamId != null && sprintId != null) {
+                    events = activityEventRepository.findByTeamIdAndSprintIdAndUserId(teamId, sprintId, userId);
+                } else if (sprintId != null) {
+                    events = activityEventRepository.findBySprintIdAndUserId(sprintId, userId);
+                } else {
+                    events = activityEventRepository.findByTeamIdAndUserId(teamId, userId);
                 }
-                fallbackList.add(EvidenceItemDto.Impl.builder()
-                        .sourceType(ae.getSource() != null ? ae.getSource().name() : "BOARD")
-                        .sourceId(ae.getId())
-                        .taskName(ae.getDetails() != null ? ae.getDetails() : (ae.getEventType() != null ? ae.getEventType() : "Hoạt động Board/Card"))
-                        .storyPoints(ae.getStoryPoints() != null ? BigDecimal.valueOf(ae.getStoryPoints()) : BigDecimal.valueOf(1.0))
-                        .earnedScore(ae.getStoryPoints() != null ? BigDecimal.valueOf(ae.getStoryPoints()) : BigDecimal.valueOf(1.0))
-                        .eventTime(ae.getOccurredAt() != null ? ae.getOccurredAt() : (ae.getCreatedAt() != null ? ae.getCreatedAt() : LocalDateTime.now()))
-                        .status(status)
-                        .build());
+                if (events != null) {
+                    for (ActivityEvent ae : events) {
+                        String status = "DONE";
+                        if (ae.getEventType() != null) {
+                            String et = ae.getEventType().toUpperCase();
+                            if (et.contains("COMPLETED")) status = "DONE";
+                            else if (et.contains("MOVED")) status = "IN_PROGRESS";
+                            else if (et.contains("CREATED")) status = "TODO";
+                            else status = ae.getEventType();
+                        }
+                        fallbackList.add(EvidenceItemDto.Impl.builder()
+                                .sourceType(ae.getSource() != null ? ae.getSource().name() : "BOARD")
+                                .sourceId(ae.getId())
+                                .taskName(ae.getDetails() != null ? ae.getDetails() : (ae.getEventType() != null ? ae.getEventType() : "Hoạt động Board/Card"))
+                                .storyPoints(ae.getStoryPoints() != null ? BigDecimal.valueOf(ae.getStoryPoints()) : BigDecimal.valueOf(1.0))
+                                .earnedScore(ae.getStoryPoints() != null ? BigDecimal.valueOf(ae.getStoryPoints()) : BigDecimal.valueOf(1.0))
+                                .eventTime(ae.getOccurredAt() != null ? ae.getOccurredAt() : (ae.getCreatedAt() != null ? ae.getCreatedAt() : LocalDateTime.now()))
+                                .status(status)
+                                .build());
+                    }
+                }
             }
 
-            if (teamId != null && sprintId != null && userId != null) {
+            if (manualContributionRepository != null && teamId != null && sprintId != null && userId != null) {
                 List<ManualContribution> manuals = manualContributionRepository
                         .findByTeamIdAndSprintIdAndUserId(teamId, sprintId, userId);
-                for (ManualContribution mc : manuals) {
-                    if ("APPROVED".equalsIgnoreCase(mc.getStatus())) {
-                        fallbackList.add(EvidenceItemDto.Impl.builder()
-                                .sourceType("MANUAL")
-                                .sourceId(mc.getId())
-                                .taskName(mc.getTaskName() != null ? mc.getTaskName() : (mc.getTitle() != null ? mc.getTitle() : "Đóng góp thủ công"))
-                                .storyPoints(mc.getStoryPoints() != null ? mc.getStoryPoints() : BigDecimal.ZERO)
-                                .earnedScore(mc.getStoryPoints() != null ? mc.getStoryPoints() : BigDecimal.ZERO)
-                                .eventTime(mc.getCreatedAt() != null ? mc.getCreatedAt() : LocalDateTime.now())
-                                .status(mc.getStatus())
-                                .build());
+                if (manuals != null) {
+                    for (ManualContribution mc : manuals) {
+                        if ("APPROVED".equalsIgnoreCase(mc.getStatus())) {
+                            String manualTaskName = mc.getTaskName() != null
+                                    ? mc.getTaskName()
+                                    : (mc.getTitle() != null
+                                            ? mc.getTitle()
+                                            : (mc.getDescription() != null ? mc.getDescription() : "Đóng góp thủ công"));
+                            fallbackList.add(EvidenceItemDto.Impl.builder()
+                                    .sourceType("MANUAL")
+                                    .sourceId(mc.getId())
+                                    .taskName(manualTaskName)
+                                    .storyPoints(mc.getStoryPoints() != null ? mc.getStoryPoints() : BigDecimal.ZERO)
+                                    .earnedScore(mc.getStoryPoints() != null ? mc.getStoryPoints() : BigDecimal.ZERO)
+                                    .eventTime(mc.getCreatedAt() != null ? mc.getCreatedAt() : LocalDateTime.now())
+                                    .status(mc.getStatus())
+                                    .build());
+                        }
                     }
                 }
             }

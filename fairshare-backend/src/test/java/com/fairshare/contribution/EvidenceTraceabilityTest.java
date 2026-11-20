@@ -1,7 +1,12 @@
 package com.fairshare.contribution;
 
+import com.fairshare.activity.entity.ActivityEvent;
+import com.fairshare.activity.entity.ActivitySource;
+import com.fairshare.activity.repository.ActivityEventRepository;
 import com.fairshare.contribution.dto.EvidenceItemDto;
+import com.fairshare.contribution.entity.ManualContribution;
 import com.fairshare.contribution.repository.ContributionScoreRepository;
+import com.fairshare.contribution.repository.ManualContributionRepository;
 import com.fairshare.contribution.service.ContributionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,6 +30,12 @@ class EvidenceTraceabilityTest {
 
     @Mock
     private ContributionScoreRepository contributionScoreRepository;
+
+    @Mock
+    private ActivityEventRepository activityEventRepository;
+
+    @Mock
+    private ManualContributionRepository manualContributionRepository;
 
     @InjectMocks
     private ContributionService contributionService;
@@ -121,5 +133,76 @@ class EvidenceTraceabilityTest {
 
         verify(contributionScoreRepository, times(1)).getEvidenceTraceability(teamId, sprintId, userId);
         verifyNoMoreInteractions(contributionScoreRepository);
+    }
+
+    @Test
+    @DisplayName("Test Case 3: Fallback sang JPA khi Stored Procedure lỗi Socket/JDBC và sắp xếp giảm dần theo thời gian")
+    void getEvidenceTraceability_whenStoredProcedureFails_shouldFallbackToJpaAndReturnSortedEvents() {
+        Long teamId = 1L;
+        Long sprintId = 3L;
+        Long userId = 109L;
+
+        when(contributionScoreRepository.getEvidenceTraceability(teamId, sprintId, userId))
+                .thenThrow(new RuntimeException("(conn=24) Socket error"));
+
+        ActivityEvent boardEvent = new ActivityEvent();
+        boardEvent.setId(10L);
+        boardEvent.setSource(ActivitySource.BOARD);
+        boardEvent.setEventType("CARD_COMPLETED");
+        boardEvent.setDetails("Build dashboard");
+        boardEvent.setStoryPoints(5.0);
+        boardEvent.setOccurredAt(LocalDateTime.of(2026, 11, 18, 10, 0));
+
+        when(activityEventRepository.findByTeamIdAndSprintIdAndUserId(teamId, sprintId, userId))
+                .thenReturn(List.of(boardEvent));
+
+        ManualContribution approvedManual = ManualContribution.builder()
+                .id(20L)
+                .teamId(teamId)
+                .sprintId(sprintId)
+                .userId(userId)
+                .taskName("Write SRS")
+                .storyPoints(new BigDecimal("3.00"))
+                .createdAt(LocalDateTime.of(2026, 11, 19, 9, 0))
+                .status("APPROVED")
+                .build();
+
+        ManualContribution pendingManual = ManualContribution.builder()
+                .id(21L)
+                .teamId(teamId)
+                .sprintId(sprintId)
+                .userId(userId)
+                .taskName("Unapproved work")
+                .storyPoints(new BigDecimal("2.00"))
+                .createdAt(LocalDateTime.of(2026, 11, 20, 9, 0))
+                .status("PENDING")
+                .build();
+
+        when(manualContributionRepository.findByTeamIdAndSprintIdAndUserId(teamId, sprintId, userId))
+                .thenReturn(List.of(approvedManual, pendingManual));
+
+        List<EvidenceItemDto> result = contributionService.getEvidenceTraceability(teamId, sprintId, userId);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getSourceType()).isEqualTo("MANUAL");
+        assertThat(result.get(0).getSourceId()).isEqualTo(20L);
+        assertThat(result.get(0).getTaskName()).isEqualTo("Write SRS");
+        assertThat(result.get(0).getStatus()).isEqualTo("APPROVED");
+        assertThat(result.get(1).getSourceType()).isEqualTo("BOARD");
+        assertThat(result.get(1).getSourceId()).isEqualTo(10L);
+        assertThat(result.get(1).getTaskName()).isEqualTo("Build dashboard");
+        assertThat(result.get(1).getStatus()).isEqualTo("DONE");
+
+        verify(activityEventRepository, times(1)).findByTeamIdAndSprintIdAndUserId(teamId, sprintId, userId);
+        verify(manualContributionRepository, times(1)).findByTeamIdAndSprintIdAndUserId(teamId, sprintId, userId);
+    }
+
+    @Test
+    @DisplayName("Test Case 4: Không gắn @Transactional chung lên getEvidenceTraceability để tránh lỗi rollback JDBC connection")
+    void getEvidenceTraceability_shouldNotBeAnnotatedTransactional() throws NoSuchMethodException {
+        boolean hasTransactional = ContributionService.class
+                .getMethod("getEvidenceTraceability", Long.class, Long.class, Long.class)
+                .isAnnotationPresent(Transactional.class);
+        assertThat(hasTransactional).isFalse();
     }
 }

@@ -19,6 +19,9 @@ spring:
       minimum-idle: 1
       connection-timeout: 45000
       initialization-fail-timeout: 60000
+      data-source-properties:
+        useServerPrepStmts: false
+        cachePrepStmts: false
   jpa:
     hibernate:
       ddl-auto: validate

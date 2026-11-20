@@ -12,6 +12,7 @@ public interface ActivityEventRepository extends JpaRepository<ActivityEvent, Lo
     List<ActivityEvent> findByTeamIdAndUserId(Long teamId, Long userId);
     List<ActivityEvent> findBySprintId(Long sprintId);
     List<ActivityEvent> findBySprintIdAndUserId(Long sprintId, Long userId);
+    List<ActivityEvent> findByTeamIdAndSprintIdAndUserId(Long teamId, Long sprintId, Long userId);
 
     @Override
     default void deleteById(Long id) {
