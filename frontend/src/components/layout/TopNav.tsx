@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
-import { useNotificationStore } from '../../store/notificationStore';
+import { buildUserScopeKey, useNotificationStore } from '../../store/notificationStore';
+import type { Team } from '../../types/team';
 import { FairShareLogo } from '../ui/FairShareLogo';
 import { showToast } from '../ui/Toast';
 import {
@@ -20,6 +22,9 @@ import {
   Moon,
   Sun,
   Settings,
+  Menu,
+  X,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import { CreateProjectModal } from '../../features/team/CreateProjectModal';
@@ -75,18 +80,35 @@ const isNavItemActive = (to: string, pathname: string): boolean => {
 
 const LENS_PAD_X = 0;
 
+function buildMemberNameMap(team?: Team): Map<number, string> | undefined {
+  if (!team?.members || team.members.length === 0) return undefined;
+  const map = new Map<number, string>();
+  for (const m of team.members) {
+    const uid = m.user?.id ?? m.userId;
+    const name = m.user?.fullName || m.fullName || m.user?.email || m.email;
+    if (uid != null && name) {
+      map.set(uid, name);
+    }
+  }
+  return map.size > 0 ? map : undefined;
+}
+
 export const TopNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const { teams, activeTeamId, fetchTeams, setActiveTeamId } = useProjectStore();
+  const { user, token, isAuthenticated, logout } = useAuthStore();
+  const { teams, activeTeamId, initialized, fetchTeams, setActiveTeamId } = useProjectStore();
   const unreadNotifCount = useNotificationStore((s) => s.notifications.filter((n) => !n.read).length);
   const hasUnseenBadge = useNotificationStore((s) => s.hasUnseenBadge);
   const markBellAsSeen = useNotificationStore((s) => s.markBellAsSeen);
   const syncWithBackend = useNotificationStore((s) => s.syncWithBackend);
+  const setUserScope = useNotificationStore((s) => s.setUserScope);
+  const setScope = useNotificationStore((s) => s.setScope);
+  const clearNotifications = useNotificationStore((s) => s.clearNotifications);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('openProjectMenu')
   );
@@ -142,16 +164,33 @@ export const TopNav: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && (user || token)) {
       fetchTeams();
+    } else {
+      clearNotifications();
     }
-  }, [isAuthenticated, fetchTeams]);
+  }, [isAuthenticated, user?.id, user?.email, token, fetchTeams, clearNotifications]);
 
   useEffect(() => {
-    if (activeTeamId) {
-      syncWithBackend(activeTeamId);
+    const userScope = buildUserScopeKey(user);
+    if (!isAuthenticated || !userScope) {
+      clearNotifications();
+      return;
     }
-  }, [activeTeamId, syncWithBackend]);
+    if (!initialized) {
+      setUserScope(userScope);
+      return;
+    }
+    const matchedTeam = activeTeamId ? teams.find((t) => t.id === activeTeamId) : undefined;
+    if (activeTeamId && matchedTeam) {
+      syncWithBackend(activeTeamId, {
+        userScope,
+        memberNameMap: buildMemberNameMap(matchedTeam),
+      });
+    } else {
+      setScope(userScope, null);
+    }
+  }, [isAuthenticated, user, initialized, activeTeamId, teams, setUserScope, setScope, syncWithBackend, clearNotifications]);
 
   useEffect(() => {
     const saved = localStorage.getItem('fs-theme') as 'dark' | 'light' | null;
@@ -338,7 +377,15 @@ export const TopNav: React.FC = () => {
 
   useEffect(() => {
     syncLensTarget(false);
-  }, [activeIdx, syncLensTarget]);
+    setIsMobileMenuOpen(false);
+    if (activeIdx >= 0 && typeof window !== 'undefined' && window.innerWidth <= 1180) {
+      itemRefs.current[activeIdx]?.scrollIntoView?.({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [activeIdx, location.pathname, syncLensTarget]);
 
   useEffect(() => {
     let cancelled = false;
@@ -439,7 +486,7 @@ export const TopNav: React.FC = () => {
   }, [navigate, startSpringLoop, syncLensTarget]);
 
   const handleNavPointerDown = (e: React.PointerEvent<HTMLElement>) => {
-    if (e.button !== 0 || activeIdxRef.current < 0) return;
+    if (e.pointerType === 'touch' || e.button !== 0 || activeIdxRef.current < 0) return;
     const p = physicsRef.current;
     p.isDragging = true;
     p.dragMoved = false;
@@ -475,19 +522,19 @@ export const TopNav: React.FC = () => {
     <>
       <header className="top" id="top">
         {/* Brand logo & Project selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Link to="/" className="brand" aria-label="FairShare, về trang chủ" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            <FairShareLogo size={22} />
+        <div className="top-brand-group">
+          <Link to="/" className="brand" aria-label="FairShare, về trang chủ" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
+            <FairShareLogo size={22} textClassName={isAuthenticated ? 'hidden sm:inline-block' : ''} />
           </Link>
 
           {isAuthenticated && (
-            <div ref={projectDropdownRef} className="relative">
+            <div ref={projectDropdownRef} className="relative min-w-0 flex-1 max-w-[165px] sm:max-w-[210px]">
               {teams.length > 0 ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setIsProjectOpen((prev) => !prev)}
-                    className={`flex items-center gap-2 px-2.5 py-1 rounded-xl border transition-all text-xs font-semibold select-none cursor-pointer max-w-[210px] shadow-sm ${
+                    className={`w-full flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-xl border transition-all text-xs font-semibold select-none cursor-pointer min-w-0 shadow-sm ${
                       isProjectOpen
                         ? 'border-cyan-500 dark:border-cyan-400 ring-2 ring-cyan-500/25 bg-white dark:bg-[#222632] text-zinc-950 dark:text-white'
                         : 'border-slate-300 dark:border-white/20 bg-white dark:bg-[#1c1f28] hover:bg-zinc-100 dark:hover:bg-[#262a36] hover:border-slate-400 dark:hover:border-white/35 text-zinc-800 dark:text-zinc-200'
@@ -506,7 +553,7 @@ export const TopNav: React.FC = () => {
                     </span>
 
                     {/* Project Name */}
-                    <span className="truncate max-w-[130px] font-bold tracking-tight">
+                    <span className="truncate flex-1 min-w-0 text-left font-bold tracking-tight">
                       {activeTeam?.name || 'Chọn dự án'}
                     </span>
 
@@ -521,9 +568,8 @@ export const TopNav: React.FC = () => {
                   {/* Dropdown Popup Menu */}
                   {isProjectOpen && (
                     <div
-                      className="absolute left-0 z-[100] w-[320px] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                      className="fixed left-3 right-3 top-[calc(var(--top-row1,52px)+6px)] sm:absolute sm:left-0 sm:right-auto sm:top-[calc(100%+14px)] sm:w-[320px] z-[100] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
                       style={{
-                        top: 'calc(100% + 22px)',
                         boxShadow:
                           theme === 'dark'
                             ? '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)'
@@ -554,6 +600,7 @@ export const TopNav: React.FC = () => {
                               onClick={() => {
                                 setActiveTeamId(t.id);
                                 setIsProjectOpen(false);
+                                setIsNotifOpen(false);
                                 showToast(`Đã chuyển sang dự án: ${t.name}`);
                                 navigate(`${location.pathname}?teamId=${t.id}`);
                               }}
@@ -674,7 +721,9 @@ export const TopNav: React.FC = () => {
                     strokeWidth={isActive ? 2.2 : 1.75}
                   />
                   <span className="liquid-nav-label">{item.label}</span>
-                  {item.hasDot && <span className="dot" title="1 cảnh báo mới" />}
+                  {item.hasDot && teams.length > 0 && hasUnseenBadge && unreadNotifCount > 0 && (
+                    <span className="dot" title={`${unreadNotifCount} cảnh báo mới`} />
+                  )}
                 </Link>
               );
             })}
@@ -692,13 +741,21 @@ export const TopNav: React.FC = () => {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setIsNotifOpen((prev) => {
-                  const next = !prev;
-                  if (next) {
-                    markBellAsSeen();
+                const next = !isNotifOpen;
+                setIsNotifOpen(next);
+                if (next) {
+                  markBellAsSeen();
+                  const userScope = buildUserScopeKey(user);
+                  const matchedTeam = activeTeamId
+                    ? teams.find((t) => t.id === activeTeamId)
+                    : undefined;
+                  if (isAuthenticated && userScope && activeTeamId && matchedTeam) {
+                    syncWithBackend(activeTeamId, {
+                      userScope,
+                      memberNameMap: buildMemberNameMap(matchedTeam),
+                    });
                   }
-                  return next;
-                });
+                }
               }}
               onMouseDown={(e) => e.stopPropagation()}
               aria-label="Thông báo"
@@ -733,7 +790,7 @@ export const TopNav: React.FC = () => {
           </button>
 
           <Link
-            className="icon-btn"
+            className="icon-btn hidden md:grid"
             id="setBtn"
             to="/profile"
             aria-label="Cài đặt và hồ sơ"
@@ -745,7 +802,7 @@ export const TopNav: React.FC = () => {
 
           {isAuthenticated && user ? (
             <button
-              className="btn sm"
+              className="btn sm hidden md:inline-flex"
               onClick={() => {
                 logout();
                 showToast('Đã đăng xuất');
@@ -756,12 +813,123 @@ export const TopNav: React.FC = () => {
               Đăng xuất
             </button>
           ) : (
-            <Link className="btn sm" to="/dashboard">
+            <Link className="btn sm hidden md:inline-flex" to="/dashboard">
               Dùng thử
             </Link>
           )}
+
+          <button
+            type="button"
+            className="icon-btn md:hidden"
+            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+            aria-label="Mở menu điều hướng"
+            aria-expanded={isMobileMenuOpen}
+            title="Menu"
+          >
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
       </header>
+
+      {isMobileMenuOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="mobile-nav-backdrop md:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu điều hướng"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <div className="mobile-nav-drawer" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--line)]">
+                <FairShareLogo size={20} />
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="icon-btn"
+                  aria-label="Đóng menu"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {isAuthenticated && activeTeam && (
+                <div className="mb-4 px-3 py-2.5 rounded-xl bg-[var(--surface2)] border border-[var(--line)]">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--fg3)]">
+                    Dự án đang chọn
+                  </div>
+                  <div className="text-sm font-bold text-[var(--fg)] truncate mt-0.5">
+                    {activeTeam.name}
+                  </div>
+                </div>
+              )}
+
+              <nav className="flex flex-col gap-1 flex-1" aria-label="Điều hướng di động">
+                {NAV_LINKS.map((item) => {
+                  const Icon = item.icon;
+                  const active = isNavItemActive(item.to, location.pathname);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`mobile-nav-item ${active ? 'is-active' : ''}`}
+                    >
+                      <Icon size={18} />
+                      <span className="flex-1">{item.label}</span>
+                      {item.hasDot && teams.length > 0 && hasUnseenBadge && unreadNotifCount > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-amber-500" title="Cảnh báo mới" />
+                      )}
+                    </Link>
+                  );
+                })}
+
+                <Link
+                  to="/profile"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`mobile-nav-item ${location.pathname === '/profile' ? 'is-active' : ''}`}
+                >
+                  <Settings size={18} />
+                  <span>Cài đặt &amp; Hồ sơ</span>
+                </Link>
+              </nav>
+
+              <div className="pt-4 mt-4 border-t border-[var(--line)] space-y-2.5">
+                {isAuthenticated && user ? (
+                  <>
+                    <div className="px-2 text-xs text-[var(--fg2)] truncate">
+                      <div className="font-semibold text-[var(--fg)] truncate">{user.fullName || 'Thành viên'}</div>
+                      <div className="text-[11px] text-[var(--fg3)] truncate">{user.email}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        logout();
+                        showToast('Đã đăng xuất');
+                        navigate('/login');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 min-h-[44px] rounded-xl bg-rose-500/15 text-rose-500 border border-rose-500/30 font-semibold text-sm cursor-pointer"
+                    >
+                      <LogOut size={16} />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="btn w-full justify-center min-h-[44px]"
+                  >
+                    Dùng thử
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       <CreateProjectModal
         isOpen={isModalOpen}

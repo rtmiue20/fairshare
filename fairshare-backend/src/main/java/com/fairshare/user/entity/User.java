@@ -41,4 +41,7 @@ public class User extends BaseEntity {
 
     @Column(name = "github_username", length = 100)
     private String githubUsername;
+
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
 }

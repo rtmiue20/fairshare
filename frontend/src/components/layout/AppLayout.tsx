@@ -45,8 +45,8 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col antialiased selection:bg-zinc-800 selection:text-zinc-100 relative ${
-        isFullscreenApp ? 'h-screen overflow-hidden' : 'overflow-x-clip'
+      className={`min-h-[100dvh] flex flex-col antialiased selection:bg-zinc-800 selection:text-zinc-100 relative ${
+        isFullscreenApp ? 'h-[100dvh] overflow-hidden' : 'overflow-x-clip'
       }`}
       style={{ background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--f-body)' }}
     >
@@ -91,12 +91,12 @@ export const AppLayout: React.FC = () => {
         style={
           isFullscreenApp
             ? {
-                height: '100vh',
+                height: '100dvh',
                 paddingTop: 'var(--top, 64px)',
                 boxSizing: 'border-box',
                 overflow: 'hidden',
               }
-            : { minHeight: 'calc(100vh - var(--top))' }
+            : { minHeight: 'calc(100dvh - var(--top, 64px))' }
         }
       >
         <ErrorBoundary>

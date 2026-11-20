@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, CheckCircle, ShieldCheck } from 'lucide-react';
 
 interface FeedbackItem {
@@ -67,7 +68,7 @@ interface FeedbackResolutionModalProps {
 export const FeedbackResolutionModal: React.FC<FeedbackResolutionModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
       data-testid="feedback-resolution-modal"
       style={{
@@ -78,7 +79,7 @@ export const FeedbackResolutionModal: React.FC<FeedbackResolutionModalProps> = (
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        zIndex: 10000,
         padding: '1rem',
       }}
       onClick={onClose}
@@ -88,10 +89,10 @@ export const FeedbackResolutionModal: React.FC<FeedbackResolutionModalProps> = (
         style={{
           width: '100%',
           maxWidth: '780px',
-          maxHeight: '90vh',
+          maxHeight: '90dvh',
           display: 'flex',
           flexDirection: 'column',
-          padding: '1.5rem',
+          padding: 'clamp(14px, 3vw, 24px)',
           borderRadius: '16px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
           border: '1px solid var(--accent)',
@@ -100,7 +101,7 @@ export const FeedbackResolutionModal: React.FC<FeedbackResolutionModalProps> = (
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', paddingBottom: '1rem', borderBottom: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <div style={{ padding: '6px', borderRadius: '8px', background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}>
               <ShieldCheck style={{ width: 20, height: 20, color: 'var(--accent)' }} />
@@ -185,7 +186,7 @@ export const FeedbackResolutionModal: React.FC<FeedbackResolutionModalProps> = (
         </div>
 
         {/* Footer */}
-        <div style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--line)', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', color: 'var(--fg3)' }}>
             Đáp ứng 100% Tiêu chí nghiệm thu (DoD) WBS 5.4.4
           </span>
@@ -201,4 +202,9 @@ export const FeedbackResolutionModal: React.FC<FeedbackResolutionModalProps> = (
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };

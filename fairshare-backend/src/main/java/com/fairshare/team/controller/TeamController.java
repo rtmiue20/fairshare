@@ -122,6 +122,7 @@ public class TeamController {
                         .userId(m.getUser().getId())
                         .email(m.getUser().getEmail())
                         .fullName(m.getUser().getFullName())
+                        .avatarUrl(m.getUser().getAvatarUrl())
                         .role(m.getRole())
                         .joinedAt(m.getCreatedAt())
                         .build())
@@ -142,6 +143,7 @@ public class TeamController {
                 .userId(updated.getUser().getId())
                 .email(updated.getUser().getEmail())
                 .fullName(updated.getUser().getFullName())
+                .avatarUrl(updated.getUser().getAvatarUrl())
                 .role(updated.getRole())
                 .joinedAt(updated.getCreatedAt())
                 .build();

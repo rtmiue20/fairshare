@@ -19,6 +19,7 @@ export interface TeamMember {
   userId?: number;
   email?: string;
   fullName?: string;
+  avatarUrl?: string | null;
   user?: User;
   role: Role;
   hasConsented: boolean;

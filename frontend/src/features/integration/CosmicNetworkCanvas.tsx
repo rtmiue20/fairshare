@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Target,
   ThumbsUp,
+  Info,
 } from 'lucide-react';
 
 export interface CosmicNetworkCanvasProps {
@@ -146,6 +147,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showMemberDropdown2, setShowMemberDropdown2] = useState(false);
+  const [showMobileLegend, setShowMobileLegend] = useState(false);
 
   // Close member dropdowns on outside click
   useEffect(() => {
@@ -1083,6 +1085,26 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
   const handleMouseUp = () => setIsDragging(false);
 
+  // Touch Pan Overview Canvas
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (viewMode === 'detail' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setIsDragging(true);
+    dragStartRef.current = { x: t.clientX - transform.x, y: t.clientY - transform.y };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDragging || viewMode === 'detail' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setTransform((prev) => ({
+      ...prev,
+      x: t.clientX - dragStartRef.current.x,
+      y: t.clientY - dragStartRef.current.y,
+    }));
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
+
   // Pan Detail View (khi kéo thả trên vùng trống chi tiết)
   const handleDetailMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -1101,6 +1123,25 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   };
 
   const handleDetailMouseUp = () => setIsDragging(false);
+
+  const handleDetailTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, [role="button"], input, select, a, textarea')) return;
+    const t = e.touches[0];
+    setIsDragging(true);
+    dragStartRef.current = { x: t.clientX - transform.x, y: t.clientY - transform.y };
+  };
+
+  const handleDetailTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setTransform((prev) => ({
+      ...prev,
+      x: t.clientX - dragStartRef.current.x,
+      y: t.clientY - dragStartRef.current.y,
+    }));
+  };
 
   // Zoom Canvas
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1224,17 +1265,21 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       <canvas
         ref={canvasRef}
         className={`w-full h-full block transition-all duration-700 ${
-          viewMode === 'detail' ? 'opacity-20 filter blur-sm scale-110 pointer-events-none' : 'opacity-100 cursor-grab active:cursor-grabbing'
+          viewMode === 'detail' ? 'opacity-20 filter blur-sm scale-110 pointer-events-none' : 'opacity-100 cursor-grab active:cursor-grabbing touch-none'
         }`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
         onClick={handleCanvasClick}
       />
 
-      {/* 2. Top-Center Floating Toolbar Pill */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300">
+      {/* 2. Top Floating Toolbar + Simulation / Impact CTA */}
+      <div className="pointer-events-none absolute top-3 inset-x-0 z-30 pl-12 pr-3 sm:px-14 flex flex-wrap items-center justify-center gap-2">
+        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300 max-w-full">
         <button
           type="button"
           title="Sơ đồ tổng quan (Overview Galaxy)"
@@ -1332,23 +1377,39 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         >
           <Sparkles className="w-4 h-4" />
         </button>
-      </div>
 
-      {/* Top Right Simulation / Impact Button */}
-      <div className="absolute top-4 right-6 z-30 pointer-events-auto flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onOpenImpactModal}
-          className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>+ Khai báo rào cản</span>
-        </button>
+          {viewMode === 'overview' && (
+            <button
+              type="button"
+              title="Chú thích mô hình"
+              onClick={() => setShowMobileLegend((prev) => !prev)}
+              className={`lg:hidden p-2 rounded-xl transition ${
+                showMobileLegend
+                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                  : 'hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Simulation / Impact Button */}
+        <div className="pointer-events-auto lg:absolute lg:right-6 lg:top-0 flex items-center">
+          <button
+            type="button"
+            onClick={onOpenImpactModal}
+            className="px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5 whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Khai báo rào cản</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Dropdown */}
       {showFilterMenu && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 max-w-md">
+        <div className="absolute top-24 sm:top-16 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 w-[min(360px,calc(100vw-24px))]">
           {['ALL', 'D1', 'D2', 'D3', 'D4', 'IMPEDIMENT'].map((cat) => (
             <button
               key={cat}
@@ -1413,6 +1474,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           onMouseMove={handleDetailMouseMove}
           onMouseUp={handleDetailMouseUp}
           onMouseLeave={handleDetailMouseUp}
+          onTouchStart={handleDetailTouchStart}
+          onTouchMove={handleDetailTouchMove}
+          onTouchEnd={handleDetailMouseUp}
           onWheel={(e) => {
             if (e.ctrlKey || e.metaKey) {
               e.preventDefault();
@@ -1842,7 +1906,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           </div>
 
           {/* Bottom Sprint Replay Playbar */}
-          <div className="absolute bottom-5 left-6 right-6 z-30 pointer-events-auto flex items-center gap-4 px-4 py-3 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl">
+          <div className="absolute bottom-3 left-3 right-3 sm:bottom-5 sm:left-6 sm:right-6 z-30 pointer-events-auto flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl">
             <button
               type="button"
               aria-label={isPlaying ? 'Tạm dừng phát lại' : 'Bắt đầu phát lại sprint'}
@@ -1852,7 +1916,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
 
-            <div className="flex-1 space-y-1">
+            <div className="flex-1 min-w-0 space-y-1">
               <input
                 type="range"
                 min={1}
@@ -1861,7 +1925,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                 onChange={(e) => setCutDay(Number(e.target.value))}
                 className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-white/15 accent-pink-500"
               />
-              <div className="flex justify-between text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+              <div className="flex flex-wrap justify-between gap-1 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
                 <span>Phát lại sprint · Ngày {cutDay}/{maxDay} (16/11/2026)</span>
                 <span className="text-cyan-600 dark:text-cyan-300 font-semibold">{activeEvents.length} sự kiện ghi nhận đến thời điểm này</span>
               </div>
@@ -1872,7 +1936,13 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* 3. Bottom-Left Floating Legend Card (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 w-64 space-y-2.5">
+        <div
+          className={`absolute z-30 pointer-events-auto p-3.5 sm:p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 space-y-2.5 ${
+            showMobileLegend
+              ? 'block top-28 sm:top-20 bottom-auto left-3 right-3 sm:right-auto sm:w-64 max-h-[calc(100%-300px)] overflow-y-auto'
+              : 'hidden lg:block lg:bottom-6 lg:left-6 lg:w-64'
+          }`}
+        >
           <h4 className="font-bold text-[10px] tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
             CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
           </h4>
@@ -1915,8 +1985,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* 4. Bottom-Right Floating KPI & Ask AI Dock (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-6 right-6 z-30 pointer-events-auto w-[460px] max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)]" style={{ overflow: 'visible' }}>
-          <div className="grid grid-cols-4 divide-x divide-zinc-200 dark:divide-white/10 px-4 py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
+        <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:bottom-6 sm:right-6 z-30 pointer-events-auto sm:w-[460px] sm:max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)]" style={{ overflow: 'visible' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-white/10 px-3 sm:px-4 py-2.5 sm:py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Đóng góp p_i</span>
               <strong className="text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-1">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ContributionScore } from '../../types/contribution';
 
@@ -10,6 +10,16 @@ export interface ContributionPieChartProps {
 const COLORS = ['#5b8def', '#4cc38a', '#e8a33d', '#c06be0', '#3fbfa8', '#a99bff'];
 
 export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data }) => {
+  const [isCompact, setIsCompact] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 520 : false
+  );
+
+  useEffect(() => {
+    const onResize = () => setIsCompact(window.innerWidth < 520);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const safeData = Array.isArray(data) ? data : [];
   const mapped = safeData.map((d) => {
     const rawPct = Number(d.percentage ?? d.finalPct ?? 0);
@@ -24,20 +34,24 @@ export const ContributionPieChart: React.FC<ContributionPieChartProps> = ({ data
   const chartData = nonZero.length > 0 ? nonZero : mapped;
 
   return (
-    <div style={{ width: '100%', height: '300px' }}>
+    <div style={{ width: '100%', height: isCompact ? '270px' : '300px' }}>
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart margin={{ top: 10, right: 35, bottom: 10, left: 35 }}>
+        <PieChart margin={isCompact ? { top: 8, right: 12, bottom: 8, left: 12 } : { top: 10, right: 35, bottom: 10, left: 35 }}>
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
-            innerRadius={45}
-            outerRadius={70}
+            innerRadius={isCompact ? 38 : 45}
+            outerRadius={isCompact ? 62 : 70}
             paddingAngle={5}
             dataKey="value"
             isAnimationActive={false}
-            label={({ name, percent }) => `${name}: ${(Number(percent ?? 0) * 100).toFixed(1)}%`}
-            labelLine={{ stroke: 'var(--fg3)' }}
+            label={({ name, percent }) =>
+              isCompact
+                ? `${(Number(percent ?? 0) * 100).toFixed(0)}%`
+                : `${name}: ${(Number(percent ?? 0) * 100).toFixed(1)}%`
+            }
+            labelLine={isCompact ? false : { stroke: 'var(--fg3)' }}
           >
             {chartData.map((_, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

@@ -174,12 +174,7 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     expect(screen.getAllByText('Đạt chuẩn').length).toBeGreaterThan(0);
   });
 
-  it('handles official PDF download via reportApi', async () => {
-    const mockBlob = new Blob(['pdf-bytes'], { type: 'application/pdf' });
-    vi.mocked(reportApi.downloadPdfReport).mockResolvedValueOnce(mockBlob);
-    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:http://localhost/mock-pdf');
-    window.URL.revokeObjectURL = vi.fn();
-
+  it('opens electronic signature modal and exports PDF when clicking Xuất PDF chính thức', async () => {
     render(
       <MemoryRouter>
         <ReportPage />
@@ -193,7 +188,13 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     fireEvent.click(screen.getByText('Xuất PDF chính thức'));
 
     await waitFor(() => {
-      expect(reportApi.downloadPdfReport).toHaveBeenCalledWith(1, 2);
+      expect(screen.getByText('Ký điện tử báo cáo')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Áp chữ ký & Xuất PDF/));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Ký điện tử báo cáo')).not.toBeInTheDocument();
     });
   });
 

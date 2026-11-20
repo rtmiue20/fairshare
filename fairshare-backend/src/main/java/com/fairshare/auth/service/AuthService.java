@@ -89,6 +89,7 @@ public class AuthService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
+                .avatarUrl(user.getAvatarUrl())
                 .build();
     }
 }

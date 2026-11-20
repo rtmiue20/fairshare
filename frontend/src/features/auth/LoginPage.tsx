@@ -24,6 +24,9 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isLight, setIsLight] = useState(() =>
+    typeof document !== 'undefined' ? document.documentElement.dataset.theme === 'light' : false
+  );
 
   const { login, loginDemo, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -89,9 +92,9 @@ export const LoginPage: React.FC = () => {
     const next = cur === 'dark' ? 'light' : 'dark';
     r.dataset.theme = next;
     localStorage.setItem('fs-theme', next);
+    setIsLight(next === 'light');
   };
 
-  const isLight = document.documentElement.dataset.theme === 'light';
   const displayError = validationError || error;
 
   return (
@@ -112,7 +115,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Top minimal header bar matching FairShare UI */}
       <header
-        className="relative z-10 w-full flex items-center justify-between px-6 sm:px-12 py-4"
+        className="relative z-10 w-full flex items-center justify-between px-4 sm:px-12 py-3 sm:py-4"
         style={{
           borderBottom: '1px solid var(--line)',
           background: 'var(--glass)',
@@ -121,7 +124,7 @@ export const LoginPage: React.FC = () => {
         }}
       >
         <Link to="/" className="brand flex items-center no-underline text-inherit" aria-label="FairShare, về trang chủ">
-          <FairShareLogo size={24} />
+          <FairShareLogo size={22} textClassName="hidden min-[360px]:inline-block" />
         </Link>
 
         <div className="flex items-center gap-3">
@@ -144,12 +147,12 @@ export const LoginPage: React.FC = () => {
       </header>
 
       {/* Main Login Workspace */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-10 sm:px-8">
+      <main className="relative z-10 flex-1 flex items-center justify-center px-3.5 py-6 sm:py-10 sm:px-8">
         <div
-          className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center"
+          className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center"
         >
           {/* Left Hero Overview */}
-          <div className="lg:col-span-7 flex flex-col gap-6 text-left">
+          <div className="order-2 lg:order-1 lg:col-span-7 flex flex-col gap-5 sm:gap-6 text-left">
             <div className="flex items-center gap-2">
               <span
                 className="eyebrow inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider uppercase backdrop-blur-md"
@@ -280,7 +283,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Right Card: Login Form */}
-          <div className="lg:col-span-5 w-full">
+          <div className="order-1 lg:order-2 lg:col-span-5 w-full">
             <div
               className="rounded-3xl p-6 sm:p-8 transition-all"
               style={{
@@ -406,7 +409,7 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
                   <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--fg2)' }}>
                     <input
                       type="checkbox"

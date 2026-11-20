@@ -316,10 +316,10 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
       className="flex flex-col gap-4 bg-white dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100"
     >
       {/* ── MODAL HEADER (Matching Image 3) ── */}
-      <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
               {stepInfo.title}
             </h2>
             {sprintList.length > 0 ? (
@@ -514,7 +514,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
         {/* ════════════ BƯỚC 2: MINH CHỨNG HOÀN THÀNH ════════════ */}
         <div className={currentStep === 2 ? 'block space-y-3.5' : 'hidden'}>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="manual-evidence-link" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+            <label htmlFor="manual-evidence-link" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex flex-wrap items-center justify-between gap-1">
               <span>Đường dẫn minh chứng (URL) <span className="text-rose-500">*</span></span>
               <span className="text-[11px] text-zinc-400 font-normal">URL công khai để nhóm đối chiếu</span>
             </label>
@@ -538,7 +538,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
             </div>
 
             {/* Quick Template Links */}
-            <div className="flex items-center gap-2 pt-1 text-[11px]">
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
               <span className="text-zinc-400">Gợi ý mẫu:</span>
               <button
                 type="button"
@@ -632,7 +632,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
                 {Number(storyPoints) > 0 ? `+${Number(storyPoints).toFixed(1)} điểm` : '0 điểm'}
               </span>
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 id="manual-story-points"
                 data-testid="input-story-points"
@@ -695,7 +695,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
         </div>
 
         {/* ════════════ BOTTOM STEP BAR (Exact match to Image 3) ════════════ */}
-        <div className="flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-2">
           {/* Progress Indicator on bottom-left */}
           <div className="flex items-center gap-3">
             <div className="w-16 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">

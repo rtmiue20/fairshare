@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useProjectStore } from '../../store/projectStore';
 import apiClient from '../../api/client';
+import { broadcastAvatarUpdate, resolveAvatarUrl } from '../../utils/avatarSync';
 import { teamApi } from '../../api/team.api';
 import './ProfileSettingsPage.css';
 
@@ -122,18 +123,11 @@ export const ProfileSettingsPage: React.FC = () => {
   // Avatar Upload on Double Click
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imgError, setImgError] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string>(() => {
-    return (
-      localStorage.getItem(`fairshare_avatar_data_${user?.id || 'me'}`) ||
-      user?.avatarUrl ||
-      localStorage.getItem(`fairshare_avatar_${user?.id || 'me'}`) ||
-      localStorage.getItem('user_avatar') ||
-      ''
-    );
-  });
+  const [avatarUrl, setAvatarUrl] = useState<string>(() => resolveAvatarUrl(user?.avatarUrl) || '');
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -145,40 +139,36 @@ export const ProfileSettingsPage: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const previewUrl = reader.result as string;
-      setImgError(false);
-      setAvatarUrl(previewUrl);
+    // Xem trước tức thì, sau đó lưu lên server (uploads/avatars)
+    const previousUrl = avatarUrl;
+    const previewUrl = URL.createObjectURL(file);
+    setImgError(false);
+    setAvatarUrl(previewUrl);
 
-      const userIdKey = user?.id || 'me';
-      localStorage.setItem(`fairshare_avatar_data_${userIdKey}`, previewUrl);
-      localStorage.setItem(`fairshare_avatar_${userIdKey}`, previewUrl);
-      localStorage.setItem('user_avatar', previewUrl);
-      if (updateUser) {
-        updateUser({ avatarUrl: previewUrl });
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      const res = await apiClient.post<{ data?: { avatarUrl?: string } }>('/users/me/avatar', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const serverUrl = res.data?.data?.avatarUrl;
+      if (!serverUrl) throw new Error('Server không trả về đường dẫn ảnh');
+
+      setAvatarUrl(resolveAvatarUrl(serverUrl) || serverUrl);
+      updateUser?.({ avatarUrl: serverUrl });
+      if (user?.id) {
+        // Báo cho các trang khác (Dashboard, ...) cập nhật ngay
+        broadcastAvatarUpdate({ userId: user.id, avatarUrl: serverUrl });
       }
       setSaveSuccess('Đã cập nhật ảnh đại diện thành công!');
       setTimeout(() => setSaveSuccess(null), 3500);
-
-      try {
-        const uploadData = new FormData();
-        uploadData.append('file', file);
-        const res = await apiClient.post<{ data?: { url?: string } }>('/upload', uploadData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        const serverUrl = res.data?.data?.url;
-        if (serverUrl) {
-          // If server returns relative path /uploads/..., keep working preview or proxy url
-          localStorage.setItem(`fairshare_avatar_${userIdKey}`, serverUrl);
-          localStorage.setItem('user_avatar', serverUrl);
-        }
-      } catch (err) {
-        console.warn('Backend upload notice, local avatar preview preserved', err);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    } catch (err) {
+      console.warn('Avatar upload failed', err);
+      setAvatarUrl(previousUrl);
+      setSaveError('Không thể tải ảnh đại diện lên máy chủ. Vui lòng thử lại.');
+    } finally {
+      URL.revokeObjectURL(previewUrl);
+    }
   };
 
   // Active project resolution
@@ -283,6 +273,11 @@ export const ProfileSettingsPage: React.FC = () => {
             githubUsername: pickStr(data.githubUsername) || prev.githubUsername,
           }));
           if (data.createdAt) setJoinedAt(data.createdAt);
+          if (data.avatarUrl) {
+            setImgError(false);
+            setAvatarUrl(resolveAvatarUrl(data.avatarUrl) || data.avatarUrl);
+            if (data.avatarUrl !== user?.avatarUrl) updateUser?.({ avatarUrl: data.avatarUrl });
+          }
           if (data.githubUsername) {
             setConnections({ github: true });
           }
@@ -642,11 +637,11 @@ export const ProfileSettingsPage: React.FC = () => {
       <section className="ps-shell">
         {/* ---------- Hero ---------- */}
         <header className="ps-hero">
-          {/* Avatar with Double-click upload */}
+          {/* Avatar with single-tap/click upload */}
           <div
             className="ps-avatar-wrapper"
-            onDoubleClick={() => fileInputRef.current?.click()}
-            title="Nhấp đúp chuột (Double click) để tải ảnh đại diện từ máy tính lên"
+            onClick={() => fileInputRef.current?.click()}
+            title="Nhấn để tải ảnh đại diện mới"
           >
             <input
               ref={fileInputRef}
@@ -660,15 +655,7 @@ export const ProfileSettingsPage: React.FC = () => {
                 <img
                   src={avatarUrl}
                   alt=""
-                  onError={() => {
-                    const userIdKey = user?.id || 'me';
-                    const cachedData = localStorage.getItem(`fairshare_avatar_data_${userIdKey}`);
-                    if (cachedData && avatarUrl !== cachedData) {
-                      setAvatarUrl(cachedData);
-                    } else {
-                      setImgError(true);
-                    }
-                  }}
+                  onError={() => setImgError(true)}
                   onLoad={() => setImgError(false)}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                 />
@@ -676,9 +663,19 @@ export const ProfileSettingsPage: React.FC = () => {
                 getInitials(formData.fullName || formData.email || 'FS')
               )}
             </div>
-            <div className="ps-avatar-camera-badge" title="Nhấp đúp để đổi ảnh">
+            <button
+              type="button"
+              className="ps-avatar-camera-badge"
+              aria-label="Đổi ảnh đại diện"
+              title="Đổi ảnh đại diện"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              style={{ border: 'none', padding: 0, cursor: 'pointer' }}
+            >
               <Camera size={13} />
-            </div>
+            </button>
             <div className="ps-avatar-overlay">
               <Camera size={18} />
               <span>Đổi ảnh</span>
@@ -956,8 +953,8 @@ export const ProfileSettingsPage: React.FC = () => {
             <div className="ps-col">
               <div className="ps-card">
                 <CardHeader title="Bảng Quản lý Công việc (Task Board)" extra={<span className="ps-chip ok">Đang kích hoạt</span>} />
-                <div className="ps-inline ps-desc">
-                  <Kanban size={18} />
+                <div className="ps-inline ps-desc" style={{ alignItems: 'flex-start' }}>
+                  <Kanban size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                   <span>Tự động ghi nhận các sự kiện tạo, cập nhật tiến độ và hoàn thành nhiệm vụ phục vụ phân tích đóng góp.</span>
                 </div>
               </div>
@@ -1024,20 +1021,20 @@ export const ProfileSettingsPage: React.FC = () => {
                   <div
                     style={{
                       fontSize: '12px',
-                      color: consentOk ? 'var(--ps-ok, #10b981)' : 'var(--fg3)',
+                      color: consentOk ? 'var(--ok, #10b981)' : 'var(--fg3)',
                       display: 'flex',
-                      alignItems: 'center',
+                      alignItems: 'flex-start',
                       gap: '6px',
                     }}
                   >
                     {consentOk ? (
                       <>
-                        <ShieldCheck size={15} />
+                        <ShieldCheck size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
                         <span>Trạng thái: Dữ liệu cá nhân được bảo vệ theo Nghị định 13/2023/NĐ-CP.</span>
                       </>
                     ) : (
                       <>
-                        <AlertCircle size={15} />
+                        <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
                         <span>Trạng thái: Chưa cấp quyền. Vui lòng ký đồng thuận để hệ thống ghi nhận đóng góp của bạn.</span>
                       </>
                     )}

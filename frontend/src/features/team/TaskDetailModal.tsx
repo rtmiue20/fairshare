@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Calendar,
@@ -789,8 +790,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
-  return (
-    <div className="task-modal-backdrop" onClick={onClose}>
+  const modalContent = (
+    <div className="task-modal-backdrop" style={{ zIndex: 10000 }} onClick={onClose}>
       <div className="task-detail-modal-window" onClick={(e) => e.stopPropagation()}>
         {/* Top Header bar */}
         <div className="task-detail-top-nav">
@@ -1820,4 +1821,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };

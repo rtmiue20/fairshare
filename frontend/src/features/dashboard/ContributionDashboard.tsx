@@ -11,6 +11,7 @@ import { ContributionPieChart } from './ContributionPieChart';
 import { ContributionTimeline } from './ContributionTimeline';
 import { EvidenceTable } from './EvidenceTable';
 import { MemberRadarChart } from './MemberRadarChart';
+import { resolveAvatarUrl, subscribeAvatarUpdates } from '../../utils/avatarSync';
 import { DashboardFilters, SprintOption, MemberOption } from './DashboardFilters';
 import { EvidenceTraceabilityModal } from './EvidenceTraceabilityModal';
 import { ManualContributionModal } from './ManualContributionModal';
@@ -184,7 +185,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             id: uId,
             name: uName,
             role: m.role === 'LEADER' ? 'Leader' : 'Thành viên',
-            avatarUrl: m.user?.avatarUrl,
+            avatarUrl: (m as unknown as { avatarUrl?: string | null }).avatarUrl ?? m.user?.avatarUrl,
             bio: m.user?.bio,
           };
         });
@@ -199,6 +200,45 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
     return () => {
       isMounted = false;
+    };
+  }, [currentTeamId]);
+
+  // Ảnh đại diện cập nhật theo thời gian thực (userId -> url | null)
+  const [avatarMap, setAvatarMap] = useState<Record<number, string | null>>({});
+  useEffect(() => {
+    if (!currentTeamId) return;
+    let alive = true;
+    const refresh = () => {
+      teamApi
+        .getMembers(currentTeamId)
+        .then((res) => {
+          if (!alive || !Array.isArray(res?.data)) return;
+          const next: Record<number, string | null> = {};
+          res.data.forEach((m) => {
+            const uid = m.userId ?? m.user?.id ?? m.id;
+            next[uid] = m.avatarUrl ?? m.user?.avatarUrl ?? null;
+          });
+          setAvatarMap((prev) => {
+            const keys = Object.keys(next);
+            const same = keys.length === Object.keys(prev).length && keys.every((k) => prev[Number(k)] === next[Number(k)]);
+            return same ? prev : next;
+          });
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 10000);
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    const unsubscribe = subscribeAvatarUpdates((u) => {
+      setAvatarMap((prev) => ({ ...prev, [u.userId]: u.avatarUrl }));
+      refresh();
+    });
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      unsubscribe();
     };
   }, [currentTeamId]);
 
@@ -434,6 +474,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       const mId = Number(memberIdParam);
       if (!isNaN(mId) && mId > 0) {
         setActiveRadarUserId(mId);
+        setSelectedUserId(mId);
         setIsProfileModalOpen(true);
       }
     }
@@ -630,9 +671,20 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
   // Thành viên nổi bật & thông số cá nhân cho Thẻ FairShare Card & Hệ số Khả dụng a_i
   const featuredMember = useMemo(() => {
-    const target = safeSummaryItems.find((m) => m.userId === activeRadarUserId) ?? safeSummaryItems[0];
+    // Thành viên tiêu biểu = người có % đóng góp cao nhất.
+    // Chọn "Tất cả thành viên" -> hiển thị thành viên tiêu biểu; chọn một người -> hiển thị người đó.
+    const topMember = safeSummaryItems.reduce<(typeof safeSummaryItems)[number] | undefined>(
+      (best, m) => (!best || (m.finalPct ?? 0) > (best.finalPct ?? 0) ? m : best),
+      undefined
+    );
+    const target =
+      selectedUserId === 'ALL'
+        ? topMember
+        : safeSummaryItems.find((m) => m.userId === selectedUserId) ?? topMember;
+    const isTop = !!target && !!topMember && (target.userId === topMember.userId || ((target.finalPct ?? 0) > 0 && target.finalPct === topMember.finalPct));
     if (!target) {
       return {
+        isTop: true,
         id: 1,
         name: 'Thành viên',
         role: 'Leader',
@@ -652,7 +704,11 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     const roleFromTeam = memberOption?.role;
     const roleMatch = target.userName.match(/\(([^)]+)\)/);
     const role = roleMatch?.[1] || roleFromTeam || (target.userId === 1 ? 'Leader' : 'Thành viên');
-    const avatarUrl = (sc as unknown as { avatarUrl?: string })?.avatarUrl || memberOption?.avatarUrl || (target.userId === user?.id ? user?.avatarUrl : undefined);
+    const liveAvatar = target.userId in avatarMap ? avatarMap[target.userId] : undefined;
+    const selfAvatar = target.userId === user?.id ? user?.avatarUrl : undefined;
+    const avatarUrl = resolveAvatarUrl(
+      selfAvatar || liveAvatar || (sc as unknown as { avatarUrl?: string })?.avatarUrl || memberOption?.avatarUrl
+    );
     const bio = memberOption?.bio;
     const tasks = Number(sc?.taskCompletedCount ?? (target.trelloScore && target.trelloScore > 0 ? Math.round(target.trelloScore / 5) : 0));
     const edits = Number(sc?.docsEditCount ?? Math.round((target.trelloScore ?? 0) + (target.manualScore ?? 0)));
@@ -695,6 +751,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     const bioText = localProfile.bio || bio || (target.userId === 1 ? 'Phụ trách quản lý đồ án, thiết kế kiến trúc hệ thống và điều phối tiến độ toàn nhóm.' : undefined);
 
     return {
+      isTop,
       id: target.userId,
       name: cleanName,
       role,
@@ -714,7 +771,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       major,
       teamRole,
     };
-  }, [safeSummaryItems, activeRadarUserId, scores, availableMembers, avgOnTimeRate]);
+  }, [safeSummaryItems, selectedUserId, scores, availableMembers, avgOnTimeRate, avatarMap, user?.id, user?.avatarUrl]);
 
   if (initialized && teams.length === 0 && !propTeamId && !urlTeamId) {
     return <NoProjectState />;
@@ -734,7 +791,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
         {/* ── Page Header: Tiêu đề trang & Trạng thái đồng bộ hệ thống ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-2.5">
               <span>Bảng đo lường đóng góp</span>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
                 {currentSprintLabel}
@@ -745,7 +802,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {(suspiciousCount + insufficientCount) > 0 ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 text-xs font-semibold">
                 <AlertTriangle size={13} />
@@ -765,7 +822,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
         </div>
 
         {/* ── Toolbar: Bộ lọc (Trái) & Nút Xuất Báo Cáo PDF (Phải) Cân Đối ── */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
           <DashboardFilters
             sprints={availableSprints}
             selectedSprintId={selectedSprintId}
@@ -864,14 +921,14 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           {/* ══════════════════════════════════════════════════════════════
               BENTO GRID 6 COMPONENTS (THEO MẪU FAIRSHARE THIẾT KẾ ĐA CHIỀU)
              ══════════════════════════════════════════════════════════════ */}
-          <div id="dashboard-bento-section" data-testid="dashboard-bento-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div id="dashboard-bento-section" data-testid="dashboard-bento-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {/* ───────── CỘT 1 (LG:ROW-SPAN-2): THÀNH VIÊN TIÊU BIỂU & SẢN LƯỢNG CÁ NHÂN (2 COMPONENTS) ───────── */}
-            <div className="lg:row-span-2 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
+            <div className="md:col-span-2 lg:col-span-1 lg:row-span-2 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
               {/* COMPONENT 1: THÀNH VIÊN TIÊU BIỂU (FAIRSHARE CARD) */}
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
-                    Thành viên tiêu biểu
+                    {featuredMember.isTop ? 'Thành viên tiêu biểu' : 'Thành viên'}
                   </span>
                   <button
                     type="button"
@@ -1194,7 +1251,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
               </div>
 
               {/* Chú thích màu sắc */}
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-center gap-3 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-orange-500" />
                   <span>D1 Sản lượng (40%)</span>
@@ -1351,16 +1408,16 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
           {/* ══════════════════════════════════════════════════════════════
               KHỐI CHI TIẾT TÍCH HỢP (TABS ĐỒNG BỘ: THÀNH VIÊN | RADAR 4D | AUDIT TRAIL)
              ══════════════════════════════════════════════════════════════ */}
-          <div className="rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] p-6 transition-all">
+          <div className="rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] p-4 sm:p-6 transition-all">
             {/* Tab Navigation Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-white/10">
-              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 max-w-fit">
+              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 max-w-full overflow-x-auto no-scrollbar">
                 <button
                   type="button"
                   onClick={() => setDashboardViewTab('members')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                     dashboardViewTab === 'members'
-                      ? 'bg-white dark:bg-[#222632] text-slate-900 dark:text-white shadow-xs'
+                      ? 'bg-white dark:bg-[#222632] text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -1369,9 +1426,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                 <button
                   type="button"
                   onClick={() => setDashboardViewTab('radar')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                     dashboardViewTab === 'radar'
-                      ? 'bg-white dark:bg-[#222632] text-slate-900 dark:text-white shadow-xs'
+                      ? 'bg-white dark:bg-[#222632] text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -1380,9 +1437,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                 <button
                   type="button"
                   onClick={() => setDashboardViewTab('audit')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                     dashboardViewTab === 'audit'
-                      ? 'bg-white dark:bg-[#222632] text-slate-900 dark:text-white shadow-xs'
+                      ? 'bg-white dark:bg-[#222632] text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -1421,7 +1478,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                     return (
                       <div
                         key={member.userId}
-                        className="row mem"
+                        className="row mem dashboard-mem-row"
                         onClick={() => setActiveRadarUserId(member.userId)}
                         style={{
                           cursor: 'pointer',
@@ -1470,7 +1527,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div className="dashboard-mem-bar-cell" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div
                             className="bar"
                             style={{ '--c': memberColor, flex: 1, borderRadius: 3 } as React.CSSProperties}
@@ -1503,6 +1560,14 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                             {member.finalPct?.toFixed(1) ?? '0.0'}%
                             <Search style={{ width: 10, height: 10, opacity: 0.7 }} />
                           </button>
+                        </div>
+
+                        <div className="flex sm:hidden items-center gap-3 text-[11px] font-mono text-slate-400">
+                          <span>Task: {hm?.tasks ?? 0}</span>
+                          <span>·</span>
+                          <span>Hoạt động: {hm?.edits ?? 0}</span>
+                          <span>·</span>
+                          <span>Chấm chéo: {hm?.peer && hm.peer > 0 ? hm.peer.toFixed(1) : '—'}</span>
                         </div>
 
                         <span className="num">{hm?.tasks ?? 0}</span>
@@ -1612,7 +1677,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             {/* TAB 3: BẰNG CHỨNG TRUY VẾT MINH CHỨNG (AUDIT TRAIL) */}
             {dashboardViewTab === 'audit' && (
               <div className="pt-4" id="audit-trail">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     Nhật ký sự kiện bất biến ({filteredEvidenceItems.length} sự kiện)
                   </span>
