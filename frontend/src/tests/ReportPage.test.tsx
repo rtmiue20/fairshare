@@ -8,7 +8,6 @@ import { teamApi } from '../api/team.api';
 import { peerReviewApi } from '../api/peerReview.api';
 import { boardApi } from '../api/board.api';
 import { useProjectStore } from '../store/projectStore';
-import * as pdfExport from '../utils/pdfExport';
 
 vi.mock('../api/report.api', () => ({
   reportApi: {
@@ -180,7 +179,7 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     expect(screen.getAllByText('Đạt chuẩn').length).toBeGreaterThan(0);
   });
 
-  it('handles official PDF download client-side via exportElementToPdf', async () => {
+  it('opens electronic signature modal and exports PDF when clicking Xuất PDF chính thức', async () => {
     render(
       <MemoryRouter>
         <ReportPage />
@@ -194,8 +193,17 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     fireEvent.click(screen.getByText('Xuất PDF chính thức'));
 
     await waitFor(() => {
-      expect(pdfExport.exportElementToPdf).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Ký điện tử báo cáo')).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByText(/Áp chữ ký & Xuất PDF/));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Ký điện tử báo cáo')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(window.print).toHaveBeenCalledTimes(1);
+    }, { timeout: 1500 });
     expect(reportApi.downloadPdfReport).not.toHaveBeenCalled();
   });
 

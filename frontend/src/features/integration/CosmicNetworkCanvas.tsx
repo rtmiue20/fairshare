@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Target,
   ThumbsUp,
+  Info,
 } from 'lucide-react';
 
 export interface CosmicNetworkCanvasProps {
@@ -146,6 +147,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showMemberDropdown2, setShowMemberDropdown2] = useState(false);
+  const [showMobileLegend, setShowMobileLegend] = useState(false);
 
   // Close member dropdowns on outside click
   useEffect(() => {
@@ -210,20 +212,6 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Auto-play timer for sprint replay simulation
-  useEffect(() => {
-    if (!isPlaying) return;
-    const timer = setInterval(() => {
-      setInternalCutDay((prev) => {
-        const next = prev >= 14 ? 14 : prev + 1;
-        if (next >= 14) setIsPlaying(false);
-        onCutDayChange?.(next);
-        return next;
-      });
-    }, 850);
-    return () => clearInterval(timer);
-  }, [isPlaying, onCutDayChange]);
-
   // Helper Initials for central Orb
   const initials = useMemo(() => {
     if (!focusedUserName) return 'FS';
@@ -269,7 +257,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         kind: axis === 'IMP' ? 'imp' : axis === 'D3' ? 'review' : 'card',
         title: n.label,
         src,
-        day: (idx % 5) + 1,
+        day: Math.min(14, Math.max(1, Math.round(((idx + 1) / Math.max(1, dbEventNodes.length)) * 14))),
         time: 'DB Sync',
         impact: n.status === 'WARN' ? -Math.abs(weightVal) : weightVal,
         dp: n.status === 'WARN' && axis !== 'IMP' ? -0.6 : Number((weightVal * 0.35).toFixed(1)),
@@ -287,51 +275,51 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       }
     };
 
-    // D1: Output / Sản lượng
+    // D1: Output / Sản lượng (phân bổ từ ngày 1 đến ngày 14 của Sprint)
     if (isFrontend) {
       [
         { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Giao diện Chấm chéo', src: 'Trello', day: 2, time: '10:15', impact: 5.0, dp: 1.4, evid: 'Trello · thẻ #104 · Doing → Done · 5 SP · UI Chấm chéo ẩn danh', meta: { sp: 5 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'doc' as const, title: 'Chỉnh sửa · SRS v2.1 (Mục 4 UI Kit)', src: 'Google Docs', day: 3, time: '14:20', impact: 2.5, dp: 0.8, evid: 'Google Docs · revision r48 · +850 từ · Đặc tả Figma Token', meta: { words: 850 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tích hợp API Axios', src: 'Trello', day: 4, time: '16:45', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #108 · Doing → Done · 3 SP · Interceptor JWT', meta: { sp: 3 } },
-        { id: `${mid}-d1-4`, mid, axis: 'D1' as const, kind: 'check' as const, title: 'Check item · Responsive Mobile TopNav', src: 'Trello', day: 5, time: '09:30', impact: 1.0, dp: 0.3, evid: 'Trello · checklist 5/5 hoàn thành', meta: {} },
-        { id: `${mid}-d1-5`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Form Khai Báo Thủ Công', src: 'Trello', day: 7, time: '11:00', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #112 · Doing → Done · 3 SP · Upload ảnh minh chứng', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'doc' as const, title: 'Chỉnh sửa · SRS v2.1 (Mục 4 UI Kit)', src: 'Google Docs', day: 5, time: '14:20', impact: 2.5, dp: 0.8, evid: 'Google Docs · revision r48 · +850 từ · Đặc tả Figma Token', meta: { words: 850 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tích hợp API Axios', src: 'Trello', day: 8, time: '16:45', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #108 · Doing → Done · 3 SP · Interceptor JWT', meta: { sp: 3 } },
+        { id: `${mid}-d1-4`, mid, axis: 'D1' as const, kind: 'check' as const, title: 'Check item · Responsive Mobile TopNav', src: 'Trello', day: 11, time: '09:30', impact: 1.0, dp: 0.3, evid: 'Trello · checklist 5/5 hoàn thành', meta: {} },
+        { id: `${mid}-d1-5`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Form Khai Báo Thủ Công', src: 'Trello', day: 14, time: '11:00', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #112 · Doing → Done · 3 SP · Upload ảnh minh chứng', meta: { sp: 3 } },
       ].forEach(pushIfNew);
     } else if (isLeader) {
       [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kiến trúc Spring Boot 3', src: 'Trello', day: 1, time: '11:00', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #92 · Doing → Done · 5 SP · Clean Architecture', meta: { sp: 5 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Cấu hình Docker Compose', src: 'Trello', day: 3, time: '15:30', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #96 · Doing → Done · 3 SP · Multi-stage build', meta: { sp: 3 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tối ưu Stored Procedure', src: 'Trello', day: 5, time: '17:00', impact: 5.0, dp: 1.5, evid: 'Trello · thẻ #101 · Doing → Done · 5 SP · Giảm latency còn 0.35ms', meta: { sp: 5 } },
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kiến trúc Spring Boot 3', src: 'Trello', day: 3, time: '11:00', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #92 · Doing → Done · 5 SP · Clean Architecture', meta: { sp: 5 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Cấu hình Docker Compose', src: 'Trello', day: 8, time: '15:30', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #96 · Doing → Done · 3 SP · Multi-stage build', meta: { sp: 3 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tối ưu Stored Procedure', src: 'Trello', day: 14, time: '17:00', impact: 5.0, dp: 1.5, evid: 'Trello · thẻ #101 · Doing → Done · 5 SP · Giảm latency còn 0.35ms', meta: { sp: 5 } },
       ].forEach(pushIfNew);
     } else if (isBackend) {
       [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · RESTful API Swagger', src: 'Trello', day: 2, time: '14:00', impact: 3.0, dp: 0.9, evid: 'Trello · thẻ #105 · Doing → Done · 3 SP · OpenApi 3.0', meta: { sp: 3 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Migration Flyway V21-V23', src: 'Trello', day: 4, time: '10:30', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #109 · Doing → Done · 3 SP · Versioned migrations', meta: { sp: 3 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Scoring Engine 4 Tầng', src: 'Trello', day: 6, time: '16:15', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #115 · Doing → Done · 5 SP · Robust z-score', meta: { sp: 5 } },
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · RESTful API Swagger', src: 'Trello', day: 3, time: '14:00', impact: 3.0, dp: 0.9, evid: 'Trello · thẻ #105 · Doing → Done · 3 SP · OpenApi 3.0', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Migration Flyway V21-V23', src: 'Trello', day: 8, time: '10:30', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #109 · Doing → Done · 3 SP · Versioned migrations', meta: { sp: 3 } },
+        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Scoring Engine 4 Tầng', src: 'Trello', day: 14, time: '16:15', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #115 · Doing → Done · 5 SP · Robust z-score', meta: { sp: 5 } },
       ].forEach(pushIfNew);
     } else if (isQA) {
       [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kịch bản UAT Scenarios', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #102 · Doing → Done · 3 SP · Test matrix M2', meta: { sp: 3 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Đóng Defect DEF-16/17/22', src: 'Trello', day: 4, time: '15:10', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #110 · Doing → Done · 3 SP · Defect verification', meta: { sp: 3 } },
+        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kịch bản UAT Scenarios', src: 'Trello', day: 6, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #102 · Doing → Done · 3 SP · Test matrix M2', meta: { sp: 3 } },
+        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Đóng Defect DEF-16/17/22', src: 'Trello', day: 14, time: '15:10', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #110 · Doing → Done · 3 SP · Defect verification', meta: { sp: 3 } },
       ].forEach(pushIfNew);
     } else {
-      pushIfNew({ id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Nhiệm vụ Sprint', src: 'Trello', day: 2, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · hoàn thành thẻ đúng tiến độ', meta: { sp: 3 } });
+      pushIfNew({ id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Nhiệm vụ Sprint', src: 'Trello', day: 14, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · hoàn thành thẻ đúng tiến độ', meta: { sp: 3 } });
     }
 
     // D2: Reliability / Tin cậy & Đúng hạn
-    pushIfNew({ id: `${mid}-d2-1`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Thẻ chính Sprint', src: 'Trello', day: 2, time: '18:00', impact: 1.0, dp: 0.4, evid: 'Trello · hoàn thành trước due date 12 giờ', meta: {} });
-    pushIfNew({ id: `${mid}-d2-2`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Tài liệu kỹ thuật', src: 'Google Docs', day: 4, time: '17:30', impact: 1.0, dp: 0.4, evid: 'Google Docs · bàn giao đúng hạn mốc tuần 2', meta: {} });
+    pushIfNew({ id: `${mid}-d2-1`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Thẻ chính Sprint', src: 'Trello', day: 6, time: '18:00', impact: 1.0, dp: 0.4, evid: 'Trello · hoàn thành trước due date 12 giờ', meta: {} });
+    pushIfNew({ id: `${mid}-d2-2`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Tài liệu kỹ thuật', src: 'Google Docs', day: 14, time: '17:30', impact: 1.0, dp: 0.4, evid: 'Google Docs · bàn giao đúng hạn mốc tuần 2', meta: {} });
     if (isBackend) {
-      pushIfNew({ id: `${mid}-d2-3`, mid, axis: 'D2', kind: 'rework', title: 'Rework · Thẻ kéo lại Review → Doing', src: 'Trello', day: 3, time: '16:00', impact: -1.5, dp: -0.8, evid: 'Trello · Phát hiện lỗi validation DTO · Trừ điểm tin cậy D2', meta: {} });
+      pushIfNew({ id: `${mid}-d2-3`, mid, axis: 'D2', kind: 'rework', title: 'Rework · Thẻ kéo lại Review → Doing', src: 'Trello', day: 9, time: '16:00', impact: -1.5, dp: -0.8, evid: 'Trello · Phát hiện lỗi validation DTO · Trừ điểm tin cậy D2', meta: {} });
     }
 
     // D3: Collaboration / Phối hợp
-    pushIfNew({ id: `${mid}-d3-1`, mid, axis: 'D3', kind: 'review', title: 'Review chéo PR @Nguyễn Hoàng Nam · Module Vector', src: 'GitHub', day: 2, time: '13:40', impact: 1.2, dp: 0.6, evid: 'GitHub PR #89 · để lại 4 inline comments & Approve', meta: { peer: 'nam' } });
-    pushIfNew({ id: `${mid}-d3-2`, mid, axis: 'D3', kind: 'comment', title: 'Phản hồi bình luận trong SRS v2.1', src: 'Google Docs', day: 3, time: '15:15', impact: 0.6, dp: 0.3, evid: 'Google Docs · resolve 3 trao đổi về kiến trúc', meta: { peer: 'trang' } });
-    pushIfNew({ id: `${mid}-d3-3`, mid, axis: 'D3', kind: 'help', title: 'Hỗ trợ đồng đội · Ghép cặp fix CORS & Auth', src: 'Trello', day: 5, time: '10:00', impact: 1.5, dp: 0.7, evid: 'Trello · được thêm vào thẻ đồng giải quyết blockers', meta: { peer: 'bao' } });
+    pushIfNew({ id: `${mid}-d3-1`, mid, axis: 'D3', kind: 'review', title: 'Review chéo PR @Nguyễn Hoàng Nam · Module Vector', src: 'GitHub', day: 4, time: '13:40', impact: 1.2, dp: 0.6, evid: 'GitHub PR #89 · để lại 4 inline comments & Approve', meta: { peer: 'nam' } });
+    pushIfNew({ id: `${mid}-d3-2`, mid, axis: 'D3', kind: 'comment', title: 'Phản hồi bình luận trong SRS v2.1', src: 'Google Docs', day: 9, time: '15:15', impact: 0.6, dp: 0.3, evid: 'Google Docs · resolve 3 trao đổi về kiến trúc', meta: { peer: 'trang' } });
+    pushIfNew({ id: `${mid}-d3-3`, mid, axis: 'D3', kind: 'help', title: 'Hỗ trợ đồng đội · Ghép cặp fix CORS & Auth', src: 'Trello', day: 13, time: '10:00', impact: 1.5, dp: 0.7, evid: 'Trello · được thêm vào thẻ đồng giải quyết blockers', meta: { peer: 'bao' } });
 
     // D4: Peer Review / Chấm chéo
-    pushIfNew({ id: `${mid}-d4-1`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #1 · 4.8 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:00', impact: 1.8, dp: 0.9, evid: 'Chấm chéo ẩn danh · Tiêu chí: Đúng hạn 5/5, Chất lượng 4.8/5, Hỗ trợ 4.8/5', meta: { rt: 4.8 } });
-    pushIfNew({ id: `${mid}-d4-2`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #2 · 5.0 / 5 sao', src: 'Chấm chéo', day: 5, time: '17:30', impact: 2.4, dp: 1.2, evid: 'Chấm chéo ẩn danh · Đồng đội đánh giá xuất sắc về tinh thần trách nhiệm', meta: { rt: 5.0 } });
+    pushIfNew({ id: `${mid}-d4-1`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #1 · 4.8 / 5 sao', src: 'Chấm chéo', day: 11, time: '17:00', impact: 1.8, dp: 0.9, evid: 'Chấm chéo ẩn danh · Tiêu chí: Đúng hạn 5/5, Chất lượng 4.8/5, Hỗ trợ 4.8/5', meta: { rt: 4.8 } });
+    pushIfNew({ id: `${mid}-d4-2`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #2 · 5.0 / 5 sao', src: 'Chấm chéo', day: 14, time: '17:30', impact: 2.4, dp: 1.2, evid: 'Chấm chéo ẩn danh · Đồng đội đánh giá xuất sắc về tinh thần trách nhiệm', meta: { rt: 5.0 } });
 
     // IMP: Impediments / Rào cản & Khả dụng (nếu DB chưa có node IMP thực)
     const hasDbImp = list.some((item) => item.axis === 'IMP');
@@ -371,6 +359,40 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
     return list;
   }, [focusedUserName, selectedUserId, nodes]);
+
+  // Mốc ngày tối đa khớp chính xác với ngày của sự kiện cuối cùng (thường là ngày 14 của Sprint)
+  const maxDay = useMemo(() => {
+    if (!memberEvents || memberEvents.length === 0) return 14;
+    return Math.max(1, ...memberEvents.map((e) => e.day));
+  }, [memberEvents]);
+
+  // Bộ đếm thời gian phát lại (Sprint Replay simulation) — tự động dừng khi thẻ vừa hiện ra hết
+  useEffect(() => {
+    if (!isPlaying) return;
+    const timer = setInterval(() => {
+      setInternalCutDay((prev) => {
+        const next = prev >= maxDay ? maxDay : prev + 1;
+        if (next >= maxDay) {
+          setIsPlaying(false);
+        }
+        onCutDayChange?.(next);
+        return next;
+      });
+    }, 700);
+    return () => clearInterval(timer);
+  }, [isPlaying, maxDay, onCutDayChange]);
+
+  // Nút Play/Pause: khi đã xem hết (cutDay >= maxDay), bấm Play lần nữa sẽ tự động tua lại từ Ngày 1 và chạy lại
+  const handleTogglePlay = () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+    } else {
+      if (cutDay >= maxDay) {
+        setCutDay(1);
+      }
+      setIsPlaying(true);
+    }
+  };
 
   // Filter events up to cutDay
   const activeEvents = useMemo(() => {
@@ -1039,6 +1061,12 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Reset transform when switching viewMode
+  useEffect(() => {
+    setTransform({ scale: 1.0, x: 0, y: 0 });
+    setIsDragging(false);
+  }, [viewMode]);
+
   // Pan Canvas
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (viewMode === 'detail') return;
@@ -1056,6 +1084,64 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   };
 
   const handleMouseUp = () => setIsDragging(false);
+
+  // Touch Pan Overview Canvas
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (viewMode === 'detail' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setIsDragging(true);
+    dragStartRef.current = { x: t.clientX - transform.x, y: t.clientY - transform.y };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDragging || viewMode === 'detail' || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setTransform((prev) => ({
+      ...prev,
+      x: t.clientX - dragStartRef.current.x,
+      y: t.clientY - dragStartRef.current.y,
+    }));
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
+
+  // Pan Detail View (khi kéo thả trên vùng trống chi tiết)
+  const handleDetailMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, [role="button"], input, select, a, textarea')) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+  };
+
+  const handleDetailMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setTransform((prev) => ({
+      ...prev,
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
+    }));
+  };
+
+  const handleDetailMouseUp = () => setIsDragging(false);
+
+  const handleDetailTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, [role="button"], input, select, a, textarea')) return;
+    const t = e.touches[0];
+    setIsDragging(true);
+    dragStartRef.current = { x: t.clientX - transform.x, y: t.clientY - transform.y };
+  };
+
+  const handleDetailTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setTransform((prev) => ({
+      ...prev,
+      x: t.clientX - dragStartRef.current.x,
+      y: t.clientY - dragStartRef.current.y,
+    }));
+  };
 
   // Zoom Canvas
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1179,17 +1265,21 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       <canvas
         ref={canvasRef}
         className={`w-full h-full block transition-all duration-700 ${
-          viewMode === 'detail' ? 'opacity-20 filter blur-sm scale-110 pointer-events-none' : 'opacity-100 cursor-grab active:cursor-grabbing'
+          viewMode === 'detail' ? 'opacity-20 filter blur-sm scale-110 pointer-events-none' : 'opacity-100 cursor-grab active:cursor-grabbing touch-none'
         }`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
         onClick={handleCanvasClick}
       />
 
-      {/* 2. Top-Center Floating Toolbar Pill */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center gap-1 p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300">
+      {/* 2. Top Floating Toolbar + Simulation / Impact CTA */}
+      <div className="pointer-events-none absolute top-3 inset-x-0 z-30 pl-12 pr-3 sm:px-14 flex flex-wrap items-center justify-center gap-2">
+        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300 max-w-full">
         <button
           type="button"
           title="Sơ đồ tổng quan (Overview Galaxy)"
@@ -1287,23 +1377,39 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         >
           <Sparkles className="w-4 h-4" />
         </button>
-      </div>
 
-      {/* Top Right Simulation / Impact Button */}
-      <div className="absolute top-4 right-6 z-30 pointer-events-auto flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onOpenImpactModal}
-          className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>+ Khai báo rào cản</span>
-        </button>
+          {viewMode === 'overview' && (
+            <button
+              type="button"
+              title="Chú thích mô hình"
+              onClick={() => setShowMobileLegend((prev) => !prev)}
+              className={`lg:hidden p-2 rounded-xl transition ${
+                showMobileLegend
+                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                  : 'hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Simulation / Impact Button */}
+        <div className="pointer-events-auto lg:absolute lg:right-6 lg:top-0 flex items-center">
+          <button
+            type="button"
+            onClick={onOpenImpactModal}
+            className="px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5 whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Khai báo rào cản</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Dropdown */}
       {showFilterMenu && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 max-w-md">
+        <div className="absolute top-24 sm:top-16 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 rounded-2xl p-2 shadow-2xl flex flex-wrap gap-1.5 w-[min(360px,calc(100vw-24px))]">
           {['ALL', 'D1', 'D2', 'D3', 'D4', 'IMPEDIMENT'].map((cat) => (
             <button
               key={cat}
@@ -1361,8 +1467,26 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       {viewMode === 'detail' && (
         <div
           ref={detailAreaRef}
-          className="absolute inset-0 pointer-events-auto z-20 overflow-hidden text-slate-800 dark:text-slate-100"
+          className={`absolute inset-0 pointer-events-auto z-20 overflow-hidden text-slate-800 dark:text-slate-100 ${
+            isDragging ? 'cursor-grabbing' : 'cursor-default'
+          }`}
+          onMouseDown={handleDetailMouseDown}
+          onMouseMove={handleDetailMouseMove}
+          onMouseUp={handleDetailMouseUp}
+          onMouseLeave={handleDetailMouseUp}
+          onTouchStart={handleDetailTouchStart}
+          onTouchMove={handleDetailTouchMove}
+          onTouchEnd={handleDetailMouseUp}
           onWheel={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+              setTransform((prev) => ({
+                ...prev,
+                scale: Math.max(0.4, Math.min(2.5, prev.scale * zoomFactor)),
+              }));
+              return;
+            }
             if (axisEvents.length <= 5) return;
             setItemFocus((prev) => Math.max(0, Math.min(axisEvents.length - 1, prev + (e.deltaY > 0 ? 1 : -1))));
           }}
@@ -1385,8 +1509,17 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </span>
           </div>
 
-          {/* SVG Connector Beams (Orb -> Categories -> Events) */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+          {/* Zoomable & Pannable Diagram Stage */}
+          <div
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{
+              transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+              transformOrigin: `${w * 0.35}px ${oy}px`,
+              transition: isDragging ? 'none' : 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {/* SVG Connector Beams (Orb -> Categories -> Events) */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
             <defs>
               <radialGradient id="orbGlowGrad" cx="35%" cy="32%">
                 <stop offset="0%" stopColor="#efe6ff" />
@@ -1770,29 +1903,30 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
               })
             )}
           </div>
+          </div>
 
           {/* Bottom Sprint Replay Playbar */}
-          <div className="absolute bottom-5 left-6 right-6 z-30 pointer-events-auto flex items-center gap-4 px-4 py-3 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl">
+          <div className="absolute bottom-3 left-3 right-3 sm:bottom-5 sm:left-6 sm:right-6 z-30 pointer-events-auto flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl">
             <button
               type="button"
               aria-label={isPlaying ? 'Tạm dừng phát lại' : 'Bắt đầu phát lại sprint'}
-              onClick={() => setIsPlaying((prev) => !prev)}
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white shadow-[0_0_15px_rgba(244,114,182,0.4)] transition shrink-0"
+              onClick={handleTogglePlay}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white shadow-[0_0_15px_rgba(244,114,182,0.4)] transition shrink-0 cursor-pointer"
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
 
-            <div className="flex-1 space-y-1">
+            <div className="flex-1 min-w-0 space-y-1">
               <input
                 type="range"
                 min={1}
-                max={14}
+                max={maxDay}
                 value={cutDay}
                 onChange={(e) => setCutDay(Number(e.target.value))}
                 className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-white/15 accent-pink-500"
               />
-              <div className="flex justify-between text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                <span>Phát lại sprint · Ngày {cutDay}/14 (16/11/2026)</span>
+              <div className="flex flex-wrap justify-between gap-1 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                <span>Phát lại sprint · Ngày {cutDay}/{maxDay} (16/11/2026)</span>
                 <span className="text-cyan-600 dark:text-cyan-300 font-semibold">{activeEvents.length} sự kiện ghi nhận đến thời điểm này</span>
               </div>
             </div>
@@ -1802,7 +1936,13 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* 3. Bottom-Left Floating Legend Card (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-6 left-6 z-30 pointer-events-auto p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 w-64 space-y-2.5">
+        <div
+          className={`absolute z-30 pointer-events-auto p-3.5 sm:p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 space-y-2.5 ${
+            showMobileLegend
+              ? 'block top-28 sm:top-20 bottom-auto left-3 right-3 sm:right-auto sm:w-64 max-h-[calc(100%-300px)] overflow-y-auto'
+              : 'hidden lg:block lg:bottom-6 lg:left-6 lg:w-64'
+          }`}
+        >
           <h4 className="font-bold text-[10px] tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
             CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
           </h4>
@@ -1845,8 +1985,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       {/* 4. Bottom-Right Floating KPI & Ask AI Dock (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-6 right-6 z-30 pointer-events-auto w-[460px] max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)]" style={{ overflow: 'visible' }}>
-          <div className="grid grid-cols-4 divide-x divide-zinc-200 dark:divide-white/10 px-4 py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
+        <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:bottom-6 sm:right-6 z-30 pointer-events-auto sm:w-[460px] sm:max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)]" style={{ overflow: 'visible' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-white/10 px-3 sm:px-4 py-2.5 sm:py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Đóng góp p_i</span>
               <strong className="text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-1">

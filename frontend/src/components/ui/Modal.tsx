@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export interface ModalProps {
@@ -16,7 +17,7 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
       style={{
         position: 'fixed',
@@ -28,7 +29,8 @@ export const Modal: React.FC<ModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        padding: '12px',
+        zIndex: 10000,
       }}
       onClick={onClose}
     >
@@ -36,10 +38,12 @@ export const Modal: React.FC<ModalProps> = ({
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '8px',
-          padding: '24px',
-          minWidth: '400px',
+          padding: 'clamp(16px, 4vw, 24px)',
+          minWidth: 0,
           maxWidth: '600px',
-          width: '90%',
+          width: 'min(92vw, 600px)',
+          maxHeight: '90dvh',
+          overflowY: 'auto',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -75,4 +79,6 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };

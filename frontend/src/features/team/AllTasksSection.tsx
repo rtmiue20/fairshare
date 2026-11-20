@@ -23,6 +23,7 @@ import { CustomToolsPopup, ColumnItem } from './CustomToolsPopup';
 import { boardApi } from '../../api/board.api';
 import { getMemberAvatarGradient, getMemberInitials } from '../../utils/format';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useProjectStore } from '../../store/projectStore';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'completed' | string;
 
@@ -412,7 +413,7 @@ export const AllTasksSection: React.FC<{
             board.columns.forEach((c) => {
               if (c.cards && c.cards.length > 0) {
                 c.cards.forEach((card) => {
-                  const { items: subItems } = parseChecklistFromDescription(card.description);
+                  const { items: subItems, assignees: parsedAssignees } = parseChecklistFromDescription(card.description);
                   const colLower = c.name.toLowerCase();
                   const defaultColProgress =
                     colLower.includes('done') || colLower.includes('complete') || colLower.includes('hoàn thành')
@@ -425,6 +426,26 @@ export const AllTasksSection: React.FC<{
                   const progressVal = subItems.length > 0
                     ? Math.round((subItems.filter((x) => x.completed).length / subItems.length) * 100)
                     : defaultColProgress;
+
+                  const cardAssignees =
+                    parsedAssignees && parsedAssignees.length > 0
+                      ? parsedAssignees.map((a) => ({
+                          id: a.id,
+                          name: a.name,
+                          avatarText: a.avatarText || getMemberInitials(a.name),
+                          bg: a.bg || getMemberAvatarGradient(a.name),
+                          role: a.role,
+                        }))
+                      : card.assigneeName
+                      ? [
+                          {
+                            id: card.assigneeId,
+                            name: card.assigneeName,
+                            avatarText: getMemberInitials(card.assigneeName),
+                            bg: getMemberAvatarGradient(card.assigneeName),
+                          },
+                        ]
+                      : [];
 
                   loadedTasks.push({
                     id: String(card.id),
@@ -439,15 +460,7 @@ export const AllTasksSection: React.FC<{
                     progress: progressVal,
                     commentsCount: 0,
                     linksCount: 0,
-                    assignees: card.assigneeName
-                      ? [
-                          {
-                            name: card.assigneeName,
-                            avatarText: getMemberInitials(card.assigneeName),
-                            bg: getMemberAvatarGradient(card.assigneeName),
-                          },
-                        ]
-                      : [],
+                    assignees: cardAssignees,
                   });
                 });
               }
@@ -467,6 +480,75 @@ export const AllTasksSection: React.FC<{
       mounted = false;
     };
   }, [teamId, projectName]);
+
+  // Tự động mở modal chi tiết thẻ khi truy cập bằng direct link (?cardId=xxx hoặc ?taskId=xxx)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetCardId = urlParams.get('cardId') || urlParams.get('taskId');
+    if (!targetCardId) return;
+
+    if (tasks.length > 0) {
+      const found = tasks.find((t) => String(t.id) === targetCardId);
+      if (found) {
+        setSelectedTask(found);
+        setDetailModalOpen(true);
+        return;
+      }
+    }
+
+    const cardIdNum = Number(targetCardId);
+    if (!isNaN(cardIdNum) && cardIdNum > 0 && !detailModalOpen) {
+      boardApi
+        .getCardById(cardIdNum)
+        .then((res) => {
+          if (res?.data) {
+            const card = res.data;
+            const { items: subItems, assignees: parsedAssignees } = parseChecklistFromDescription(card.description);
+            const cardAssignees =
+              parsedAssignees && parsedAssignees.length > 0
+                ? parsedAssignees.map((a) => ({
+                    id: a.id,
+                    name: a.name,
+                    avatarText: a.avatarText || getMemberInitials(a.name),
+                    bg: a.bg || getMemberAvatarGradient(a.name),
+                    role: a.role,
+                  }))
+                : card.assigneeName
+                ? [
+                    {
+                      id: card.assigneeId,
+                      name: card.assigneeName,
+                      avatarText: getMemberInitials(card.assigneeName),
+                      bg: getMemberAvatarGradient(card.assigneeName),
+                    },
+                  ]
+                : [];
+
+            const directTask: TaskItem = {
+              id: String(card.id),
+              projectTag: projectName ? `${projectName} · Nhiệm vụ` : `Thẻ #${card.id}`,
+              title: card.title,
+              description: card.description || '',
+              dueDate: card.dueDate ? new Date(card.dueDate).toLocaleDateString('vi-VN') : 'Chưa có hạn',
+              status: String(card.columnId || '1'),
+              difficultyLevel: card.difficultyLevel,
+              storyPoints: card.storyPoints,
+              assigneeId: card.assigneeId,
+              progress:
+                subItems.length > 0
+                  ? Math.round((subItems.filter((x) => x.completed).length / subItems.length) * 100)
+                  : 50,
+              commentsCount: 0,
+              linksCount: 0,
+              assignees: cardAssignees,
+            };
+            setSelectedTask(directTask);
+            setDetailModalOpen(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [tasks, detailModalOpen, projectName]);
 
   const handleGridMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -620,6 +702,8 @@ export const AllTasksSection: React.FC<{
 
         if (toColLower.includes('done') || toColLower.includes('complete') || toColLower.includes('hoàn thành')) {
           useNotificationStore.getState().addNotification({
+            teamId: teamId ?? useProjectStore.getState().activeTeamId ?? undefined,
+            source: 'manual',
             type: 'success',
             title: 'Hoàn thành task',
             message: `Task "${task.title}" đã được hoàn thành và cập nhật tiến độ 100%.`,
@@ -821,6 +905,8 @@ export const AllTasksSection: React.FC<{
         showToast.success(`Đã tạo và lưu công việc "${newTask.title}" vào DB!`, 'Database Saved');
 
         useNotificationStore.getState().addNotification({
+          teamId: teamId ?? useProjectStore.getState().activeTeamId ?? undefined,
+          source: 'manual',
           type: 'info',
           title: 'Công việc mới được tạo',
           message: `Nhiệm vụ "${newTask.title}" đã được thêm vào bảng task dự án.`,

@@ -516,7 +516,7 @@ export const EvidenceTraceabilityModal: React.FC<EvidenceTraceabilityModalProps>
         {/* Footer Modal: Ghi chú bảo mật & Nút Đóng */}
         <div className="shrink-0 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 dark:border-white/5 bg-slate-50/70 dark:bg-[#181a24] px-4 sm:px-6 py-2.5 sm:py-3">
           <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500">
-            * Dữ liệu được ghi nhận tự động từ Task Board nội bộ (ActivityEvent nguồn BOARD) – Chống chỉnh sửa lịch sử (CR-02).
+            * Dữ liệu được ghi nhận tự động từ Task Board (ActivityEvent nguồn BOARD) – Cơ chế nhật ký bất biến chống can thiệp lịch sử.
           </p>
           <button
             onClick={onClose}

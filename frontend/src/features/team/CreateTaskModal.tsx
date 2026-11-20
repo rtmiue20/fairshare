@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Calendar,
@@ -212,8 +213,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   const userInitials = (user?.fullName || user?.email || 'U').slice(0, 2).toUpperCase();
 
-  return (
-    <div className="task-modal-backdrop" onClick={onClose}>
+  const modalContent = (
+    <div className="task-modal-backdrop" style={{ zIndex: 10000 }} onClick={onClose}>
       <div className="create-task-modal-window" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div className="create-task-modal-head">
@@ -385,17 +386,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   className="task-input-pill"
                   value={tag}
                   onChange={(e) => setTag(e.target.value)}
-                  placeholder="VD: Dashboard, Backend API..."
-                  list="tag-suggestions"
+                  placeholder="Nhập tag (VD: Marketing, Thiết kế, Báo cáo...)"
+                  maxLength={50}
+                  autoComplete="off"
                 />
-                <datalist id="tag-suggestions">
-                  <option value="Dashboard" />
-                  <option value="Website" />
-                  <option value="Mobile App" />
-                  <option value="Backend API" />
-                  <option value="UI/UX" />
-                  <option value="Testing" />
-                </datalist>
               </div>
             </div>
           </div>
@@ -496,4 +490,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };

@@ -28,11 +28,8 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
     } else if (n.targetLink) {
       navigate(n.targetLink);
       onClose();
-    } else if (n.type === 'warning') {
+    } else if (n.type === 'warning' || n.type === 'error') {
       navigate('/alerts');
-      onClose();
-    } else if (n.type === 'info') {
-      navigate('/peer-review');
       onClose();
     } else {
       navigate('/teams');
@@ -46,7 +43,7 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
     if (n.actionSecondary?.onClick) {
       n.actionSecondary.onClick();
     } else {
-      showToast('Đã lưu lời mời để xử lý sau');
+      showToast('Đã ẩn thông báo');
     }
   };
 
@@ -75,10 +72,13 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
 
   return (
     <div
-      className="notif-popover-container"
+      className="notif-popover-container notif-popover"
+      id="notifPopover"
+      data-testid="notif-popover"
       role="dialog"
       aria-label="Hộp thư thông báo"
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}
       <div className="notif-popover-header">

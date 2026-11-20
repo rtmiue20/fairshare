@@ -255,5 +255,26 @@ class InactivityAlertServiceTest {
         assertTrue(created.getMessage().contains("API thanh toán"));
         assertTrue(created.getMessage().contains("Nhóm trưởng (Minh Triều)"));
     }
+
+    @Test
+    @DisplayName("Tài khoản mới tạo chưa có hoạt động (events rỗng) tính 0 ngày im lặng và không tạo cảnh báo")
+    void testNewAccountWithoutActivityHasZeroDaysInactive() {
+        TeamMember tm = new TeamMember();
+        tm.setTeam(mockTeam);
+        tm.setUser(mockUser);
+
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
+        when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of());
+        when(teamMemberRepository.findByTeamIdWithUser(1L)).thenReturn(List.of(tm));
+        when(activityEventRepository.findByTeamIdAndUserId(1L, 109L)).thenReturn(List.of());
+
+        alertService.scanRuleBasedAlerts(1L, 5);
+        verify(alertRepository, never()).save(any(Alert.class));
+
+        List<MemberInactivityDto> list = alertService.getMemberInactivity(1L, 5);
+        assertEquals(1, list.size());
+        assertEquals(0L, list.get(0).getDaysInactive());
+        assertFalse(list.get(0).isExceeded());
+    }
 }
 

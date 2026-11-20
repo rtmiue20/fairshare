@@ -175,7 +175,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1.25rem',
+        padding: '0.75rem',
         background: 'rgba(0, 0, 0, 0.68)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
@@ -658,7 +658,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                   gap: '0.65rem',
                 }}
               >
@@ -769,9 +769,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             borderTop: '1px solid var(--line)',
             background: 'var(--surface2)',
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '1rem',
+            gap: '0.75rem',
           }}
         >
           {/* Progress bar and Step label */}
@@ -809,7 +810,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           </div>
 
           {/* Action Navigation Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem', justifyContent: 'flex-end' }}>
             {step > 1 ? (
               <button
                 type="button"

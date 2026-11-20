@@ -1,6 +1,6 @@
 # FairShare v1.0.0 – Release notes (BẢN NHÁP)
 
-**Trạng thái:** nháp 16/11/2026, chờ chốt tên tag, thời điểm gắn tag và commit `master` (dự kiến 18/11). Số liệu kiểm thử bên dưới lấy trên `master` @ `f18a705` ngày 16/11; sẽ chạy lại trên commit được gắn tag.
+**Trạng thái:** nháp cập nhật 19/11/2026. Đã chạy lại toàn bộ kiểm thử trên `master` @ `adb33ad` (ứng viên release). Chưa gắn tag: theo tiêu chí release, 4 lỗi High còn mở cần được sửa hoặc được M0 chấp nhận rủi ro trước.
 **Soạn:** M5 – Khiếu Hoàng Nam Anh (QA & Deployment) · **Dự án:** FairShare – đồ án môn Quản lý dự án CNTT, UEH
 
 FairShare giúp nhóm sinh viên đo và minh bạch hóa mức đóng góp trong đồ án nhóm: ai làm gì, bao nhiêu, khi nào, có bằng chứng truy vết, kèm chấm chéo ẩn danh và báo cáo PDF để nhóm tự chia điểm và giảng viên tham khảo.
@@ -51,22 +51,25 @@ Medium/Low tiêu biểu: PDF mất dấu tiếng Việt (DEF-21), PDF trộn spr
 | DEF-31 | High | Khai báo đóng góp thủ công không xác thực người gọi (giả danh, tự duyệt) | Không dùng chức năng Khai báo đóng góp |
 | DEF-40 | High | Migration V23, V25 tạo tài khoản demo có mật khẩu công khai, ghi đè dữ liệu nhóm id 1, V25 xóa toàn bộ điểm đóng góp đã tính | Dựng CSDL mới và khóa 6 tài khoản demo (`docs/deploy/demo-checklist.md` bước 4). `<chờ M0: sửa trước tag hay chấp nhận rủi ro>` |
 | DEF-41 | High | Kéo thẻ của mình qua lại giữa các cột tự nâng tỷ lệ đóng góp | Chỉ kéo thẻ một chiều tới Done |
+| DEF-43 | High | API bằng chứng `/api/contributions/evidence` trả 500 trên bản Render (UAT 17/11); không tái hiện trên staging `adb33ad` ngày 19/11 | Demo trên staging, hoặc tránh mục Audit Trail khi demo trên Render |
+| DEF-44 | Low | Chuông thông báo không mở popover (UAT 17/11) | Không dùng khi demo |
 | DEF-32 | Medium | Người ngoài nhóm xem được khai báo đóng góp | Như DEF-31 |
 | DEF-19, 28, 39, 42 | Low | 400 thay vì 403; ảnh upload trong repo; số liệu mẫu cứng trên Dashboard/Lịch; đổi tên thẻ vượt bản sửa DEF-38 | Xem defect log |
 
-Trạng thái cuối cùng của 3 lỗi High phụ thuộc kết quả sửa và quyết định của M0 (`docs/qa/uat/uat-closure.md`).
+Trạng thái cuối cùng của 4 lỗi High phụ thuộc kết quả sửa và quyết định của M0 (`docs/qa/uat/uat-closure.md`).
 
-## Kiểm thử (16/11, `master` @ `f18a705`)
+## Kiểm thử (19/11, `master` @ `adb33ad`)
 
 | Bộ test | Kết quả |
 |---|---|
-| Unit backend (`mvn test` trong Docker, có Testcontainers) | 233 test, 0 lỗi, 0 skip |
-| Unit frontend (Vitest) | 86/86 |
+| Unit backend (`mvn test`, có Testcontainers) | 236 test, 0 lỗi, 0 skip |
+| Unit frontend (Vitest) | 89/89 |
 | Smoke staging | PASS |
 | Tích hợp (`integration-sprint4.py`) | 23/23 |
-| Hồi quy (`regression-sprint5.py`) | 30/30 |
+| Hồi quy (`regression-sprint5.py`) | 26/30: 4 ca PDF lỗi do migration V24/V25 (DEF-40) ghi đè nhóm id 1 mà bộ test dùng. PDF trên nhóm sạch: HTTP 200, chậm nhất 0,061 s, đủ nội dung (G4 đạt) |
+| Retest lỗi gian lận (`retest-sprint6.py`) | 2/9 (DEF-19, 40, 41, 42 còn lỗi) |
 | Pilot UAT (`uat-pilot.py`) | 20/24 (4 ca thuộc DEF-31, 32) |
-| UAT chính thức (M2) | `<TODO 17/11>` |
+| UAT chính thức (M2, 17/11, bản Render) | 10 phiếu; SUS 47,0/100; CSAT 60% → G5 chưa đạt |
 
 Minh chứng: `docs/qa/evidence/README.md`.
 

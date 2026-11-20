@@ -56,9 +56,9 @@ export const MemberTable: React.FC<MemberTableProps> = ({
   return (
     <div className="w-full bg-[#121318] border border-zinc-800/80 rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-xs">
+        <table className="w-full min-w-[680px] border-collapse text-left text-xs">
           <thead>
-            <tr className="bg-zinc-900/60 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+            <tr className="bg-zinc-900/60 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 uppercase tracking-wider whitespace-nowrap">
               <th className="py-3 px-5">Thành viên</th>
               <th className="py-3 px-5">Email / Mã định danh</th>
               <th className="py-3 px-5">Vai trò dự án</th>

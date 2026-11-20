@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { User } from '../types/team';
+import { useProjectStore } from './projectStore';
+import { buildUserScopeKey, useNotificationStore } from './notificationStore';
 
 const TOKEN_STORAGE_KEY = 'token';
 const USER_STORAGE_KEY = 'fairshare_user';
@@ -59,13 +61,22 @@ interface AuthState {
   updateUser: (user: Partial<User>) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: getStoredUser(),
   token: getStoredToken(),
   isAuthenticated: true,
   login: (token, user) => {
+    const prevScope =
+      buildUserScopeKey(get().user) || buildUserScopeKey(getStoredUser());
+    const nextScope = buildUserScopeKey(user);
+    if (!prevScope || prevScope !== nextScope) {
+      safeRemoveItem('fairshare_active_team_id');
+      useProjectStore.getState().resetProjects();
+      useNotificationStore.getState().clearNotifications();
+    }
     safeSetItem(TOKEN_STORAGE_KEY, token);
     safeSetItem(USER_STORAGE_KEY, JSON.stringify(user));
+    useNotificationStore.getState().setUserScope(nextScope);
     set({ token, user, isAuthenticated: true });
   },
   logout: () => {
@@ -73,6 +84,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     safeRemoveItem(USER_STORAGE_KEY);
     safeRemoveItem('token');
     safeRemoveItem('user');
+    safeRemoveItem('fairshare_active_team_id');
+    useProjectStore.getState().resetProjects();
+    useNotificationStore.getState().clearNotifications();
     set({ token: null, user: null, isAuthenticated: false });
   },
   updateUser: (partial) =>
@@ -83,3 +97,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       return { user: updatedUser };
     }),
 }));
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  const win = window as Window & { __fsUnauthorizedListener?: () => void };
+  if (win.__fsUnauthorizedListener) {
+    window.removeEventListener('fairshare:unauthorized', win.__fsUnauthorizedListener);
+  }
+  const onUnauthorized = () => {
+    useAuthStore.getState().logout();
+  };
+  win.__fsUnauthorizedListener = onUnauthorized;
+  window.addEventListener('fairshare:unauthorized', onUnauthorized);
+}

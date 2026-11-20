@@ -1,7 +1,7 @@
 {
-  "run": "1794845842",
+  "run": "1795068239",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-16T23:17:24",
+  "executed_at": "2026-11-19T13:04:01",
   "passed": 20,
   "total": 24,
   "cases": [
@@ -18,7 +18,7 @@
       "area": "M2",
       "name": "Tạo nhóm: người tạo là LEADER, sinh mã mời 6–8 ký tự",
       "expected": "HTTP 201/200, inviteCode 6–8 ký tự",
-      "actual": "HTTP 201, inviteCode='FS71E5A4'",
+      "actual": "HTTP 201, inviteCode='FS12DEA0'",
       "result": "PASS"
     },
     {
@@ -74,7 +74,7 @@
       "area": "M2",
       "name": "Leader tạo sprint mới",
       "expected": "HTTP 200/201",
-      "actual": "HTTP 201, sprintId=6",
+      "actual": "HTTP 201, sprintId=13",
       "result": "PASS"
     },
     {
@@ -130,7 +130,7 @@
       "area": "Core",
       "name": "Leader xuất PDF nhóm A",
       "expected": "HTTP 200, file %PDF",
-      "actual": "HTTP 200, 70820 byte",
+      "actual": "HTTP 200, 70644 byte",
       "result": "PASS"
     },
     {
@@ -162,7 +162,7 @@
       "area": "Sec",
       "name": "uat02 khai báo đóng góp đứng tên uat03 (giả danh)",
       "expected": "HTTP 403",
-      "actual": "HTTP 201, người được ghi = 117",
+      "actual": "HTTP 201, người được ghi = 127",
       "result": "FAIL"
     },
     {

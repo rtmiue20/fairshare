@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { contributionApi } from '../../api/contribution.api';
 import { boardApi } from '../../api/board.api';
 import { resolveFileUrl } from '../../utils/url';
+import { peerReviewApi } from '../../api/peerReview.api';
 import { ManualContributionItem, ManualContributionRequest } from '../../types/contribution';
 import {
   Send,
@@ -17,6 +18,7 @@ import {
   Check,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   FileText,
   Figma,
   Code2,
@@ -25,6 +27,9 @@ import {
 export interface ManualContributionFormProps {
   teamId: number;
   sprintId: number;
+  sprintName?: string;
+  sprints?: { id: number; name: string; isCurrent?: boolean }[];
+  onSprintChange?: (sprintId: number) => void;
   userId: number;
   onSuccess?: (newItem: ManualContributionItem) => void;
   onCancel?: () => void;
@@ -41,12 +46,57 @@ interface KanbanCardItem {
 export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
   teamId,
   sprintId,
+  sprintName,
+  sprints,
+  onSprintChange,
   userId,
   onSuccess,
   onCancel,
 }) => {
   // Step state: 1 = Chọn mã thẻ, 2 = Minh chứng, 3 = Điểm tự chấm & Xác nhận
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  // Active Sprint state & synchronization with data
+  const [activeSprintId, setActiveSprintId] = useState<number>(sprintId);
+  const [sprintList, setSprintList] = useState<{ id: number; name: string; isCurrent?: boolean }[]>(sprints || []);
+
+  useEffect(() => {
+    if (sprintId) {
+      setActiveSprintId(sprintId);
+    }
+  }, [sprintId]);
+
+  useEffect(() => {
+    if (sprints && sprints.length > 0) {
+      setSprintList(sprints);
+      return;
+    }
+    if (!teamId) return;
+
+    let mounted = true;
+    peerReviewApi
+      .getSprints(teamId)
+      .then((res) => {
+        if (!mounted) return;
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setSprintList(
+            res.data.map((sp, idx) => ({
+              id: sp.id,
+              name: sp.name || `Sprint ${idx + 1}`,
+              isCurrent: sp.status === 'ACTIVE',
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [teamId, sprints]);
+
+  const selectedSprint = sprintList.find((s) => s.id === activeSprintId);
+  const displaySprintName = sprintName || selectedSprint?.name || `Sprint ${activeSprintId}`;
 
   // Form states
   const [taskName, setTaskName] = useState('');
@@ -213,7 +263,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await contributionApi.submitManualContribution(teamId, sprintId, userId, payload);
+      const response = await contributionApi.submitManualContribution(teamId, activeSprintId, userId, payload);
       const createdItem = response.data;
 
       setStatusMessage({
@@ -267,15 +317,37 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
       className="flex flex-col gap-4 bg-white dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100"
     >
       {/* ── MODAL HEADER (Matching Image 3) ── */}
-      <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
               {stepInfo.title}
             </h2>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 font-mono">
-              Sprint {sprintId}
-            </span>
+            {sprintList.length > 0 ? (
+              <div className="relative inline-flex items-center">
+                <select
+                  value={activeSprintId}
+                  onChange={(e) => {
+                    const newId = Number(e.target.value);
+                    setActiveSprintId(newId);
+                    onSprintChange?.(newId);
+                  }}
+                  className="rounded-full border border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/40 pl-2.5 pr-5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 font-mono hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition cursor-pointer appearance-none outline-none focus:ring-1 focus:ring-indigo-400"
+                  aria-label="Chọn Sprint"
+                >
+                  {sprintList.map((sp) => (
+                    <option key={sp.id} value={sp.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-sans">
+                      {sp.name} {sp.isCurrent ? '• Hiện tại' : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={11} className="absolute right-1.5 text-indigo-500 dark:text-indigo-400 pointer-events-none" />
+              </div>
+            ) : (
+              <span className="rounded-full border border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300 font-mono">
+                {displaySprintName}
+              </span>
+            )}
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             {stepInfo.subtitle}
@@ -443,7 +515,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
         {/* ════════════ BƯỚC 2: MINH CHỨNG HOÀN THÀNH ════════════ */}
         <div className={currentStep === 2 ? 'block space-y-3.5' : 'hidden'}>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="manual-evidence-link" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+            <label htmlFor="manual-evidence-link" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex flex-wrap items-center justify-between gap-1">
               <span>Đường dẫn minh chứng (URL) <span className="text-rose-500">*</span></span>
               <span className="text-[11px] text-zinc-400 font-normal">URL công khai để nhóm đối chiếu</span>
             </label>
@@ -467,7 +539,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
             </div>
 
             {/* Quick Template Links */}
-            <div className="flex items-center gap-2 pt-1 text-[11px]">
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
               <span className="text-zinc-400">Gợi ý mẫu:</span>
               <button
                 type="button"
@@ -561,7 +633,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
                 {Number(storyPoints) > 0 ? `+${Number(storyPoints).toFixed(1)} điểm` : '0 điểm'}
               </span>
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 id="manual-story-points"
                 data-testid="input-story-points"
@@ -624,7 +696,7 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
         </div>
 
         {/* ════════════ BOTTOM STEP BAR (Exact match to Image 3) ════════════ */}
-        <div className="flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-2">
           {/* Progress Indicator on bottom-left */}
           <div className="flex items-center gap-3">
             <div className="w-16 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">

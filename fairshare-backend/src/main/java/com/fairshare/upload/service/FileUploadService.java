@@ -40,9 +40,69 @@ public class FileUploadService {
     private String supabaseBucket;
 
     private static final long MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final String AVATAR_SUBDIR = "avatars";
+    private static final java.util.Set<String> AVATAR_EXTENSIONS = java.util.Set.of(".jpg", ".jpeg", ".png", ".webp", ".gif");
+
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
             .build();
+
+    /** Lưu ảnh đại diện vào Supabase Storage (nếu đã cấu hình) hoặc uploads/avatars và trả về URL công khai. */
+    public FileUploadResponse uploadAvatar(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("Vui lòng chọn ảnh đại diện hợp lệ");
+        }
+        if (file.getSize() > MAX_AVATAR_SIZE) {
+            throw new BusinessException("Ảnh đại diện không được vượt quá 5MB");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            throw new BusinessException("Tệp tải lên phải là hình ảnh (PNG, JPG, WEBP, GIF)");
+        }
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "avatar");
+        String ext = extractExtension(originalFilename);
+        if (!AVATAR_EXTENSIONS.contains(ext)) {
+            throw new BusinessException("Định dạng ảnh không được hỗ trợ (chỉ PNG, JPG, WEBP, GIF)");
+        }
+        String storedName = System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + ext;
+        String publicUrl = isSupabaseConfigured()
+                ? uploadToSupabase(file, AVATAR_SUBDIR + "/" + storedName, contentType)
+                : storeLocally(file, Paths.get(uploadDir, AVATAR_SUBDIR), "/uploads/" + AVATAR_SUBDIR + "/" + storedName, storedName, "Không thể lưu ảnh đại diện");
+
+        return FileUploadResponse.builder()
+                .url(publicUrl)
+                .fileName(originalFilename)
+                .fileSize(file.getSize())
+                .contentType(contentType)
+                .build();
+    }
+
+    /** Xóa file ảnh đại diện cũ (trong uploads/avatars hoặc Supabase Storage). */
+    public void deleteAvatar(String publicUrl) {
+        if (publicUrl == null || publicUrl.isBlank()) {
+            return;
+        }
+        String localPrefix = "/uploads/" + AVATAR_SUBDIR + "/";
+        if (publicUrl.startsWith(localPrefix)) {
+            try {
+                Path dir = Paths.get(uploadDir, AVATAR_SUBDIR).toAbsolutePath().normalize();
+                Path file = dir.resolve(publicUrl.substring(localPrefix.length())).normalize();
+                if (file.startsWith(dir)) {
+                    Files.deleteIfExists(file);
+                }
+            } catch (IOException e) {
+                log.warn("Could not delete old avatar {}", publicUrl, e);
+            }
+            return;
+        }
+        if (isSupabaseConfigured()) {
+            String remotePrefix = getSupabasePublicPrefix();
+            if (publicUrl.startsWith(remotePrefix)) {
+                deleteFromSupabase(publicUrl.substring(remotePrefix.length()));
+            }
+        }
+    }
 
     /**
      * Store uploaded file either in Supabase Storage (when configured) or local filesystem.
@@ -59,13 +119,7 @@ public class FileUploadService {
         String originalFilename = StringUtils.cleanPath(
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "file_" + System.currentTimeMillis()
         );
-
-        String ext = "";
-        int dotIdx = originalFilename.lastIndexOf(".");
-        if (dotIdx >= 0) {
-            ext = originalFilename.substring(dotIdx).toLowerCase();
-        }
-
+        String ext = extractExtension(originalFilename);
         String safeStoredName = System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8) + ext;
         String contentType = StringUtils.hasText(file.getContentType())
                 ? file.getContentType()
@@ -73,7 +127,7 @@ public class FileUploadService {
 
         String publicUrl = isSupabaseConfigured()
                 ? uploadToSupabase(file, safeStoredName, contentType)
-                : storeLocally(file, originalFilename, safeStoredName);
+                : storeLocally(file, Paths.get(uploadDir), "/uploads/" + safeStoredName, safeStoredName, "Không thể lưu trữ tệp tin trên máy chủ");
 
         return FileUploadResponse.builder()
                 .url(publicUrl)
@@ -83,14 +137,43 @@ public class FileUploadService {
                 .build();
     }
 
+    private String extractExtension(String filename) {
+        int dotIdx = filename.lastIndexOf('.');
+        return dotIdx >= 0 ? filename.substring(dotIdx).toLowerCase() : "";
+    }
+
     private boolean isSupabaseConfigured() {
         return StringUtils.hasText(supabaseUrl) && StringUtils.hasText(supabaseServiceKey);
     }
 
-    private String uploadToSupabase(MultipartFile file, String objectName, String contentType) {
-        String baseUrl = supabaseUrl.replaceAll("/+$", "");
-        String bucket = StringUtils.hasText(supabaseBucket) ? supabaseBucket.trim() : "fairshare-uploads";
-        String encodedObject = URLEncoder.encode(objectName, StandardCharsets.UTF_8).replace("+", "%20");
+    private String getSupabaseBaseUrl() {
+        return supabaseUrl.replaceAll("/+$", "");
+    }
+
+    private String getSupabaseBucketName() {
+        return StringUtils.hasText(supabaseBucket) ? supabaseBucket.trim() : "fairshare-uploads";
+    }
+
+    private String getSupabasePublicPrefix() {
+        return getSupabaseBaseUrl() + "/storage/v1/object/public/" + getSupabaseBucketName() + "/";
+    }
+
+    private String encodeObjectPath(String objectPath) {
+        String[] segments = objectPath.split("/");
+        StringBuilder encoded = new StringBuilder();
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) {
+                encoded.append('/');
+            }
+            encoded.append(URLEncoder.encode(segments[i], StandardCharsets.UTF_8).replace("+", "%20"));
+        }
+        return encoded.toString();
+    }
+
+    private String uploadToSupabase(MultipartFile file, String objectPath, String contentType) {
+        String baseUrl = getSupabaseBaseUrl();
+        String bucket = getSupabaseBucketName();
+        String encodedObject = encodeObjectPath(objectPath);
         String uploadEndpoint = baseUrl + "/storage/v1/object/" + bucket + "/" + encodedObject;
         String publicUrl = baseUrl + "/storage/v1/object/public/" + bucket + "/" + encodedObject;
 
@@ -124,23 +207,37 @@ public class FileUploadService {
         }
     }
 
-    private String storeLocally(MultipartFile file, String originalFilename, String safeStoredName) {
+    private void deleteFromSupabase(String objectPath) {
+        String endpoint = getSupabaseBaseUrl() + "/storage/v1/object/" + getSupabaseBucketName() + "/" + encodeObjectPath(objectPath);
         try {
-            Path targetDir = Paths.get(uploadDir).toAbsolutePath().normalize();
-            if (!Files.exists(targetDir)) {
-                Files.createDirectories(targetDir);
-            }
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Authorization", "Bearer " + supabaseServiceKey.trim())
+                    .header("apikey", supabaseServiceKey.trim())
+                    .DELETE()
+                    .build();
+            httpClient.send(request, HttpResponse.BodyHandlers.discarding());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (IOException ex) {
+            log.warn("Could not delete old Supabase object {}", objectPath, ex);
+        }
+    }
 
-            Path targetFile = targetDir.resolve(safeStoredName);
+    private String storeLocally(MultipartFile file, Path baseDir, String publicUrl, String storedName, String errorPrefix) {
+        try {
+            Path targetDir = baseDir.toAbsolutePath().normalize();
+            Files.createDirectories(targetDir);
+            Path targetFile = targetDir.resolve(storedName);
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, targetFile, StandardCopyOption.REPLACE_EXISTING);
             }
-
-            log.info("File uploaded successfully: {} as {}", originalFilename, safeStoredName);
-            return "/uploads/" + safeStoredName;
+            log.info("File uploaded successfully: {} as {}", file.getOriginalFilename(), publicUrl);
+            return publicUrl;
         } catch (IOException e) {
-            log.error("Failed to store file {}", originalFilename, e);
-            throw new BusinessException("Không thể lưu trữ tệp tin trên máy chủ: " + e.getMessage());
+            log.error("Failed to store file {}", file.getOriginalFilename(), e);
+            throw new BusinessException(errorPrefix + ": " + e.getMessage());
         }
     }
 }

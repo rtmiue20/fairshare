@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Calendar,
@@ -12,7 +13,6 @@ import {
   Share2,
   FileSpreadsheet,
   Check,
-  Search,
   Send,
   Loader2,
   Edit2,
@@ -97,23 +97,53 @@ export interface SubtaskLocal {
   completed: boolean;
 }
 
-/** Tách description và checklist JSON được lưu trong description */
-export function parseChecklistFromDescription(rawDesc?: string): { cleanDesc: string; items: SubtaskLocal[] } {
-  if (!rawDesc) return { cleanDesc: '', items: [] };
+export interface TaskAssigneeLocal {
+  id?: number;
+  name: string;
+  avatarText?: string;
+  bg?: string;
+  role?: string;
+}
 
-  const markerMatch = rawDesc.match(/<!-- FAIRSHARE_CHECKLIST:([\s\S]*?)-->/);
+/** Tách description, checklist và danh sách người phụ trách (assignees) */
+export function parseChecklistFromDescription(rawDesc?: string): {
+  cleanDesc: string;
+  items: SubtaskLocal[];
+  assignees: TaskAssigneeLocal[];
+} {
+  if (!rawDesc) return { cleanDesc: '', items: [], assignees: [] };
+
+  let workingDesc = rawDesc;
+  let parsedAssignees: TaskAssigneeLocal[] = [];
+
+  // 1. Tách danh sách nhiều Assignees
+  const assigneeMatch = workingDesc.match(/<!-- FAIRSHARE_ASSIGNEES:([\s\S]*?)-->/);
+  if (assigneeMatch && assigneeMatch[1]) {
+    try {
+      const parsed = JSON.parse(assigneeMatch[1]);
+      if (Array.isArray(parsed)) {
+        parsedAssignees = parsed;
+      }
+      workingDesc = workingDesc.replace(/<!-- FAIRSHARE_ASSIGNEES:[\s\S]*?-->/, '').trim();
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Tách Checklist JSON
+  const markerMatch = workingDesc.match(/<!-- FAIRSHARE_CHECKLIST:([\s\S]*?)-->/);
   if (markerMatch && markerMatch[1]) {
     try {
       const items = JSON.parse(markerMatch[1]);
-      const cleanDesc = rawDesc.replace(/<!-- FAIRSHARE_CHECKLIST:[\s\S]*?-->/, '').trim();
-      return { cleanDesc, items: Array.isArray(items) ? items : [] };
+      workingDesc = workingDesc.replace(/<!-- FAIRSHARE_CHECKLIST:[\s\S]*?-->/, '').trim();
+      return { cleanDesc: workingDesc, items: Array.isArray(items) ? items : [], assignees: parsedAssignees };
     } catch {
       // parse error, fallback
     }
   }
 
-  // Hỗ trợ cả định dạng Markdown checkbox: - [ ] hoặc - [x]
-  const lines = rawDesc.split('\n');
+  // 3. Fallback Markdown checkbox: - [ ] hoặc - [x]
+  const lines = workingDesc.split('\n');
   const items: SubtaskLocal[] = [];
   const cleanLines: string[] = [];
   lines.forEach((line, idx) => {
@@ -130,20 +160,28 @@ export function parseChecklistFromDescription(rawDesc?: string): { cleanDesc: st
   });
 
   if (items.length > 0) {
-    return { cleanDesc: cleanLines.join('\n').trim(), items };
+    return { cleanDesc: cleanLines.join('\n').trim(), items, assignees: parsedAssignees };
   }
 
-  return { cleanDesc: rawDesc, items: [] };
+  return { cleanDesc: workingDesc, items: [], assignees: parsedAssignees };
 }
 
-/** Nối description và checklist JSON để lưu xuống cột description trong DB */
-export function serializeDescriptionWithChecklist(cleanDesc: string, items: SubtaskLocal[]): string {
-  const base = cleanDesc.trim();
-  if (items.length === 0) {
-    return base;
+/** Nối description, checklist JSON và assignees JSON để lưu xuống cột description trong DB */
+export function serializeDescriptionWithChecklist(
+  cleanDesc: string,
+  items: SubtaskLocal[],
+  assignees?: TaskAssigneeLocal[]
+): string {
+  let result = cleanDesc.trim();
+  if (items && items.length > 0) {
+    const jsonStr = JSON.stringify(items);
+    result = result ? `${result}\n\n<!-- FAIRSHARE_CHECKLIST:${jsonStr} -->` : `<!-- FAIRSHARE_CHECKLIST:${jsonStr} -->`;
   }
-  const jsonStr = JSON.stringify(items);
-  return base ? `${base}\n\n<!-- FAIRSHARE_CHECKLIST:${jsonStr} -->` : `<!-- FAIRSHARE_CHECKLIST:${jsonStr} -->`;
+  if (assignees && assignees.length > 0) {
+    const jsonAssignees = JSON.stringify(assignees);
+    result = result ? `${result}\n\n<!-- FAIRSHARE_ASSIGNEES:${jsonAssignees} -->` : `<!-- FAIRSHARE_ASSIGNEES:${jsonAssignees} -->`;
+  }
+  return result;
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -184,7 +222,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [dueDateValue, setDueDateValue] = useState('');
   const [savingDueDate, setSavingDueDate] = useState(false);
 
-  // Assignee picker
+  // Assignees list (Hỗ trợ nhiều người phụ trách & Bỏ phân công)
+  const [assignees, setAssignees] = useState<TaskAssigneeLocal[]>(task?.assignees || []);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
   const [savingAssignee, setSavingAssignee] = useState(false);
@@ -208,10 +247,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     setAttachmentUrlInput('');
     setAttachmentNameInput('');
 
-    // Tách ban đầu từ task prop
+    // Tách ban đầu từ task prop (checklist & assignees)
     const parsedInitial = parseChecklistFromDescription(task.description || '');
     setDescValue(parsedInitial.cleanDesc || task.title || '');
     setSubtasks(parsedInitial.items);
+    if (parsedInitial.assignees && parsedInitial.assignees.length > 0) {
+      setAssignees(parsedInitial.assignees);
+    } else if (task.assignees && task.assignees.length > 0) {
+      setAssignees(task.assignees);
+    } else {
+      setAssignees([]);
+    }
 
     const cardIdNum = Number(task.id);
     const hasRealCardId = !isNaN(cardIdNum) && cardIdNum > 0;
@@ -225,6 +271,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             const parsed = parseChecklistFromDescription(card.description || '');
             setDescValue(parsed.cleanDesc || card.title || '');
             setSubtasks(parsed.items);
+            if (parsed.assignees && parsed.assignees.length > 0) {
+              setAssignees(parsed.assignees);
+            } else if (card.assigneeName) {
+              setAssignees([
+                {
+                  id: card.assigneeId,
+                  name: card.assigneeName,
+                  avatarText: card.assigneeName.slice(0, 2).toUpperCase(),
+                  bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                },
+              ]);
+            } else {
+              setAssignees([]);
+            }
           }
         })
         .catch(() => {});
@@ -315,6 +375,37 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [assigneePickerOpen]);
 
+  // Tự động đồng bộ URL với ?cardId= khi mở modal chi tiết thẻ
+  useEffect(() => {
+    if (!isOpen || !task?.id) return;
+    try {
+      const url = new URL(window.location.href);
+      const prevCardId = url.searchParams.get('cardId');
+      if (prevCardId !== String(task.id)) {
+        url.searchParams.set('cardId', String(task.id));
+        if (teamId && !url.searchParams.has('teamId')) {
+          url.searchParams.set('teamId', String(teamId));
+        }
+        window.history.replaceState(null, '', url.toString());
+      }
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      try {
+        const closeUrl = new URL(window.location.href);
+        if (closeUrl.searchParams.get('cardId') === String(task?.id)) {
+          closeUrl.searchParams.delete('cardId');
+          closeUrl.searchParams.delete('taskId');
+          window.history.replaceState(null, '', closeUrl.toString());
+        }
+      } catch {
+        // ignore
+      }
+    };
+  }, [isOpen, task?.id, teamId]);
+
   if (!isOpen || !task) return null;
 
   const cardIdNum = Number(task.id);
@@ -335,7 +426,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   // Helper cập nhật checklist trực tiếp xuống DB qua cards.description
   const persistChecklistToDb = async (updatedItems: SubtaskLocal[]) => {
     if (!hasRealCardId) return;
-    const fullDesc = serializeDescriptionWithChecklist(descValue, updatedItems);
+    const fullDesc = serializeDescriptionWithChecklist(descValue, updatedItems, assignees);
     try {
       await boardApi.updateCard(cardIdNum, { description: fullDesc });
       if (onTaskUpdated) {
@@ -554,7 +645,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
     setSavingDesc(true);
     try {
-      const fullDesc = serializeDescriptionWithChecklist(descValue, subtasks);
+      const fullDesc = serializeDescriptionWithChecklist(descValue, subtasks, assignees);
       await boardApi.updateCard(cardIdNum, { description: fullDesc });
       showToast.success('Đã cập nhật mô tả vào Database!', 'DB Synced');
       setIsEditingDesc(false);
@@ -595,42 +686,113 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
-  // 7. Lưu người thực hiện vào DB
-  const handleSelectAssignee = async (member: TeamMember) => {
-    const memberUserId = member.userId ?? member.id;
-    if (!memberUserId || !hasRealCardId) {
-      setAssigneePickerOpen(false);
-      return;
-    }
+  // 7. Lưu người thực hiện vào DB (Hỗ trợ nhiều người & Bỏ phân công)
+  const persistAssigneesToDb = async (newAssignees: TaskAssigneeLocal[]) => {
+    setAssignees(newAssignees);
+    if (!hasRealCardId) return;
+
     setSavingAssignee(true);
     try {
-      await boardApi.updateAssignee(cardIdNum, memberUserId);
-      const memberName = member.fullName || member.email || 'Member';
-      showToast.success(`Đã giao việc cho "${memberName}" và lưu vào DB!`, 'DB Synced');
-      setAssigneePickerOpen(false);
-      if (onTaskUpdated) {
+      // 1. Đồng bộ người phụ trách chính lên cards.assignee_id trong DB
+      const primaryAssigneeId = newAssignees.length > 0 ? (newAssignees[0].id || 0) : 0;
+      await boardApi.updateAssignee(cardIdNum, primaryAssigneeId);
+
+      // 2. Lưu toàn bộ danh sách assignees vào cards.description trong DB
+      const fullDesc = serializeDescriptionWithChecklist(descValue, subtasks, newAssignees);
+      await boardApi.updateCard(cardIdNum, { description: fullDesc });
+
+      if (onTaskUpdated && task) {
         onTaskUpdated({
           ...task,
-          assigneeId: memberUserId,
-          assignees: [
-            {
-              name: memberName,
-              avatarText: memberName.slice(0, 2).toUpperCase(),
-              bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-            },
-          ],
+          description: fullDesc,
+          assigneeId: primaryAssigneeId > 0 ? primaryAssigneeId : undefined,
+          assignees: newAssignees.map((a) => ({
+            id: a.id,
+            name: a.name,
+            avatarText: a.avatarText || a.name.slice(0, 2).toUpperCase(),
+            bg: a.bg || 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+            role: a.role,
+          })),
         });
       }
+      window.dispatchEvent(new CustomEvent('fairshare:board-updated'));
     } catch (e) {
-      console.warn('updateAssignee error:', e);
-      showToast.error('Không thể phân công thành viên vào DB.', 'Lỗi');
+      console.warn('persistAssigneesToDb error:', e);
+      showToast.error('Không thể cập nhật người phụ trách vào DB.', 'Lỗi');
     } finally {
       setSavingAssignee(false);
     }
   };
 
-  return (
-    <div className="task-modal-backdrop" onClick={onClose}>
+  const handleToggleAssignee = async (member: TeamMember) => {
+    const memberUserId = member.userId ?? member.id;
+    const memberName = member.fullName || member.email || 'Member';
+    const isAlreadyAssigned = assignees.some(
+      (a) => (a.id && a.id === memberUserId) || a.name === memberName
+    );
+
+    let updated: TaskAssigneeLocal[];
+    if (isAlreadyAssigned) {
+      updated = assignees.filter(
+        (a) => !((a.id && a.id === memberUserId) || a.name === memberName)
+      );
+      showToast.info(`Đã gỡ "${memberName}" khỏi nhiệm vụ.`, 'Assignee');
+    } else {
+      const newOne: TaskAssigneeLocal = {
+        id: memberUserId,
+        name: memberName,
+        avatarText: memberName.slice(0, 2).toUpperCase(),
+        bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+        role: member.role,
+      };
+      updated = [...assignees, newOne];
+      showToast.success(`Đã thêm "${memberName}" vào nhiệm vụ!`, 'Assignee');
+    }
+
+    await persistAssigneesToDb(updated);
+  };
+
+  const handleRemoveAssignee = async (name: string, id?: number) => {
+    const updated = assignees.filter((a) => !(id ? a.id === id : a.name === name));
+    showToast.info(`Đã gỡ "${name}" khỏi nhiệm vụ.`, 'Assignee');
+    await persistAssigneesToDb(updated);
+  };
+
+  const handleUnassignAll = async () => {
+    showToast.info('Đã bỏ phân công tất cả người phụ trách.', 'Assignee');
+    await persistAssigneesToDb([]);
+    setAssigneePickerOpen(false);
+  };
+
+  const handleShareTask = () => {
+    if (!task) return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('cardId', String(task.id));
+      if (teamId) {
+        url.searchParams.set('teamId', String(teamId));
+      }
+      const directUrl = url.toString();
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(directUrl)
+          .then(() => {
+            showToast.success(`Đã sao chép liên kết xem trực tiếp thẻ #${task.id}!`, 'Chia sẻ thẻ');
+          })
+          .catch(() => {
+            prompt('Sao chép đường dẫn xem trực tiếp thẻ:', directUrl);
+          });
+      } else {
+        prompt('Sao chép đường dẫn xem trực tiếp thẻ:', directUrl);
+      }
+    } catch {
+      showToast.info(window.location.href, 'Liên kết thẻ');
+    }
+  };
+
+  const modalContent = (
+    <div className="task-modal-backdrop" style={{ zIndex: 10000 }} onClick={onClose}>
       <div className="task-detail-modal-window" onClick={(e) => e.stopPropagation()}>
         {/* Top Header bar */}
         <div className="task-detail-top-nav">
@@ -643,19 +805,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
 
           <div className="task-detail-top-actions">
-            <div className="task-detail-search">
-              <Search size={14} className="search-icon" />
-              <input type="text" placeholder="Search task..." />
-            </div>
-
             <button
               type="button"
               className="task-detail-icon-btn"
-              onClick={() => {
-                navigator.clipboard?.writeText(window.location.href).catch(() => {});
-                showToast.info('Đã sao chép liên kết task', 'Share');
-              }}
-              title="Chia sẻ task"
+              onClick={handleShareTask}
+              title="Chia sẻ liên kết trực tiếp tới thẻ"
             >
               <Share2 size={16} />
             </button>
@@ -814,18 +968,42 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <span>Assignee</span>
               </div>
               <div className="prop-value prop-assignees-list" ref={assigneePickerRef}>
-                {task.assignees.length > 0 ? (
-                  task.assignees.map((a) => (
+                {assignees.length > 0 ? (
+                  assignees.map((a) => (
                     <span
                       key={a.name}
                       className="assignee-tag-chip"
                       style={{
-                        background: a.bg.startsWith('linear') ? undefined : a.bg,
-                        backgroundImage: a.bg.startsWith('linear') ? a.bg : undefined,
+                        background: a.bg?.startsWith('linear') ? undefined : a.bg,
+                        backgroundImage: a.bg?.startsWith('linear') ? a.bg : undefined,
                         color: '#fff',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
                       }}
                     >
                       <span>{a.name}</span>
+                      <button
+                        type="button"
+                        className="assignee-tag-remove"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveAssignee(a.name, a.id);
+                        }}
+                        title={`Xóa ${a.name}`}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'currentColor',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          opacity: 0.8,
+                          padding: '1px',
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
                     </span>
                   ))
                 ) : (
@@ -835,7 +1013,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   type="button"
                   className="assignee-add-btn"
                   onClick={() => setAssigneePickerOpen((p) => !p)}
-                  title="Thay đổi người thực hiện và lưu vào DB"
+                  title="Thêm hoặc xóa người thực hiện (Lưu vào DB)"
                 >
                   <Plus size={13} />
                 </button>
@@ -843,30 +1021,83 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 {/* Member picker dropdown */}
                 {assigneePickerOpen && (
                   <div className="member-picker-dropdown" style={{ top: '100%', left: 0, marginTop: '4px' }}>
+                    <div
+                      style={{
+                        padding: '6px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--fg3)',
+                        borderBottom: '1px solid var(--line)',
+                        marginBottom: '4px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      Giao việc ({assignees.length} người)
+                    </div>
                     {members.length === 0 ? (
                       <div className="member-picker-empty">Không tìm thấy thành viên</div>
                     ) : (
                       members.map((m) => {
                         const mId = m.userId ?? m.id;
                         const mName = m.fullName || m.email || 'Member';
+                        const isAssigned = assignees.some(
+                          (a) => (a.id && a.id === mId) || a.name === mName
+                        );
                         return (
                           <button
                             key={mId}
                             type="button"
-                            className="member-picker-item"
-                            onClick={() => handleSelectAssignee(m)}
+                            className={`member-picker-item ${isAssigned ? 'selected' : ''}`}
+                            onClick={() => handleToggleAssignee(m)}
                             disabled={savingAssignee}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
                           >
-                            <span className="member-picker-avatar" style={{ background: '#3b82f6', color: '#fff' }}>
-                              {mName.slice(0, 2).toUpperCase()}
-                            </span>
-                            <span className="member-picker-name">{mName}</span>
-                            <span className="member-picker-role" style={{ color: '#a1a1aa', fontSize: '11px' }}>
-                              {m.role}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span className="member-picker-avatar" style={{ background: '#3b82f6', color: '#fff' }}>
+                                {mName.slice(0, 2).toUpperCase()}
+                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span className="member-picker-name" style={{ fontWeight: isAssigned ? 600 : 400 }}>
+                                  {mName}
+                                </span>
+                                <span className="member-picker-role" style={{ color: '#a1a1aa', fontSize: '11px' }}>
+                                  {m.role}
+                                </span>
+                              </div>
+                            </div>
+                            {isAssigned && (
+                              <span style={{ color: '#2563eb', fontWeight: 'bold', fontSize: '15px' }}>✓</span>
+                            )}
                           </button>
                         );
                       })
+                    )}
+                    {assignees.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleUnassignAll}
+                        disabled={savingAssignee}
+                        style={{
+                          marginTop: '6px',
+                          padding: '6px 8px',
+                          fontSize: '11px',
+                          color: '#ef4444',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          width: '100%',
+                          fontWeight: 500,
+                        }}
+                      >
+                        ✕ Bỏ phân công tất cả
+                      </button>
                     )}
                   </div>
                 )}
@@ -1589,4 +1820,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };

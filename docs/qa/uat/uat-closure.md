@@ -1,6 +1,6 @@
 # Chốt defect log khi đóng UAT – Sprint 6
 
-**Soạn:** M5 – Khiếu Hoàng Nam Anh · **Bản:** nháp 16/11/2026 23:45 (GMT+7), chốt chính thức 17/11 sau khi nhận phản hồi UAT từ M2
+**Soạn:** M5 – Khiếu Hoàng Nam Anh · **Bản:** cập nhật 18/11/2026 11:30 (GMT+7) sau khi M2 đóng UAT (17/11); nháp đầu 16/11 23:45
 **Số liệu:** `docs/qa/defect-log.md` cập nhật 16/11, retest trên `master` @ `f18a705`
 **Người quyết định chấp nhận rủi ro:** M0 – Nguyễn Văn Minh Triều (PM tổng)
 
@@ -15,7 +15,7 @@
 | Low | 4 (DEF-19, 28, 39, 42) | 11 | 1 (DEF-29) | 16 |
 | **Tổng** | **8** | **33** | **1** | **42** |
 
-Lỗi từ phản hồi UAT chính thức (DEF-43 trở đi): `<TODO 17/11: điền sau khi M2 gửi phiếu>`.
+Lỗi từ UAT chính thức (M2 báo 17/11, ghi 18/11): **DEF-43 (High, M3)** `GET /api/contributions/evidence` trả HTTP 500 trên bản Render, Audit Trail trống; **DEF-44 (Low, M3)** chuông thông báo không mở popover. Bản sửa của M3 ở nhánh `TrongPhuc` (`f252482`), chưa merge `master`. Sau UAT: High **4** mở (DEF-31, 40, 41, 43), tổng **10** mở / **44** lỗi.
 
 ## 2. Lỗi High còn mở
 
@@ -24,6 +24,7 @@ Lỗi từ phản hồi UAT chính thức (DEF-43 trở đi): `<TODO 17/11: đi�
 | DEF-31 | API khai báo đóng góp không xác thực người gọi: khai báo đứng tên người khác, tự duyệt, người ngoài nhóm duyệt | M3 | UAT-SEC-04, 05, 06 FAIL |
 | DEF-40 | Migration V23, V25 chèn 6 tài khoản demo có mật khẩu công khai và ghi đè/xóa dữ liệu nhóm id 1 ở mọi CSDL (V25 còn xóa toàn bộ `contribution_scores`) | M0 (+ M4 xác nhận phần chấm chéo) | RT-40a, b, c FAIL |
 | DEF-41 | Người phụ trách kéo thẻ của mình qua lại giữa các cột để tự nâng tỷ lệ đóng góp (50% → 91,67%) | M1 + M3 | RT-41a, b FAIL |
+| DEF-43 | `GET /api/contributions/evidence` trả HTTP 500, Audit Trail trên Dashboard trống (mới 18/11, từ UAT) | M3 | M2 báo trên bản Render 17/11; bản sửa `f252482` chưa merge, chưa retest |
 
 ## 3. Đề xuất chấp nhận rủi ro (nếu không sửa kịp trước release 18/11)
 
@@ -66,4 +67,9 @@ Lỗi từ phản hồi UAT chính thức (DEF-43 trở đi): `<TODO 17/11: đi�
 
 ## 5. Kết luận (điền 17/11)
 
-`<TODO 17/11: số phiếu UAT, số lỗi mới, trạng thái 3 lỗi High sau retest, quyết định của M0, kết luận đóng/không đóng UAT>`
+- **UAT chính thức** (M2, đóng 17/11, bản Render `deploy/render` @ `29945fe`): **10 phiếu hợp lệ** (1 Leader, 9 Member), đạt chỉ tiêu số lượng. **SUS 47,0/100** (ngưỡng 75) và **CSAT 60%** chọn 4–5 (ngưỡng G5 80%, trung bình 3,5/5): **G5 chưa đạt**. M5 tính lại từ `uat-responses-2026-11-17.csv`, khớp báo cáo của M2.
+- **Lỗi mới:** 2 (DEF-43 High, DEF-44 Low), cùng thuộc M3.
+- **Lỗi High:** 4 còn mở (DEF-31, 40, 41, 43), chưa có bản sửa nào trên `master` tính đến 18/11 11:30. Chưa retest lại sau 16/11.
+- **Rủi ro mới:** UAT chạy trên Render chứ không chạy trên môi trường UAT của M5. CSDL Render nhiều khả năng có 6 tài khoản demo với mật khẩu công khai (DEF-40, nhánh có V23–V25), và M5 không lọc được dữ liệu kéo thẻ bất thường (DEF-41).
+- **Quyết định của M0:** `<chờ M0: chấp nhận rủi ro hay sửa trước release cho DEF-31, 40, 41, 43>`
+- **Kết luận của M5:** đợt UAT **đã đóng về mặt thu phiếu**. Theo DoD Sprint 6, defect log **chưa chốt được**: còn 4 lỗi High mở và chưa có quyết định chấp nhận rủi ro. M5 đề nghị M0 quyết định trước giờ khóa phạm vi 18/11 17:00; nếu chấp nhận rủi ro, demo dùng các cách né ở mục 3 và tránh mục Audit Trail cho tới khi DEF-43 được sửa.

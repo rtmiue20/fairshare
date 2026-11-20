@@ -153,6 +153,7 @@ public class TeamService {
                         .userId(m.getUser().getId())
                         .email(m.getUser().getEmail())
                         .fullName(m.getUser().getFullName())
+                        .avatarUrl(m.getUser().getAvatarUrl())
                         .role(m.getRole())
                         .hasConsented(consentMap.getOrDefault(m.getUser().getId(), false))
                         .joinedAt(m.getCreatedAt())

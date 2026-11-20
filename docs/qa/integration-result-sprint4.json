@@ -1,11 +1,11 @@
 {
-  "run": "1794845790",
+  "run": "1795068211",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-16T23:16:32",
+  "executed_at": "2026-11-19T13:03:33",
   "ids": {
-    "team": 2,
-    "sprint": 6,
-    "round": 4,
+    "team": 4,
+    "sprint": 8,
+    "round": 8,
     "users": {
       "A": 115,
       "B": 116,
@@ -20,7 +20,7 @@
     {
       "id": "IT-BRD-01",
       "name": "Tạo card sinh CARD_CREATED nguồn BOARD, gắn đúng sprint",
-      "expected": "3 sự kiện CARD_CREATED, source=BOARD, sprintId=6",
+      "expected": "3 sự kiện CARD_CREATED, source=BOARD, sprintId=8",
       "actual": "3 sự kiện, source=['BOARD']",
       "result": "PASS"
     },
@@ -60,7 +60,7 @@
       "id": "IT-BRD-05",
       "name": "API tổng hợp đóng góp (sp_calculate_contribution_scores) trả điểm cho thành viên có card Done",
       "expected": "HTTP 200; B và C có finalPct > 0",
-      "actual": "HTTP 200; user 115: finalPct=0.0, user 116: finalPct=55.26, user 117: finalPct=31.58, user 118: finalPct=13.16",
+      "actual": "HTTP 200; user 115: finalPct=13.69, user 116: finalPct=43.69, user 117: finalPct=19.62, user 118: finalPct=23.0",
       "result": "PASS"
     },
     {
@@ -115,8 +115,8 @@
     {
       "id": "IT-PR-01",
       "name": "API liệt kê đợt chấm theo sprint",
-      "expected": "HTTP 200, có round 4",
-      "actual": "HTTP 200; [4]",
+      "expected": "HTTP 200, có round 8",
+      "actual": "HTTP 200; [8]",
       "result": "PASS"
     },
     {
