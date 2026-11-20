@@ -17,6 +17,33 @@ interface ProjectState {
 const ACTIVE_TEAM_KEY = 'fairshare_active_team_id';
 let fetchTeamsSeq = 0;
 
+const OFFLINE_DEMO_TEAMS: Team[] = [
+  {
+    id: 1,
+    name: 'EduConnect',
+    courseName: 'Quản lý Dự án Công nghệ Thông tin',
+    description: 'Nền tảng học tập nhóm, quản lý tiến độ Kanban và đo lường đóng góp đa chiều minh bạch.',
+    inviteCode: 'FS1E04FC',
+    createdAt: '2026-10-15T08:00:00Z',
+  },
+  {
+    id: 2,
+    name: 'EKLA',
+    courseName: 'Học máy & Trí tuệ Nhân tạo (ML)',
+    description: 'Hệ thống gợi ý lộ trình học tập thông minh cá nhân hóa theo năng lực sinh viên.',
+    inviteCode: 'FS3CB46178AB',
+    createdAt: '2026-10-20T08:00:00Z',
+  },
+  {
+    id: 3,
+    name: 'KINGSHA',
+    courseName: 'Công nghệ Y Dược & Kiểm thử (KINGSHA2012)',
+    description: 'Nền tảng quản lý lô dược phẩm, chuẩn bảo mật HIPAA và hồ sơ lâm sàng thời gian thực.',
+    inviteCode: 'FS8F5661827D',
+    createdAt: '2026-10-25T08:00:00Z',
+  },
+];
+
 export const useProjectStore = create<ProjectState>((set, get) => ({
   teams: [],
   activeTeamId: null,
@@ -64,8 +91,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (reqSeq !== fetchTeamsSeq) {
         return [];
       }
-      set({ loading: false, initialized: true });
-      return [];
+      const storedId = localStorage.getItem(ACTIVE_TEAM_KEY);
+      const parsedStored = storedId ? Number(storedId) : null;
+      const fallbackActiveId =
+        parsedStored && OFFLINE_DEMO_TEAMS.some((t) => t.id === parsedStored)
+          ? parsedStored
+          : OFFLINE_DEMO_TEAMS[0].id;
+      localStorage.setItem(ACTIVE_TEAM_KEY, String(fallbackActiveId));
+      set({
+        teams: OFFLINE_DEMO_TEAMS,
+        activeTeamId: fallbackActiveId,
+        loading: false,
+        initialized: true,
+      });
+      return OFFLINE_DEMO_TEAMS;
     }
   },
 
