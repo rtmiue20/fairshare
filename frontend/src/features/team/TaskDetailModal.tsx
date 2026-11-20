@@ -23,6 +23,10 @@ import {
   UploadCloud,
   Eye,
   EyeOff,
+  QrCode,
+  Copy,
+  Download,
+  RefreshCw,
 } from 'lucide-react';
 import { TaskItem } from './AllTasksSection';
 import { showToast } from '../../components/ui/Toast';
@@ -229,6 +233,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [savingAssignee, setSavingAssignee] = useState(false);
   const assigneePickerRef = useRef<HTMLDivElement>(null);
 
+  // QR Share Popup states (QuickChart QR & GoQR API)
+  const [showShareQrModal, setShowShareQrModal] = useState(false);
+  const [qrProvider, setQrProvider] = useState<'quickchart' | 'goqr'>('quickchart');
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Tải dữ liệu từ DB mỗi khi mở modal
@@ -246,6 +257,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     setShowAddUrlInput(false);
     setAttachmentUrlInput('');
     setAttachmentNameInput('');
+    setShowShareQrModal(false);
+    setCopiedShareLink(false);
+    setQrError(false);
 
     // Tách ban đầu từ task prop (checklist & assignees)
     const parsedInitial = parseChecklistFromDescription(task.description || '');
@@ -764,30 +778,87 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     setAssigneePickerOpen(false);
   };
 
-  const handleShareTask = () => {
-    if (!task) return;
+  const getShareDirectUrl = (): string => {
+    if (!task) return typeof window !== 'undefined' ? window.location.href : '';
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('cardId', String(task.id));
       if (teamId) {
         url.searchParams.set('teamId', String(teamId));
       }
-      const directUrl = url.toString();
+      return url.toString();
+    } catch {
+      return typeof window !== 'undefined' ? window.location.href : '';
+    }
+  };
 
+  const handleShareTask = () => {
+    if (!task) return;
+    setQrError(false);
+    setQrLoading(true);
+    setCopiedShareLink(false);
+    setShowShareQrModal(true);
+  };
+
+  const handleCopyShareLink = () => {
+    if (!task) return;
+    const directUrl = getShareDirectUrl();
+    try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard
           .writeText(directUrl)
           .then(() => {
+            setCopiedShareLink(true);
             showToast.success(`Đã sao chép liên kết xem trực tiếp thẻ #${task.id}!`, 'Chia sẻ thẻ');
+            setTimeout(() => setCopiedShareLink(false), 2500);
           })
           .catch(() => {
             prompt('Sao chép đường dẫn xem trực tiếp thẻ:', directUrl);
           });
       } else {
-        prompt('Sao chép đường dẫn xem trực tiếp thẻ:', directUrl);
+        const textarea = document.createElement('textarea');
+        textarea.value = directUrl;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopiedShareLink(true);
+        showToast.success(`Đã sao chép liên kết xem trực tiếp thẻ #${task.id}!`, 'Chia sẻ thẻ');
+        setTimeout(() => setCopiedShareLink(false), 2500);
       }
     } catch {
-      showToast.info(window.location.href, 'Liên kết thẻ');
+      showToast.info(directUrl, 'Liên kết thẻ');
+    }
+  };
+
+  const shareDirectUrl = getShareDirectUrl();
+  const quickChartQrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(shareDirectUrl)}&size=260&margin=2&dark=0f172a&light=ffffff&ecLevel=H&format=png`;
+  const goQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&color=0f172a&bgcolor=ffffff&ecc=H&data=${encodeURIComponent(shareDirectUrl)}`;
+  const activeQrImageUrl = qrProvider === 'quickchart' ? quickChartQrUrl : goQrUrl;
+
+  const handleSwitchQrProvider = (provider: 'quickchart' | 'goqr') => {
+    if (provider === qrProvider && !qrError) return;
+    setQrProvider(provider);
+    setQrError(false);
+    setQrLoading(true);
+  };
+
+  const handleDownloadQrImage = async () => {
+    if (!task) return;
+    try {
+      const response = await fetch(activeQrImageUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `fairshare-card-${task.id}-${qrProvider}-qr.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      showToast.success(`Đã tải xuống mã QR thẻ #${task.id}!`, 'Tải mã QR');
+    } catch {
+      window.open(activeQrImageUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -1817,6 +1888,436 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* ── POPUP CHIA SẺ QR CODE (QuickChart QR & GoQR API) ── */}
+        {showShareQrModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 10050,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+            onClick={() => setShowShareQrModal(false)}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '420px',
+                background: 'var(--bg-card, #ffffff)',
+                color: 'var(--fg, #0f172a)',
+                borderRadius: '20px',
+                border: '1px solid var(--line, rgba(15, 23, 42, 0.1))',
+                boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.35)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Popup */}
+              <div
+                style={{
+                  padding: '16px 20px',
+                  borderBottom: '1px solid var(--line, rgba(15, 23, 42, 0.08))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      color: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <QrCode size={19} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--fg, #0f172a)', lineHeight: 1.25 }}>
+                      Chia sẻ thẻ bằng mã QR
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--fg3, #64748b)', marginTop: '2px' }}>
+                      FairShare · All Task · {task.projectTag}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowShareQrModal(false)}
+                  className="task-detail-close-btn"
+                  title="Đóng popup QR"
+                  aria-label="Đóng popup QR"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+
+              {/* Body Popup */}
+              <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Tóm tắt thẻ nhiệm vụ */}
+                <div
+                  style={{
+                    padding: '11px 14px',
+                    borderRadius: '12px',
+                    background: 'rgba(15, 23, 42, 0.03)',
+                    border: '1px solid var(--line, rgba(15, 23, 42, 0.08))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: '#10b981',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Card #{task.id} {hasRealCardId ? '(DB Synced)' : ''}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        background: priorityInfo.bg,
+                        color: priorityInfo.color,
+                      }}
+                    >
+                      {priorityInfo.label}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: 'var(--fg, #0f172a)',
+                      lineHeight: 1.35,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {task.title}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--fg3, #64748b)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span>Trạng thái: <strong>{getStatusLabel(task.status)}</strong></span>
+                    {task.dueDate && <span>· Due: <strong>{task.dueDate}</strong></span>}
+                  </div>
+                </div>
+
+                {/* Bộ chuyển đổi API: QuickChart QR & GoQR API */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '6px',
+                    padding: '4px',
+                    borderRadius: '11px',
+                    background: 'rgba(15, 23, 42, 0.05)',
+                    border: '1px solid var(--line, rgba(15, 23, 42, 0.07))',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchQrProvider('quickchart')}
+                    style={{
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      transition: 'all 0.15s ease',
+                      background: qrProvider === 'quickchart' ? '#111827' : 'transparent',
+                      color: qrProvider === 'quickchart' ? '#ffffff' : 'var(--fg2, #475569)',
+                      boxShadow: qrProvider === 'quickchart' ? '0 2px 6px rgba(0,0,0,0.14)' : 'none',
+                    }}
+                  >
+                    QuickChart QR API
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchQrProvider('goqr')}
+                    style={{
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      transition: 'all 0.15s ease',
+                      background: qrProvider === 'goqr' ? '#111827' : 'transparent',
+                      color: qrProvider === 'goqr' ? '#ffffff' : 'var(--fg2, #475569)',
+                      boxShadow: qrProvider === 'goqr' ? '0 2px 6px rgba(0,0,0,0.14)' : 'none',
+                    }}
+                  >
+                    GoQR API
+                  </button>
+                </div>
+
+                {/* Khung hiển thị mã QR */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                    borderRadius: '16px',
+                    background: '#ffffff',
+                    border: '1px solid rgba(15, 23, 42, 0.1)',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.03)',
+                    position: 'relative',
+                    minHeight: '236px',
+                  }}
+                >
+                  {qrLoading && !qrError && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        borderRadius: '16px',
+                        zIndex: 2,
+                      }}
+                    >
+                      <Loader2 size={24} className="spin-slow" style={{ color: '#10b981' }} />
+                      <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 500 }}>
+                        Đang tạo mã QR qua {qrProvider === 'quickchart' ? 'QuickChart QR' : 'GoQR API'}...
+                      </span>
+                    </div>
+                  )}
+
+                  {qrError ? (
+                    <div style={{ textAlign: 'center', padding: '20px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>
+                        Không thể tải ảnh QR từ máy chủ.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchQrProvider(qrProvider === 'quickchart' ? 'goqr' : 'quickchart')}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          background: '#111827',
+                          color: '#ffffff',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <RefreshCw size={13} />
+                        <span>Đổi sang {qrProvider === 'quickchart' ? 'GoQR API' : 'QuickChart QR'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <img
+                      key={activeQrImageUrl}
+                      src={activeQrImageUrl}
+                      alt={`QR Code Card #${task.id}`}
+                      width={200}
+                      height={200}
+                      style={{
+                        width: '200px',
+                        height: '200px',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        display: 'block',
+                      }}
+                      onLoad={() => setQrLoading(false)}
+                      onError={() => {
+                        setQrLoading(false);
+                        if (qrProvider === 'quickchart') {
+                          setQrProvider('goqr');
+                          setQrLoading(true);
+                          showToast.info('Đã tự động chuyển sang GoQR API dự phòng.', 'QR Engine');
+                        } else {
+                          setQrError(true);
+                        }
+                      }}
+                    />
+                  )}
+
+                  <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#475569' }}>
+                    <span
+                      style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        background: '#10b981',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span>
+                      Engine: <strong>{qrProvider === 'quickchart' ? 'QuickChart QR (quickchart.io)' : 'GoQR Server (api.qrserver.com)'}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Đường dẫn chia sẻ trực tiếp (Deep Link) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--fg3, #64748b)' }}>
+                    Liên kết truy cập trực tiếp (Deep-link URL)
+                  </label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 8px 6px 11px',
+                      borderRadius: '10px',
+                      background: 'rgba(15, 23, 42, 0.04)',
+                      border: '1px solid var(--line, rgba(15, 23, 42, 0.1))',
+                    }}
+                  >
+                    <input
+                      type="text"
+                      readOnly
+                      value={shareDirectUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '11.5px',
+                        color: 'var(--fg2, #334155)',
+                        fontFamily: 'monospace',
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyShareLink}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '5px 10px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        background: copiedShareLink ? '#10b981' : '#111827',
+                        color: '#ffffff',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {copiedShareLink ? <Check size={12} /> : <Copy size={12} />}
+                      <span>{copiedShareLink ? 'Đã chép' : 'Sao chép'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Popup */}
+              <div
+                style={{
+                  padding: '13px 20px',
+                  borderTop: '1px solid var(--line, rgba(15, 23, 42, 0.08))',
+                  background: 'rgba(15, 23, 42, 0.02)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleDownloadQrImage}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 13px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--line, rgba(15, 23, 42, 0.15))',
+                    background: 'var(--bg-card, #ffffff)',
+                    color: 'var(--fg, #0f172a)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Download size={14} />
+                  <span>Tải ảnh QR</span>
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowShareQrModal(false)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--fg3, #64748b)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyShareLink}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 15px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: '#111827',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {copiedShareLink ? <Check size={14} /> : <Share2 size={14} />}
+                    <span>{copiedShareLink ? 'Đã sao chép link!' : 'Chia sẻ ngay'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
