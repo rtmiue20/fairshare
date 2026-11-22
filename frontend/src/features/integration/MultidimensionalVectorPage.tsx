@@ -458,6 +458,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           </div>
         ) : (
           <CosmicNetworkCanvas
+            teamId={teamId}
+            networkData={networkData}
             nodes={networkData?.nodes || []}
             links={networkData?.links || []}
             selectedNodeId={selectedNode?.id || null}

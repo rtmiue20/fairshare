@@ -361,7 +361,7 @@ public class ContributionService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
 
-        List<Sprint> sprints = sprintRepository.findByTeamId(teamId);
+        List<Sprint> sprints = new ArrayList<>(sprintRepository.findByTeamId(teamId));
         if (sprints.isEmpty()) {
             Sprint defaultSprint = new Sprint();
             defaultSprint.setTeam(team);
@@ -369,6 +369,10 @@ public class ContributionService {
             defaultSprint.setStatus("ACTIVE");
             defaultSprint = sprintRepository.save(defaultSprint);
             sprints = List.of(defaultSprint);
+        } else {
+            sprints.sort(Comparator
+                    .comparing(Sprint::getStartDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(Sprint::getId, Comparator.nullsLast(Comparator.naturalOrder())));
         }
 
         Sprint targetSprint;

@@ -109,24 +109,24 @@ export const ReviewRoundPage: React.FC = () => {
   const theme = useMemo(() => {
     return {
       isLight,
-      pageColor: isLight ? '#f8fafc' : '#07090e',
+      pageColor: 'transparent',
       textColor: isLight ? '#0f172a' : '#f8fafc',
       headingColor: isLight ? '#0f172a' : '#ffffff',
       subTextColor: isLight ? '#64748b' : '#94a3b8',
-      cardBg: isLight ? '#ffffff' : '#1f1f23',
-      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      cardBg: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(31, 31, 35, 0.85)',
+      cardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
       cardShadow: isLight ? '0 10px 30px rgba(0, 0, 0, 0.04)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
       cardRadius: '20px',
       inputBg: isLight ? '#f8fafc' : '#27272a',
-      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
+      inputBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
       inputColor: isLight ? '#0f172a' : '#f8fafc',
       pillBg: isLight ? '#f1f5f9' : '#27272a',
-      pillBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.08)',
+      pillBorder: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.1)',
       pillText: isLight ? '#334155' : '#cbd5e1',
-      reviewCardBg: isLight ? '#ffffff' : '#1f1f23',
-      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(255, 255, 255, 0.08)',
+      reviewCardBg: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(31, 31, 35, 0.85)',
+      reviewCardBorder: isLight ? '1px solid rgba(0, 0, 0, 0.07)' : '1px solid rgba(255, 255, 255, 0.1)',
       modalBg: isLight ? '#ffffff' : '#18181b',
-      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.08)',
+      modalBorder: isLight ? '1px solid rgba(0, 0, 0, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
       modalShadow: isLight ? '0 25px 50px rgba(0, 0, 0, 0.15)' : '0 4px 24px rgba(0, 0, 0, 0.4)',
       filterBadgeBg: (active: boolean) =>
         active ? '#6366f1' : isLight ? '#f1f5f9' : '#27272a',
@@ -624,18 +624,12 @@ export const ReviewRoundPage: React.FC = () => {
 
   return (
     <div
+      className="page pad space-y-6"
       style={{
-        minHeight: '100dvh',
-        backgroundColor: theme.pageColor,
-        backgroundImage: isLight
-          ? 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.05), transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.04), transparent 60%)'
-          : 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.08), transparent 70%), radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.06), transparent 60%)',
-        color: theme.textColor,
-        paddingTop: 'calc(var(--top, 64px) + 24px)',
-        paddingBottom: '60px',
-        paddingLeft: 'clamp(16px, 3vw, 32px)',
-        paddingRight: 'clamp(16px, 3vw, 32px)',
-        transition: 'background-color 0.2s ease, color 0.2s ease',
+        maxWidth: '1380px',
+        margin: '0 auto',
+        color: 'var(--fg)',
+        minHeight: 'calc(100dvh - var(--top, 64px))',
       }}
     >
       {/* 1. Header Navigation & Quick Actions */}
@@ -661,6 +655,8 @@ export const ReviewRoundPage: React.FC = () => {
               flexShrink: 0,
               borderRadius: '10px',
               backgroundColor: theme.cardBg,
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               border: theme.cardBorder,
               color: theme.subTextColor,
               textDecoration: 'none',
@@ -700,6 +696,8 @@ export const ReviewRoundPage: React.FC = () => {
                 fontWeight: 600,
                 border: theme.cardBorder,
                 backgroundColor: theme.cardBg,
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
                 color: activeRound.status === 'OPEN' ? '#10b981' : '#f59e0b',
                 cursor: 'pointer',
                 boxShadow: theme.cardShadow,
@@ -729,6 +727,8 @@ export const ReviewRoundPage: React.FC = () => {
               fontSize: '13px',
               fontWeight: 600,
               backgroundColor: theme.cardBg,
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: theme.textColor,
               border: theme.cardBorder,
               cursor: 'pointer',
@@ -770,6 +770,8 @@ export const ReviewRoundPage: React.FC = () => {
           className="alerts-panel-card"
           style={{
             backgroundColor: theme.cardBg,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             border: theme.cardBorder,
             borderRadius: theme.cardRadius,
             boxShadow: theme.cardShadow,
@@ -1424,9 +1426,13 @@ export const ReviewRoundPage: React.FC = () => {
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-left cursor-pointer ${
                   isRoundDropdownOpen
                     ? 'border-cyan-500 ring-2 ring-cyan-500/20 bg-slate-50 dark:bg-zinc-800'
-                    : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-white dark:bg-zinc-900/80'
+                    : 'border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 bg-white dark:bg-[#1f1f23]/90'
                 }`}
-                style={{ boxShadow: theme.cardShadow }}
+                style={{
+                  boxShadow: theme.cardShadow,
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                }}
               >
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
@@ -1593,6 +1599,8 @@ export const ReviewRoundPage: React.FC = () => {
               <div
                 style={{
                   backgroundColor: theme.cardBg,
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
                   border: theme.cardBorder,
                   borderRadius: theme.cardRadius,
                   padding: '48px 24px',
@@ -1650,6 +1658,8 @@ export const ReviewRoundPage: React.FC = () => {
                     key={review.id}
                     style={{
                       backgroundColor: theme.reviewCardBg,
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
                       border: theme.reviewCardBorder,
                       borderRadius: '18px',
                       padding: '22px 24px',
