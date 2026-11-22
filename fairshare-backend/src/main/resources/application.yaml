@@ -61,3 +61,6 @@ app:
   jwt:
     secret: ${JWT_SECRET:fairshare-dev-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256} # ggignore
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  gemini:
+    api-key: ${API_KEY:${GEMINI_API_KEY:}}
+    model: ${GEMINI_MODEL:gemini-3.8-flash}

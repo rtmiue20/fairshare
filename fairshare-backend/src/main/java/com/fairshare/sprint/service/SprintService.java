@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -70,6 +71,9 @@ public class SprintService {
             throw new ForbiddenException("Bạn không phải là thành viên của nhóm này");
         }
         return sprintRepository.findByTeamId(teamId).stream()
+                .sorted(Comparator
+                        .comparing(Sprint::getStartDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(Sprint::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(this::mapToDto)
                 .toList();
     }

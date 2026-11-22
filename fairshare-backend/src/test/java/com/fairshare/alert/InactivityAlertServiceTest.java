@@ -89,8 +89,6 @@ class InactivityAlertServiceTest {
         overdueCard.setDueDate(LocalDateTime.now().minusDays(3));
 
         when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of(overdueCard));
-        when(alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(1L, 109L, "OVERDUE_TASK"))
-                .thenReturn(false);
 
         alertService.scanRuleBasedAlerts(1L, 5);
 
@@ -181,8 +179,6 @@ class InactivityAlertServiceTest {
         dueSoonCard.setDueDate(LocalDateTime.now().plusDays(1));
 
         when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of(dueSoonCard));
-        when(alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(1L, 109L, "DUE_SOON_TASK"))
-                .thenReturn(false);
 
         alertService.scanRuleBasedAlerts(1L, 5);
 
@@ -211,8 +207,6 @@ class InactivityAlertServiceTest {
         todoCard.setDueDate(LocalDateTime.now().plusDays(6));
 
         when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of(todoCard));
-        when(alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(1L, 109L, "TASK_TODO"))
-                .thenReturn(false);
 
         alertService.scanRuleBasedAlerts(1L, 5);
 
@@ -275,6 +269,51 @@ class InactivityAlertServiceTest {
         assertEquals(1, list.size());
         assertEquals(0L, list.get(0).getDaysInactive());
         assertFalse(list.get(0).isExceeded());
+    }
+
+    @Test
+    @DisplayName("Đánh dấu hoàn thành cảnh báo task tự động chuyển card sang cột Done và lưu ActivityEvent")
+    void testResolveAlertAutoCompletesCard() {
+        Board mockBoard = new Board();
+        mockBoard.setId(10L);
+        mockBoard.setTeam(mockTeam);
+
+        BoardColumn inProgressCol = new BoardColumn();
+        inProgressCol.setId(1L);
+        inProgressCol.setName("In Progress");
+
+        BoardColumn doneCol = new BoardColumn();
+        doneCol.setId(4L);
+        doneCol.setName("Done");
+
+        mockBoard.setColumns(List.of(inProgressCol, doneCol));
+
+        Card card = new Card();
+        card.setId(102L);
+        card.setTitle("Tối ưu hóa ảnh tài liệu với Cloudinary CDN");
+        card.setBoard(mockBoard);
+        card.setColumn(inProgressCol);
+        card.setAssignee(mockUser);
+        card.setStoryPoints(2.0);
+
+        Alert alert = new Alert();
+        alert.setId(84L);
+        alert.setTeam(mockTeam);
+        alert.setUser(mockUser);
+        alert.setAlertType("OVERDUE_TASK");
+        alert.setMessage("Công việc \"Tối ưu hóa ảnh tài liệu với Cloudinary CDN\" do Phạm Minh Đức phụ trách đã quá hạn.");
+        alert.setResolved(false);
+
+        when(alertRepository.findById(84L)).thenReturn(Optional.of(alert));
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of(card));
+
+        AlertDto resolved = alertService.resolveAlert(84L);
+
+        assertTrue(resolved.isResolved());
+        assertEquals(doneCol, card.getColumn());
+        verify(cardRepository, times(1)).save(card);
+        verify(activityEventRepository, times(1)).save(any(ActivityEvent.class));
     }
 }
 

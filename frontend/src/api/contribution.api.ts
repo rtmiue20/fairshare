@@ -11,6 +11,8 @@ import {
   ImpactEventPayload,
   UpdateAvailabilityPayload,
   ResolveSuspicionPayload,
+  AiChatRequestPayload,
+  AiChatResponseDto,
 } from '../types/contribution';
 
 export interface ManualContributionPayload {
@@ -170,6 +172,16 @@ export const contributionApi = {
   ): Promise<ApiResponse<unknown>> => {
     const response = await apiClient.post<ApiResponse<unknown>>(
       `/contributions/sprints/${sprintId}/calculate`,
+    );
+    return response.data;
+  },
+
+  askAiChat: async (
+    payload: AiChatRequestPayload,
+  ): Promise<ApiResponse<AiChatResponseDto>> => {
+    const response = await apiClient.post<ApiResponse<AiChatResponseDto>>(
+      '/ai/chat',
+      payload,
     );
     return response.data;
   },

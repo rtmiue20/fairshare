@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { NetworkNodeDto, NetworkLinkDto, NeuronEventItem } from '../../types/contribution';
+import {
+  NetworkNodeDto,
+  NetworkLinkDto,
+  NeuronEventItem,
+  MultidimensionalNetworkDto,
+  AiChatMessage,
+  TcreiPromptBreakdown,
+} from '../../types/contribution';
+import { contributionApi } from '../../api/contribution.api';
+import { formatSprintsWithWeeks, getSprintRailLayout } from './TimelineScrubber';
 import {
   ZoomIn,
   ZoomOut,
@@ -28,9 +37,16 @@ import {
   Target,
   ThumbsUp,
   Info,
+  Bot,
+  Trash2,
+  Loader2,
+  Database,
+  RefreshCw,
 } from 'lucide-react';
 
 export interface CosmicNetworkCanvasProps {
+  teamId?: number;
+  networkData?: MultidimensionalNetworkDto | null;
   nodes: NetworkNodeDto[];
   links: NetworkLinkDto[];
   selectedNodeId: string | null;
@@ -94,7 +110,113 @@ const DETAIL_AXES = [
   { id: 'IMP' as const, name: 'Rào cản / Khả dụng', short: 'Rào cản', sub: 'Impediment · a_i', color: '#fbbf24', icon: 'alert' },
 ];
 
+const LEGEND_ITEMS: Array<{
+  id: string;
+  filterKey: string | null;
+  dotColor: string;
+  glow: string;
+  title: string;
+  badge: string;
+  badgeClass: string;
+  desc: string;
+}> = [
+  {
+    id: 'core',
+    filterKey: null,
+    dotColor: 'bg-amber-400',
+    glow: 'shadow-[0_0_8px_#fbbf24]',
+    title: 'Thành viên trọng tâm',
+    badge: 'Hạt nhân',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+    desc: 'Điểm tổng hợp & % đóng góp Sprint',
+  },
+  {
+    id: 'd1',
+    filterKey: 'D1',
+    dotColor: 'bg-emerald-500',
+    glow: 'shadow-[0_0_8px_#10b981]',
+    title: 'D1 · Sản lượng việc',
+    badge: '40%',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+    desc: 'Thẻ hoàn thành, Story Points & độ khó',
+  },
+  {
+    id: 'd2',
+    filterKey: 'D2',
+    dotColor: 'bg-cyan-500',
+    glow: 'shadow-[0_0_8px_#06b6d4]',
+    title: 'D2 · Tiến độ & Tin cậy',
+    badge: '20%',
+    badgeClass: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
+    desc: 'Hoàn thành đúng hạn, hạn chế làm lại',
+  },
+  {
+    id: 'd3',
+    filterKey: 'D3',
+    dotColor: 'bg-purple-500',
+    glow: 'shadow-[0_0_8px_#a855f7]',
+    title: 'D3 · Phối hợp nhóm',
+    badge: '15%',
+    badgeClass: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+    desc: 'Review chéo, thảo luận & hỗ trợ',
+  },
+  {
+    id: 'd4',
+    filterKey: 'D4',
+    dotColor: 'bg-pink-500',
+    glow: 'shadow-[0_0_8px_#ec4899]',
+    title: 'D4 · Chấm chéo đồng đội',
+    badge: '25%',
+    badgeClass: 'bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/30',
+    desc: 'Đánh giá ẩn danh (từ ≥ 3 lượt)',
+  },
+  {
+    id: 'imp',
+    filterKey: 'IMPEDIMENT',
+    dotColor: 'bg-orange-500',
+    glow: 'shadow-[0_0_8px_#f59e0b]',
+    title: 'Rào cản & Khả dụng',
+    badge: 'Bù a_i',
+    badgeClass: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30',
+    desc: 'Bù điểm công bằng khi vắng/trễ hợp lệ',
+  },
+];
+
+const TCREI_STEPS: Array<{ key: 'T' | 'C' | 'R' | 'E' | 'I'; label: string; title: string }> = [
+  { key: 'T', label: 'Task', title: 'T - Task (Nhiệm vụ & Vai trò Copilot)' },
+  { key: 'C', label: 'Context', title: 'C - Context (Dữ liệu thật từ MariaDB)' },
+  { key: 'R', label: 'Reference', title: 'R - Reference (Công thức Mô hình 4 tầng)' },
+  { key: 'E', label: 'Evaluate', title: 'E - Evaluate (Kiểm định & Ví dụ chuẩn)' },
+  { key: 'I', label: 'Iterate', title: 'I - Iterate (Hội thoại đa lượt & Gợi ý)' },
+];
+
+const renderInlineFormatted = (line: string): React.ReactNode => {
+  const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return (
+        <strong key={idx} className="font-bold text-zinc-900 dark:text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code
+          key={idx}
+          className="px-1 py-0.5 rounded bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 font-mono text-[10.5px]"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+};
+
 export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
+  teamId,
+  networkData,
   nodes,
   onSelectNode,
   activeFilter,
@@ -140,14 +262,54 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  // Floating Controls UI state
+  // Floating Controls & AI Chatbox (TCREI) UI state
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showAiCard, setShowAiCard] = useState(false);
+  const [teamAiReview, setTeamAiReview] = useState<{
+    content: string;
+    modelUsed: string;
+    liveGeminiUsed: boolean;
+    timestamp: string;
+    tcrei?: TcreiPromptBreakdown;
+    followUps?: string[];
+  } | null>(null);
+  const [isTeamAiReviewLoading, setIsTeamAiReviewLoading] = useState(false);
   const [questionInput, setQuestionInput] = useState('');
-  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<AiChatMessage[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [previousInteractionId, setPreviousInteractionId] = useState<string | null>(null);
+  const [latestTcrei, setLatestTcrei] = useState<TcreiPromptBreakdown | null>(null);
+  const [activeTcreiStep, setActiveTcreiStep] = useState<'T' | 'C' | 'R' | 'E' | 'I' | null>(null);
+  const [suggestedFollowUps, setSuggestedFollowUps] = useState<string[]>([
+    'Điểm số hiện tại của tôi thế nào?',
+    'Cách tính điểm Mô hình 4 tầng?',
+    'Tổng quát bảng điểm cả nhóm?',
+    'Công việc dự án đang đảm nhận?',
+  ]);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [showMemberDropdown, setShowMemberDropdown] = useState(false);
   const [showMemberDropdown2, setShowMemberDropdown2] = useState(false);
   const [showMobileLegend, setShowMobileLegend] = useState(false);
+  const [isLegendCollapsed, setIsLegendCollapsed] = useState(false);
+
+  const orderedSprints = useMemo(() => {
+    const source =
+      sprints && sprints.length > 0
+        ? sprints
+        : [
+            { id: 1, name: 'Sprint 1', isCurrent: false, status: 'CLOSED' },
+            { id: 2, name: 'Sprint 2', isCurrent: false, status: 'CLOSED' },
+            { id: 3, name: 'Sprint 3', isCurrent: true, status: 'ACTIVE' },
+          ];
+    return formatSprintsWithWeeks(source);
+  }, [sprints]);
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isAiLoading, isChatOpen]);
 
   // Close member dropdowns on outside click
   useEffect(() => {
@@ -953,81 +1115,108 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
       ctx.restore();
 
-      // 8. Left Vertical Timeline Rail
-      const railX = 48;
-      const waveStartX = 18;
+      // 8. Left Vertical Sprint & Week Timeline Rail (Synced from MariaDB, chronological order)
+      const railX = 28;
+      const waveStartX = 14;
 
       ctx.save();
-      ctx.strokeStyle = isDark ? 'rgba(120, 200, 220, 0.24)' : 'rgba(14, 116, 144, 0.28)';
+      ctx.strokeStyle = isDark ? 'rgba(120, 200, 220, 0.22)' : 'rgba(14, 116, 144, 0.22)';
       ctx.lineWidth = 1.0;
       ctx.beginPath();
       const waveSteps = 60;
       for (let s = 0; s <= waveSteps; s++) {
         const sy = (s / waveSteps) * height;
-        const amp = Math.sin(s * 0.8 + t * 2) * 5 + Math.sin(s * 2.2 - t * 1.5) * 3;
+        const amp = Math.sin(s * 0.8 + t * 2) * 4 + Math.sin(s * 2.2 - t * 1.5) * 2.5;
         const wx = waveStartX + amp;
         if (s === 0) ctx.moveTo(wx, sy);
         else ctx.lineTo(wx, sy);
       }
       ctx.stroke();
 
-      // Vertical Sprint Capsules
-      const railItems = sprints && sprints.length > 0
-        ? sprints.map((s) => {
-            const shortMatch = s.name.match(/Sprint\s*\d+/i);
-            const shortLabel = shortMatch ? shortMatch[0] : s.name.split(/[-:–]/)[0].trim();
-            return {
-              id: s.id,
-              label: shortLabel,
-              isCurrent: s.id === selectedSprintId || s.isCurrent,
-            };
-          })
-        : [
-            { id: 1, label: 'Sprint 1', isCurrent: false },
-            { id: 2, label: 'Sprint 2', isCurrent: false },
-            { id: 3, label: 'Sprint 3', isCurrent: true },
-            { id: 4, label: 'Sprint 4', isCurrent: false },
-            { id: 5, label: 'Sprint 5', isCurrent: false },
-          ];
+      // Chronological Sprint & Week Nodes positioned cleanly above the Bottom-Left Legend Card
+      const { railStartY, railSpacing } = getSprintRailLayout(height, orderedSprints.length, isLegendCollapsed);
 
-      const railStartY = height * 0.12;
-      const railSpacing = (height * 0.68) / Math.max(1, railItems.length - 1);
+      if (orderedSprints.length > 1) {
+        const railEndY = railStartY + (orderedSprints.length - 1) * railSpacing;
+        ctx.strokeStyle = isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(14, 116, 144, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(railX, railStartY);
+        ctx.lineTo(railX, railEndY);
+        ctx.stroke();
+      }
 
-      railItems.forEach((sp, idx) => {
+      orderedSprints.forEach((sp, idx) => {
         const sy = railStartY + idx * railSpacing;
+        const isCurrent = selectedSprintId != null ? sp.id === selectedSprintId : Boolean(sp.isCurrent || sp.status === 'ACTIVE');
+        const subText = sp.dateRangeLabel ? `${sp.weekLabel} · ${sp.dateRangeLabel}` : sp.weekLabel;
 
-        if (sp.isCurrent) {
-          const capW = 76;
-          const capH = 30;
-          const capX = railX - 8;
-          const capY = sy - capH / 2;
+        // Node dot on the timeline spine
+        ctx.fillStyle = isCurrent
+          ? (isDark ? '#f5c264' : '#d97706')
+          : (isDark ? '#38bdf8' : '#0284c7');
+        ctx.beginPath();
+        ctx.arc(railX, sy, isCurrent ? 5.5 : 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = isDark ? '#0b0d13' : '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
-          ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
-          ctx.strokeStyle = isDark ? 'rgba(245, 194, 100, 0.85)' : 'rgba(217, 119, 6, 0.85)';
-          ctx.lineWidth = 1.8;
+        // Capsule card for Sprint + Week label
+        const capX = railX + 12;
+        const capW = isCurrent ? 156 : 148;
+        const capH = isCurrent ? 40 : 34;
+        const capY = sy - capH / 2;
+
+        ctx.fillStyle = isCurrent
+          ? (isDark ? 'rgba(31, 31, 35, 0.96)' : 'rgba(255, 255, 255, 0.98)')
+          : (isDark ? 'rgba(24, 24, 27, 0.78)' : 'rgba(255, 255, 255, 0.85)');
+        ctx.strokeStyle = isCurrent
+          ? (isDark ? 'rgba(245, 194, 100, 0.9)' : 'rgba(217, 119, 6, 0.85)')
+          : (isDark ? 'rgba(148, 163, 184, 0.25)' : 'rgba(15, 23, 42, 0.14)');
+        ctx.lineWidth = isCurrent ? 1.8 : 1.0;
+        ctx.beginPath();
+        ctx.roundRect(capX, capY, capW, capH, 11);
+        ctx.fill();
+        ctx.stroke();
+
+        // Sprint Title
+        ctx.fillStyle = isCurrent
+          ? (isDark ? '#ffdf99' : '#b45309')
+          : (isDark ? '#e2e8f0' : '#1e293b');
+        ctx.font = isCurrent ? 'bold 12px system-ui, -apple-system, sans-serif' : '600 11.5px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(sp.shortTitle, capX + 10, sy - 7);
+
+        // Status tag on current capsule
+        if (isCurrent) {
+          ctx.fillStyle = isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.14)';
           ctx.beginPath();
-          ctx.roundRect(capX, capY, capW, capH, 15);
+          ctx.roundRect(capX + capW - 54, sy - 14, 46, 14, 7);
           ctx.fill();
-          ctx.stroke();
-
-          ctx.fillStyle = isDark ? '#ffdf99' : '#b45309';
-          ctx.font = 'bold 12px monospace';
+          ctx.fillStyle = isDark ? '#34d399' : '#059669';
+          ctx.font = 'bold 8.5px system-ui, sans-serif';
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(sp.label, capX + capW / 2, sy);
+          ctx.fillText('Đang xem', capX + capW - 31, sy - 7);
+        }
 
+        // Week + Date range subtitle
+        ctx.fillStyle = isCurrent
+          ? (isDark ? '#cbd5e1' : '#475569')
+          : (isDark ? '#94a3b8' : '#64748b');
+        ctx.font = '500 10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(subText, capX + 10, sy + 8);
+
+        // Connector tick from active pill toward canvas
+        if (isCurrent) {
           ctx.strokeStyle = isDark ? 'rgba(245, 194, 100, 0.45)' : 'rgba(217, 119, 6, 0.45)';
           ctx.lineWidth = 1.2;
           ctx.beginPath();
           ctx.moveTo(capX + capW, sy);
-          ctx.lineTo(capX + capW + 22, sy);
+          ctx.lineTo(capX + capW + 18, sy);
           ctx.stroke();
-        } else {
-          ctx.fillStyle = isDark ? 'rgba(157, 181, 189, 0.7)' : 'rgba(51, 65, 85, 0.85)';
-          ctx.font = '600 11.5px monospace';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(sp.label, railX, sy);
         }
       });
       ctx.restore();
@@ -1041,7 +1230,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       isRunning = false;
       cancelAnimationFrame(animFrame);
     };
-  }, [transform, filteredHubs, starField, viewMode, focusedUserName, sprintName, sprints, selectedSprintId, isDark]);
+  }, [transform, filteredHubs, starField, viewMode, focusedUserName, sprintName, orderedSprints, selectedSprintId, isDark, isLegendCollapsed]);
 
   // Handle Resize for canvas with HiDPI support
   useEffect(() => {
@@ -1166,19 +1355,19 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     if (!canvas || viewMode === 'detail') return;
     const rect = canvas.getBoundingClientRect();
 
-    // Check hit on sprint rail
+    // Check hit on sprint/week rail
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
-    if (screenX >= 20 && screenX <= 130 && onSelectSprint && sprints && sprints.length > 0) {
-      const railStartY = rect.height * 0.12;
-      const railSpacing = (rect.height * 0.68) / Math.max(1, sprints.length - 1);
-      const clickedIdx = Math.round((screenY - railStartY) / railSpacing);
+    if (screenX >= 14 && screenX <= 205 && onSelectSprint && orderedSprints.length > 0) {
+      const { railStartY, railSpacing } = getSprintRailLayout(rect.height, orderedSprints.length, isLegendCollapsed);
+      const clickedIdx = railSpacing > 0 ? Math.round((screenY - railStartY) / railSpacing) : 0;
+      const targetY = railStartY + clickedIdx * railSpacing;
       if (
         clickedIdx >= 0 &&
-        clickedIdx < sprints.length &&
-        Math.abs(screenY - (railStartY + clickedIdx * railSpacing)) < 24
+        clickedIdx < orderedSprints.length &&
+        Math.abs(screenY - targetY) <= 24
       ) {
-        onSelectSprint(sprints[clickedIdx].id);
+        onSelectSprint(orderedSprints[clickedIdx].id);
         return;
       }
     }
@@ -1214,25 +1403,257 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     }
   };
 
+  // Build local TCREI fallback when offline or in isolated unit tests
+  const buildLocalTcreiFallback = useCallback(
+    (questionText: string): { answer: string; tcrei: TcreiPromptBreakdown; followUps: string[] } => {
+      const q = questionText.toLowerCase();
+      const currentName = networkData?.focusedUserName || focusedUserName || 'Thành viên';
+      const pctNum = (networkData?.finalPct ?? finalPct ?? 0.22) * 100;
+      const pctStr = `${pctNum.toFixed(1)}%`;
+      const ciNum = networkData?.compositeScore ?? compositeScore ?? 33.1;
+      const scoreStr = `${ciNum.toFixed(1)}/100`;
+      const deltaStr = `${(networkData?.distanceToCenter ?? distanceToCenter ?? 2.2).toFixed(2)}`;
+      const aiVal = networkData?.availabilityFactor ?? availabilityFactor ?? 1.0;
+      const d1 = networkData?.d1Output ?? 0;
+      const d2 = networkData?.d2Reliability ?? 0;
+      const d3 = networkData?.d3Collaboration ?? 0;
+      const d4 = networkData?.d4Peer ?? 0;
+
+      const tcrei: TcreiPromptBreakdown = {
+        task: '[T - Task] FairShare AI Copilot giải đáp chính xác về điểm số, cách tính 4 tầng, tổng quan nhóm và dự án đảm nhận.',
+        context: `[C - Context] ${currentName} · ${sprintName} · p_i=${pctStr}, C_i=${scoreStr}, δ_i=${deltaStr}, a_i=${aiVal.toFixed(2)}`,
+        reference: '[R - Reference] Tầng 1 (Vector thô) -> Tầng 2 (ln(1+x) & Robust MAD) -> Tầng 3 (D1 40%, D2 20%, D3 15%, D4 25%) -> Tầng 4 (Bù khả dụng & Logistic Sigmoid).',
+        evaluate: '[E - Evaluate] Đối chiếu khớp 100% số liệu mạng lưới & cung cấp gợi ý hành động cụ thể.',
+        iterate: `[I - Iterate] Duy trì ngữ cảnh hội thoại cho câu hỏi: "${questionText}"`,
+      };
+
+      let answer = '';
+      if (q.includes('cách tính') || q.includes('tính điểm') || q.includes('công thức') || q.includes('4 tầng')) {
+        answer =
+          `📐 **Cách tính điểm 4 tầng của ${currentName}:**\n` +
+          `• **Tầng 1–2:** Nén ` + '`ln(1+x)`' + ` & chuẩn hóa Robust MAD trên nhóm.\n` +
+          `• **Tầng 3 (4 trục):** D1 Sản lượng \`${d1 >= 0 ? '+' : ''}${d1.toFixed(2)}\` (40%), D2 Tin cậy \`${d2 >= 0 ? '+' : ''}${d2.toFixed(2)}\` (20%), D3 Phối hợp \`${d3 >= 0 ? '+' : ''}${d3.toFixed(2)}\` (15%), D4 Chấm chéo \`${d4 >= 0 ? '+' : ''}${d4.toFixed(2)}\` (25%).\n` +
+          `• **Tầng 4:** Bù khả dụng \`a_i = ${aiVal.toFixed(2)}\` và hàm Sigmoid cho **C_i = ${scoreStr}**, tỷ lệ **p_i = ${pctStr}**.`;
+      } else if (q.includes('dự án') || q.includes('đảm nhận') || q.includes('task') || q.includes('công việc')) {
+        const d1Tasks = memberEvents.filter((e) => e.axis === 'D1').slice(0, 3);
+        const taskLines = d1Tasks.map((t) => `  - ${t.title} (${t.src})`).join('\n');
+        answer =
+          `📁 **Dự án & công việc đảm nhận (${sprintName}):**\n` +
+          `• Thành viên: **${currentName}** · Tổng số sự kiện ghi nhận: **${memberEvents.length}**\n` +
+          (taskLines ? `• Công việc tiêu biểu:\n${taskLines}` : '• Đang đồng bộ dữ liệu thẻ Kanban từ hệ thống.');
+      } else if (q.includes('tổng quát') || q.includes('nhóm') || q.includes('cao nhất') || q.includes('dẫn đầu')) {
+        answer =
+          `🏆 **Tổng quát nhóm (${sprintName}):**\n` +
+          `• Thành viên đang quan sát **${currentName}** đạt **p_i = ${pctStr}** (**C_i = ${scoreStr}**).\n` +
+          `• Toàn nhóm gồm **${members.length} thành viên** đánh giá đồng thời trên 4 trục D1–D4.`;
+      } else {
+        answer =
+          `📊 **Điểm số của ${currentName} (${sprintName}):**\n` +
+          `• Đóng góp **p_i = ${pctStr}** | Sigmoid **C_i = ${scoreStr}** | Khoảng cách tâm **δ_i = ${deltaStr}** | Khả dụng **a_i = ${(aiVal * 100).toFixed(0)}%**.\n` +
+          `• Vector 4 trục: D1 \`${d1.toFixed(2)}\` · D2 \`${d2.toFixed(2)}\` · D3 \`${d3.toFixed(2)}\` · D4 \`${d4.toFixed(2)}\`.`;
+      }
+
+      return {
+        answer,
+        tcrei,
+        followUps: [
+          'Cách tính điểm Mô hình 4 tầng?',
+          'Tổng quát bảng điểm cả nhóm?',
+          'Công việc dự án đang đảm nhận?',
+        ],
+      };
+    },
+    [networkData, focusedUserName, finalPct, compositeScore, distanceToCenter, availabilityFactor, sprintName, memberEvents, members.length]
+  );
+
+  // Send question to AI Chatbox Backend (TCREI + Gemini API)
+  const sendAiQuestion = async (rawQuestion: string) => {
+    const trimmed = rawQuestion.trim();
+    if (!trimmed || isAiLoading) return;
+
+    const userMsg: AiChatMessage = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      content: trimmed,
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const historySnapshot = chatMessages.slice(-6).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    setIsChatOpen(true);
+    setChatMessages((prev) => [...prev, userMsg]);
+    setQuestionInput('');
+    setIsAiLoading(true);
+
+    try {
+      if (typeof contributionApi?.askAiChat === 'function') {
+        const res = await contributionApi.askAiChat({
+          teamId: teamId || networkData?.teamId || 1,
+          sprintId: selectedSprintId ?? networkData?.sprintId ?? null,
+          focusedUserId: selectedUserId ?? networkData?.focusedUserId ?? null,
+          question: trimmed,
+          previousInteractionId,
+          history: historySnapshot,
+        });
+        const data = res?.data;
+        if (data && data.answer) {
+          setPreviousInteractionId(data.interactionId || null);
+          if (data.tcrei) setLatestTcrei(data.tcrei);
+          if (Array.isArray(data.suggestedFollowUps) && data.suggestedFollowUps.length > 0) {
+            setSuggestedFollowUps(data.suggestedFollowUps);
+          }
+          const assistantMsg: AiChatMessage = {
+            id: `a-${Date.now()}`,
+            role: 'assistant',
+            content: data.answer,
+            timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            modelUsed: data.modelUsed,
+            liveGeminiUsed: data.liveGeminiUsed,
+            tcrei: data.tcrei,
+            suggestedFollowUps: data.suggestedFollowUps,
+          };
+          setChatMessages((prev) => [...prev, assistantMsg]);
+          return;
+        }
+      }
+      throw new Error('Fallback to local TCREI');
+    } catch {
+      const fb = buildLocalTcreiFallback(trimmed);
+      setLatestTcrei(fb.tcrei);
+      setSuggestedFollowUps(fb.followUps);
+      const assistantMsg: AiChatMessage = {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        content: fb.answer,
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        modelUsed: 'fairshare-tcrei-local',
+        liveGeminiUsed: false,
+        tcrei: fb.tcrei,
+        suggestedFollowUps: fb.followUps,
+      };
+      setChatMessages((prev) => [...prev, assistantMsg]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   // AI Ask Submit
   const handleAskSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!questionInput.trim()) return;
-    const q = questionInput.toLowerCase();
-    const currentName = focusedUserName || 'Thành viên';
-    const pctStr = `${((finalPct || 0.22) * 100).toFixed(1)}%`;
-    const scoreStr = `${(compositeScore || 33.1).toFixed(1)}/100`;
+    void sendAiQuestion(questionInput);
+  };
 
-    if (q.includes('ai') || q.includes('hoạt động') || q.includes('chậm') || q.includes('ít')) {
-      setAiAnswer('Lê Quốc Bảo (Backend) có 2 ngày bị chậm tiến độ do trùng lịch thi học phần. Hệ thống đã kích hoạt hệ số bù khả dụng a_i = 0.90 để bảo vệ quyền lợi thành viên.');
-    } else if (q.includes('cao nhất') || q.includes('nhiều nhất') || q.includes('top') || q.includes('dẫn đầu')) {
-      setAiAnswer('Nguyễn Hoàng Nam (Trưởng nhóm) đang dẫn đầu với p = 39.0% (C_i = 65.6), theo sau là Trần Thu Trang 22.0% (C_i = 33.1).');
-    } else if (q.includes('rào cản') || q.includes('bù') || q.includes('khả dụng')) {
-      setAiAnswer(`Thành viên ${currentName} có hệ số khả dụng a_i = ${(availabilityFactor * 100).toFixed(0)}%. Đã kích hoạt công thức bù một phần D' = D * (1 + 0.5(1 - a_i)).`);
-    } else {
-      setAiAnswer(`Đóng góp Sprint hiện tại: ${currentName} đạt tỷ lệ p_i = ${pctStr} (Điểm tổng hợp C_i = ${scoreStr}), khoảng cách Mahalanobis tới tâm nhóm δ_i = ${(distanceToCenter || 2.20).toFixed(2)}.`);
+  // Reset AI Nhận xét nhóm khi đổi Team / Sprint / Thành viên
+  useEffect(() => {
+    setTeamAiReview(null);
+  }, [teamId, selectedSprintId, selectedUserId]);
+
+  const buildLocalTeamReviewFallback = useCallback(() => {
+    const currentName = networkData?.focusedUserName || focusedUserName || 'Thành viên';
+    const pctNum = (networkData?.finalPct ?? finalPct ?? 0.22) * 100;
+    const ciNum = networkData?.compositeScore ?? compositeScore ?? 33.1;
+    const aiVal = networkData?.availabilityFactor ?? availabilityFactor ?? 1.0;
+    const d1 = networkData?.d1Output ?? 0;
+    const d2 = networkData?.d2Reliability ?? 0;
+    const d3 = networkData?.d3Collaboration ?? 0;
+    const d4 = networkData?.d4Peer ?? 0;
+
+    const availabilityNote =
+      aiVal < 0.999
+        ? `Hệ số khả dụng **a_i = ${(aiVal * 100).toFixed(0)}%** — đã kích hoạt cơ chế bù khả dụng \`D' = D·(1 + 0.5(1 - ${aiVal.toFixed(2)}))\` để bảo vệ quyền lợi.`
+        : `**100% khả dụng tối đa (\`a_i = 100%\`)** — không phát sinh rào cản ngoại cảnh cần bù điểm.`;
+
+    return (
+      `✨ **Nhận xét tổng thể nhóm (${sprintName} · ${members.length} thành viên):**\n` +
+      `• **Thành viên đang quan sát (${currentName}):** Tỷ lệ đóng góp **p_i = ${pctNum.toFixed(1)}%**, điểm Sigmoid **C_i = ${ciNum.toFixed(1)}/100**.\n` +
+      `• **Sức khỏe 4 trục:** D1 \`${d1 >= 0 ? '+' : ''}${d1.toFixed(2)}\` · D2 \`${d2 >= 0 ? '+' : ''}${d2.toFixed(2)}\` · D3 \`${d3 >= 0 ? '+' : ''}${d3.toFixed(2)}\` · D4 \`${d4 >= 0 ? '+' : ''}${d4.toFixed(2)}\`.\n` +
+      `• **Khả dụng & Rào cản:** ${availabilityNote}`
+    );
+  }, [networkData, focusedUserName, finalPct, compositeScore, availabilityFactor, sprintName, members.length]);
+
+  const TEAM_REVIEW_PROMPT =
+    'Hãy nhận xét và đánh giá tổng thể tình hình nhóm, phân bố đóng góp các thành viên, tiến độ công việc, hệ số khả dụng và đề xuất cải thiện trong Sprint hiện tại.';
+
+  const generateTeamAiReview = async () => {
+    if (isTeamAiReviewLoading) return;
+    setIsTeamAiReviewLoading(true);
+    const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    try {
+      if (typeof contributionApi?.askAiChat === 'function') {
+        const res = await contributionApi.askAiChat({
+          teamId: teamId || networkData?.teamId || 1,
+          sprintId: selectedSprintId ?? networkData?.sprintId ?? null,
+          focusedUserId: selectedUserId ?? networkData?.focusedUserId ?? null,
+          question: TEAM_REVIEW_PROMPT,
+          previousInteractionId,
+          history: [],
+        });
+        const data = res?.data;
+        if (data && data.answer) {
+          setTeamAiReview({
+            content: data.answer,
+            modelUsed: data.modelUsed,
+            liveGeminiUsed: data.liveGeminiUsed,
+            timestamp: nowTime,
+            tcrei: data.tcrei,
+            followUps: data.suggestedFollowUps,
+          });
+          return;
+        }
+      }
+      throw new Error('Fallback to local team review');
+    } catch {
+      setTeamAiReview({
+        content: buildLocalTeamReviewFallback(),
+        modelUsed: 'fairshare-tcrei-local',
+        liveGeminiUsed: false,
+        timestamp: nowTime,
+      });
+    } finally {
+      setIsTeamAiReviewLoading(false);
     }
-    setQuestionInput('');
+  };
+
+  const handleToggleAiInsightCard = () => {
+    setShowAiCard((prev) => {
+      const next = !prev;
+      if (next && !teamAiReview) {
+        void generateTeamAiReview();
+      }
+      return next;
+    });
+  };
+
+  const handleContinueReviewInChat = () => {
+    if (!teamAiReview) return;
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: `u-rev-${Date.now()}`,
+        role: 'user',
+        content: 'Nhận xét và đánh giá tổng thể tình hình nhóm hiện tại',
+        timestamp: teamAiReview.timestamp,
+      },
+      {
+        id: `a-rev-${Date.now() + 1}`,
+        role: 'assistant',
+        content: teamAiReview.content,
+        timestamp: teamAiReview.timestamp,
+        modelUsed: teamAiReview.modelUsed,
+        liveGeminiUsed: teamAiReview.liveGeminiUsed,
+        tcrei: teamAiReview.tcrei,
+        suggestedFollowUps: teamAiReview.followUps,
+      },
+    ]);
+    if (teamAiReview.tcrei) setLatestTcrei(teamAiReview.tcrei);
+    if (teamAiReview.followUps && teamAiReview.followUps.length > 0) {
+      setSuggestedFollowUps(teamAiReview.followUps);
+    }
+    setIsChatOpen(true);
+    setShowAiCard(false);
   };
 
   // ==========================================
@@ -1368,7 +1789,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         <button
           type="button"
           title="AI Nhận xét nhóm"
-          onClick={() => setShowAiCard((prev) => !prev)}
+          onClick={handleToggleAiInsightCard}
           className={`p-2 rounded-xl transition ${
             showAiCard
               ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.4)]'
@@ -1440,24 +1861,77 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         </div>
       )}
 
-      {/* AI Insight Flyout Panel */}
+      {/* AI Insight Flyout Panel (TCREI + Gemini Auto Group Review) */}
       {showAiCard && (
-        <div className="absolute top-16 right-6 z-40 w-80 p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl text-xs space-y-2 text-zinc-800 dark:text-zinc-200 animate-in fade-in">
-          <div className="flex items-center justify-between font-bold text-purple-600 dark:text-purple-300">
-            <span className="flex items-center gap-1.5">
+        <div
+          className="absolute top-16 right-4 sm:right-6 z-40 w-[min(390px,calc(100vw-24px))] p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-2xl text-xs space-y-2.5 text-zinc-800 dark:text-zinc-200 animate-in fade-in"
+          data-testid="ai-team-review-panel"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 font-bold text-purple-600 dark:text-purple-300">
               <Sparkles className="w-3.5 h-3.5" />
-              AI NHẬN XÉT NHÓM
-            </span>
-            <button type="button" onClick={() => setShowAiCard(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-white">
-              <X className="w-3.5 h-3.5" />
-            </button>
+              <span>AI NHẬN XÉT NHÓM</span>
+              {teamAiReview && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9.5px] font-mono bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-400/30">
+                  {teamAiReview.liveGeminiUsed ? `Gemini · ${teamAiReview.modelUsed}` : 'TCREI · MariaDB'}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                title="Phân tích lại nhận xét nhóm"
+                disabled={isTeamAiReviewLoading}
+                onClick={() => void generateTeamAiReview()}
+                className="p-1 rounded-lg text-purple-600 dark:text-purple-300 hover:bg-purple-500/10 disabled:opacity-50 transition cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isTeamAiReviewLoading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                type="button"
+                aria-label="Đóng nhận xét nhóm"
+                onClick={() => setShowAiCard(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-[#18181b] border-l-2 border-purple-500 leading-relaxed text-[11.5px] dark:border-white/5">
-            Phân bố đóng góp đồng bộ theo đồ án EduConnect: <b>{focusedUserName}</b> đạt tỷ lệ đóng góp <b>{((finalPct || 0.22) * 100).toFixed(1)}%</b> (Điểm chuẩn hóa C_i = {(compositeScore || 33.1).toFixed(1)}/100).
-          </div>
-          <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-[#18181b] border-l-2 border-amber-500 leading-relaxed text-[11.5px] dark:border-white/5">
-            Hệ số khả dụng a_i = <b>{((availabilityFactor || 1.0) * 100).toFixed(0)}%</b>. Đã kích hoạt bảo vệ quyền lợi thành viên theo Mô hình 4 tầng.
-          </div>
+
+          {isTeamAiReviewLoading ? (
+            <div className="p-4 rounded-xl bg-purple-50/70 dark:bg-[#18181b] border border-purple-200/70 dark:border-white/10 flex items-center gap-2.5 text-purple-700 dark:text-purple-300">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              <span>Đang tổng hợp bảng điểm, tiến độ Kanban & nhận xét nhóm theo chuẩn TCREI...</span>
+            </div>
+          ) : teamAiReview ? (
+            <>
+              <div
+                className="p-3 rounded-xl bg-purple-50/60 dark:bg-[#18181b] border-l-2 border-purple-500 leading-relaxed text-[11.5px] max-h-64 overflow-y-auto space-y-1 select-text"
+                style={{ scrollbarWidth: 'thin' }}
+              >
+                {teamAiReview.content.split('\n').map((line, idx) => (
+                  <div key={idx} className={line.trim().startsWith('•') || line.trim().startsWith('-') ? 'pl-1' : ''}>
+                    {renderInlineFormatted(line)}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-0.5 text-[10.5px]">
+                <span className="text-zinc-400 font-mono">Cập nhật lúc {teamAiReview.timestamp}</span>
+                <button
+                  type="button"
+                  onClick={handleContinueReviewInChat}
+                  className="text-cyan-600 dark:text-cyan-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <Bot className="w-3 h-3" />
+                  <span>Tiếp tục hỏi trong AI Chatbox →</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#18181b] text-zinc-500 dark:text-zinc-400">
+              Bấm biểu tượng làm mới để AI phân tích tình hình nhóm hiện tại.
+            </div>
+          )}
         </div>
       )}
 
@@ -1934,58 +2408,127 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         </div>
       )}
 
-      {/* 3. Bottom-Left Floating Legend Card (Overview Mode) */}
+      {/* 3. Bottom-Left Floating Legend Card (Overview Mode - Clear & Interactive) */}
       {viewMode === 'overview' && (
         <div
-          className={`absolute z-30 pointer-events-auto p-3.5 sm:p-4 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 space-y-2.5 ${
+          className={`absolute z-30 pointer-events-auto rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-[11px] text-zinc-700 dark:text-zinc-300 transition-all ${
             showMobileLegend
-              ? 'block top-28 sm:top-20 bottom-auto left-3 right-3 sm:right-auto sm:w-64 max-h-[calc(100%-300px)] overflow-y-auto'
-              : 'hidden lg:block lg:bottom-6 lg:left-6 lg:w-64'
+              ? 'block top-28 sm:top-20 bottom-auto left-3 right-3 sm:right-auto sm:w-80 max-h-[calc(100%-300px)] overflow-y-auto p-3.5'
+              : 'hidden lg:block lg:bottom-5 lg:left-5 lg:w-[296px] p-3.5'
           }`}
+          data-testid="multidimensional-legend"
         >
-          <h4 className="font-bold text-[10px] tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
-            CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
-          </h4>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
-              <span className="text-zinc-900 dark:text-zinc-200 font-medium">Thành viên trọng tâm (Hạt nhân)</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+              <h4 className="font-bold text-[10.5px] tracking-wider text-zinc-700 dark:text-zinc-200 uppercase">
+                CHÚ THÍCH MÔ HÌNH ĐA CHIỀU
+              </h4>
             </div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-              <span>D1: Sản lượng (Thẻ xong & SP)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]" />
-              <span>D2: Tin cậy & Đúng hạn (Rework)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_8px_#a855f7]" />
-              <span>D3: Phối hợp (Review PR & @mentions)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]" />
-              <span>D4: Chấm chéo đồng đội (≥ 3 lượt)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
-              <span>Rào cản & Khả dụng (Bù điểm D')</span>
+            <div className="flex items-center gap-1">
+              {activeFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => onSelectFilter?.('ALL')}
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/25 cursor-pointer"
+                >
+                  Hiện tất cả
+                </button>
+              )}
+              <button
+                type="button"
+                title={isLegendCollapsed ? 'Mở rộng bảng chú thích' : 'Thu gọn bảng chú thích'}
+                onClick={() => setIsLegendCollapsed((v) => !v)}
+                className="p-0.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white cursor-pointer"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isLegendCollapsed ? 'rotate-180' : ''}`} />
+              </button>
             </div>
           </div>
 
-          <div className="w-full h-[1px] bg-zinc-200 dark:bg-white/10 my-2" />
+          {!isLegendCollapsed && (
+            <>
+              <div className="space-y-1 mt-2.5">
+                {LEGEND_ITEMS.map((item) => {
+                  const isFiltered = item.filterKey !== null && activeFilter === item.filterKey;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      disabled={!item.filterKey}
+                      onClick={() => {
+                        if (!item.filterKey) return;
+                        onSelectFilter?.(isFiltered ? 'ALL' : item.filterKey);
+                      }}
+                      className={`w-full text-left flex items-start gap-2.5 px-2 py-1.5 rounded-xl transition-all ${
+                        item.filterKey ? 'cursor-pointer hover:bg-zinc-100/80 dark:hover:bg-white/5' : 'cursor-default'
+                      } ${
+                        isFiltered
+                          ? 'bg-cyan-500/10 ring-1 ring-cyan-500/40'
+                          : ''
+                      }`}
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${item.dotColor} ${item.glow}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-[11px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                            {item.title}
+                          </span>
+                          <span
+                            className={`text-[9.5px] font-mono font-bold px-1.5 py-0.2 rounded-full border shrink-0 ${item.badgeClass}`}
+                          >
+                            {item.badge}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-snug">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
-            <span className="flex items-center gap-1"><Sliders className="w-3 h-3 text-cyan-600 dark:text-cyan-400" /> Chuẩn hóa: <b className="text-cyan-600 dark:text-cyan-300">ln(1+x) · MAD</b></span>
-            <span className="flex items-center gap-1"><BarChart2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Khoảng tin cậy: <b className="text-emerald-600 dark:text-emerald-300">95% CI</b></span>
-          </div>
+              <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-zinc-200/80 dark:border-white/10">
+                <div
+                  className="p-2 rounded-xl bg-zinc-50 dark:bg-[#18181b] border border-zinc-200/70 dark:border-white/5"
+                  title="Giảm điểm khi chia nhỏ task, chuẩn hóa công bằng theo Median & MAD của nhóm"
+                >
+                  <div className="flex items-center gap-1 text-[9.5px] text-zinc-500 dark:text-zinc-400">
+                    <Sliders className="w-3 h-3 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                    <span className="truncate">Chống cày điểm ảo</span>
+                  </div>
+                  <div className="font-mono font-bold text-[10.5px] text-cyan-700 dark:text-cyan-300 mt-0.5 whitespace-nowrap">
+                    ln(1+x) · MAD
+                  </div>
+                </div>
+
+                <div
+                  className="p-2 rounded-xl bg-zinc-50 dark:bg-[#18181b] border border-zinc-200/70 dark:border-white/5"
+                  title="Khoảng tin cậy thống kê 95% qua 1000 lần lấy mẫu Bootstrap"
+                >
+                  <div className="flex items-center gap-1 text-[9.5px] text-zinc-500 dark:text-zinc-400">
+                    <BarChart2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="truncate">Độ tin cậy thống kê</span>
+                  </div>
+                  <div className="font-mono font-bold text-[10.5px] text-emerald-700 dark:text-emerald-300 mt-0.5 whitespace-nowrap">
+                    95% CI (Bootstrap)
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      {/* 4. Bottom-Right Floating KPI & Ask AI Dock (Overview Mode) */}
+      {/* 4. Bottom-Right Floating KPI & AI TCREI Chatbox Dock (Overview Mode) */}
       {viewMode === 'overview' && (
-        <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:bottom-6 sm:right-6 z-30 pointer-events-auto sm:w-[460px] sm:max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)]" style={{ overflow: 'visible' }}>
+        <div
+          className="absolute bottom-3 left-3 right-3 sm:left-auto sm:bottom-6 sm:right-6 z-30 pointer-events-auto sm:w-[460px] sm:max-w-[92vw] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-white/10 shadow-2xl dark:shadow-[0_8px_30px_rgb(0,0,0,0.6)] transition-all duration-200"
+          style={{ overflow: 'visible' }}
+          data-testid="ai-chatbox-dock"
+        >
+          {/* Top KPI Row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-white/10 px-3 sm:px-4 py-2.5 sm:py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
             <div>
               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Đóng góp p_i</span>
@@ -2017,30 +2560,197 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </div>
           </div>
 
-          {aiAnswer && (
-            <div className="px-4 py-2.5 mx-3 mt-2 rounded-xl bg-cyan-50 dark:bg-[#18181b] border border-cyan-200 dark:border-white/10 text-xs text-cyan-900 dark:text-cyan-200 flex items-start justify-between gap-2 shadow-sm">
-              <span>{aiAnswer}</span>
-              <button type="button" onClick={() => setAiAnswer(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-white shrink-0">
-                <X className="w-3.5 h-3.5" />
+          {/* AI Chatbox Header Strip (TCREI Status + Expand/Collapse) */}
+          <div className="px-3.5 py-1.5 border-t border-zinc-200/80 dark:border-white/10 bg-white/70 dark:bg-[#1a1d24]/70 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setIsChatOpen((v) => !v)}
+              className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 dark:text-cyan-300 hover:opacity-80 transition cursor-pointer"
+            >
+              <Bot className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+              <span>AI TCREI Copilot</span>
+              {chatMessages.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[9.5px] font-mono bg-cyan-500/15 text-cyan-700 dark:text-cyan-300">
+                  {chatMessages.length}
+                </span>
+              )}
+            </button>
+
+            <div className="flex items-center gap-1">
+              {/* 5-step TCREI Indicator Pills */}
+              <div className="hidden sm:flex items-center gap-0.5" title="Quy trình Prompt TCREI (Task - Context - Reference - Evaluate - Iterate)">
+                {TCREI_STEPS.map((step) => {
+                  const isInspected = activeTcreiStep === step.key;
+                  return (
+                    <button
+                      key={step.key}
+                      type="button"
+                      title={step.title}
+                      onClick={() => {
+                        setIsChatOpen(true);
+                        setActiveTcreiStep((prev) => (prev === step.key ? null : step.key));
+                      }}
+                      className={`w-5 h-5 flex items-center justify-center rounded text-[9.5px] font-mono font-bold transition cursor-pointer ${
+                        isInspected
+                          ? 'bg-cyan-600 text-white shadow-xs'
+                          : latestTcrei
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25'
+                          : 'bg-zinc-200/80 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-white/20'
+                      }`}
+                    >
+                      {step.key}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {chatMessages.length > 0 && (
+                <button
+                  type="button"
+                  title="Xóa lịch sử trò chuyện"
+                  onClick={() => {
+                    setChatMessages([]);
+                    setPreviousInteractionId(null);
+                    setLatestTcrei(null);
+                    setActiveTcreiStep(null);
+                  }}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-rose-500 dark:hover:text-rose-400 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                title={isChatOpen ? 'Thu gọn khung chat' : 'Mở khung chat AI'}
+                onClick={() => setIsChatOpen((v) => !v)}
+                className="p-1 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-white transition cursor-pointer"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isChatOpen ? '' : 'rotate-180'}`} />
               </button>
             </div>
+          </div>
+
+          {/* Expandable Multi-turn AI Chatbox Panel */}
+          {isChatOpen && (
+            <div className="px-3 pt-2 pb-1 border-t border-zinc-200/70 dark:border-white/10 bg-zinc-50/60 dark:bg-[#14161c]/70 flex flex-col gap-2">
+              {/* Optional TCREI Prompt Inspector Drawer */}
+              {activeTcreiStep && (
+                <div className="p-2 rounded-xl bg-indigo-50/90 dark:bg-[#1b1f2c] border border-indigo-200 dark:border-indigo-500/30 text-[10.5px] leading-relaxed text-zinc-700 dark:text-zinc-200 max-h-28 overflow-y-auto">
+                  <div className="flex items-center justify-between font-bold text-indigo-700 dark:text-cyan-300 mb-1">
+                    <span>{TCREI_STEPS.find((s) => s.key === activeTcreiStep)?.title}</span>
+                    <button type="button" onClick={() => setActiveTcreiStep(null)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <pre className="whitespace-pre-wrap font-sans text-[10.5px] text-zinc-700 dark:text-zinc-300">
+                    {latestTcrei
+                      ? (activeTcreiStep === 'T'
+                          ? latestTcrei.task
+                          : activeTcreiStep === 'C'
+                          ? latestTcrei.context
+                          : activeTcreiStep === 'R'
+                          ? latestTcrei.reference
+                          : activeTcreiStep === 'E'
+                          ? latestTcrei.evaluate
+                          : latestTcrei.iterate)
+                      : 'Hãy gửi một câu hỏi bên dưới để xem ngữ cảnh TCREI được trích xuất trực tiếp từ CSDL MariaDB.'}
+                  </pre>
+                </div>
+              )}
+
+              {/* Chat Messages Scroll Container */}
+              <div
+                ref={chatScrollRef}
+                className="max-h-56 overflow-y-auto space-y-2 pr-1 text-xs select-text"
+                style={{ scrollbarWidth: 'thin' }}
+              >
+                {chatMessages.length === 0 ? (
+                  <div className="p-2.5 rounded-2xl bg-white dark:bg-[#1c1f28] border border-zinc-200/80 dark:border-white/10 text-[11px] text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                    <div className="font-bold text-cyan-700 dark:text-cyan-300 flex items-center gap-1 mb-1">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Xin chào! Tôi là FairShare AI Copilot (Chuẩn TCREI)</span>
+                    </div>
+                    Tôi có thể tra cứu trực tiếp từ CSDL về <strong>điểm số của bạn</strong>, <strong>cách tính 4 tầng</strong>, <strong>tổng quát cả nhóm</strong> và <strong>công việc dự án bạn đang đảm nhận</strong>. Chọn nhanh câu hỏi bên dưới hoặc nhập trực tiếp nhé!
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[92%] rounded-2xl px-3 py-2 text-[11.5px] leading-relaxed shadow-xs ${
+                          msg.role === 'user'
+                            ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-br-sm'
+                            : 'bg-white dark:bg-[#1c1f28] border border-zinc-200/90 dark:border-white/10 text-zinc-800 dark:text-zinc-100 rounded-bl-sm'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          {msg.content.split('\n').map((line, i) => (
+                            <div key={i} className={line.trim().startsWith('-') || line.trim().startsWith('•') ? 'pl-1' : ''}>
+                              {renderInlineFormatted(line)}
+                            </div>
+                          ))}
+                        </div>
+
+                        {msg.role === 'assistant' && (
+                          <div className="mt-1.5 pt-1 border-t border-zinc-100 dark:border-white/10 flex items-center justify-between gap-2 text-[9.5px] text-zinc-400">
+                            <span className="flex items-center gap-1 font-mono">
+                              <Database className="w-2.5 h-2.5 text-cyan-500" />
+                              {msg.liveGeminiUsed ? `Gemini (${msg.modelUsed})` : 'TCREI · MariaDB'}
+                            </span>
+                            <span>{msg.timestamp}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {isAiLoading && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white dark:bg-[#1c1f28] border border-zinc-200/90 dark:border-white/10 text-[11px] text-cyan-700 dark:text-cyan-300 w-fit">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang tổng hợp dữ liệu TCREI & phân tích...</span>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
+
+          {/* Quick-Prompt / Iterate Suggestions Row */}
+          <div className="px-3 pt-1.5 flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {suggestedFollowUps.map((chip, idx) => (
+              <button
+                key={`${chip}-${idx}`}
+                type="button"
+                disabled={isAiLoading}
+                onClick={() => void sendAiQuestion(chip)}
+                className="px-2.5 py-1 rounded-full text-[10.5px] font-medium whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/20 transition cursor-pointer disabled:opacity-50"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
 
           <form onSubmit={handleAskSubmit} className="px-3 py-2 flex items-center gap-2">
             <div className="flex-1 flex items-center gap-2 bg-zinc-100 dark:bg-[#18181b] rounded-2xl px-3 py-2 text-zinc-900 dark:text-white shadow-inner border border-zinc-200 dark:border-white/10">
               <input
                 type="text"
                 value={questionInput}
+                onFocus={() => setIsChatOpen(true)}
                 onChange={(e) => setQuestionInput(e.target.value)}
-                placeholder="Ask a question... (vd: Ai đang đóng góp cao nhất?)"
+                placeholder="Hỏi AI về điểm số, cách tính 4 tầng, dự án..."
                 className="w-full bg-transparent text-xs font-medium focus:outline-none placeholder-zinc-400 dark:placeholder-zinc-500 text-zinc-900 dark:text-zinc-100"
               />
             </div>
             <button
               type="submit"
-              className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 text-white flex items-center justify-center shadow-lg transition"
+              aria-label="Gửi câu hỏi AI"
+              disabled={isAiLoading || !questionInput.trim()}
+              className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 disabled:opacity-60 text-white flex items-center justify-center shadow-lg transition cursor-pointer"
             >
-              <Send className="w-4 h-4 -rotate-45" />
+              {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 -rotate-45" />}
             </button>
           </form>
 
