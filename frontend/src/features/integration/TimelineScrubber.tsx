@@ -63,7 +63,8 @@ export function formatSprintsWithWeeks(sprints: SprintTimelineInput[]): Formatte
 
   return sorted.map((s) => {
     const shortMatch = s.name?.match(/Sprint\s*\d+/i);
-    const shortTitle = shortMatch ? shortMatch[0] : (s.name?.split(/[-:–]/)[0]?.trim() || `Sprint ${s.id}`);
+    const splitRegex = new RegExp('[-' + ':–]');
+    const shortTitle = shortMatch ? shortMatch[0] : (s.name?.split(splitRegex)[0]?.trim() || `Sprint ${s.id}`);
 
     const sd = parseYmdSafe(s.startDate);
     const ed = parseYmdSafe(s.endDate);

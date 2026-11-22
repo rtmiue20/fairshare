@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { ManualContributionModal } from '../dashboard/ManualContributionModal';
 import { ManualContributionItem } from '../../types/contribution';
+import { resolveAvatarUrl } from '../../utils/avatarSync';
 import {
   Printer,
   Download,
@@ -78,6 +79,7 @@ interface ReportMemberItem {
   role: string;
   isLeader: boolean;
   email: string;
+  avatarUrl?: string;
   pct: number;
   tasks: number;
   edits: number;
@@ -363,7 +365,7 @@ export const ReportPage: React.FC = () => {
       ]);
 
       // Team Details
-      const memberRoleMap: Record<number, { role: string; isLeader: boolean; email: string }> = {};
+      const memberRoleMap: Record<number, { role: string; isLeader: boolean; email: string; avatarUrl?: string }> = {};
 
       if (teamRes.status === 'fulfilled' && teamRes.value?.data) {
         const t = teamRes.value.data;
@@ -372,13 +374,14 @@ export const ReportPage: React.FC = () => {
 
         if (Array.isArray(t.members)) {
           t.members.forEach((m) => {
-            const raw = m as unknown as { userId?: number; fullName?: string; email?: string };
+            const raw = m as unknown as { userId?: number; fullName?: string; email?: string; avatarUrl?: string };
             const uId = m.user?.id ?? raw.userId ?? m.id;
             const isLead = m.role === 'LEADER';
             memberRoleMap[uId] = {
               role: isLead ? 'Trưởng nhóm' : 'Thành viên',
               isLeader: isLead,
               email: m.user?.email || raw.email || '',
+              avatarUrl: m.user?.avatarUrl || raw.avatarUrl || '',
             };
             if (isLead) {
               setLeaderName(m.user?.fullName || raw.fullName || 'Nguyễn Hoàng Nam');
@@ -502,6 +505,7 @@ export const ReportPage: React.FC = () => {
             role: userMeta.role,
             isLeader: userMeta.isLeader,
             email: userMeta.email,
+            avatarUrl: (item.avatarUrl || userMeta.avatarUrl) || undefined,
             pct,
             tasks: taskCount,
             edits: editsCount,
@@ -1798,10 +1802,18 @@ export const ReportPage: React.FC = () => {
                             }`}
                           >
                             <span
-                              className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-xs transition-transform group-hover:scale-105"
+                              className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-xs transition-transform group-hover:scale-105 overflow-hidden"
                               style={{ background: bg }}
                             >
-                              {initials}
+                              {m.avatarUrl ? (
+                                <img
+                                  src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                  alt={m.name}
+                                  className="w-full h-full object-cover rounded-xl"
+                                />
+                              ) : (
+                                initials
+                              )}
                             </span>
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
@@ -2301,9 +2313,18 @@ export const ReportPage: React.FC = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                overflow: 'hidden',
                               }}
                             >
-                              {getInitials(m.name)}
+                              {m.avatarUrl ? (
+                                <img
+                                  src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                  alt={m.name}
+                                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                getInitials(m.name)
+                              )}
                             </div>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 700, color: theme.headingColor, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -2356,8 +2377,16 @@ export const ReportPage: React.FC = () => {
                             </td>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2448,8 +2477,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2538,8 +2575,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2634,8 +2679,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2748,8 +2801,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
