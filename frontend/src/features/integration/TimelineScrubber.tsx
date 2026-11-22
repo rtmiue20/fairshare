@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useMemo } from 'react';
 import { SprintTimelineDto } from '../../types/contribution';
 import { Calendar, Clock, Layers } from 'lucide-react';

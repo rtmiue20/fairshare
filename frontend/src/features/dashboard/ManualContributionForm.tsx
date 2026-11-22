@@ -139,12 +139,17 @@ export const ManualContributionForm: React.FC<ManualContributionFormProps> = ({
             });
           });
           setCards(list);
-          if (list.length > 0 && !taskName) {
-            setSelectedCardId(list[0].id);
-            setTaskName(`${list[0].cardCode}: ${list[0].title}`);
-            if (list[0].storyPoints) {
-              setStoryPoints(list[0].storyPoints);
-            }
+          if (list.length > 0) {
+            setTaskName((prev) => {
+              if (!prev) {
+                setSelectedCardId(list[0].id);
+                if (list[0].storyPoints) {
+                  setStoryPoints(list[0].storyPoints);
+                }
+                return `${list[0].cardCode}: ${list[0].title}`;
+              }
+              return prev;
+            });
           }
         }
       })

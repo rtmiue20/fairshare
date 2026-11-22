@@ -771,7 +771,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       major,
       teamRole,
     };
-  }, [safeSummaryItems, selectedUserId, scores, availableMembers, avgOnTimeRate, avatarMap, user?.id, user?.avatarUrl]);
+  }, [safeSummaryItems, selectedUserId, scores, availableMembers, avgOnTimeRate, avatarMap, user?.id, user?.avatarUrl, user?.email, user?.major, user?.phone, user?.studentId]);
 
   if (initialized && teams.length === 0 && !propTeamId && !urlTeamId) {
     return <NoProjectState />;

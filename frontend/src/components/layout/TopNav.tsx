@@ -169,7 +169,7 @@ export const TopNav: React.FC = () => {
     } else {
       clearNotifications();
     }
-  }, [isAuthenticated, user?.id, user?.email, token, fetchTeams, clearNotifications]);
+  }, [isAuthenticated, user, token, fetchTeams, clearNotifications]);
 
   useEffect(() => {
     const userScope = buildUserScopeKey(user);
