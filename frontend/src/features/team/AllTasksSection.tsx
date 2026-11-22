@@ -104,7 +104,23 @@ const INITIAL_TASKS: TaskItem[] = [
     ],
   },
 
-  // ── In Progress (5) ──
+  // ── In Progress (6) ──
+  {
+    id: '103',
+    projectTag: 'EduConnect - In Progress',
+    title: 'Giao diện đọc tài liệu PDF và highlight nội dung',
+    description: 'Xây dựng component viewer bằng PDF.js hỗ trợ đánh dấu trang và ghi chú',
+    dueDate: 'Nov 15, 2026',
+    status: 'in_progress',
+    progress: 75,
+    difficultyLevel: 3,
+    storyPoints: 5,
+    commentsCount: 4,
+    linksCount: 2,
+    assignees: [
+      { name: 'Trần Thu Trang (Frontend Dev)', avatarText: 'TT', bg: 'linear-gradient(135deg, #2563eb, #1d4ed8)' },
+    ],
+  },
   {
     id: 't-5',
     projectTag: 'Sinen Dashboard',
