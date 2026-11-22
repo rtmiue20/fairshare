@@ -1,13 +1,17 @@
 package com.fairshare.alert.service;
 
 import com.fairshare.activity.entity.ActivityEvent;
+import com.fairshare.activity.entity.ActivitySource;
 import com.fairshare.activity.repository.ActivityEventRepository;
 import com.fairshare.alert.dto.AlertDto;
 import com.fairshare.alert.dto.CreateAlertRequest;
 import com.fairshare.alert.dto.MemberInactivityDto;
 import com.fairshare.alert.entity.Alert;
 import com.fairshare.alert.repository.AlertRepository;
+import com.fairshare.board.entity.Board;
+import com.fairshare.board.entity.BoardColumn;
 import com.fairshare.board.entity.Card;
+import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.team.entity.Team;
@@ -38,6 +42,9 @@ public class InactivityAlertService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
     private final ActivityEventRepository activityEventRepository;
+
+    @Autowired(required = false)
+    private BoardColumnRepository boardColumnRepository;
 
     @Autowired(required = false)
     private UserRepository userRepository;
@@ -189,7 +196,8 @@ public class InactivityAlertService {
                 if (expectedType != null) {
                     String quotedTitle = "\"" + c.getTitle() + "\"";
                     Alert matchedUnresolved = null;
-                    boolean alreadyResolvedForSameState = false;
+                    Alert matchedStaleResolved = null;
+                    boolean alreadyResolvedToday = false;
 
                     for (Alert existing : existingAlerts) {
                         String exType = existing.getAlertType() != null ? existing.getAlertType().trim().toUpperCase() : "";
@@ -197,8 +205,10 @@ public class InactivityAlertService {
                         String exMsg = existing.getMessage() != null ? existing.getMessage() : "";
                         if (exMsg.contains(quotedTitle)) {
                             if (existing.isResolved()) {
-                                if (expectedType.equals(exType)) {
-                                    alreadyResolvedForSameState = true;
+                                if (existing.getResolvedAt() != null && existing.getResolvedAt().toLocalDate().equals(today)) {
+                                    alreadyResolvedToday = true;
+                                } else {
+                                    matchedStaleResolved = existing;
                                 }
                             } else if (matchedUnresolved == null) {
                                 matchedUnresolved = existing;
@@ -206,7 +216,7 @@ public class InactivityAlertService {
                         }
                     }
 
-                    if (alreadyResolvedForSameState) {
+                    if (alreadyResolvedToday) {
                         continue;
                     }
 
@@ -225,27 +235,34 @@ public class InactivityAlertService {
                             matchedUnresolved.setMessage(expectedMessage);
                             alertRepository.save(matchedUnresolved);
                         }
-                    } else {
-                        boolean existsByType = alertRepository.existsByTeamIdAndUserIdAndAlertTypeAndResolvedFalse(
-                                teamId, c.getAssignee().getId(), expectedType
-                        );
-                        if (!existsByType || !existingAlerts.isEmpty()) {
-                            Alert alert = new Alert();
-                            alert.setTeam(team);
-                            alert.setUser(c.getAssignee());
-                            alert.setAlertType(expectedType);
-                            alert.setSeverity(expectedSeverity);
-                            alert.setMessage(expectedMessage);
-                            alert.setResolved(false);
-                            Alert saved = alertRepository.save(alert);
-                            if (saved != null) {
-                                existingAlerts.add(saved);
-                                if (saved.getId() != null) {
-                                    matchedUnresolvedTaskAlertIds.add(saved.getId());
-                                }
-                            }
-                            log.info("CR-04 Created {} alert for user: {} on card: {}", expectedType, c.getAssignee().getId(), c.getId());
+                    } else if (matchedStaleResolved != null) {
+                        matchedStaleResolved.setResolved(false);
+                        matchedStaleResolved.setResolvedAt(null);
+                        matchedStaleResolved.setUser(c.getAssignee());
+                        matchedStaleResolved.setAlertType(expectedType);
+                        matchedStaleResolved.setSeverity(expectedSeverity);
+                        matchedStaleResolved.setMessage(expectedMessage);
+                        alertRepository.save(matchedStaleResolved);
+                        if (matchedStaleResolved.getId() != null) {
+                            matchedUnresolvedTaskAlertIds.add(matchedStaleResolved.getId());
                         }
+                        log.info("CR-04 Re-activated task alert {} for card: {} (still not completed)", matchedStaleResolved.getId(), c.getId());
+                    } else {
+                        Alert alert = new Alert();
+                        alert.setTeam(team);
+                        alert.setUser(c.getAssignee());
+                        alert.setAlertType(expectedType);
+                        alert.setSeverity(expectedSeverity);
+                        alert.setMessage(expectedMessage);
+                        alert.setResolved(false);
+                        Alert saved = alertRepository.save(alert);
+                        if (saved != null) {
+                            existingAlerts.add(saved);
+                            if (saved.getId() != null) {
+                                matchedUnresolvedTaskAlertIds.add(saved.getId());
+                            }
+                        }
+                        log.info("CR-04 Created {} alert for user: {} on card: {}", expectedType, c.getAssignee().getId(), c.getId());
                     }
                 }
             }
@@ -427,7 +444,100 @@ public class InactivityAlertService {
                 .orElseThrow(() -> new ResourceNotFoundException("Alert not found: " + alertId));
         alert.setResolved(true);
         alert.setResolvedAt(LocalDateTime.now());
-        return AlertDto.from(alertRepository.save(alert));
+        Alert saved = alertRepository.save(alert);
+
+        // Khi đánh dấu hoàn thành / giải quyết cảnh báo công việc:
+        // Cập nhật thẻ công việc (Card) tương ứng sang cột Done để đồng bộ thực tế và database
+        try {
+            completeAssociatedCardIfPresent(saved);
+        } catch (Exception e) {
+            log.warn("Could not auto-complete card for alert {}: {}", alertId, e.getMessage());
+        }
+
+        return AlertDto.from(saved);
+    }
+
+    private void completeAssociatedCardIfPresent(Alert alert) {
+        if (alert == null || alert.getTeam() == null) return;
+        String taskTitle = extractCardTitleFromAlert(alert);
+        if (taskTitle == null || taskTitle.isBlank()) return;
+
+        Long teamId = alert.getTeam().getId();
+        List<Card> teamCards = cardRepository.findByBoardTeamId(teamId);
+        if (teamCards == null || teamCards.isEmpty()) return;
+
+        Card targetCard = null;
+        for (Card c : teamCards) {
+            if (c.getTitle() != null && c.getTitle().trim().equalsIgnoreCase(taskTitle)) {
+                targetCard = c;
+                break;
+            }
+        }
+        if (targetCard == null) return;
+
+        Board board = targetCard.getBoard();
+        if (board == null) return;
+
+        List<BoardColumn> cols = null;
+        if (boardColumnRepository != null) {
+            cols = boardColumnRepository.findByBoardIdOrderByPositionAsc(board.getId());
+        }
+        if (cols == null || cols.isEmpty()) {
+            cols = board.getColumns();
+        }
+        if (cols == null || cols.isEmpty()) return;
+
+        BoardColumn doneCol = null;
+        for (BoardColumn col : cols) {
+            String name = col.getName() != null ? col.getName().trim() : "";
+            if (name.equalsIgnoreCase("Done") || name.equalsIgnoreCase("Hoàn thành") || name.equalsIgnoreCase("Completed")) {
+                doneCol = col;
+                break;
+            }
+        }
+        if (doneCol == null) return;
+
+        // Nếu thẻ chưa ở cột Done, chuyển sang Done
+        if (targetCard.getColumn() == null || !Objects.equals(targetCard.getColumn().getId(), doneCol.getId())) {
+            targetCard.setColumn(doneCol);
+            targetCard.setUpdatedAt(LocalDateTime.now());
+            cardRepository.save(targetCard);
+            log.info("CR-04 Auto-completed card {} (\"{}\") to column '{}' on alert {} resolution",
+                    targetCard.getId(), targetCard.getTitle(), doneCol.getName(), alert.getId());
+
+            if (activityEventRepository != null) {
+                ActivityEvent event = new ActivityEvent();
+                event.setTeam(alert.getTeam());
+                event.setUser(alert.getUser() != null ? alert.getUser() : targetCard.getAssignee());
+                event.setSource(ActivitySource.BOARD);
+                event.setEventType("CARD_COMPLETED");
+                event.setDetails("Hoàn thành công việc: " + targetCard.getTitle());
+                event.setOccurredAt(LocalDateTime.now());
+                event.setStoryPoints(targetCard.getStoryPoints() != null ? targetCard.getStoryPoints() : 2.0);
+                event.setDifficultyLevel(targetCard.getDifficultyLevel() != null ? targetCard.getDifficultyLevel() : 2);
+                event.setDelayDays(0.0);
+                event.setIsOnTime(true);
+                activityEventRepository.save(event);
+            }
+        }
+    }
+
+    private String extractCardTitleFromAlert(Alert alert) {
+        if (alert == null || alert.getMessage() == null) return null;
+        String msg = alert.getMessage();
+        // 1. Quoted title: Công việc "..." do ...
+        java.util.regex.Matcher mQuote = java.util.regex.Pattern.compile("\"([^\"]+)\"").matcher(msg);
+        if (mQuote.find()) {
+            return mQuote.group(1).trim();
+        }
+        // 2. Formatted title: ... | Công việc: ...
+        int idx = msg.indexOf("Công việc: ");
+        if (idx >= 0) {
+            String rest = msg.substring(idx + 11).trim();
+            int pipeIdx = rest.indexOf(" | ");
+            return (pipeIdx >= 0 ? rest.substring(0, pipeIdx) : rest).trim();
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)

@@ -20,6 +20,7 @@ import {
   UserX,
   Bell,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
@@ -80,6 +81,45 @@ interface TaskCandidate {
   assigneeName?: string;
   riskStatus: 'overdue' | 'due_soon' | 'todo' | 'normal';
   daysDiff?: number;
+}
+
+const TASK_BADGE_MAP: Record<
+  TaskCandidate['riskStatus'],
+  { code: string; statusText?: string; bg: string; color: string }
+> = {
+  overdue: {
+    code: 'QH',
+    statusText: 'Quá hạn',
+    bg: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    color: '#ffffff',
+  },
+  due_soon: {
+    code: 'ST',
+    statusText: 'Sắp trễ',
+    bg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    color: '#ffffff',
+  },
+  todo: {
+    code: 'TD',
+    statusText: 'To Do',
+    bg: 'linear-gradient(135deg, #06b6d4, #0284c7)',
+    color: '#ffffff',
+  },
+  normal: {
+    code: 'OK',
+    bg: 'linear-gradient(135deg, #10b981, #059669)',
+    color: '#ffffff',
+  },
+};
+
+function getTaskBadgeMeta(task: TaskCandidate) {
+  const entry = TASK_BADGE_MAP[task.riskStatus] ?? TASK_BADGE_MAP.normal;
+  return {
+    code: entry.code,
+    statusText: entry.statusText || task.columnName || 'Hoàn thành',
+    bg: entry.bg,
+    color: entry.color,
+  };
 }
 
 interface MemberCandidate {
@@ -325,6 +365,13 @@ function parseFormattedMessage(rawMessage: string): {
     }
   }
 
+  if (!taskTitle) {
+    const quoteMatch = text.match(/Công việc\s+"([^"]+)"/i);
+    if (quoteMatch) {
+      taskTitle = quoteMatch[1].trim();
+    }
+  }
+
   return {
     customTitle,
     body: bodyParts.join(' | ').trim() || rawMessage,
@@ -539,6 +586,9 @@ export const AlertList: React.FC = () => {
 
   // Track auto-dispatched alerts to avoid duplicate notifications on re-renders
   const dispatchedKeysRef = useRef<Set<string>>(new Set());
+  // Track manually resolved task titles and member inactivity to avoid reviving them on scan
+  const resolvedTaskTitlesRef = useRef<Set<string>>(new Set());
+  const resolvedUserIdsRef = useRef<Set<number>>(new Set());
 
   // 3-Step Modal State ("Gửi cảnh báo kiểu step")
   const [wizardOpen, setWizardOpen] = useState<boolean>(false);
@@ -548,10 +598,25 @@ export const AlertList: React.FC = () => {
   const [senderName, setSenderName] = useState<string>(currentUser?.fullName || currentUser?.email || '');
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined);
   const [selectedTaskTitle, setSelectedTaskTitle] = useState<string>('');
+  const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState<boolean>(false);
+  const taskDropdownRef = useRef<HTMLDivElement | null>(null);
   const [customTitle, setCustomTitle] = useState<string>(ALERT_TEMPLATES.warning.defaultTitle);
   const [customMessage, setCustomMessage] = useState<string>('');
   const [wizardError, setWizardError] = useState<string | null>(null);
   const [submittingWizard, setSubmittingWizard] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isTaskDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!target || !document.contains(target)) return;
+      if (taskDropdownRef.current && !taskDropdownRef.current.contains(target)) {
+        setIsTaskDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isTaskDropdownOpen]);
 
   useEffect(() => {
     if (currentUser?.fullName) {
@@ -743,12 +808,18 @@ export const AlertList: React.FC = () => {
           finalAlerts = (alertsRes.value.data.data || []).map(mapBackendAlert);
         }
 
-        // Synthesize board-detected alerts when real board has cards but alerts list is empty
-        if ((!alertsOk || finalAlerts.length === 0) && hasValidBoard && extractedTasks.length > 0) {
-          finalAlerts = buildBoardRiskAlerts(extractedTasks);
+        // Lọc các công việc đã được người dùng đánh dấu hoàn thành / giải quyết
+        const activeExtractedTasks = extractedTasks.filter(
+          (t) => !resolvedTaskTitlesRef.current.has(t.title.trim().toLowerCase())
+        );
+
+        // Synthesize board-detected alerts when real board has cards but alerts list is empty (auto-detection from board)
+        if ((!alertsOk || finalAlerts.length === 0) && hasValidBoard && activeExtractedTasks.length > 0) {
+          finalAlerts = buildBoardRiskAlerts(activeExtractedTasks);
         }
 
         // Loại bỏ các cảnh báo INACTIVITY_WARNING còn dính lại nếu thành viên thực tế không vượt ngưỡng (daysInactive < threshold)
+        // hoặc đã được giải quyết
         if (finalInactivity.length > 0) {
           const nonExceededUserIds = new Set(
             finalInactivity.filter((m) => !m.exceeded).map((m) => m.userId)
@@ -758,6 +829,7 @@ export const AlertList: React.FC = () => {
           );
           finalAlerts = finalAlerts.filter((a) => {
             if (a.alertType !== 'INACTIVITY_WARNING') return true;
+            if (a.userId && resolvedUserIdsRef.current.has(a.userId)) return false;
             if (a.userId && nonExceededUserIds.has(a.userId)) return false;
             if (a.userName && nonExceededNames.has(a.userName.toLowerCase())) return false;
             return true;
@@ -766,7 +838,7 @@ export const AlertList: React.FC = () => {
 
         // 5. Ensure inactivity alerts from finalInactivity are synchronized into finalAlerts
         finalInactivity.forEach((m) => {
-          if (m.exceeded) {
+          if (m.exceeded && !resolvedUserIdsRef.current.has(m.userId)) {
             const hasAlert = finalAlerts.some(
               (a) => a.userId === m.userId && a.alertType === 'INACTIVITY_WARNING'
             );
@@ -784,6 +856,12 @@ export const AlertList: React.FC = () => {
               });
             }
           }
+        });
+
+        // Loại bỏ bất kỳ alert task nào đã được đánh dấu hoàn thành
+        finalAlerts = finalAlerts.filter((a) => {
+          if (!a.taskTitle) return true;
+          return !resolvedTaskTitlesRef.current.has(a.taskTitle.trim().toLowerCase());
         });
 
         setTaskCandidates(extractedTasks);
@@ -828,13 +906,56 @@ export const AlertList: React.FC = () => {
           removeNotification(n.id);
         }
       }
+      if (targetAlert.taskTitle) {
+        resolvedTaskTitlesRef.current.add(targetAlert.taskTitle.trim().toLowerCase());
+        setTaskCandidates((prev) =>
+          prev.filter((t) => t.title.trim().toLowerCase() !== targetAlert.taskTitle?.trim().toLowerCase())
+        );
+      }
+      if (targetAlert.alertType === 'INACTIVITY_WARNING' && targetAlert.userId) {
+        resolvedUserIdsRef.current.add(targetAlert.userId);
+      }
     }
 
+    // 1. Tự động chuyển thẻ sang cột Done trên Kanban Board trong CSDL thực tế
+    if (targetAlert?.taskTitle && currentTeamId > 0) {
+      try {
+        const boardsRes = await apiClient.get<ApiResponse<Board[]>>(`/boards/team/${currentTeamId}`);
+        const boards = boardsRes.data?.data;
+        if (Array.isArray(boards)) {
+          for (const b of boards) {
+            const doneCol = (b.columns || []).find((c) => {
+              const name = (c.name || '').trim().toLowerCase();
+              return name === 'done' || name === 'hoàn thành' || name === 'completed';
+            });
+            if (doneCol) {
+              for (const col of b.columns || []) {
+                const card = (col.cards || []).find(
+                  (c) => c.title.trim().toLowerCase() === targetAlert.taskTitle?.trim().toLowerCase()
+                );
+                if (card && col.id !== doneCol.id) {
+                  await apiClient.put(`/boards/cards/${card.id}/move`, {
+                    targetColumnId: doneCol.id,
+                    position: 0,
+                    fromColumnName: col.name,
+                  });
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not auto-move card to Done:', err);
+      }
+    }
+
+    // 2. Cập nhật trạng thái đã giải quyết vào database
     try {
       await apiClient.put(`/alerts/${id}/resolve`);
-      showToast(`Đã giải quyết cảnh báo: ${title}`);
+      showToast(targetAlert?.taskTitle ? `Đã hoàn thành công việc: ${targetAlert.taskTitle}` : `Đã giải quyết cảnh báo: ${title}`);
     } catch {
-      showToast(`Đã giải quyết cảnh báo (cục bộ)`);
+      showToast(`Đã giải quyết cảnh báo: ${title}`);
     }
   };
 
@@ -940,6 +1061,16 @@ export const AlertList: React.FC = () => {
     return [...taskCandidates].sort((a, b) => priority[a.riskStatus] - priority[b.riskStatus]);
   }, [taskCandidates]);
 
+  const selectedTask = useMemo(
+    () => sortedTasksForWizard.find((t) => t.title === selectedTaskTitle),
+    [sortedTasksForWizard, selectedTaskTitle]
+  );
+
+  const closeWizard = () => {
+    setIsTaskDropdownOpen(false);
+    setWizardOpen(false);
+  };
+
   const openWizard = (presetUserId?: number, presetTemplate?: AlertTemplateKey) => {
     const chosenTpl = presetTemplate || 'warning';
     const tplConfig = ALERT_TEMPLATES[chosenTpl];
@@ -951,6 +1082,7 @@ export const AlertList: React.FC = () => {
     setSelectedTemplate(chosenTpl);
     setSelectedUserId(defaultMember?.userId);
     setSelectedTaskTitle('');
+    setIsTaskDropdownOpen(false);
     setCustomTitle(tplConfig.defaultTitle);
     setCustomMessage('');
     setWizardError(null);
@@ -991,6 +1123,7 @@ export const AlertList: React.FC = () => {
 
   const handleWizardNext = () => {
     setWizardError(null);
+    setIsTaskDropdownOpen(false);
     if (wizardStep === 1) {
       setWizardStep(2);
       return;
@@ -1006,6 +1139,7 @@ export const AlertList: React.FC = () => {
 
   const handleWizardBack = () => {
     setWizardError(null);
+    setIsTaskDropdownOpen(false);
     if (wizardStep > 1) {
       setWizardStep((prev) => prev - 1);
     }
@@ -1107,7 +1241,7 @@ export const AlertList: React.FC = () => {
       });
 
       setSubmittingWizard(false);
-      setWizardOpen(false);
+      closeWizard();
     }
   };
 
@@ -1542,6 +1676,7 @@ export const AlertList: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleResolve(a.id, a.title)}
+                        title={a.taskTitle ? 'Đánh dấu hoàn thành công việc và chuyển sang cột Done' : 'Đánh dấu đã giải quyết cảnh báo'}
                         style={{
                           background: '#4f46e5',
                           color: '#ffffff',
@@ -1873,7 +2008,7 @@ export const AlertList: React.FC = () => {
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !submittingWizard) {
-              setWizardOpen(false);
+              closeWizard();
             }
           }}
         >
@@ -1937,7 +2072,7 @@ export const AlertList: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setWizardOpen(false)}
+                onClick={closeWizard}
                 disabled={submittingWizard}
                 aria-label="Đóng"
                 style={{
@@ -2182,34 +2317,161 @@ export const AlertList: React.FC = () => {
                   </div>
 
                   {/* Related Task Selector */}
-                  {sortedTasksForWizard.length > 0 && (
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--fg)' }}>
-                        <ClipboardList size={14} color="#6366f1" />
-                        Công việc liên quan (tùy chọn)
-                      </label>
-                      <select
-                        value={selectedTaskTitle}
-                        onChange={(e) => handleSelectTask(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.62rem 0.85rem',
-                          borderRadius: '12px',
-                          background: 'var(--surface2)',
-                          border: '1.5px solid var(--line)',
-                          color: 'var(--fg)',
-                          fontSize: '0.84rem',
-                        }}
+                  {sortedTasksForWizard.length > 0 && (() => {
+                    const selectedTaskMeta = selectedTask ? getTaskBadgeMeta(selectedTask) : null;
+                    const renderTaskOption = ({
+                      key,
+                      isActive,
+                      onSelect,
+                      badgeCode,
+                      badgeStyle,
+                      title,
+                      subtitle,
+                    }: {
+                      key: React.Key;
+                      isActive: boolean;
+                      onSelect: () => void;
+                      badgeCode: string;
+                      badgeStyle?: React.CSSProperties;
+                      title: string;
+                      subtitle: string;
+                    }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="option"
+                        aria-selected={isActive}
+                        onClick={onSelect}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
+                          isActive
+                            ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-semibold shadow-sm'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                        }`}
                       >
-                        <option value="">-- Không gắn công việc cụ thể --</option>
-                        {sortedTasksForWizard.map((t) => (
-                          <option key={t.id} value={t.title}>
-                            [{t.riskStatus === 'overdue' ? 'Quá hạn' : t.riskStatus === 'due_soon' ? 'Sắp trễ' : t.riskStatus === 'todo' ? 'To Do' : t.columnName}] {t.title} {t.assigneeName ? `(${t.assigneeName})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                        <span
+                          className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
+                            badgeStyle ? '' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+                          }`}
+                          style={badgeStyle}
+                        >
+                          {badgeCode}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                            {title}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                            {subtitle}
+                          </div>
+                        </div>
+                        {isActive && (
+                          <Check className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 stroke-[2.5]" />
+                        )}
+                      </button>
+                    );
+
+                    return (
+                      <div ref={taskDropdownRef} className="relative">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--fg)' }}>
+                          <ClipboardList size={14} color="#6366f1" />
+                          Công việc liên quan (tùy chọn)
+                        </label>
+
+                        <button
+                          type="button"
+                          aria-haspopup="listbox"
+                          aria-expanded={isTaskDropdownOpen}
+                          onClick={() => setIsTaskDropdownOpen((prev) => !prev)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[14px] border transition-all text-[13px] select-none cursor-pointer min-w-0 shadow-sm ${
+                            isTaskDropdownOpen
+                              ? 'border-cyan-500 dark:border-cyan-400 bg-white dark:bg-[#222632] text-slate-950 dark:text-white'
+                              : 'border-slate-300 dark:border-white/20 bg-white dark:bg-[#1c1f28] hover:bg-slate-50 dark:hover:bg-[#262a36] hover:border-slate-400 dark:hover:border-white/35 text-slate-800 dark:text-slate-200'
+                          }`}
+                          style={
+                            isTaskDropdownOpen
+                              ? { boxShadow: '0 0 0 3px rgba(6, 182, 212, 0.2)' }
+                              : undefined
+                          }
+                        >
+                          <span
+                            className={`w-[26px] h-[26px] rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm ${
+                              selectedTaskMeta ? '' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+                            }`}
+                            style={
+                              selectedTaskMeta
+                                ? { background: selectedTaskMeta.bg, color: selectedTaskMeta.color }
+                                : undefined
+                            }
+                          >
+                            {selectedTaskMeta ? selectedTaskMeta.code : '--'}
+                          </span>
+                          <span className="flex-1 min-w-0 text-left truncate font-semibold">
+                            {selectedTask ? selectedTask.title : '-- Không gắn công việc cụ thể --'}
+                          </span>
+                          <ChevronDown
+                            size={16}
+                            className={`shrink-0 transition-transform duration-200 ${
+                              isTaskDropdownOpen
+                                ? 'rotate-180 text-cyan-600 dark:text-cyan-400'
+                                : 'text-slate-500 dark:text-slate-400'
+                            }`}
+                          />
+                        </button>
+
+                        {isTaskDropdownOpen && (
+                          <div
+                            role="listbox"
+                            aria-label="Danh sách công việc trong dự án"
+                            className="absolute left-0 right-0 top-[calc(100%+8px)] z-[120] rounded-2xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#1a1d26] overflow-hidden"
+                            style={{
+                              boxShadow: !isLight
+                                ? '0 24px 50px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px -4px rgba(0, 0, 0, 0.6)'
+                                : '0 20px 45px -12px rgba(15, 23, 42, 0.22), 0 6px 18px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+                            }}
+                          >
+                            <div className="px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-white/[0.03]">
+                              <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
+                                CÔNG VIỆC TRONG DỰ ÁN
+                              </span>
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                                {sortedTasksForWizard.length}
+                              </span>
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto p-2 space-y-1.5" style={{ scrollbarWidth: 'thin' }}>
+                              {renderTaskOption({
+                                key: '__none__',
+                                isActive: selectedTaskTitle === '',
+                                onSelect: () => {
+                                  handleSelectTask('');
+                                  setIsTaskDropdownOpen(false);
+                                },
+                                badgeCode: '--',
+                                title: 'Không gắn công việc cụ thể',
+                                subtitle: 'Bỏ chọn công việc liên quan',
+                              })}
+
+                              {sortedTasksForWizard.map((t) => {
+                                const meta = getTaskBadgeMeta(t);
+                                return renderTaskOption({
+                                  key: t.id,
+                                  isActive: selectedTaskTitle === t.title,
+                                  onSelect: () => {
+                                    handleSelectTask(t.title);
+                                    setIsTaskDropdownOpen(false);
+                                  },
+                                  badgeCode: meta.code,
+                                  badgeStyle: { background: meta.bg, color: meta.color },
+                                  title: t.title,
+                                  subtitle: `[${meta.statusText}] • ${t.assigneeName || 'Chưa phân công'}`,
+                                });
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Alert Title */}
                   <div>
@@ -2415,7 +2677,7 @@ export const AlertList: React.FC = () => {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setWizardOpen(false)}
+                    onClick={closeWizard}
                     disabled={submittingWizard}
                     style={{
                       padding: '0.55rem 1.15rem',

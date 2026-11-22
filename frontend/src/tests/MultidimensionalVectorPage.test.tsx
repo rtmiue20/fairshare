@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MultidimensionalVectorPage } from '../features/integration/MultidimensionalVectorPage';
+import { formatSprintsWithWeeks, getSprintRailLayout } from '../features/integration/TimelineScrubber';
 import { contributionApi } from '../api/contribution.api';
 import { teamApi } from '../api/team.api';
 
@@ -12,6 +13,7 @@ vi.mock('../api/contribution.api', () => ({
     updateAvailability: vi.fn(),
     resolveSuspicion: vi.fn(),
     calculateSprintScores: vi.fn(),
+    askAiChat: vi.fn(),
   },
 }));
 
@@ -50,6 +52,7 @@ beforeEach(() => {
     arc: vi.fn(),
     arcTo: vi.fn(),
     rect: vi.fn(),
+    roundRect: vi.fn(),
     closePath: vi.fn(),
     fill: vi.fn(),
     stroke: vi.fn(),
@@ -60,6 +63,7 @@ beforeEach(() => {
     restore: vi.fn(),
     scale: vi.fn(),
     translate: vi.fn(),
+    rotate: vi.fn(),
     setTransform: vi.fn(),
     measureText: vi.fn().mockReturnValue({ width: 50 }),
     fillText: vi.fn(),
@@ -159,5 +163,250 @@ describe('MultidimensionalVectorPage Component Tests', () => {
     const tier4Btn = screen.getByRole('button', { name: 'Tầng 4' });
     fireEvent.click(tier4Btn);
     expect(screen.getByText(/Bù khả dụng một phần & Sigmoid/i)).toBeInTheDocument();
+  });
+
+  it('integrates AI Chatbox with TCREI workflow in bottom-right dock', async () => {
+    vi.mocked(teamApi.getMembers).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: [{ id: 1, fullName: 'Nguyễn Văn Minh Triệu', email: 'trieu@ueh.edu.vn' }],
+    } as never);
+
+    vi.mocked(contributionApi.getNetworkGraph).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        teamId: 1,
+        sprintId: 3,
+        sprintName: 'Sprint 3: Hoàn thiện MVP',
+        focusedUserId: 1,
+        focusedUserName: 'Nguyễn Văn Minh Triệu',
+        finalPct: 0.32,
+        score: 32.0,
+        d1Output: 1.4,
+        d2Reliability: 0.9,
+        d3Collaboration: 0.7,
+        d4Peer: 0.8,
+        compositeScore: 82.0,
+        availabilityFactor: 1.0,
+        distanceToCenter: 2.16,
+        isSuspicious: false,
+        hasSufficientEvidence: true,
+        totalEventsCount: 15,
+        tierBreakdown: {
+          rawFeatures: {},
+          logFeatures: {},
+          robustZScores: {},
+          dimensions: {},
+          availabilityFactor: 1.0,
+          availabilityBonusFactor: 1.0,
+          adjustedDimensions: {},
+          compositeScore: 82.0,
+          finalPercentage: 0.32,
+        },
+        nodes: [],
+        links: [],
+        sprints: [{ id: 3, name: 'Sprint 3', isCurrent: true, status: 'ACTIVE' }],
+      },
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
+
+    vi.mocked(contributionApi.askAiChat).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        answer: 'Điểm số của bạn là p_i = 32.0%, C_i = 82.0/100 trong dự án EduConnect.',
+        interactionId: 'int-123',
+        modelUsed: 'gemini-3.8-flash',
+        liveGeminiUsed: true,
+        tcrei: {
+          task: '[T - TASK] Trợ lý AI FairShare',
+          context: '[C - CONTEXT] Dự án EduConnect · C_i = 82.0',
+          reference: '[R - REFERENCE] Mô hình 4 tầng',
+          evaluate: '[E - EVALUATE] Khớp 100% MariaDB',
+          iterate: '[I - ITERATE] Câu hỏi tiếp theo',
+        },
+        suggestedFollowUps: ['Cách tính điểm chi tiết?'],
+      },
+    } as never);
+
+    render(<MultidimensionalVectorPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AI TCREI Copilot/i)).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText(/Hỏi AI về điểm số, cách tính 4 tầng, dự án/i);
+    fireEvent.change(input, { target: { value: 'Điểm số của tôi là bao nhiêu?' } });
+    fireEvent.submit(input.closest('form')!);
+
+    await waitFor(() => {
+      expect(contributionApi.askAiChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          teamId: 1,
+          question: 'Điểm số của tôi là bao nhiêu?',
+        })
+      );
+      expect(screen.getByText(/82\.0\/100 trong dự án EduConnect/i)).toBeInTheDocument();
+    });
+
+    // Inspect TCREI step breakdown button ('C' = Context)
+    const cStepBtn = screen.getByTitle(/C - Context/i);
+    fireEvent.click(cStepBtn);
+    expect(screen.getByText(/\[C - CONTEXT\] Dự án EduConnect/i)).toBeInTheDocument();
+  });
+
+  it('triggers dynamic AI team review insight when clicking AI Nhận xét nhóm button', async () => {
+    vi.mocked(teamApi.getMembers).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: [{ id: 1, fullName: 'Minh Triều (Product Owner)', email: 'trieu@ueh.edu.vn' }],
+    } as never);
+
+    vi.mocked(contributionApi.getNetworkGraph).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        teamId: 1,
+        sprintId: 3,
+        sprintName: 'Sprint 3: Hoàn thiện MVP',
+        focusedUserId: 1,
+        focusedUserName: 'Minh Triều (Product Owner)',
+        finalPct: 0.32,
+        score: 32.0,
+        d1Output: 1.4,
+        d2Reliability: 0.9,
+        d3Collaboration: 0.7,
+        d4Peer: 0.8,
+        compositeScore: 82.0,
+        availabilityFactor: 1.0,
+        distanceToCenter: 2.16,
+        isSuspicious: false,
+        hasSufficientEvidence: true,
+        totalEventsCount: 15,
+        tierBreakdown: {
+          rawFeatures: {},
+          logFeatures: {},
+          robustZScores: {},
+          dimensions: {},
+          availabilityFactor: 1.0,
+          availabilityBonusFactor: 1.0,
+          adjustedDimensions: {},
+          compositeScore: 82.0,
+          finalPercentage: 0.32,
+        },
+        nodes: [],
+        links: [],
+        sprints: [{ id: 3, name: 'Sprint 3', isCurrent: true, status: 'ACTIVE' }],
+      },
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
+
+    vi.mocked(contributionApi.askAiChat).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        answer: '✨ **Nhận xét tổng thể EduConnect:** 100% thành viên đảm bảo khả dụng tối đa (a_i = 100%).',
+        interactionId: null,
+        modelUsed: 'gemini-3.8-flash',
+        liveGeminiUsed: true,
+        tcrei: {
+          task: '[T - TASK]',
+          context: '[C - CONTEXT]',
+          reference: '[R - REFERENCE]',
+          evaluate: '[E - EVALUATE]',
+          iterate: '[I - ITERATE]',
+        },
+        suggestedFollowUps: ['Xem chi tiết công việc trễ hạn?'],
+      },
+    } as never);
+
+    render(<MultidimensionalVectorPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('AI Nhận xét nhóm')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle('AI Nhận xét nhóm'));
+
+    await waitFor(() => {
+      expect(contributionApi.askAiChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          teamId: 1,
+          question: expect.stringContaining('nhận xét và đánh giá tổng thể tình hình nhóm'),
+        })
+      );
+      expect(screen.getByTestId('ai-team-review-panel')).toBeInTheDocument();
+      expect(screen.getByText(/100% thành viên đảm bảo khả dụng tối đa/i)).toBeInTheDocument();
+    });
+  });
+
+  it('sorts DB sprints chronologically with Week labels and keeps rail above readable legend card', async () => {
+    const unorderedDbSprints = [
+      { id: 3, name: 'Sprint 3 - Hoàn thiện MVP', startDate: '2026-11-13', endDate: '2026-11-27', isCurrent: true, status: 'ACTIVE' },
+      { id: 1, name: 'Sprint 1 - Thiết kế', startDate: '2026-10-15', endDate: '2026-10-28', isCurrent: false, status: 'CLOSED' },
+      { id: 2, name: 'Sprint 2 - Tích hợp API', startDate: '2026-10-29', endDate: '2026-11-12', isCurrent: false, status: 'CLOSED' },
+    ];
+
+    const formatted = formatSprintsWithWeeks(unorderedDbSprints);
+    expect(formatted.map((s) => s.shortTitle)).toEqual(['Sprint 1', 'Sprint 2', 'Sprint 3']);
+    expect(formatted.map((s) => s.weekLabel)).toEqual(['Tuần 1–2', 'Tuần 3–4', 'Tuần 5–6']);
+    expect(formatted[1].dateRangeLabel).toBe('29/10–12/11');
+
+    // Verify Sprint 3 (last item) sits cleanly above the bottom-left legend card (bottomReserved = 355)
+    const layout = getSprintRailLayout(720, formatted.length, false);
+    const lastSprintY = layout.railStartY + (formatted.length - 1) * layout.railSpacing;
+    expect(lastSprintY).toBeLessThanOrEqual(720 - 355);
+
+    vi.mocked(teamApi.getMembers).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: [{ id: 1, fullName: 'Minh Triều', email: 'trieu@ueh.edu.vn' }],
+    } as never);
+
+    vi.mocked(contributionApi.getNetworkGraph).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        teamId: 1,
+        sprintId: 3,
+        sprintName: 'Sprint 3 - Hoàn thiện MVP',
+        focusedUserId: 1,
+        focusedUserName: 'Minh Triều',
+        finalPct: 0.32,
+        score: 32.0,
+        d1Output: 1.4,
+        d2Reliability: 0.9,
+        d3Collaboration: 0.7,
+        d4Peer: 0.8,
+        compositeScore: 82.0,
+        availabilityFactor: 1.0,
+        distanceToCenter: 2.16,
+        isSuspicious: false,
+        hasSufficientEvidence: true,
+        totalEventsCount: 15,
+        tierBreakdown: {
+          rawFeatures: {},
+          logFeatures: {},
+          robustZScores: {},
+          dimensions: {},
+          availabilityFactor: 1.0,
+          availabilityBonusFactor: 1.0,
+          adjustedDimensions: {},
+          compositeScore: 82.0,
+          finalPercentage: 0.32,
+        },
+        nodes: [],
+        links: [],
+        sprints: unorderedDbSprints,
+      },
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
+
+    render(<MultidimensionalVectorPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('multidimensional-legend')).toBeInTheDocument();
+      expect(screen.getByText(/D1 · Sản lượng việc/i)).toBeInTheDocument();
+      expect(screen.getByText(/Chống cày điểm ảo/i)).toBeInTheDocument();
+      expect(screen.getByText(/95% CI \(Bootstrap\)/i)).toBeInTheDocument();
+    });
   });
 });

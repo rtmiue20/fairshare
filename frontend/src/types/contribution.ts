@@ -222,4 +222,41 @@ export interface NeuronEventItem {
   dp?: number; // Delta on p_i percentage points (e.g. +1.20)
 }
 
+export interface TcreiPromptBreakdown {
+  task: string;
+  context: string;
+  reference: string;
+  evaluate: string;
+  iterate: string;
+}
+
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  modelUsed?: string;
+  liveGeminiUsed?: boolean;
+  tcrei?: TcreiPromptBreakdown;
+  suggestedFollowUps?: string[];
+}
+
+export interface AiChatRequestPayload {
+  teamId?: number;
+  sprintId?: number | null;
+  focusedUserId?: number | null;
+  question: string;
+  previousInteractionId?: string | null;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
+
+export interface AiChatResponseDto {
+  answer: string;
+  interactionId?: string | null;
+  modelUsed: string;
+  liveGeminiUsed: boolean;
+  tcrei: TcreiPromptBreakdown;
+  suggestedFollowUps: string[];
+}
+
 
