@@ -152,7 +152,12 @@ export const TopNav: React.FC = () => {
       const target = e.target as Node;
       // Tránh đóng popover nếu phần tử click bị unmount khỏi DOM trong khi re-render
       if (!target || !document.contains(target)) return;
-      if (notifRef.current && !notifRef.current.contains(target)) {
+      const notifPopoverEl = document.getElementById('notifPopover');
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(target) &&
+        (!notifPopoverEl || !notifPopoverEl.contains(target))
+      ) {
         setIsNotifOpen(false);
       }
       if (projectDropdownRef.current && !projectDropdownRef.current.contains(target)) {

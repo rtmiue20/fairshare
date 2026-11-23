@@ -85,7 +85,13 @@ export const ReviewRoundPage: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
   const [searchParams] = useSearchParams();
   const urlTeamId = Number(searchParams.get('teamId'));
-  const currentTeamId = urlTeamId > 0 ? urlTeamId : activeTeamId || teams[0]?.id || 1;
+  const currentTeamId =
+    urlTeamId > 0
+      ? urlTeamId
+      : activeTeamId ||
+        teams[0]?.id ||
+        (typeof window !== 'undefined' ? Number(localStorage.getItem('fairshare_active_team_id')) : null) ||
+        0;
   const { user: currentUser } = useAuthStore();
 
   // Theme detector for Light / Dark Mode
@@ -143,7 +149,7 @@ export const ReviewRoundPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Active Evaluator (current user)
-  const [currentEvaluatorId] = useState<number>(currentUser?.id || 109);
+  const currentEvaluatorId = currentUser?.id || 1;
 
   // KEY FEATURE: Nút bật/tắt "Ẩn danh" trên trang
   const [isAnonymous, setIsAnonymous] = useState<boolean>(true);
@@ -217,6 +223,10 @@ export const ReviewRoundPage: React.FC = () => {
 
   // Load team members and review rounds
   const loadData = useCallback(async () => {
+    if (!currentTeamId || currentTeamId <= 0) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [roundRes, sprintRes, memberRes] = await Promise.allSettled([
@@ -467,11 +477,25 @@ export const ReviewRoundPage: React.FC = () => {
   };
 
   // Open Multi-Step Review Modal
-  const openReviewModal = () => {
-    const eligible = members.find((m) => m.id !== currentEvaluatorId);
-    if (eligible) setModalRevieweeId(eligible.id);
-    if (activeRoundId) setModalRoundId(activeRoundId);
-    if (activeRound?.sprintId) setModalSprintId(activeRound.sprintId);
+  const openReviewModal = (preselectedRevieweeId?: number | React.MouseEvent) => {
+    const chosenTarget = typeof preselectedRevieweeId === 'number' ? preselectedRevieweeId : undefined;
+    const eligible = members.filter((m) => m.id !== currentEvaluatorId);
+    let chosenRevieweeId = 0;
+    if (chosenTarget && chosenTarget !== currentEvaluatorId) {
+      chosenRevieweeId = chosenTarget;
+    } else if (eligible.length > 0) {
+      chosenRevieweeId = eligible[0].id;
+    }
+    setModalRevieweeId(chosenRevieweeId);
+
+    const targetRound =
+      rounds.find((r) => r.id === activeRoundId) ||
+      rounds.find((r) => r.status === 'OPEN') ||
+      rounds[0];
+    if (targetRound) {
+      setModalRoundId(targetRound.id);
+      if (targetRound.sprintId) setModalSprintId(targetRound.sprintId);
+    }
     setReviewStep(1);
     setModalCardId(0);
     setModalQuality(5);
@@ -482,15 +506,31 @@ export const ReviewRoundPage: React.FC = () => {
     setShowReviewModal(true);
   };
 
+  // Keep reviewee valid (Anti-Self-Review safety)
+  useEffect(() => {
+    if (showReviewModal && members.length > 0) {
+      if (!modalRevieweeId || modalRevieweeId === currentEvaluatorId) {
+        const eligible = members.find((m) => m.id !== currentEvaluatorId);
+        if (eligible) {
+          setModalRevieweeId(eligible.id);
+        }
+      }
+    }
+  }, [showReviewModal, members, currentEvaluatorId, modalRevieweeId]);
+
   // Submit Review Modal
   const handleFinalSubmitReview = async () => {
-    const targetRoundId = modalRoundId || activeRoundId;
+    const targetRoundId =
+      modalRoundId ||
+      activeRoundId ||
+      (rounds.find((r) => r.status === 'OPEN')?.id ?? rounds[0]?.id);
     if (!targetRoundId) {
       showToast({ message: 'Vui lòng chọn đợt chấm chéo hợp lệ', type: 'error' });
       return;
     }
     if (!modalRevieweeId || modalRevieweeId === currentEvaluatorId) {
-      showToast({ message: 'Vui lòng chọn đồng đội cần đánh giá (không thể tự chấm bản thân)', type: 'error' });
+      showToast({ message: 'Không thể tự chấm điểm chính bản thân mình. Vui lòng chọn đồng đội khác.', type: 'error' });
+      setReviewStep(1);
       return;
     }
     if (!modalFeedback.trim()) {
@@ -515,7 +555,7 @@ export const ReviewRoundPage: React.FC = () => {
 
       showToast({ message: 'Đã gửi phiếu chấm điểm đồng đội thành công!', type: 'success' });
       useNotificationStore.getState().addNotification({
-        teamId: activeTeamId ?? currentTeamId,
+        teamId: (activeTeamId ?? currentTeamId) || 1,
         source: 'manual',
         type: 'success',
         title: 'Hoàn thành phiếu chấm chéo',
@@ -532,7 +572,17 @@ export const ReviewRoundPage: React.FC = () => {
       setShowReviewModal(false);
       loadReviews();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Có lỗi khi gửi đánh giá';
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      const serverMsg = axiosErr?.response?.data?.message;
+      let msg = serverMsg || (err instanceof Error ? err.message : 'Có lỗi khi gửi đánh giá');
+      if (serverMsg === 'Cannot review yourself') {
+        msg = 'Không thể tự đánh giá chính bản thân mình. Vui lòng quay lại Bước 1 để chọn đồng đội khác.';
+        setReviewStep(1);
+      } else if (serverMsg === 'You have already submitted this criterion for the selected member') {
+        msg = 'Bạn đã gửi đánh giá cho đồng đội này trong đợt chấm chéo này rồi.';
+      } else if (serverMsg === 'Reviews can only be submitted to an open review round') {
+        msg = 'Đợt chấm chéo này hiện đang đóng, không thể gửi thêm phiếu chấm.';
+      }
       showToast({ message: msg, type: 'error' });
     } finally {
       setSubmittingReview(false);
@@ -2605,6 +2655,28 @@ export const ReviewRoundPage: React.FC = () => {
                         )}
                       </span>
                     </div>
+
+                    {/* Anti-Self-Review Warning Banner */}
+                    {modalRevieweeId === currentEvaluatorId && (
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: '12px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#ef4444',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginTop: '4px',
+                        }}
+                      >
+                        <AlertTriangle size={16} className="shrink-0" />
+                        <span>Hệ thống phát hiện bạn đang chọn chính mình. Vui lòng bấm "Quay lại" về Bước 1 để chọn đồng đội khác!</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2728,20 +2800,20 @@ export const ReviewRoundPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleFinalSubmitReview}
-                    disabled={submittingReview}
+                    disabled={submittingReview || modalRevieweeId === currentEvaluatorId}
                     style={{
                       padding: '0.55rem 1.45rem',
                       borderRadius: '999px',
                       fontSize: '0.82rem',
                       fontWeight: 700,
                       color: '#ffffff',
-                      background: '#6366f1',
+                      background: modalRevieweeId === currentEvaluatorId ? '#94a3b8' : '#6366f1',
                       border: 'none',
-                      cursor: submittingReview ? 'not-allowed' : 'pointer',
+                      cursor: (submittingReview || modalRevieweeId === currentEvaluatorId) ? 'not-allowed' : 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.4rem',
-                      boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+                      boxShadow: modalRevieweeId === currentEvaluatorId ? 'none' : '0 4px 14px rgba(99, 102, 241, 0.35)',
                     }}
                   >
                     {submittingReview ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}

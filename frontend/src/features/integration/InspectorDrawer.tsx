@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import {
   X,
+  ChevronLeft,
   AlertTriangle,
   ShieldCheck,
   PlusCircle,
@@ -183,7 +184,15 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
         style={{ borderColor: 'var(--line)' }}
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="lg:hidden p-1 -ml-1 text-zinc-400 hover:text-white rounded transition hover:bg-[var(--surface2)]"
+              title="Quay lại sơ đồ"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
             <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4] shrink-0" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)] font-mono truncate">
               Vector Đa Chiều · Mô Hình 4 Tầng
