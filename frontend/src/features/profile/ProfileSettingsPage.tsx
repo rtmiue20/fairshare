@@ -120,15 +120,28 @@ export const ProfileSettingsPage: React.FC = () => {
   const [joinedAt, setJoinedAt] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Avatar Upload on Double Click
+  // Avatar Upload on Single Click
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imgError, setImgError] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarUploadInFlightRef = useRef(false);
+  const uploadSeqRef = useRef(0);
   const [avatarUrl, setAvatarUrl] = useState<string>(() => resolveAvatarUrl(user?.avatarUrl) || '');
+
+  useEffect(() => {
+    if (!isUploadingAvatar) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isUploadingAvatar]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (!file || avatarUploadInFlightRef.current) return;
 
     if (!file.type.startsWith('image/')) {
       setSaveError('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP)');
@@ -139,7 +152,13 @@ export const ProfileSettingsPage: React.FC = () => {
       return;
     }
 
-    // Xem trước tức thì, sau đó lưu lên server (uploads/avatars)
+    // Xem trước tức thì, khóa thao tác & giữ tải lên tới Supabase/DB cho tới khi hoàn tất
+    avatarUploadInFlightRef.current = true;
+    uploadSeqRef.current += 1;
+    setIsUploadingAvatar(true);
+    setSaveError(null);
+    setSaveSuccess('Đang tải ảnh đại diện lên máy chủ, vui lòng đợi...');
+
     const previousUrl = avatarUrl;
     const previewUrl = URL.createObjectURL(file);
     setImgError(false);
@@ -160,14 +179,17 @@ export const ProfileSettingsPage: React.FC = () => {
         // Báo cho các trang khác (Dashboard, ...) cập nhật ngay
         broadcastAvatarUpdate({ userId: user.id, avatarUrl: serverUrl });
       }
-      setSaveSuccess('Đã cập nhật ảnh đại diện thành công!');
-      setTimeout(() => setSaveSuccess(null), 3500);
+      setSaveSuccess('Đã cập nhật ảnh đại diện thành công! Bạn có thể tải lại trang.');
+      setTimeout(() => setSaveSuccess(null), 4000);
     } catch (err) {
       console.warn('Avatar upload failed', err);
       setAvatarUrl(previousUrl);
+      setSaveSuccess(null);
       setSaveError('Không thể tải ảnh đại diện lên máy chủ. Vui lòng thử lại.');
     } finally {
       URL.revokeObjectURL(previewUrl);
+      avatarUploadInFlightRef.current = false;
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -255,6 +277,8 @@ export const ProfileSettingsPage: React.FC = () => {
       setConnections({ github: true });
     }
 
+    const fetchUploadSeq = uploadSeqRef.current;
+
     apiClient
       .get('/users/me')
       .then((res) => {
@@ -273,14 +297,16 @@ export const ProfileSettingsPage: React.FC = () => {
             githubUsername: pickStr(data.githubUsername) || prev.githubUsername,
           }));
           if (data.createdAt) setJoinedAt(data.createdAt);
-          if (data.avatarUrl) {
-            setImgError(false);
-            setAvatarUrl(resolveAvatarUrl(data.avatarUrl) || data.avatarUrl);
-            if (data.avatarUrl !== user?.avatarUrl) updateUser?.({ avatarUrl: data.avatarUrl });
-          } else {
-            setImgError(false);
-            setAvatarUrl('');
-            if (user?.avatarUrl) updateUser?.({ avatarUrl: undefined });
+          if (!avatarUploadInFlightRef.current && uploadSeqRef.current === fetchUploadSeq) {
+            if (data.avatarUrl) {
+              setImgError(false);
+              setAvatarUrl(resolveAvatarUrl(data.avatarUrl) || data.avatarUrl);
+              if (data.avatarUrl !== user?.avatarUrl) updateUser?.({ avatarUrl: data.avatarUrl });
+            } else {
+              setImgError(false);
+              setAvatarUrl('');
+              if (user?.avatarUrl) updateUser?.({ avatarUrl: undefined });
+            }
           }
           if (data.githubUsername) {
             setConnections({ github: true });
@@ -644,13 +670,15 @@ export const ProfileSettingsPage: React.FC = () => {
           {/* Avatar with single-tap/click upload */}
           <div
             className="ps-avatar-wrapper"
-            onClick={() => fileInputRef.current?.click()}
-            title="Nhấn để tải ảnh đại diện mới"
+            onClick={() => !isUploadingAvatar && fileInputRef.current?.click()}
+            title={isUploadingAvatar ? 'Đang tải ảnh đại diện lên máy chủ...' : 'Nhấn để tải ảnh đại diện mới'}
+            style={isUploadingAvatar ? { cursor: 'wait' } : undefined}
           >
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              disabled={isUploadingAvatar}
               style={{ display: 'none' }}
               onChange={handleAvatarUpload}
             />
@@ -672,17 +700,30 @@ export const ProfileSettingsPage: React.FC = () => {
               className="ps-avatar-camera-badge"
               aria-label="Đổi ảnh đại diện"
               title="Đổi ảnh đại diện"
+              disabled={isUploadingAvatar}
               onClick={(e) => {
                 e.stopPropagation();
-                fileInputRef.current?.click();
+                if (!isUploadingAvatar) fileInputRef.current?.click();
               }}
-              style={{ border: 'none', padding: 0, cursor: 'pointer' }}
+              style={{ border: 'none', padding: 0, cursor: isUploadingAvatar ? 'wait' : 'pointer', opacity: isUploadingAvatar ? 0.65 : 1 }}
             >
-              <Camera size={13} />
+              {isUploadingAvatar ? <RefreshCw size={13} className="animate-spin" /> : <Camera size={13} />}
             </button>
-            <div className="ps-avatar-overlay">
-              <Camera size={18} />
-              <span>Đổi ảnh</span>
+            <div
+              className="ps-avatar-overlay"
+              style={isUploadingAvatar ? { opacity: 1 } : undefined}
+            >
+              {isUploadingAvatar ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  <span>Đang lưu...</span>
+                </>
+              ) : (
+                <>
+                  <Camera size={18} />
+                  <span>Đổi ảnh</span>
+                </>
+              )}
             </div>
           </div>
           <div className="ps-hero-info">
