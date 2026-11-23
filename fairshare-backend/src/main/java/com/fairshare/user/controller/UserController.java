@@ -6,12 +6,16 @@ import com.fairshare.upload.service.FileUploadService;
 import com.fairshare.user.dto.UserDto;
 import com.fairshare.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.concurrent.CompletableFuture;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -41,7 +45,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật hồ sơ thành công", updated));
     }
 
-    /** Tải ảnh đại diện: lưu vào uploads/avatars, cập nhật users.avatar_url. */
+    /** Tải ảnh đại diện: lưu vào Supabase/uploads, cập nhật DB và dọn ảnh cũ bất đồng bộ. */
     @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserDto>> uploadAvatar(
             @RequestParam("file") MultipartFile file,
@@ -51,10 +55,16 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.error("USER_UNAUTHENTICATED", "Chưa đăng nhập"));
         }
         FileUploadResponse stored = fileUploadService.uploadAvatar(file);
-        String oldUrl = userService.updateAvatar(authentication.getName(), stored.getUrl());
-        fileUploadService.deleteAvatar(oldUrl);
-        UserDto updated = userService.getByEmail(authentication.getName());
-        return ResponseEntity.ok(ApiResponse.ok("Cập nhật ảnh đại diện thành công", updated));
+        UserService.AvatarUpdateResult result = userService.updateAvatarWithResult(authentication.getName(), stored.getUrl());
+        String oldUrl = result.oldAvatarUrl();
+        if (oldUrl != null && !oldUrl.isBlank()) {
+            CompletableFuture.runAsync(() -> fileUploadService.deleteAvatar(oldUrl))
+                    .exceptionally(ex -> {
+                        log.warn("Async delete old avatar failed for {}: {}", oldUrl, ex.getMessage());
+                        return null;
+                    });
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật ảnh đại diện thành công", result.user()));
     }
 
     @GetMapping("/{id}")

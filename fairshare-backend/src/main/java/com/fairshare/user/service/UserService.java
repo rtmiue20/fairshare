@@ -85,9 +85,11 @@ public class UserService {
         return toDto(userRepository.save(user));
     }
 
-    /** Cập nhật đường dẫn ảnh đại diện; trả về đường dẫn cũ để controller xóa file cũ. */
+    public record AvatarUpdateResult(String oldAvatarUrl, UserDto user) {}
+
+    /** Cập nhật đường dẫn ảnh đại diện một lần truy vấn, trả về URL cũ và UserDto mới. */
     @Transactional
-    public String updateAvatar(String email, String newAvatarUrl) {
+    public AvatarUpdateResult updateAvatarWithResult(String email, String newAvatarUrl) {
         if (email == null || email.isBlank()) {
             throw new BusinessException("Email is required");
         }
@@ -96,8 +98,14 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + normalizedEmail));
         String old = user.getAvatarUrl();
         user.setAvatarUrl(newAvatarUrl);
-        userRepository.save(user);
-        return old;
+        User saved = userRepository.save(user);
+        return new AvatarUpdateResult(old, toDto(saved));
+    }
+
+    /** Cập nhật đường dẫn ảnh đại diện; trả về đường dẫn cũ để controller xóa file cũ. */
+    @Transactional
+    public String updateAvatar(String email, String newAvatarUrl) {
+        return updateAvatarWithResult(email, newAvatarUrl).oldAvatarUrl();
     }
 
     private static String normalize(String value, int max) {

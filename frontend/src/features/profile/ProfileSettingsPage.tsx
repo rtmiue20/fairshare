@@ -105,6 +105,43 @@ const CardHeader: React.FC<{
   </div>
 );
 
+async function compressAvatarImage(file: File): Promise<File> {
+  if (file.type === 'image/gif' || file.size <= 120 * 1024 || typeof document === 'undefined') {
+    return file;
+  }
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Image load failed'));
+      image.src = objectUrl;
+    });
+    const maxDim = 512;
+    const scale = Math.min(1, maxDim / Math.max(img.width || maxDim, img.height || maxDim));
+    const width = Math.max(1, Math.round(img.width * scale));
+    const height = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.85)
+    );
+    if (!blob || blob.size === 0 || blob.size >= file.size) {
+      return file;
+    }
+    const baseName = file.name.replace(/\.[^/.]+$/, '') || 'avatar';
+    return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export const ProfileSettingsPage: React.FC = () => {
   const { user, updateUser } = useAuthStore();
   const { teams, activeTeamId, fetchTeams } = useProjectStore();
@@ -165,8 +202,9 @@ export const ProfileSettingsPage: React.FC = () => {
     setAvatarUrl(previewUrl);
 
     try {
+      const fileToUpload = await compressAvatarImage(file);
       const uploadData = new FormData();
-      uploadData.append('file', file);
+      uploadData.append('file', fileToUpload);
       const res = await apiClient.post<{ data?: { avatarUrl?: string } }>('/users/me/avatar', uploadData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
