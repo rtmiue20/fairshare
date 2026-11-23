@@ -48,9 +48,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   isOpen,
   onClose,
   member,
-  projectName = 'EduConnect',
-  courseName = 'Quản lý Dự án Công nghệ Thông tin',
-  sprintLabel = 'Sprint 3',
+  projectName = 'Dự án nhóm',
+  courseName = '',
+  sprintLabel = 'Sprint hiện tại',
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -84,8 +84,8 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
     }
   };
 
-  const displayMajor = member.major || 'Software Engineering';
-  const displayRole = member.teamRole || member.role || 'Project Manager';
+  const displayMajor = member.major || 'Chưa cập nhật';
+  const displayRole = member.teamRole || member.role || 'Thành viên';
   const displaySubline = [
     displayMajor,
     displayRole,
@@ -239,7 +239,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             ) : null}
             <p>
               Thành viên <strong>{member.name}</strong> đảm nhận vai trò <strong>{displayRole}</strong> trong đồ án{' '}
-              <strong>{projectName}</strong> ({courseName}). Trong <strong>{sprintLabel}</strong>, thành viên đạt tỷ lệ đóng góp{' '}
+              <strong>{projectName}</strong>{courseName ? ` (${courseName})` : ''}. Trong <strong>{sprintLabel}</strong>, thành viên đạt tỷ lệ đóng góp{' '}
               <strong>{member.pct}%</strong>, điểm năng lực tổng hợp <strong>{Number(member.compositeScore).toFixed(1)} (C_i)</strong>,
               hoàn thành <strong>{member.tasks} tasks</strong> với độ tin cậy đúng hạn <strong>{member.onTime}%</strong> và{' '}
               <strong>{member.edits} sự kiện minh chứng</strong> ghi nhận trên hệ thống. Hệ số khả dụng duy trì ở mức{' '}

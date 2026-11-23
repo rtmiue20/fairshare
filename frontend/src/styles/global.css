@@ -58,20 +58,22 @@ body {
   color: var(--fg);
   font-family: var(--f-body);
   -webkit-font-smoothing: antialiased;
-  background-image: 
+  background-image:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.08), transparent 70%),
     radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.06), transparent 60%);
   background-attachment: fixed;
 }
 
 [data-theme="light"] body {
-  background-image: 
+  background-image:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.05), transparent 70%),
     radial-gradient(ellipse 60% 40% at 90% 80%, rgba(99, 102, 241, 0.04), transparent 60%);
 }
 
 /* Form controls baseline with glass styling */
-input, textarea, select {
+input,
+textarea,
+select {
   background-color: var(--surface2);
   color: var(--fg);
   border-color: var(--line);
@@ -79,13 +81,16 @@ input, textarea, select {
   transition: all 0.2s ease;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
   outline: none;
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--fg3);
 }
 
@@ -239,12 +244,10 @@ input::placeholder, textarea::placeholder {
   height: 44px;
   padding: 4px;
   border-radius: 9999px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.13) 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0.1) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.13) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.1) 100%);
   -webkit-backdrop-filter: blur(22px) saturate(180%);
   backdrop-filter: blur(22px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -267,13 +270,11 @@ input::placeholder, textarea::placeholder {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.6) 0%,
-    rgba(255, 255, 255, 0.14) 30%,
-    rgba(255, 255, 255, 0.06) 65%,
-    rgba(255, 255, 255, 0.45) 100%
-  );
+  background: linear-gradient(150deg,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.14) 30%,
+      rgba(255, 255, 255, 0.06) 65%,
+      rgba(255, 255, 255, 0.45) 100%);
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -284,12 +285,10 @@ input::placeholder, textarea::placeholder {
 }
 
 [data-theme="light"] .links.liquid-nav-track {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.62) 0%,
-    rgba(255, 255, 255, 0.38) 50%,
-    rgba(248, 250, 252, 0.54) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.62) 0%,
+      rgba(255, 255, 255, 0.38) 50%,
+      rgba(248, 250, 252, 0.54) 100%);
   border-color: rgba(255, 255, 255, 0.88);
   box-shadow:
     0 0 0 1px rgba(15, 23, 42, 0.07),
@@ -300,13 +299,11 @@ input::placeholder, textarea::placeholder {
 }
 
 [data-theme="light"] .links.liquid-nav-track::before {
-  background: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 1) 0%,
-    rgba(255, 255, 255, 0.45) 35%,
-    rgba(148, 163, 184, 0.25) 68%,
-    rgba(255, 255, 255, 0.92) 100%
-  );
+  background: linear-gradient(150deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 0.45) 35%,
+      rgba(148, 163, 184, 0.25) 68%,
+      rgba(255, 255, 255, 0.92) 100%);
 }
 
 .links.liquid-nav-track.is-scrubbing {
@@ -371,125 +368,11 @@ input::placeholder, textarea::placeholder {
   opacity: 1;
 }
 
-.links.liquid-nav-track .dot {
-  width: 6px;
-  height: 6px;
-  margin-left: 1px;
-  border-radius: 50%;
-  background: #f59e0b;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
-}
-
-/* Layer 2: Inner Active Liquid Glass Pill (sits behind text/icons at z-index 1) */
-.liquid-glass-lens {
-  position: absolute;
-  left: 0;
-  top: 4px;
-  height: 36px;
-  border-radius: 9999px;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0;
-  transform-origin: center center;
-  will-change: transform, width, opacity;
-  transition: opacity 0.18s ease;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.24) 0%,
-    rgba(255, 255, 255, 0.12) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 4px 14px -2px rgba(0, 0, 0, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.75),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.25);
-}
-
-[data-theme="light"] .liquid-glass-lens {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.88) 0%,
-    rgba(255, 255, 255, 0.64) 100%
-  );
-  border-color: rgba(255, 255, 255, 0.98);
-  box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.06),
-    0 4px 12px -2px rgba(15, 23, 42, 0.1),
-    inset 0 1px 1.5px rgba(255, 255, 255, 1),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.8);
-}
-
-.liquid-glass-lens-backdrop,
-.liquid-glass-lens-rim,
-.liquid-glass-lens-shine {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.liquid-glass-lens-backdrop {
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
-  backdrop-filter: blur(12px) saturate(160%);
-}
-
-.liquid-glass-lens-rim {
-  padding: 1px;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(255, 255, 255, 0.22) 38%,
-    rgba(255, 255, 255, 0.14) 68%,
-    rgba(255, 255, 255, 0.78) 100%
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.9;
-}
-
-[data-theme="light"] .liquid-glass-lens-rim {
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 1) 0%,
-    rgba(255, 255, 255, 0.55) 40%,
-    rgba(148, 163, 184, 0.2) 72%,
-    rgba(255, 255, 255, 0.95) 100%
-  );
-}
-
-.liquid-glass-lens-shine {
-  background: radial-gradient(
-    90% 55% at var(--lens-gloss-x, 50%) 0%,
-    rgba(255, 255, 255, 0.26) 0%,
-    rgba(255, 255, 255, 0.04) 60%,
-    transparent 100%
-  );
-}
-
-[data-theme="light"] .liquid-glass-lens-shine {
-  background: radial-gradient(
-    90% 55% at var(--lens-gloss-x, 50%) 0%,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.12) 60%,
-    transparent 100%
-  );
-}
-
-@media (max-width: 1420px) and (min-width: 981px) {
-  .top {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 12px;
-  }
-}
-
 @media (max-width: 1380px) {
   .links.liquid-nav-track a.liquid-nav-item {
-    padding: 0 9px;
-    gap: 5px;
-    font-size: 12.5px;
+    padding: 0 7.5px;
+    gap: 4px;
+    font-size: 12px;
   }
 }
 
@@ -503,8 +386,27 @@ input::placeholder, textarea::placeholder {
     justify-content: flex-start;
   }
 
-  .liquid-nav-outer::-webkit-scrollbar {
-    display: none;
+  /* Layer 2: Inner Active Liquid Glass Pill (sits behind text/icons at z-index 1) */
+  .liquid-glass-lens {
+    position: absolute;
+    left: 0;
+    top: 4px;
+    height: 36px;
+    border-radius: 9999px;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transform-origin: center center;
+    will-change: transform, width, opacity;
+    transition: opacity 0.18s ease;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.24) 0%,
+        rgba(255, 255, 255, 0.12) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow:
+      0 4px 14px -2px rgba(0, 0, 0, 0.25),
+      inset 0 1px 1px rgba(255, 255, 255, 0.75),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.25);
   }
 
   .links.liquid-nav-track a.liquid-nav-item {
@@ -572,21 +474,45 @@ input::placeholder, textarea::placeholder {
    Detail Neuron & Cosmic Branching Keyframes & Classes
    ======================================================= */
 @keyframes neuron-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
 @keyframes neuron-spin-rev {
-  to { transform: rotate(-360deg); }
+  to {
+    transform: rotate(-360deg);
+  }
 }
+
 @keyframes neuron-flow {
-  to { stroke-dashoffset: -34; }
+  to {
+    stroke-dashoffset: -34;
+  }
 }
+
 @keyframes neuron-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
 }
+
 @keyframes neuron-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .neuron-spikes-anim {
@@ -594,19 +520,22 @@ input::placeholder, textarea::placeholder {
   transform-origin: center;
   animation: neuron-spin 60s linear infinite;
 }
+
 .neuron-ring-anim {
   transform-box: fill-box;
   transform-origin: center;
   animation: neuron-spin-rev 24s linear infinite;
 }
+
 .neuron-flow-anim {
   stroke-dasharray: 4 14;
   animation: neuron-flow 1.6s linear infinite;
 }
+
 .neuron-pulse-anim {
   animation: neuron-pulse 1.8s ease-in-out infinite;
 }
+
 .neuron-rise-anim {
   animation: neuron-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-

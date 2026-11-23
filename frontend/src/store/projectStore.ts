@@ -17,6 +17,16 @@ interface ProjectState {
 const ACTIVE_TEAM_KEY = 'fairshare_active_team_id';
 let fetchTeamsSeq = 0;
 
+const getInitialActiveTeamId = (): number | null => {
+  try {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(ACTIVE_TEAM_KEY) : null;
+    const parsed = stored ? Number(stored) : null;
+    return parsed && parsed > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const OFFLINE_DEMO_TEAMS: Team[] = [
   {
     id: 1,
@@ -46,7 +56,7 @@ const OFFLINE_DEMO_TEAMS: Team[] = [
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   teams: [],
-  activeTeamId: null,
+  activeTeamId: getInitialActiveTeamId(),
   loading: false,
   initialized: false,
 

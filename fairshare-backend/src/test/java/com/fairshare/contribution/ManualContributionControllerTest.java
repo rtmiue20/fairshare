@@ -6,6 +6,8 @@ import com.fairshare.contribution.controller.ManualContributionController;
 import com.fairshare.contribution.dto.ManualContributionRequest;
 import com.fairshare.contribution.dto.ManualContributionResponse;
 import com.fairshare.contribution.service.ManualContributionService;
+import com.fairshare.common.security.TeamSecurityService;
+import com.fairshare.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,12 @@ class ManualContributionControllerTest {
 
     @Mock
     private ManualContributionService manualContributionService;
+
+    @Mock
+    private TeamSecurityService teamSecurityService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private ManualContributionController manualContributionController;
@@ -133,6 +141,7 @@ class ManualContributionControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
+        when(manualContributionService.getContributionById(contributionId)).thenReturn(response);
         when(manualContributionService.reviewContribution(eq(contributionId), eq(reviewerId), eq(action)))
                 .thenReturn(response);
 
@@ -152,6 +161,12 @@ class ManualContributionControllerTest {
         Long contributionId = 5L;
         Long sameUserId = 101L;
 
+        ManualContributionResponse stub = ManualContributionResponse.builder()
+                .id(contributionId)
+                .teamId(1L)
+                .userId(sameUserId)
+                .build();
+        when(manualContributionService.getContributionById(contributionId)).thenReturn(stub);
         when(manualContributionService.reviewContribution(eq(contributionId), eq(sameUserId), eq("APPROVE")))
                 .thenThrow(new IllegalArgumentException("Người dùng không thể tự phê duyệt hoặc từ chối đóng góp của chính mình (Anti-Fraud Rule)"));
 

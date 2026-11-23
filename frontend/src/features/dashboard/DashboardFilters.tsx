@@ -13,6 +13,10 @@ export interface MemberOption {
   role?: string;
   avatarUrl?: string | null;
   bio?: string | null;
+  email?: string | null;
+  studentId?: string | null;
+  phone?: string | null;
+  major?: string | null;
 }
 
 export interface DashboardFiltersProps {

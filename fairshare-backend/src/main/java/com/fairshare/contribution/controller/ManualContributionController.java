@@ -1,19 +1,25 @@
 package com.fairshare.contribution.controller;
 
 import com.fairshare.common.dto.ApiResponse;
+import com.fairshare.common.exception.ForbiddenException;
+import com.fairshare.common.security.TeamSecurityService;
 import com.fairshare.contribution.dto.ManualContributionRequest;
 import com.fairshare.contribution.dto.ManualContributionResponse;
 import com.fairshare.contribution.service.ManualContributionService;
+import com.fairshare.user.entity.User;
+import com.fairshare.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
  * Controller quản lý API Khai báo đóng góp thủ công và xác nhận (Card 8 - M3 Sprint 5).
+ * DEF-31: Xác thực người dùng qua JWT Token (Authentication) và kiểm tra tư cách thành viên nhóm.
  */
 @RestController
 @RequestMapping("/api/contributions/manual")
@@ -21,6 +27,8 @@ import java.util.List;
 public class ManualContributionController {
 
     private final ManualContributionService manualContributionService;
+    private final TeamSecurityService teamSecurityService;
+    private final UserRepository userRepository;
 
     /**
      * POST /api/contributions/manual?teamId={teamId}&sprintId={sprintId}&userId={userId}
@@ -30,11 +38,18 @@ public class ManualContributionController {
     public ResponseEntity<ApiResponse<ManualContributionResponse>> createContribution(
             @RequestParam("teamId") Long teamId,
             @RequestParam(value = "sprintId", required = false) Long sprintId,
-            @RequestParam("userId") Long userId,
-            @Valid @RequestBody ManualContributionRequest request) {
+            @RequestParam(value = "userId", required = false) Long userId,
+            @Valid @RequestBody ManualContributionRequest request,
+            Authentication authentication) {
+
+        Long effectiveUserId = resolveUserId(authentication, userId);
+        if (effectiveUserId == null) {
+            throw new ForbiddenException("Yêu cầu xác thực tài khoản để khai báo đóng góp");
+        }
+        teamSecurityService.assertTeamMember(teamId, effectiveUserId);
 
         ManualContributionResponse response = manualContributionService.createContribution(
-                teamId, sprintId, userId, request);
+                teamId, sprintId, effectiveUserId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Tạo khai báo đóng góp thủ công thành công", response));
     }
@@ -47,10 +62,21 @@ public class ManualContributionController {
     @PutMapping("/{id}/review")
     public ResponseEntity<ApiResponse<ManualContributionResponse>> reviewContribution(
             @PathVariable("id") Long id,
-            @RequestParam("reviewerId") Long reviewerId,
-            @RequestParam("action") String action) {
+            @RequestParam(value = "reviewerId", required = false) Long reviewerId,
+            @RequestParam("action") String action,
+            Authentication authentication) {
 
-        ManualContributionResponse response = manualContributionService.reviewContribution(id, reviewerId, action);
+        Long effectiveReviewerId = resolveUserId(authentication, reviewerId);
+        if (effectiveReviewerId == null) {
+            throw new ForbiddenException("Yêu cầu xác thực tài khoản để đánh giá đóng góp");
+        }
+
+        ManualContributionResponse contribution = manualContributionService.getContributionById(id);
+        if (contribution != null && contribution.getTeamId() != null) {
+            teamSecurityService.assertTeamMember(contribution.getTeamId(), effectiveReviewerId);
+        }
+
+        ManualContributionResponse response = manualContributionService.reviewContribution(id, effectiveReviewerId, action);
         return ResponseEntity.ok(ApiResponse.ok("Đánh giá đóng góp thủ công thành công", response));
     }
 
@@ -62,7 +88,12 @@ public class ManualContributionController {
     public ResponseEntity<ApiResponse<List<ManualContributionResponse>>> getAllContributions(
             @RequestParam("teamId") Long teamId,
             @RequestParam(value = "sprintId", required = false) Long sprintId,
-            @RequestParam(value = "status", required = false) String status) {
+            @RequestParam(value = "status", required = false) String status,
+            Authentication authentication) {
+
+        if (authentication != null && authentication.getName() != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
 
         List<ManualContributionResponse> list = manualContributionService.getAllContributions(teamId, sprintId, status);
         return ResponseEntity.ok(ApiResponse.ok("Danh sách toàn bộ đóng góp", list));
@@ -75,7 +106,12 @@ public class ManualContributionController {
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<ManualContributionResponse>>> getPendingContributions(
             @RequestParam("teamId") Long teamId,
-            @RequestParam(value = "sprintId", required = false) Long sprintId) {
+            @RequestParam(value = "sprintId", required = false) Long sprintId,
+            Authentication authentication) {
+
+        if (authentication != null && authentication.getName() != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
 
         List<ManualContributionResponse> pendingList = manualContributionService.getPendingContributions(teamId, sprintId);
         return ResponseEntity.ok(ApiResponse.ok("Danh sách đóng góp thủ công chờ duyệt", pendingList));
@@ -86,8 +122,14 @@ public class ManualContributionController {
      * Lấy chi tiết một đóng góp thủ công theo ID.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ManualContributionResponse>> getContributionById(@PathVariable("id") Long id) {
+    public ResponseEntity<ApiResponse<ManualContributionResponse>> getContributionById(
+            @PathVariable("id") Long id,
+            Authentication authentication) {
+
         ManualContributionResponse response = manualContributionService.getContributionById(id);
+        if (response != null && response.getTeamId() != null && authentication != null) {
+            teamSecurityService.assertTeamMember(response.getTeamId(), authentication);
+        }
         return ResponseEntity.ok(ApiResponse.ok("Chi tiết đóng góp thủ công", response));
     }
 
@@ -98,10 +140,24 @@ public class ManualContributionController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteContribution(
             @PathVariable("id") Long id,
-            @RequestParam("userId") Long userId) {
+            @RequestParam(value = "userId", required = false) Long userId,
+            Authentication authentication) {
 
-        manualContributionService.deleteContribution(id, userId);
+        Long effectiveUserId = resolveUserId(authentication, userId);
+        if (effectiveUserId == null) {
+            throw new ForbiddenException("Yêu cầu xác thực tài khoản để xóa đóng góp");
+        }
+        manualContributionService.deleteContribution(id, effectiveUserId);
         return ResponseEntity.ok(ApiResponse.ok("Xóa đóng góp thành công", null));
+    }
+
+    private Long resolveUserId(Authentication authentication, Long fallbackUserId) {
+        if (authentication != null && authentication.getName() != null) {
+            return userRepository.findByEmail(authentication.getName())
+                    .map(User::getId)
+                    .orElse(fallbackUserId);
+        }
+        return fallbackUserId;
     }
 }
 

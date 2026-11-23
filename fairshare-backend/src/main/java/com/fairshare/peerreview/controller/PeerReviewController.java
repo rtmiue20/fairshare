@@ -84,11 +84,8 @@ public class PeerReviewController {
             @Valid @RequestBody ReviewSubmissionDto dto,
             Authentication authentication
     ) {
-        Long authenticatedId = authentication != null && authentication.getName() != null
-                ? getUserId(authentication)
-                : null;
-        Long effectiveReviewerId = dto.getReviewerId() != null ? dto.getReviewerId() : authenticatedId;
-        int savedCount = peerReviewService.submitReview(roundId, effectiveReviewerId, dto).size();
+        Long authenticatedId = getUserId(authentication);
+        int savedCount = peerReviewService.submitReview(roundId, authenticatedId, dto).size();
         return ResponseEntity.ok(ApiResponse.ok("Gửi đánh giá thành công", savedCount));
     }
 
