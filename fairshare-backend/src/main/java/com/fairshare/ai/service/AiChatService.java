@@ -57,6 +57,12 @@ public class AiChatService {
     private static final String GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
     private static final String GEMINI_GENERATE_CONTENT_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
     private static final String DEFAULT_MODEL = "gemini-3.8-flash";
+    private static final List<String> FALLBACK_MODELS = List.of(
+            "gemini-3-flash-preview",
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-3.8-flash"
+    );
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final AppProperties appProperties;
@@ -160,7 +166,7 @@ public class AiChatService {
                 return AiChatResponse.builder()
                         .answer(liveResult.text().trim())
                         .interactionId(liveResult.interactionId())
-                        .modelUsed(configuredModel)
+                        .modelUsed(liveResult.modelUsed() != null ? liveResult.modelUsed() : configuredModel)
                         .liveGeminiUsed(true)
                         .tcrei(tcrei)
                         .suggestedFollowUps(suggestedFollowUps)
@@ -444,7 +450,25 @@ public class AiChatService {
     // GEMINI API CLIENT (Interactions API v1beta + generateContent Fallback)
     // =========================================================================
 
-    private record GeminiCallResult(boolean success, String text, String interactionId, String errorNote) {}
+    private record GeminiCallResult(boolean success, String text, String interactionId, String modelUsed, String errorNote) {}
+
+    public List<String> resolveModelChain(String configuredModel) {
+        Set<String> ordered = new LinkedHashSet<>();
+        if (configuredModel != null && !configuredModel.isBlank()) {
+            for (String part : configuredModel.split(",")) {
+                String trimmed = part.trim();
+                if (!trimmed.isEmpty()) {
+                    ordered.add(trimmed);
+                }
+            }
+        }
+        ordered.addAll(FALLBACK_MODELS);
+        return new ArrayList<>(ordered);
+    }
+
+    private static boolean isAuthError(String errorNote) {
+        return errorNote != null && (errorNote.contains("HTTP 401") || errorNote.contains("HTTP 403"));
+    }
 
     private GeminiCallResult invokeGeminiWithTcrei(
             String apiKey,
@@ -462,18 +486,41 @@ public class AiChatService {
         );
 
         String userPrompt = tcrei.getIterate() + "\n\nHãy trả lời trực tiếp câu hỏi trên bằng tiếng Việt:";
+        List<String> candidates = resolveModelChain(model);
+        String lastError = null;
 
-        // 1. Thử gọi Gemini Interactions API (POST /v1beta/interactions)
-        GeminiCallResult interactionsRes = callGeminiInteractionsApi(
-                apiKey, model, systemPrompt, userPrompt, previousInteractionId
-        );
-        if (interactionsRes.success()) {
-            return interactionsRes;
+        for (int i = 0; i < candidates.size(); i++) {
+            String candidate = candidates.get(i);
+            GeminiCallResult res;
+            if (i == 0) {
+                // Model chính: thử Gemini Interactions API (POST /v1beta/interactions) trước, lỗi thì fallback generateContent
+                GeminiCallResult interactionsRes = callGeminiInteractionsApi(
+                        apiKey, candidate, systemPrompt, userPrompt, previousInteractionId
+                );
+                if (interactionsRes.success()) {
+                    return interactionsRes;
+                }
+                if (isAuthError(interactionsRes.errorNote())) {
+                    return new GeminiCallResult(false, null, null, null, candidate + ": " + interactionsRes.errorNote());
+                }
+                log.debug("Chuyển từ Interactions API sang generateContent API ({}): {}", candidate, interactionsRes.errorNote());
+                res = callGeminiGenerateContentApi(apiKey, candidate, systemPrompt, history, question);
+            } else {
+                // Model dự phòng: gọi thẳng generateContent API để phản hồi nhanh, tránh treo Interactions API
+                res = callGeminiGenerateContentApi(apiKey, candidate, systemPrompt, history, question);
+            }
+
+            if (res.success()) {
+                return res;
+            }
+            lastError = candidate + ": " + res.errorNote();
+            if (isAuthError(res.errorNote())) {
+                break;
+            }
+            log.warn("Gemini model '{}' thất bại ({}), chuyển sang model dự phòng...", candidate, res.errorNote());
         }
 
-        // 2. Fallback sang standard generateContent endpoint (/v1beta/models/{model}:generateContent)
-        log.debug("Chuyển từ Interactions API sang generateContent API ({}): {}", model, interactionsRes.errorNote());
-        return callGeminiGenerateContentApi(apiKey, model, systemPrompt, history, question);
+        return new GeminiCallResult(false, null, null, null, lastError != null ? lastError : "Không có model Gemini khả dụng");
     }
 
     private GeminiCallResult callGeminiInteractionsApi(
@@ -495,7 +542,7 @@ public class AiChatService {
             String jsonBody = objectMapper.writeValueAsString(payload);
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(GEMINI_INTERACTIONS_URL))
-                    .timeout(Duration.ofSeconds(25))
+                    .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
                     .header("Api-Revision", "2026-05-20")
@@ -523,13 +570,13 @@ public class AiChatService {
                     textOut.append(root.get("output_text").asString());
                 }
                 if (!textOut.isEmpty()) {
-                    return new GeminiCallResult(true, textOut.toString(), interactionId, null);
+                    return new GeminiCallResult(true, textOut.toString(), interactionId, model, null);
                 }
-                return new GeminiCallResult(false, null, null, "Interactions API trả về nội dung rỗng");
+                return new GeminiCallResult(false, null, null, null, "Interactions API trả về nội dung rỗng");
             }
-            return new GeminiCallResult(false, null, null, "HTTP " + response.statusCode());
+            return new GeminiCallResult(false, null, null, null, "HTTP " + response.statusCode());
         } catch (Exception ex) {
-            return new GeminiCallResult(false, null, null, ex.getMessage());
+            return new GeminiCallResult(false, null, null, null, ex.getMessage());
         }
     }
 
@@ -570,7 +617,7 @@ public class AiChatService {
             String jsonBody = objectMapper.writeValueAsString(payload);
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(25))
+                    .timeout(Duration.ofSeconds(12))
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
@@ -592,13 +639,13 @@ public class AiChatService {
                     }
                 }
                 if (!textOut.isEmpty()) {
-                    return new GeminiCallResult(true, textOut.toString(), null, null);
+                    return new GeminiCallResult(true, textOut.toString(), null, model, null);
                 }
-                return new GeminiCallResult(false, null, null, "Gemini generateContent không trả về text");
+                return new GeminiCallResult(false, null, null, null, "Gemini generateContent không trả về text");
             }
-            return new GeminiCallResult(false, null, null, "HTTP " + response.statusCode() + " từ Gemini API");
+            return new GeminiCallResult(false, null, null, null, "HTTP " + response.statusCode() + " từ Gemini API");
         } catch (Exception ex) {
-            return new GeminiCallResult(false, null, null, ex.getMessage());
+            return new GeminiCallResult(false, null, null, null, ex.getMessage());
         }
     }
 

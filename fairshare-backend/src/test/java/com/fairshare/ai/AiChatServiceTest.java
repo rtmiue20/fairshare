@@ -108,10 +108,10 @@ class AiChatServiceTest {
         tm2.setUser(teammate);
         tm2.setRole(MemberRole.MEMBER);
 
-        when(userRepository.findByEmail("trieu@ueh.edu.vn")).thenReturn(Optional.of(currentUser));
-        when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
-        when(teamMemberRepository.findByTeamIdWithUser(1L)).thenReturn(List.of(tm1, tm2));
-        when(sprintRepository.findByTeamId(1L)).thenReturn(List.of(mockSprint));
+        lenient().when(userRepository.findByEmail("trieu@ueh.edu.vn")).thenReturn(Optional.of(currentUser));
+        lenient().when(teamRepository.findById(1L)).thenReturn(Optional.of(mockTeam));
+        lenient().when(teamMemberRepository.findByTeamIdWithUser(1L)).thenReturn(List.of(tm1, tm2));
+        lenient().when(sprintRepository.findByTeamId(1L)).thenReturn(List.of(mockSprint));
 
         MultidimensionalNetworkDto networkDto = MultidimensionalNetworkDto.builder()
                 .teamId(1L)
@@ -135,7 +135,7 @@ class AiChatServiceTest {
                 .totalEventsCount(18)
                 .build();
 
-        when(contributionService.getMultidimensionalNetwork(1L, 3L, 1L)).thenReturn(networkDto);
+        lenient().when(contributionService.getMultidimensionalNetwork(1L, 3L, 1L)).thenReturn(networkDto);
 
         ContributionDto score1 = ContributionDto.builder()
                 .userId(1L)
@@ -167,7 +167,7 @@ class AiChatServiceTest {
                 .totalStoryPoints(10.0)
                 .build();
 
-        when(contributionService.getSprintScores(3L)).thenReturn(List.of(score1, score2));
+        lenient().when(contributionService.getSprintScores(3L)).thenReturn(List.of(score1, score2));
 
         Board board = new Board();
         board.setId(1L);
@@ -201,13 +201,13 @@ class AiChatServiceTest {
         c2.setDifficultyLevel(2);
         c2.setDueDate(LocalDateTime.now().plusDays(3));
 
-        when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of(c1, c2));
+        lenient().when(cardRepository.findByBoardTeamId(1L)).thenReturn(List.of(c1, c2));
 
         Alert alert = new Alert();
         alert.setId(84L);
         alert.setSeverity("HIGH");
         alert.setMessage("Công việc \"Tối ưu hóa ảnh tài liệu với Cloudinary CDN\" cần kiểm tra tiến độ");
-        when(alertRepository.findByTeamIdAndResolvedFalse(1L)).thenReturn(List.of(alert));
+        lenient().when(alertRepository.findByTeamIdAndResolvedFalse(1L)).thenReturn(List.of(alert));
     }
 
     @Test
@@ -307,5 +307,21 @@ class AiChatServiceTest {
         assertTrue(reviewRes.getAnswer().contains("1/2 thẻ"));
         assertTrue(reviewRes.getAnswer().contains("Trần Thu Trang"));
         assertTrue(reviewRes.getAnswer().contains("95%"));
+    }
+
+    @Test
+    @DisplayName("resolveModelChain hỗ trợ danh sách model phân tách bởi dấu phẩy, loại trùng và nối fallback Flash")
+    void testResolveModelChainDeduplicatesAndAppendsFallbacks() {
+        List<String> singleChain = aiChatService.resolveModelChain("gemini-3-flash-preview");
+        assertEquals(
+                List.of("gemini-3-flash-preview", "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.8-flash"),
+                singleChain
+        );
+
+        List<String> multiChain = aiChatService.resolveModelChain("gemini-3.5-flash-lite, gemini-3-flash-preview");
+        assertEquals(
+                List.of("gemini-3.5-flash-lite", "gemini-3-flash-preview", "gemini-flash-lite-latest", "gemini-3.8-flash"),
+                multiChain
+        );
     }
 }
