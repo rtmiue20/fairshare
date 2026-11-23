@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CuteAvatarSvg } from './ContributionDashboard';
 import { showToast } from '../../components/ui/Toast';
+import { resolveAvatarUrl } from '../../utils/avatarSync';
 
 export interface MemberProfileModalData {
   id: number;
@@ -53,6 +54,12 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   sprintLabel = 'Sprint 3',
 }) => {
   const [copied, setCopied] = useState(false);
+  const resolvedAvatarUrl = resolveAvatarUrl(member.avatarUrl);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [resolvedAvatarUrl]);
 
   if (!isOpen) return null;
 
@@ -111,10 +118,12 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
           <div className="flex items-center gap-3.5 min-w-0">
             {/* Avatar: Ảnh thật hoặc Cute avatar hoạt hình */}
             <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 border border-slate-200/80 dark:border-white/10 shadow-xs bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-              {member.avatarUrl ? (
+              {resolvedAvatarUrl && !avatarError ? (
                 <img
-                  src={member.avatarUrl}
+                  key={resolvedAvatarUrl}
+                  src={resolvedAvatarUrl}
                   alt={member.name}
+                  onError={() => setAvatarError(true)}
                   className="w-full h-full object-cover object-top"
                 />
               ) : (

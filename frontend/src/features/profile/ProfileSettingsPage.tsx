@@ -277,6 +277,10 @@ export const ProfileSettingsPage: React.FC = () => {
             setImgError(false);
             setAvatarUrl(resolveAvatarUrl(data.avatarUrl) || data.avatarUrl);
             if (data.avatarUrl !== user?.avatarUrl) updateUser?.({ avatarUrl: data.avatarUrl });
+          } else {
+            setImgError(false);
+            setAvatarUrl('');
+            if (user?.avatarUrl) updateUser?.({ avatarUrl: undefined });
           }
           if (data.githubUsername) {
             setConnections({ github: true });

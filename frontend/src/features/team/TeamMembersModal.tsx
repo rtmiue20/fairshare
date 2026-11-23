@@ -5,6 +5,7 @@ import { TeamMember } from '../../types/team';
 import { teamApi } from '../../api/team.api';
 import { showToast } from '../../components/ui/Toast';
 import { useAuthStore } from '../../store/authStore';
+import { resolveAvatarUrl, subscribeAvatarUpdates } from '../../utils/avatarSync';
 
 interface TeamMembersModalProps {
   isOpen: boolean;
@@ -149,6 +150,23 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
       setMemberToDelete(null);
     }
   }, [isOpen, teamId, propInviteCode, fetchTeamData]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    return subscribeAvatarUpdates((u) => {
+      setMembers((prev) =>
+        prev.map((m) =>
+          (m.user?.id ?? m.userId ?? m.id) === u.userId
+            ? {
+                ...m,
+                avatarUrl: u.avatarUrl,
+                user: m.user ? { ...m.user, avatarUrl: u.avatarUrl ?? undefined } : m.user,
+              }
+            : m
+        )
+      );
+    });
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -403,6 +421,9 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
                 const isCurrentUser = Boolean(
                   currentUser && (currentUser.id === targetUserId || currentUser.email === memberEmail)
                 );
+                const memberAvatarUrl = resolveAvatarUrl(
+                  member.avatarUrl ?? member.user?.avatarUrl ?? (isCurrentUser ? currentUser?.avatarUrl : undefined)
+                );
 
                 return (
                   <div
@@ -419,22 +440,22 @@ export const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
                           borderColor: palette.border,
                         }}
                       >
-                        {member.user?.avatarUrl ? (
-                          <>
+                        {memberAvatarUrl ? (
+                          <div key={memberAvatarUrl} className="w-full h-full flex items-center justify-center">
                             <img
-                              src={member.user.avatarUrl}
-                              alt=""
+                              src={memberAvatarUrl}
+                              alt={memberName}
                               onError={(e) => {
                                 (e.currentTarget as HTMLElement).style.display = 'none';
                                 const fallback = e.currentTarget.parentElement?.querySelector('.member-memoji-fallback');
-                                if (fallback) (fallback as HTMLElement).style.display = 'block';
+                                if (fallback) (fallback as HTMLElement).style.display = 'flex';
                               }}
                               className="w-full h-full object-cover"
                             />
-                            <div className="member-memoji-fallback w-full h-full flex items-center justify-center" style={{ display: 'none' }}>
+                            <div className="member-memoji-fallback w-full h-full items-center justify-center" style={{ display: 'none' }}>
                               {memojiRenderer()}
                             </div>
-                          </>
+                          </div>
                         ) : (
                           memojiRenderer()
                         )}

@@ -58,4 +58,33 @@ public class FileUploadServiceTest {
 
         assertThrows(BusinessException.class, () -> fileUploadService.uploadFile(emptyFile));
     }
+
+    @Test
+    @DisplayName("Upload avatar không có đuôi file (blob) tự suy luận phần mở rộng từ Content-Type")
+    void testUploadAvatar_ExtensionlessFilename_DerivesFromContentType() {
+        ReflectionTestUtils.setField(fileUploadService, "uploadDir", "target/test-uploads");
+
+        MockMultipartFile avatar = new MockMultipartFile(
+                "file",
+                "blob",
+                "image/png",
+                "dummy png bytes".getBytes()
+        );
+
+        FileUploadResponse response = fileUploadService.uploadAvatar(avatar);
+
+        assertNotNull(response);
+        assertTrue(response.getUrl().startsWith("/uploads/avatars/"));
+        assertTrue(response.getUrl().endsWith(".png"));
+        assertEquals("image/png", response.getContentType());
+
+        File avatarDir = new File("target/test-uploads/avatars");
+        if (avatarDir.exists()) {
+            File[] files = avatarDir.listFiles();
+            if (files != null) {
+                for (File f : files) f.delete();
+            }
+            avatarDir.delete();
+        }
+    }
 }

@@ -205,6 +205,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
 
   // Ảnh đại diện cập nhật theo thời gian thực (userId -> url | null)
   const [avatarMap, setAvatarMap] = useState<Record<number, string | null>>({});
+  const [brokenAvatarUrls, setBrokenAvatarUrls] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (!currentTeamId) return;
     let alive = true;
@@ -231,6 +232,15 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
     const unsubscribe = subscribeAvatarUpdates((u) => {
+      const normalized = resolveAvatarUrl(u.avatarUrl);
+      if (normalized) {
+        setBrokenAvatarUrls((prev) => {
+          if (!prev[normalized]) return prev;
+          const copy = { ...prev };
+          delete copy[normalized];
+          return copy;
+        });
+      }
       setAvatarMap((prev) => ({ ...prev, [u.userId]: u.avatarUrl }));
       refresh();
     });
@@ -943,22 +953,18 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                 <div className="p-3.5 sm:p-4 rounded-3xl bg-slate-50/90 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/10 shadow-xs flex flex-col gap-3">
                   {/* Khung ảnh đại diện / Avatar Visual */}
                   <div className="aspect-[4/3] w-full rounded-2xl overflow-hidden relative shadow-inner bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                    {featuredMember.avatarUrl ? (
-                      <>
-                        <img
-                          src={featuredMember.avatarUrl}
-                          alt=""
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = 'none';
-                            const fallback = e.currentTarget.parentElement?.querySelector('.avatar-cute-fallback');
-                            if (fallback) (fallback as HTMLElement).style.display = 'block';
-                          }}
-                          className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
-                        />
-                        <div className="avatar-cute-fallback w-full h-full" style={{ display: 'none' }}>
-                          <CuteAvatarSvg index={featuredMember.id} className="w-full h-full object-contain p-2" />
-                        </div>
-                      </>
+                    {featuredMember.avatarUrl && !brokenAvatarUrls[featuredMember.avatarUrl] ? (
+                      <img
+                        key={featuredMember.avatarUrl}
+                        src={featuredMember.avatarUrl}
+                        alt={featuredMember.name}
+                        onError={() =>
+                          setBrokenAvatarUrls((prev) =>
+                            featuredMember.avatarUrl ? { ...prev, [featuredMember.avatarUrl]: true } : prev
+                          )
+                        }
+                        className="w-full h-full object-cover object-top transition-transform duration-500 hover:scale-105"
+                      />
                     ) : (
                       <CuteAvatarSvg index={featuredMember.id} className="w-full h-full object-contain p-2" />
                     )}
@@ -1474,6 +1480,11 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                     const cleanName = hm?.name ?? (member.userName.replace(/\s*\([^)]*\)/g, '').trim() || member.userName);
                     const roleLabel = hm?.role ?? 'Thành viên';
                     const barWidthPct = Math.min(100, Math.max(4, ((member.finalPct ?? 0) / maxBarPct) * 100));
+                    const rowAvatarUrl = resolveAvatarUrl(
+                      (member.userId === user?.id ? user?.avatarUrl : undefined) ||
+                        avatarMap[member.userId] ||
+                        availableMembers.find((am) => am.id === member.userId)?.avatarUrl
+                    );
 
                     return (
                       <div
@@ -1494,9 +1505,24 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                         <div className="who">
                           <span
                             className="avatar"
-                            style={{ '--c': memberColor } as React.CSSProperties}
+                            style={{
+                              '--c': memberColor,
+                              ...(rowAvatarUrl && !brokenAvatarUrls[rowAvatarUrl] ? { overflow: 'hidden', padding: 0 } : {}),
+                            } as React.CSSProperties}
                           >
-                            {getMemberInitials(member.userName)}
+                            {rowAvatarUrl && !brokenAvatarUrls[rowAvatarUrl] ? (
+                              <img
+                                key={rowAvatarUrl}
+                                src={rowAvatarUrl}
+                                alt=""
+                                onError={() =>
+                                  setBrokenAvatarUrls((prev) => ({ ...prev, [rowAvatarUrl]: true }))
+                                }
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                              />
+                            ) : (
+                              getMemberInitials(member.userName)
+                            )}
                           </span>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>

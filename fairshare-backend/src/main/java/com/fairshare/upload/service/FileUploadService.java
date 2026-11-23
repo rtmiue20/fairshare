@@ -57,11 +57,14 @@ public class FileUploadService {
             throw new BusinessException("Ảnh đại diện không được vượt quá 5MB");
         }
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+        if (contentType == null || !contentType.toLowerCase(java.util.Locale.ROOT).startsWith("image/")) {
             throw new BusinessException("Tệp tải lên phải là hình ảnh (PNG, JPG, WEBP, GIF)");
         }
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "avatar");
         String ext = extractExtension(originalFilename);
+        if (ext.isEmpty()) {
+            ext = extensionFromImageContentType(contentType);
+        }
         if (!AVATAR_EXTENSIONS.contains(ext)) {
             throw new BusinessException("Định dạng ảnh không được hỗ trợ (chỉ PNG, JPG, WEBP, GIF)");
         }
@@ -140,6 +143,17 @@ public class FileUploadService {
     private String extractExtension(String filename) {
         int dotIdx = filename.lastIndexOf('.');
         return dotIdx >= 0 ? filename.substring(dotIdx).toLowerCase() : "";
+    }
+
+    private String extensionFromImageContentType(String contentType) {
+        String normalized = contentType.toLowerCase(java.util.Locale.ROOT).split(";")[0].trim();
+        return switch (normalized) {
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            default -> "";
+        };
     }
 
     private boolean isSupabaseConfigured() {
