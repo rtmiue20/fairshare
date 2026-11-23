@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNotificationStore, NotificationItem } from '../../store/notificationStore';
-import { Check, CheckCheck, Trash2, Bell, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Check, CheckCheck, Trash2, Bell, MessageSquare, AlertTriangle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../ui/Toast';
 import './NotificationPopover.css';
@@ -9,6 +10,30 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
   const navigate = useNavigate();
   const { notifications, markAsRead, markAllAsRead, removeNotification } = useNotificationStore();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -70,9 +95,9 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
     }
   };
 
-  return (
+  const popoverContent = (
     <div
-      className="notif-popover-container notif-popover"
+      className={`notif-popover-container ${isMobile ? 'notif-popover-mobile' : ''}`}
       id="notifPopover"
       data-testid="notif-popover"
       role="dialog"
@@ -119,6 +144,16 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
               <CheckCheck size={17} />
             </button>
           )}
+
+          <button
+            type="button"
+            className="notif-close-btn"
+            onClick={onClose}
+            title="Đóng thông báo"
+            aria-label="Đóng thông báo"
+          >
+            <X size={17} />
+          </button>
         </div>
       </div>
 
@@ -210,4 +245,19 @@ export const NotificationPopover: React.FC<{ onClose: () => void }> = ({ onClose
       </div>
     </div>
   );
+
+  if (isMobile && typeof document !== 'undefined') {
+    return createPortal(
+      <div
+        className="notif-mobile-backdrop"
+        onClick={onClose}
+        role="presentation"
+      >
+        {popoverContent}
+      </div>,
+      document.body
+    );
+  }
+
+  return popoverContent;
 };

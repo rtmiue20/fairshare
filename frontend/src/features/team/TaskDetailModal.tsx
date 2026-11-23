@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -375,6 +376,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         })
         .catch(() => {});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, task?.id, teamId, user?.id, user?.fullName, task?.title, task?.description]);
 
   // Đóng assignee dropdown khi click ra ngoài

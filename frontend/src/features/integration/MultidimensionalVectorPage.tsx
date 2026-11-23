@@ -34,11 +34,15 @@ export const MultidimensionalVectorPage: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<NeuronEventItem | null>(null);
   const [cutDay, setCutDay] = useState<number>(5);
 
-  const teamId = activeTeamId || teams[0]?.id || 1;
+  const teamId =
+    activeTeamId ||
+    teams[0]?.id ||
+    (typeof window !== 'undefined' ? Number(localStorage.getItem('fairshare_active_team_id')) : null) ||
+    0;
 
   // Load team members
   useEffect(() => {
-    if (!teamId) return;
+    if (!teamId || teamId <= 0) return;
     teamApi
       .getMembers(teamId)
       .then((res) => {
@@ -250,6 +254,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
 
   // Fetch from Real MariaDB Backend
   const fetchNetworkGraph = useCallback(async () => {
+    if (!teamId || teamId <= 0) return;
     try {
       setLoading(true);
       const res = await contributionApi.getNetworkGraph(
@@ -504,7 +509,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
       <div
         className={`transition-transform duration-500 ease-in-out shrink-0 ${
           viewMode === 'detail'
-            ? 'fixed lg:relative z-50 lg:z-40 right-0 top-[var(--top,64px)] bottom-0 lg:top-0 lg:bottom-auto lg:h-full w-full max-w-[min(420px,92vw)] lg:w-[420px] lg:max-w-[34vw] translate-x-0 shadow-2xl'
+            ? 'fixed lg:relative z-50 lg:z-40 right-0 top-[var(--top,64px)] bottom-0 lg:top-0 lg:bottom-auto lg:h-full w-full max-w-full sm:max-w-[420px] lg:w-[420px] lg:max-w-[34vw] translate-x-0 shadow-2xl'
             : 'h-full translate-x-full fixed right-0 top-0 bottom-0 pointer-events-none opacity-0 z-40'
         }`}
       >

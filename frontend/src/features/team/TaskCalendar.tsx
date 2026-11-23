@@ -230,7 +230,6 @@ export const TaskCalendar: React.FC<{
   }, [totalWeeks, currentWeekIndex]);
 
   // Tính 8 ngày của tuần đang chọn (Ngày 0..7)
-  const weekStartMs = startOfDay(projectStart).getTime();
   const todayKey = toYmd(now);
   const weekDays = useMemo(() => {
     return Array.from({ length: 8 }).map((_, i) => {
@@ -251,7 +250,7 @@ export const TaskCalendar: React.FC<{
         dayIndex: i,
       };
     });
-  }, [weekStartMs, currentWeekIndex, todayKey]);
+  }, [currentWeekIndex, todayKey, projectStart]);
 
   const todayIdx = weekDays.findIndex((w) => w.isToday);
   const indicatorIdx = hoveredDayIdx ?? (todayIdx >= 0 ? todayIdx : null);

@@ -25,6 +25,8 @@ export interface ContributionScore {
 export interface ContributionSummaryItem {
   userId: number;
   userName: string;
+  avatarUrl?: string | null;
+  userEmail?: string;
   trelloScore?: number;
   manualScore?: number;
   activityPct?: number;

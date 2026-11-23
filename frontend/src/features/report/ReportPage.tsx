@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { ManualContributionModal } from '../dashboard/ManualContributionModal';
 import { ManualContributionItem } from '../../types/contribution';
+import { resolveAvatarUrl } from '../../utils/avatarSync';
 import {
   Printer,
   Download,
@@ -78,6 +79,7 @@ interface ReportMemberItem {
   role: string;
   isLeader: boolean;
   email: string;
+  avatarUrl?: string;
   pct: number;
   tasks: number;
   edits: number;
@@ -174,7 +176,7 @@ export const ReportPage: React.FC = () => {
   const { teams, activeTeamId, fetchTeams, initialized } = useProjectStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTeamId = Number(searchParams.get('teamId'));
-  const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams[0]?.id ?? 1));
+  const currentTeamId = urlTeamId > 0 ? urlTeamId : (activeTeamId || (teams.length > 0 ? teams[0].id : null));
   const currentUserId = user?.id || 1;
 
   // Theme detector for Light / Dark Mode synchronization
@@ -310,6 +312,7 @@ export const ReportPage: React.FC = () => {
 
   // 1. Fetch Sprints for this specific project and sort chronologically
   useEffect(() => {
+    if (!currentTeamId) return;
     peerReviewApi
       .getSprints(currentTeamId)
       .then((res) => {
@@ -326,9 +329,9 @@ export const ReportPage: React.FC = () => {
           }
         } else {
           const fallback = [
-            { id: 1, teamId: currentTeamId, name: 'Sprint 1 - Thiết kế Hệ thống & Khung Ứng dụng', startDate: '2026-10-15', endDate: '2026-10-28', status: 'CLOSED' },
-            { id: 2, teamId: currentTeamId, name: 'Sprint 2 - Phát triển Tính năng & Tích hợp API', startDate: '2026-10-29', endDate: '2026-11-12', status: 'ACTIVE' },
-            { id: 3, teamId: currentTeamId, name: 'Sprint 3 - Kiểm thử Tích hợp & Đóng gói', startDate: '2026-11-13', endDate: '2026-11-27', status: 'ACTIVE' },
+            { id: 1, teamId: currentTeamId || 1, name: 'Sprint 1 - Thiết kế Hệ thống & Khung Ứng dụng', startDate: '2026-10-15', endDate: '2026-10-28', status: 'CLOSED' },
+            { id: 2, teamId: currentTeamId || 1, name: 'Sprint 2 - Phát triển Tính năng & Tích hợp API', startDate: '2026-10-29', endDate: '2026-11-12', status: 'ACTIVE' },
+            { id: 3, teamId: currentTeamId || 1, name: 'Sprint 3 - Kiểm thử Tích hợp & Đóng gói', startDate: '2026-11-13', endDate: '2026-11-27', status: 'ACTIVE' },
           ];
           setSprintList(fallback);
           setSelectedSprintId(2);
@@ -336,8 +339,8 @@ export const ReportPage: React.FC = () => {
       })
       .catch(() => {
         const fallback = [
-          { id: 1, teamId: currentTeamId, name: 'Sprint 1 - Thiết kế Hệ thống & Khung Ứng dụng', startDate: '2026-10-15', endDate: '2026-10-28', status: 'CLOSED' },
-          { id: 2, teamId: currentTeamId, name: 'Sprint 2 - Phát triển Tính năng & Tích hợp API', startDate: '2026-10-29', endDate: '2026-11-12', status: 'ACTIVE' },
+          { id: 1, teamId: currentTeamId || 1, name: 'Sprint 1 - Thiết kế Hệ thống & Khung Ứng dụng', startDate: '2026-10-15', endDate: '2026-10-28', status: 'CLOSED' },
+          { id: 2, teamId: currentTeamId || 1, name: 'Sprint 2 - Phát triển Tính năng & Tích hợp API', startDate: '2026-10-29', endDate: '2026-11-12', status: 'ACTIVE' },
         ];
         setSprintList(fallback);
         setSelectedSprintId(2);
@@ -351,7 +354,7 @@ export const ReportPage: React.FC = () => {
 
   // 2. Load Report Data
   const loadReportData = useCallback(async () => {
-    if (!selectedSprintId) return;
+    if (!currentTeamId || !selectedSprintId) return;
     setLoading(true);
 
     try {
@@ -363,7 +366,7 @@ export const ReportPage: React.FC = () => {
       ]);
 
       // Team Details
-      const memberRoleMap: Record<number, { role: string; isLeader: boolean; email: string }> = {};
+      const memberRoleMap: Record<number, { role: string; isLeader: boolean; email: string; avatarUrl?: string }> = {};
 
       if (teamRes.status === 'fulfilled' && teamRes.value?.data) {
         const t = teamRes.value.data;
@@ -372,13 +375,14 @@ export const ReportPage: React.FC = () => {
 
         if (Array.isArray(t.members)) {
           t.members.forEach((m) => {
-            const raw = m as unknown as { userId?: number; fullName?: string; email?: string };
+            const raw = m as unknown as { userId?: number; fullName?: string; email?: string; avatarUrl?: string };
             const uId = m.user?.id ?? raw.userId ?? m.id;
             const isLead = m.role === 'LEADER';
             memberRoleMap[uId] = {
               role: isLead ? 'Trưởng nhóm' : 'Thành viên',
               isLeader: isLead,
               email: m.user?.email || raw.email || '',
+              avatarUrl: m.user?.avatarUrl || raw.avatarUrl || '',
             };
             if (isLead) {
               setLeaderName(m.user?.fullName || raw.fullName || 'Nguyễn Hoàng Nam');
@@ -502,6 +506,7 @@ export const ReportPage: React.FC = () => {
             role: userMeta.role,
             isLeader: userMeta.isLeader,
             email: userMeta.email,
+            avatarUrl: (item.avatarUrl || userMeta.avatarUrl) || undefined,
             pct,
             tasks: taskCount,
             edits: editsCount,
@@ -677,6 +682,7 @@ export const ReportPage: React.FC = () => {
 
   // Handle Send Individual Email
   const handleSendIndividualEmail = async (userId: number, memberName: string) => {
+    if (!currentTeamId) return;
     try {
       setSendingEmailUserId(userId);
       const res = await reportApi.sendIndividualEmail(currentTeamId, selectedSprintId, userId);
@@ -694,6 +700,7 @@ export const ReportPage: React.FC = () => {
 
   // Handle Send All Emails
   const handleSendAllEmails = async () => {
+    if (!currentTeamId) return;
     try {
       setSendingAllEmails(true);
       const res = await reportApi.sendAllEmails(currentTeamId, selectedSprintId);
@@ -1109,8 +1116,8 @@ export const ReportPage: React.FC = () => {
           </div>
 
           {/* Quick Header Actions: Right-Aligned Pill Buttons matching AlertList */}
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', marginLeft: 'auto', flexShrink: 0 }}>
-            <div className="relative" ref={sprintDropdownRef}>
+          <div className="report-header-actions-bar">
+            <div className="relative shrink-0" ref={sprintDropdownRef}>
               {/* Native Hidden Select for test suite compatibility */}
               <select
                 aria-label="Chọn Sprint xuất báo cáo"
@@ -1135,11 +1142,10 @@ export const ReportPage: React.FC = () => {
                   setShowSortDropdown(false);
                   setShowFilterPopover(false);
                 }}
-                className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
-                  showSprintDropdown
-                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
-                    : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
-                }`}
+                className={`h-9 px-3.5 rounded-full text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${showSprintDropdown
+                  ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                  : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                  }`}
               >
                 <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
                 <span className="truncate max-w-[175px] sm:max-w-[210px]">
@@ -1155,9 +1161,8 @@ export const ReportPage: React.FC = () => {
                   </span>
                 )}
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
-                    showSprintDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
-                  }`}
+                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${showSprintDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                    }`}
                 />
               </button>
 
@@ -1175,7 +1180,7 @@ export const ReportPage: React.FC = () => {
                     <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 dark:text-slate-300">
                       DANH SÁCH SPRINT
                     </span>
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 dark:cyan-500/25 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
                       {sprintList.length} Sprints
                     </span>
                   </div>
@@ -1192,18 +1197,16 @@ export const ReportPage: React.FC = () => {
                             handleSprintChange(s.id);
                             setShowSprintDropdown(false);
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left cursor-pointer group ${
-                            isActive
-                              ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
-                              : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-                          }`}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left cursor-pointer group ${isActive
+                            ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                            }`}
                         >
                           <span
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0 transition-transform group-hover:scale-105 ${
-                              isActive
-                                ? 'bg-cyan-600 text-white shadow-sm'
-                                : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
-                            }`}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0 transition-transform group-hover:scale-105 ${isActive
+                              ? 'bg-cyan-600 text-white shadow-sm'
+                              : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+                              }`}
                           >
                             S{s.id}
                           </span>
@@ -1252,6 +1255,8 @@ export const ReportPage: React.FC = () => {
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -1276,6 +1281,8 @@ export const ReportPage: React.FC = () => {
                 cursor: downloading ? 'not-allowed' : 'pointer',
                 opacity: downloading ? 0.7 : 1,
                 boxShadow: '0 6px 18px -4px rgba(79, 70, 229, 0.45)',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -1297,6 +1304,7 @@ export const ReportPage: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
                 transition: 'all 0.15s ease',
               }}
             >
@@ -1307,16 +1315,8 @@ export const ReportPage: React.FC = () => {
       </div>
 
       {/* 2. Executive KPI Header Grid (Maintained for existing tests and quick metrics) */}
-      <div
-        className="no-print"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '14px',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+      <div className="no-print report-kpi-grid">
+        <div className="report-kpi-card" style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Giai đoạn báo cáo
           </div>
@@ -1328,7 +1328,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div className="report-kpi-card" style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Tổng nhiệm vụ &amp; Hoạt động
           </div>
@@ -1340,7 +1340,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div className="report-kpi-card" style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Độ phân bổ đóng góp (Gini)
           </div>
@@ -1352,7 +1352,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
+        <div className="report-kpi-card" style={{ backgroundColor: isLight ? '#fff' : '#1f1f23', border: theme.panelBorder, borderRadius: '14px', backdropFilter: 'blur(16px)', padding: '14px 18px', boxShadow: theme.panelShadow }}>
           <div style={{ fontSize: '11px', color: theme.subTextColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Chuẩn mực pháp lý
           </div>
@@ -1461,13 +1461,13 @@ export const ReportPage: React.FC = () => {
                             backgroundColor: isActive
                               ? 'rgba(99, 102, 241, 0.15)'
                               : item.isHighlighted
-                              ? 'rgba(236, 72, 153, 0.1)'
-                              : 'transparent',
+                                ? 'rgba(236, 72, 153, 0.1)'
+                                : 'transparent',
                             color: isActive
                               ? '#818cf8'
                               : item.isHighlighted
-                              ? '#f472b6'
-                              : theme.textColor,
+                                ? '#f472b6'
+                                : theme.textColor,
                             border: isActive ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
                             cursor: 'pointer',
                             textAlign: 'left',
@@ -1557,8 +1557,8 @@ export const ReportPage: React.FC = () => {
 
         {/* ── Main Panel Right Area (Exact Model from Image) ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Panel Top: Title & Tabs */}
-          <div style={{ padding: 'clamp(16px, 2.5vw, 24px) clamp(14px, 3vw, 28px) 0', borderBottom: theme.tableBorder }}>
+          {/* Panel Top: Title & Category Subtitle */}
+          <div style={{ padding: 'clamp(16px, 2.5vw, 24px) clamp(14px, 3vw, 28px) 18px', borderBottom: theme.tableBorder }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {categoryMeta[activeCategory]?.icon || <Users size={20} color="#818cf8" />}
@@ -1631,46 +1631,9 @@ export const ReportPage: React.FC = () => {
               )}
             </div>
 
-            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: theme.subTextColor }}>
+            <p style={{ margin: 0, fontSize: '13px', color: theme.subTextColor }}>
               {categoryMeta[activeCategory]?.subtitle || 'Bảng tổng hợp danh sách thành viên và tỷ lệ phân bổ trong Sprint.'}
             </p>
-
-            {/* Navigation Tabs with Underline Indicator */}
-            <div style={{ display: 'flex', gap: '24px', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-              {[
-                { id: 'overview', label: 'Tổng quan (Overview)' },
-                { id: 'progress', label: 'Tiến độ & Báo cáo cá nhân & Email' },
-                { id: 'export', label: 'Văn bản nghiệm thu (Official PDF)' },
-              ].map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id as typeof activeTab);
-                      if (tab.id === 'progress') setActiveCategory('radar-4d');
-                      if (tab.id === 'overview') setActiveCategory('learners');
-                      if (tab.id === 'export') setActiveCategory('export-pdf');
-                    }}
-                    style={{
-                      padding: '0 0 12px 0',
-                      border: 'none',
-                      background: 'transparent',
-                      fontSize: '13.5px',
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? '#818cf8' : theme.subTextColor,
-                      borderBottom: isActive ? '2px solid #818cf8' : '2px solid transparent',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Sub-header Controls Bar (Matching sample image: Peoples dropdown, + Add Filter, Gauge, Search, Export) */}
@@ -1698,19 +1661,18 @@ export const ReportPage: React.FC = () => {
                     setShowFilterPopover(false);
                     setShowSprintDropdown(false);
                   }}
-                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
-                    showMemberPickerDropdown || filterMemberIds.length > 0
-                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
-                      : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
-                  }`}
+                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${showMemberPickerDropdown || filterMemberIds.length > 0
+                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                    : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                    }`}
                 >
                   <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span className="truncate max-w-[180px]">
                     {filterMemberIds.length === 0
                       ? 'Tất cả thành viên'
                       : filterMemberIds.length === 1
-                      ? members.find((m) => m.userId === filterMemberIds[0])?.name ?? 'Thành viên'
-                      : `${filterMemberIds.length}/${members.length} thành viên`}
+                        ? members.find((m) => m.userId === filterMemberIds[0])?.name ?? 'Thành viên'
+                        : `${filterMemberIds.length}/${members.length} thành viên`}
                   </span>
                   {filterMemberIds.length === 1 && (() => {
                     const picked = members.find((m) => m.userId === filterMemberIds[0]);
@@ -1721,9 +1683,8 @@ export const ReportPage: React.FC = () => {
                     ) : null;
                   })()}
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
-                      showMemberPickerDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
-                    }`}
+                    className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${showMemberPickerDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                      }`}
                   />
                 </button>
 
@@ -1754,11 +1715,10 @@ export const ReportPage: React.FC = () => {
                           setFilterMemberIds([]);
                           setShowMemberPickerDropdown(false);
                         }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
-                          filterMemberIds.length === 0
-                            ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
-                            : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
-                        }`}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${filterMemberIds.length === 0
+                          ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                          : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
+                          }`}
                       >
                         <span className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300">
                           <Users className="w-4 h-4" />
@@ -1791,17 +1751,24 @@ export const ReportPage: React.FC = () => {
                               setFilterMemberIds([m.userId]);
                               setShowMemberPickerDropdown(false);
                             }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
-                              isActive
-                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
-                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
-                            }`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${isActive
+                              ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                              : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
+                              }`}
                           >
                             <span
-                              className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-xs transition-transform group-hover:scale-105"
+                              className="w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0 shadow-xs transition-transform group-hover:scale-105 overflow-hidden"
                               style={{ background: bg }}
                             >
-                              {initials}
+                              {m.avatarUrl ? (
+                                <img
+                                  src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                  alt={m.name}
+                                  className="w-full h-full object-cover rounded-xl"
+                                />
+                              ) : (
+                                initials
+                              )}
                             </span>
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-semibold truncate text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
@@ -1835,30 +1802,28 @@ export const ReportPage: React.FC = () => {
                     setShowFilterPopover(false);
                     setShowSprintDropdown(false);
                   }}
-                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
-                    showSortDropdown || sortBy !== 'PCT'
-                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
-                      : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
-                  }`}
+                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${showSortDropdown || sortBy !== 'PCT'
+                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                    : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                    }`}
                 >
                   <TrendingUp className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
                   <span className="truncate max-w-[170px]">
                     {sortBy === 'PCT'
                       ? '% Đóng góp (Cao → Thấp)'
                       : sortBy === 'D1'
-                      ? 'D1 Sản lượng (Output)'
-                      : sortBy === 'D2'
-                      ? 'D2 Độ tin cậy'
-                      : sortBy === 'D3'
-                      ? 'D3 Phối hợp'
-                      : sortBy === 'D4'
-                      ? 'D4 Đánh giá chéo'
-                      : 'Tên thành viên (A → Z)'}
+                        ? 'D1 Sản lượng (Output)'
+                        : sortBy === 'D2'
+                          ? 'D2 Độ tin cậy'
+                          : sortBy === 'D3'
+                            ? 'D3 Phối hợp'
+                            : sortBy === 'D4'
+                              ? 'D4 Đánh giá chéo'
+                              : 'Tên thành viên (A → Z)'}
                   </span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
-                      showSortDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
-                    }`}
+                    className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${showSortDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''
+                      }`}
                   />
                 </button>
 
@@ -1898,18 +1863,16 @@ export const ReportPage: React.FC = () => {
                               setSortBy(opt.key);
                               setShowSortDropdown(false);
                             }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${
-                              isActive
-                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
-                                : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
-                            }`}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all text-left cursor-pointer group ${isActive
+                              ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border border-cyan-500/40 text-cyan-950 dark:text-cyan-200 font-bold shadow-xs'
+                              : 'hover:bg-slate-100 dark:hover:bg-white/[0.06] border border-transparent text-slate-700 dark:text-slate-300'
+                              }`}
                           >
                             <span
-                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-mono font-bold shrink-0 transition-transform group-hover:scale-105 ${
-                                isActive
-                                  ? 'bg-cyan-600 text-white shadow-sm'
-                                  : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
-                              }`}
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-mono font-bold shrink-0 transition-transform group-hover:scale-105 ${isActive
+                                ? 'bg-cyan-600 text-white shadow-sm'
+                                : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+                                }`}
                             >
                               {opt.code}
                             </span>
@@ -1942,11 +1905,10 @@ export const ReportPage: React.FC = () => {
                     setShowSortDropdown(false);
                     setShowSprintDropdown(false);
                   }}
-                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${
-                    showFilterPopover || activeFilterCount > 0
-                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
-                      : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
-                  }`}
+                  className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer border ${showFilterPopover || activeFilterCount > 0
+                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/50 text-cyan-950 dark:text-cyan-200 ring-2 ring-cyan-500/20'
+                    : 'bg-slate-100 hover:bg-slate-200/70 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] border-slate-300/80 dark:border-white/15 text-slate-800 dark:text-slate-200'
+                    }`}
                 >
                   <Filter className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />
                   <span>Bộ lọc</span>
@@ -2054,11 +2016,10 @@ export const ReportPage: React.FC = () => {
                                 key={tier.value}
                                 type="button"
                                 onClick={() => setFilterContributionTier(tier.value)}
-                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-left flex items-center justify-between cursor-pointer border transition-all ${
-                                  active
-                                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
-                                    : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
-                                }`}
+                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-left flex items-center justify-between cursor-pointer border transition-all ${active
+                                  ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                                  : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
+                                  }`}
                               >
                                 <span className="truncate">{tier.label}</span>
                                 {active && <Check className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
@@ -2086,11 +2047,10 @@ export const ReportPage: React.FC = () => {
                                 key={st.value}
                                 type="button"
                                 onClick={() => setFilterStatus(st.value)}
-                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-left flex items-center justify-between cursor-pointer border transition-all ${
-                                  active
-                                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
-                                    : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
-                                }`}
+                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-left flex items-center justify-between cursor-pointer border transition-all ${active
+                                  ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                                  : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
+                                  }`}
                               >
                                 <span className="truncate">{st.label}</span>
                                 {active && <Check className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
@@ -2114,11 +2074,10 @@ export const ReportPage: React.FC = () => {
                                   key={r}
                                   type="button"
                                   onClick={() => setFilterRole(r)}
-                                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${
-                                    active
-                                      ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
-                                      : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
-                                  }`}
+                                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer border transition-all ${active
+                                    ? 'bg-cyan-500/10 dark:bg-cyan-500/20 border-cyan-500/40 text-cyan-900 dark:text-cyan-200'
+                                    : 'bg-slate-100/80 dark:bg-white/[0.04] border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08]'
+                                    }`}
                                 >
                                   <span>{r === 'ALL' ? 'Tất cả vai trò' : r}</span>
                                   {active && <Check className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
@@ -2301,9 +2260,18 @@ export const ReportPage: React.FC = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                overflow: 'hidden',
                               }}
                             >
-                              {getInitials(m.name)}
+                              {m.avatarUrl ? (
+                                <img
+                                  src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                  alt={m.name}
+                                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                getInitials(m.name)
+                              )}
                             </div>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 700, color: theme.headingColor, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -2356,8 +2324,16 @@ export const ReportPage: React.FC = () => {
                             </td>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2448,8 +2424,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2538,8 +2522,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2634,8 +2626,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2748,8 +2748,16 @@ export const ReportPage: React.FC = () => {
                           <tr key={m.userId} style={{ borderBottom: theme.tableRowBorder }}>
                             <td style={{ padding: '14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  {getInitials(m.name)}
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: m.color, color: '#fff', fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={resolveAvatarUrl(m.avatarUrl) || m.avatarUrl}
+                                      alt={m.name}
+                                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    getInitials(m.name)
+                                  )}
                                 </div>
                                 <div>
                                   <div style={{ fontWeight: 700, color: theme.headingColor }}>{m.name}</div>
@@ -2946,14 +2954,14 @@ export const ReportPage: React.FC = () => {
                                       item.status === 'APPROVED'
                                         ? 'rgba(16, 185, 129, 0.15)'
                                         : item.status === 'REJECTED'
-                                        ? 'rgba(239, 68, 68, 0.15)'
-                                        : 'rgba(245, 158, 11, 0.15)',
+                                          ? 'rgba(239, 68, 68, 0.15)'
+                                          : 'rgba(245, 158, 11, 0.15)',
                                     color:
                                       item.status === 'APPROVED'
                                         ? '#34d399'
                                         : item.status === 'REJECTED'
-                                        ? '#ef4444'
-                                        : '#fbbf24',
+                                          ? '#ef4444'
+                                          : '#fbbf24',
                                   }}
                                 >
                                   {item.status === 'APPROVED' ? 'Đã duyệt' : item.status === 'REJECTED' ? 'Từ chối' : 'Chờ duyệt'}
@@ -2993,204 +3001,204 @@ export const ReportPage: React.FC = () => {
                 activeCategory !== 'd4-peer' &&
                 activeCategory !== 'evidence' && (
                   <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
-                      <th style={{ width: '38px', padding: '12px 10px', textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedMemberIds.length === members.length && members.length > 0}
-                          onChange={toggleSelectAll}
-                          style={{ accentColor: '#4f46e5', width: '14px', height: '14px' }}
-                        />
-                      </th>
-                      <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Full name ↕</th>
-                      <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Status ↕</th>
-                      <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm (SP)</th>
-                      <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tỷ lệ đóng góp (%)</th>
-                      <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Assigned by ↕</th>
-                      <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMembers.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: theme.subTextColor }}>
-                          Chưa có dữ liệu thành viên nào cho đợt này.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredMembers.map((m) => {
-                        const isChecked = selectedMemberIds.includes(m.userId);
-                        return (
-                          <tr
-                            key={m.userId}
-                            style={{
-                              borderBottom: theme.tableRowBorder,
-                              backgroundColor: isChecked ? 'rgba(99, 102, 241, 0.04)' : 'transparent',
-                              transition: 'background 0.15s ease',
-                            }}
-                          >
-                            {/* Checkbox */}
-                            <td style={{ textAlign: 'center', padding: '14px 10px' }}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleSelectMember(m.userId)}
-                                style={{ accentColor: '#4f46e5', width: '14px', height: '14px' }}
-                              />
-                            </td>
-
-                            {/* Full Name & Avatar & Role */}
-                            <td style={{ padding: '14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div
-                                  style={{
-                                    width: 34,
-                                    height: 34,
-                                    borderRadius: '50%',
-                                    backgroundColor: m.color,
-                                    color: '#fff',
-                                    fontWeight: 700,
-                                    fontSize: '11.5px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {getInitials(m.name)}
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: 700, color: theme.headingColor }}>
-                                    {m.name}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: m.isLeader ? '#818cf8' : theme.subTextColor }}>
-                                    {m.role} {m.email ? `· ${m.email}` : ''}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Status with Colored Dot */}
-                            <td style={{ padding: '14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span
-                                  style={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    backgroundColor: m.isSuspicious
-                                      ? '#ef4444'
-                                      : m.evidenceStatus === 'SUFFICIENT'
-                                      ? '#10b981'
-                                      : '#f59e0b',
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    fontSize: '12.5px',
-                                    color: m.isSuspicious
-                                      ? '#ef4444'
-                                      : m.evidenceStatus === 'SUFFICIENT'
-                                      ? theme.headingColor
-                                      : theme.subTextColor,
-                                  }}
-                                >
-                                  {m.isSuspicious
-                                    ? 'Bất thường'
-                                    : m.evidenceStatus === 'SUFFICIENT'
-                                    ? 'Đạt chuẩn'
-                                    : 'Đang thẩm định'}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Points (e.g. • 4pts from sample) */}
-                            <td style={{ textAlign: 'center', padding: '14px', fontFamily: 'monospace', fontWeight: 600 }}>
-                              <span style={{ color: '#f59e0b' }}>• </span>
-                              <span>{m.tasks} tasks</span>
-                            </td>
-
-                            {/* Circular Percentage Ring (matching sample 30%, 70%) */}
-                            <td style={{ textAlign: 'center', padding: '14px' }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-                                <CircularProgress pct={m.pct} size={36} color={m.color} />
-                              </div>
-                            </td>
-
-                            {/* Assigned By (Leader or Reviewer) */}
-                            <td style={{ padding: '14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div
-                                  style={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: '50%',
-                                    backgroundColor: 'rgba(99, 102, 241, 0.25)',
-                                    color: '#818cf8',
-                                    fontSize: '10px',
-                                    fontWeight: 700,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}
-                                >
-                                  {getInitials(leaderName)}
-                                </div>
-                                <span style={{ fontSize: '12.5px', color: theme.headingColor }}>
-                                  {leaderName.split(' ').slice(-2).join(' ')}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Actions: Radar & Email */}
-                            <td style={{ textAlign: 'center', padding: '14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                <button
-                                  onClick={() => {
-                                    setSelectedUserId(m.userId);
-                                    setActiveTab('progress');
-                                    setActiveCategory('radar-4d');
-                                  }}
-                                  title="Xem Radar 4 Chiều"
-                                  style={{
-                                    padding: '5px 8px',
-                                    borderRadius: '6px',
-                                    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                                    color: '#818cf8',
-                                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  Radar 4D
-                                </button>
-                                <button
-                                  onClick={() => handleSendIndividualEmail(m.userId, m.name)}
-                                  disabled={sendingEmailUserId === m.userId}
-                                  title="Gửi báo cáo qua Email"
-                                  style={{
-                                    padding: '5px 8px',
-                                    borderRadius: '6px',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                                    color: theme.textColor,
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    fontSize: '11px',
-                                    cursor: sendingEmailUserId === m.userId ? 'not-allowed' : 'pointer',
-                                  }}
-                                >
-                                  <Mail size={13} />
-                                </button>
-                              </div>
+                    <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: theme.tableBorder, color: theme.subTextColor, whiteSpace: 'nowrap' }}>
+                          <th style={{ width: '38px', padding: '12px 10px', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedMemberIds.length === members.length && members.length > 0}
+                              onChange={toggleSelectAll}
+                              style={{ accentColor: '#4f46e5', width: '14px', height: '14px' }}
+                            />
+                          </th>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Full name ↕</th>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Status ↕</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Điểm (SP)</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Tỷ lệ đóng góp (%)</th>
+                          <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600 }}>Assigned by ↕</th>
+                          <th style={{ textAlign: 'center', padding: '12px 14px', fontWeight: 600 }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMembers.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: theme.subTextColor }}>
+                              Chưa có dữ liệu thành viên nào cho đợt này.
                             </td>
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                        ) : (
+                          filteredMembers.map((m) => {
+                            const isChecked = selectedMemberIds.includes(m.userId);
+                            return (
+                              <tr
+                                key={m.userId}
+                                style={{
+                                  borderBottom: theme.tableRowBorder,
+                                  backgroundColor: isChecked ? 'rgba(99, 102, 241, 0.04)' : 'transparent',
+                                  transition: 'background 0.15s ease',
+                                }}
+                              >
+                                {/* Checkbox */}
+                                <td style={{ textAlign: 'center', padding: '14px 10px' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => toggleSelectMember(m.userId)}
+                                    style={{ accentColor: '#4f46e5', width: '14px', height: '14px' }}
+                                  />
+                                </td>
+
+                                {/* Full Name & Avatar & Role */}
+                                <td style={{ padding: '14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div
+                                      style={{
+                                        width: 34,
+                                        height: 34,
+                                        borderRadius: '50%',
+                                        backgroundColor: m.color,
+                                        color: '#fff',
+                                        fontWeight: 700,
+                                        fontSize: '11.5px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {getInitials(m.name)}
+                                    </div>
+                                    <div>
+                                      <div style={{ fontWeight: 700, color: theme.headingColor }}>
+                                        {m.name}
+                                      </div>
+                                      <div style={{ fontSize: '11px', color: m.isLeader ? '#818cf8' : theme.subTextColor }}>
+                                        {m.role} {m.email ? `· ${m.email}` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Status with Colored Dot */}
+                                <td style={{ padding: '14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span
+                                      style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: m.isSuspicious
+                                          ? '#ef4444'
+                                          : m.evidenceStatus === 'SUFFICIENT'
+                                            ? '#10b981'
+                                            : '#f59e0b',
+                                      }}
+                                    />
+                                    <span
+                                      style={{
+                                        fontSize: '12.5px',
+                                        color: m.isSuspicious
+                                          ? '#ef4444'
+                                          : m.evidenceStatus === 'SUFFICIENT'
+                                            ? theme.headingColor
+                                            : theme.subTextColor,
+                                      }}
+                                    >
+                                      {m.isSuspicious
+                                        ? 'Bất thường'
+                                        : m.evidenceStatus === 'SUFFICIENT'
+                                          ? 'Đạt chuẩn'
+                                          : 'Đang thẩm định'}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Points (e.g. • 4pts from sample) */}
+                                <td style={{ textAlign: 'center', padding: '14px', fontFamily: 'monospace', fontWeight: 600 }}>
+                                  <span style={{ color: '#f59e0b' }}>• </span>
+                                  <span>{m.tasks} tasks</span>
+                                </td>
+
+                                {/* Circular Percentage Ring (matching sample 30%, 70%) */}
+                                <td style={{ textAlign: 'center', padding: '14px' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+                                    <CircularProgress pct={m.pct} size={36} color={m.color} />
+                                  </div>
+                                </td>
+
+                                {/* Assigned By (Leader or Reviewer) */}
+                                <td style={{ padding: '14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: '50%',
+                                        backgroundColor: 'rgba(99, 102, 241, 0.25)',
+                                        color: '#818cf8',
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      {getInitials(leaderName)}
+                                    </div>
+                                    <span style={{ fontSize: '12.5px', color: theme.headingColor }}>
+                                      {leaderName.split(' ').slice(-2).join(' ')}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Actions: Radar & Email */}
+                                <td style={{ textAlign: 'center', padding: '14px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedUserId(m.userId);
+                                        setActiveTab('progress');
+                                        setActiveCategory('radar-4d');
+                                      }}
+                                      title="Xem Radar 4 Chiều"
+                                      style={{
+                                        padding: '5px 8px',
+                                        borderRadius: '6px',
+                                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                        color: '#818cf8',
+                                        border: '1px solid rgba(99, 102, 241, 0.25)',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      Radar 4D
+                                    </button>
+                                    <button
+                                      onClick={() => handleSendIndividualEmail(m.userId, m.name)}
+                                      disabled={sendingEmailUserId === m.userId}
+                                      title="Gửi báo cáo qua Email"
+                                      style={{
+                                        padding: '5px 8px',
+                                        borderRadius: '6px',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                                        color: theme.textColor,
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        fontSize: '11px',
+                                        cursor: sendingEmailUserId === m.userId ? 'not-allowed' : 'pointer',
+                                      }}
+                                    >
+                                      <Mail size={13} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 )}
             </div>
@@ -3837,7 +3845,7 @@ export const ReportPage: React.FC = () => {
       <ManualContributionModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
-        teamId={currentTeamId}
+        teamId={currentTeamId || 1}
         sprintId={selectedSprintId}
         sprintName={sprintList.find((s) => s.id === selectedSprintId)?.name}
         sprints={sprintList}

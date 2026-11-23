@@ -280,10 +280,10 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Báo cáo cá nhân & Email/)).toBeInTheDocument();
+      expect(screen.getByText('Hồ sơ Vector 4D')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Báo cáo cá nhân & Email/));
+    fireEvent.click(screen.getByText('Hồ sơ Vector 4D'));
 
     await waitFor(() => {
       expect(screen.getByText('Hồ sơ Vector 4 Chiều (Radar Profile)')).toBeInTheDocument();
@@ -306,10 +306,10 @@ describe('ReportPage Component (Official Academic PDF & Synchronized Theme)', ()
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Báo cáo cá nhân & Email/)).toBeInTheDocument();
+      expect(screen.getByText('Hồ sơ Vector 4D')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Báo cáo cá nhân & Email/));
+    fireEvent.click(screen.getByText('Hồ sơ Vector 4D'));
 
     await waitFor(() => {
       expect(screen.getByText(/Gửi báo cáo qua email/)).toBeInTheDocument();
