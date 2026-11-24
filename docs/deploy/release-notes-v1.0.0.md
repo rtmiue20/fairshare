@@ -1,6 +1,6 @@
-# FairShare v1.0.0 – Release notes (ỨNG VIÊN RELEASE, CHƯA GẮN TAG)
+# FairShare v1.0.0 – Release notes
 
-**Trạng thái:** ứng viên release, cập nhật 24/11/2026 22:00 (GMT+7). Đã chạy lại toàn bộ kiểm thử trên `master` @ `677a9be` (`docs/qa/test-report-final.md`). **Chưa gắn tag** `v1.0.0`: còn 3 lỗi High Open (DEF-40, 41, 65) và 1 High In Progress (DEF-66) cần được sửa hoặc được M0 chấp nhận rủi ro; bản sửa DEF-55..57 (nhánh `nam-anh`) cần merge vào `master` trước. Ứng viên tag: commit merge `nam-anh` vào `master` sau khi có quyết định của M0.
+**Trạng thái:** ứng viên release, cập nhật 24/11/2026 22:00 (GMT+7). Đã chạy lại toàn bộ kiểm thử trên `master` @ `677a9be` (`docs/qa/test-report-final.md`). **M0 đã chấp nhận rủi ro** (24/11 22:21) cho 3 lỗi High Open (DEF-40, 41, 65) và 1 High In Progress (DEF-66), kèm điều kiện ở mục "Lỗi còn tồn tại". Tag `v1.0.0` gắn trên commit merge `nam-anh` (có bản sửa DEF-55..57) vào `master`.
 **Soạn:** M5 – Khiếu Hoàng Nam Anh (QA & Deployment) · **Dự án:** FairShare – đồ án môn Quản lý dự án CNTT, UEH
 
 FairShare giúp nhóm sinh viên đo và minh bạch hóa mức đóng góp trong đồ án nhóm: ai làm gì, bao nhiêu, khi nào, có bằng chứng truy vết, kèm chấm chéo ẩn danh và báo cáo PDF để nhóm tự chia điểm và giảng viên tham khảo.
@@ -54,14 +54,14 @@ Medium/Low tiêu biểu: PDF mất dấu tiếng Việt (DEF-21), PDF trộn spr
 
 | Mã | Mức | Lỗi | Cách né |
 |---|---|---|---|
-| DEF-40 | High | Migration V23–V25 tạo tài khoản demo có mật khẩu công khai, ghi đè dữ liệu nhóm id 1, V25 xóa toàn bộ điểm đóng góp đã tính | Dựng CSDL mới và khóa 6 tài khoản demo (`docs/deploy/demo-checklist.md` bước 4). `<chờ M0: sửa trước tag hay chấp nhận rủi ro>` |
+| DEF-40 | High | Migration V23–V25 tạo tài khoản demo có mật khẩu công khai, ghi đè dữ liệu nhóm id 1, V25 xóa toàn bộ điểm đóng góp đã tính | Dựng CSDL mới và khóa 6 tài khoản demo (`docs/deploy/demo-checklist.md` bước 4). M0 chấp nhận rủi ro 24/11 |
 | DEF-41 | High | Kéo thẻ của mình qua lại giữa các cột tự nâng tỷ lệ đóng góp | Chỉ kéo thẻ một chiều tới Done |
-| DEF-65 | High | Người ngoài nhóm xem được ai đã chấm ai, bao nhiêu điểm, và danh sách đợt chấm (`/api/review-rounds/{id}/submissions/reviewer/{id}`, `/team/{id}`) | Kết quả trên giao diện vẫn ẩn danh khi < 3 người chấm; không công bố URL bản demo ra ngoài nhóm. `<chờ M0>` |
+| DEF-65 | High | Người ngoài nhóm xem được ai đã chấm ai, bao nhiêu điểm, và danh sách đợt chấm (`/api/review-rounds/{id}/submissions/reviewer/{id}`, `/team/{id}`) | Kết quả trên giao diện vẫn ẩn danh khi < 3 người chấm; không công bố URL bản demo ra ngoài nhóm. M0 chấp nhận rủi ro 24/11 |
 | DEF-66 | High (In Progress) | Gửi email báo cáo: người ngoài đã bị chặn, nhưng vẫn trả 200, gửi đồng bộ (khoảng 133 s), giao diện báo thành công cả khi lỗi | Không dùng nút Gửi email khi demo |
 | DEF-47, 50, 53, 58, 59, 67 | Medium | Một thẻ một người phụ trách; tab Nghị định 13; số liệu mẫu ở hồ sơ/thành viên tiêu biểu; người ngoài nhắc nhở/giải quyết cảnh báo; thành viên thường sửa thông tin nhóm; 401 bất thường trên Render | Xem defect log |
 | DEF-19, 28, 42, 54, 60–63, 68 | Low | 400 thay 403; ảnh upload trong repo; đổi tên thẻ vượt bản sửa DEF-38; trùng tab Báo cáo; avatar không kiểm nội dung; TopNav 1280px; mã cột thay tên cột; gọi API nhóm 1; chữ "Git commits" | Xem defect log |
 
-Quyết định chấp nhận rủi ro cho 4 lỗi High: M0 ghi vào Change Log trước khi gắn tag (`docs/qa/uat/uat-closure.md` mục 3 có mẫu).
+**Quyết định chấp nhận rủi ro (24/11 22:21):** M0 chấp nhận rủi ro cho DEF-40, 41, 65, 66 với điều kiện ở cột "Cách né"; chi tiết và người sửa sau release: `docs/qa/defect-log.md`, mục "Quyết định chấp nhận rủi ro".
 
 ## Kiểm thử (24/11, `master` @ `677a9be`)
 

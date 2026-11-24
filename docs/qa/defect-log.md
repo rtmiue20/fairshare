@@ -36,13 +36,27 @@
 - **Vẫn còn (retest 24/11):** DEF-19 (400), DEF-40 (RT-40a..c), DEF-41 (5 → 105 SP), DEF-42, DEF-58 (RT7-58a, b: người ngoài remind/resolve 200), DEF-59 (RT7-59: MEMBER đổi tên nhóm 200), DEF-60 (RT7-60: file HTML tên `.png` được lưu), DEF-65 (RT7-65a, b: người ngoài xem phiếu đã chấm và danh sách đợt, 200), DEF-28 (2 ảnh trong `uploads/` vẫn được Git theo dõi), DEF-47 (`Card.java` vẫn một `assignee`), DEF-50 (tab Nghị định 13 vẫn "4/4 Quyền" theo một cờ), DEF-53 (`MemberProfileModal`, `ContributionDashboard` vẫn có "EduConnect", điểm chấm chéo mặc định 4,5; `extractStudentIdFromEmail` vẫn đoán MSSV).
 - **Chưa kiểm lại được:** DEF-54, 61, 62, 63 (cần trình duyệt), DEF-67 (chỉ có trên Render).
 - **Lỗi mới:** DEF-68 (Low).
-- **Kết luận release:** còn **3 lỗi High Open** (DEF-40, 41, 65) và **1 High In Progress** (DEF-66). Theo tiêu chí release, M0 cần **chấp nhận rủi ro bằng văn bản** cho các lỗi này (hoặc nhóm sửa) trước khi gắn tag `v1.0.0`. Bản sửa DEF-55..57 nằm trên nhánh `nam-anh`, cần merge vào `master` trước khi gắn tag.
+- **Kết luận release:** còn **3 lỗi High Open** (DEF-40, 41, 65) và **1 High In Progress** (DEF-66). **24/11 22:21: M0 đã chấp nhận rủi ro cho cả 4 lỗi** (bảng dưới), nên tiêu chí release đạt. Bản sửa DEF-55..57 nằm trên nhánh `nam-anh`, cần merge vào `master` trước khi gắn tag.
+
+### Quyết định chấp nhận rủi ro (24/11/2026 22:21, GMT+7)
+
+M0 – Nguyễn Văn Minh Triều **chấp nhận rủi ro** cho 4 lỗi High chưa đóng để gắn tag `v1.0.0`. Nguồn: M5 nhận xác nhận của M0 ngày 24/11 lúc 22:21 (GMT+7); M0 ghi lại vào Change Log của nhóm.
+
+| Mã | Lỗi | Điều kiện kèm theo (cách né khi demo/dùng thử) | Người sửa sau release |
+|---|---|---|---|
+| DEF-40 | Migration V23–V25 chèn tài khoản demo có mật khẩu công khai, ghi đè nhóm id 1 | Dựng CSDL mới, khóa 6 tài khoản demo (`docs/deploy/demo-checklist.md` bước 4); không dùng nhóm id 1 khi demo | M0 |
+| DEF-41 | Kéo thẻ qua lại tự nâng tỷ lệ đóng góp | Chỉ kéo thẻ một chiều tới Done khi demo; ghi trong hạn chế của báo cáo | M1, M3 |
+| DEF-65 | Người ngoài nhóm xem được phiếu đã chấm và danh sách đợt chấm qua API | Không công bố URL bản demo ra ngoài nhóm; giao diện vẫn ẩn danh khi < 3 người chấm | M4 |
+| DEF-66 | Gửi email báo cáo: trả 200 thay 403, gửi đồng bộ, giao diện báo thành công cả khi lỗi | Không dùng nút Gửi email khi demo | M0 |
+
+Các lỗi này **vẫn giữ trạng thái** Open/In Progress trong bảng (chấp nhận rủi ro không phải là đã sửa).
+
 
 ### Theo người xử lý (24/11, các lỗi chưa đóng)
 
 | Người xử lý | Lỗi | Ưu tiên |
 |---|---|---|
-| M0 – Nguyễn Văn Minh Triều | **DEF-40 (High)**, **DEF-66 (High, In Progress)**, DEF-28, 54, 63 (Báo cáo), **68**. Quyết định chấp nhận rủi ro cho DEF-40, 41, 65, 66 | **Trước khi gắn tag release** |
+| M0 – Nguyễn Văn Minh Triều | **DEF-40 (High)**, **DEF-66 (High, In Progress)** (đã chấp nhận rủi ro 24/11), DEF-28, 54, 63 (Báo cáo), **68**. Ghi quyết định 24/11 vào Change Log | Sau release |
 | M1 – Nguyễn Phúc Vương | **DEF-41 (High)** (cùng M3). DEF-42, 47 (cùng M3), 60, 62, **68** (trang Đăng nhập) | DEF-41 |
 | M2 – Hà Ngọc Thiện | DEF-50, **59** | DEF-59 |
 | M3 – Ngô Trọng Phúc | DEF-41, 47 (cùng M1), DEF-53, 61, 63 (Tích hợp) | – |

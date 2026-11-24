@@ -28,7 +28,7 @@
 | Kiểm chứng các cam kết cốt lõi | Ẩn danh (≥ 3 người chấm), chống gian lận, phân quyền, luồng điểm đóng góp | Tích hợp 23/23; 42/68 lỗi đã đóng; còn 3 High Open (DEF-40, 41, 65), 1 In Progress (DEF-66) | Đạt một phần |
 | Đạt G4 | Xuất PDF < 10 s (6 người, 4 sprint) | Chậm nhất 0,110 s (500 sự kiện), 0,237 s (nhóm demo) | Đạt |
 | Hỗ trợ đạt G5 | UAT ≥ 10 người; ghi và phân loại lỗi UAT | 10 phiếu (đạt số lượng); SUS 47,0, CSAT 60% → **G5 chưa đạt** | WP5 đạt phần việc; G5 chưa đạt |
-| Bàn giao | Release tag, bản demo, user guide, deployment guide, video dự phòng | Có user guide, deployment guide, checklist demo, video, release notes. **Chưa gắn tag** (chờ M0) | Đạt một phần |
+| Bàn giao | Release tag, bản demo, user guide, deployment guide, video dự phòng | User guide, deployment guide, checklist demo, video, release notes; tag `v1.0.0` sau khi M0 chấp nhận rủi ro 24/11 | Đạt |
 
 ## 3. Kế hoạch
 
@@ -41,8 +41,8 @@
 | Sprint 3 | Test case auth/nhóm/board; bật CI chạy test; kiểm thử build đầu tiên | ✅ |
 | Sprint 4 | Test tích hợp các module; staging Docker Compose; defect log | ✅ |
 | Sprint 5 | Unit/integration/regression (board → `ActivityEvent` → `ScoringEngine` → dashboard); hiệu năng PDF | ✅ |
-| Sprint 6 | Môi trường UAT, tài khoản thử; ghi lỗi UAT; demo, user guide, video dự phòng; ứng viên release; nháp chương | ✅ (trừ gắn tag) |
-| Sprint 7 | Chốt Defect Log; Báo cáo UAT tổng hợp; Final Test Report; release cuối; chương bản cuối; gom minh chứng; Mini-PM Report | ✅ (trừ gắn tag) |
+| Sprint 6 | Môi trường UAT, tài khoản thử; ghi lỗi UAT; demo, user guide, video dự phòng; ứng viên release; nháp chương | ✅ (tag gắn ở Sprint 7) |
+| Sprint 7 | Chốt Defect Log; Báo cáo UAT tổng hợp; Final Test Report; release cuối `v1.0.0`; chương bản cuối; gom minh chứng; Mini-PM Report | ✅ |
 
 Backlog chi tiết được theo dõi trên Trello: board cá nhân "FairShare – WP5 QA & Deployment (M5)" (list theo từng sprint, mỗi card có ngày, thời lượng, hạn, đầu ra, checklist) và các card `[M5]`, `[Sprint 7 - M5]` trên board nhóm "FairShare – QLDA CNTT".
 
@@ -105,7 +105,7 @@ Số commit của M5 trên repo: **42** đến 21/11 (không tính merge, từ 1
 
 **Vấn đề 4 (16/11): defect log bị merge ghi đè.** Ba merge sửa trên bản cũ, làm DEF-18, 20, 21 quay về Open. Dựng lại file từ bản 15/11, đối chiếu với retest 16/11, ghi quy ước "dev ghi Fixed – chờ retest, chỉ M5 chuyển Closed" ở đầu file.
 
-**Vấn đề 5 (18–24/11): tính năng mới tiếp tục vào sau khi khóa phạm vi.** Sau giờ khóa phạm vi 18/11 17:00 vẫn có 6 PR tính năng được merge (#105, #107, #108, #109, #112, #113); riêng đợt kiểm thử 20/11 (PR #102–#109) ghi 13 lỗi mới, gồm 5 High. Cách xử lý: kiểm thử ngay sau mỗi đợt merge (20/11, 24/11) bằng script tự động, tách lỗi theo người xử lý, tự sửa phần thuộc WP5 (DEF-55..57) để không chờ người khác, và nêu rõ trong Final Test Report rằng bản cuối **chưa đạt tiêu chí release** nếu M0 chưa quyết định chấp nhận rủi ro cho 4 lỗi High. Quyết định của M0: `<cần bổ sung: chấp nhận rủi ro hay sửa DEF-40, 41, 65, 66 trước tag v1.0.0>`
+**Vấn đề 5 (18–24/11): tính năng mới tiếp tục vào sau khi khóa phạm vi.** Sau giờ khóa phạm vi 18/11 17:00 vẫn có 6 PR tính năng được merge (#105, #107, #108, #109, #112, #113); riêng đợt kiểm thử 20/11 (PR #102–#109) ghi 13 lỗi mới, gồm 5 High. Cách xử lý: kiểm thử ngay sau mỗi đợt merge (20/11, 24/11) bằng script tự động, tách lỗi theo người xử lý, tự sửa phần thuộc WP5 (DEF-55..57) để không chờ người khác, và nêu rõ trong Final Test Report rằng bản cuối **chưa đạt tiêu chí release** nếu M0 chưa quyết định chấp nhận rủi ro cho 4 lỗi High. Kết quả: ngày 24/11 lúc 22:21, M0 chấp nhận rủi ro cho DEF-40, 41, 65, 66 kèm điều kiện né khi demo; bản sửa DEF-55..57 được merge và gắn tag `v1.0.0`.
 
 ## 7. Tổng kết
 

@@ -4,7 +4,7 @@
 **Bản cuối:** 24/11/2026 (Sprint 7), sửa từ bản nháp 16/11 và 18/11. Số liệu kiểm thử tự động đến `master` @ `677a9be` (lần kiểm thử cuối 24/11, 21:45–22:00 GMT+7; `docs/qa/test-report-final.md`) | **Nộp cho M0 ghép báo cáo cuối:** hạn 25/11/2026, 12:00
 **Nguồn số liệu:** `docs/qa/` (test case, test report, integration log, defect log, evidence), `docs/deploy/staging.md`, `.github/workflows/`
 
-> Còn hai chỗ chờ quyết định của M0, ghi dạng `<chờ M0: …>`: gắn tag release (phụ thuộc quyết định chấp nhận rủi ro cho 4 lỗi High) và URL demo; một chỗ `<cần bổ sung: …>` là link Test Plan Sprint 2 (không có trong repo). Chương không tự điền các mục đó.
+> Còn một chỗ chờ quyết định của M0, ghi dạng `<chờ M0: …>`: URL demo; một chỗ `<cần bổ sung: …>` là link Test Plan Sprint 2 (không có trong repo). Chương không tự điền các mục đó.
 
 > **Lưu ý CR-02:** Kế hoạch ban đầu thu thập dữ liệu từ Trello qua API/Webhook. Theo Change Request **CR-02**, nhóm đã thay bằng **Task Board nội bộ**. Vì vậy mọi ca kiểm thử từ Sprint 4 trở đi kiểm tra luồng *board nội bộ → sự kiện hoạt động → điểm đóng góp*, không còn kiểm thử tích hợp Trello. Mã tích hợp Trello cũ đã được gỡ (DEF-25, đóng 11/11).
 
@@ -183,7 +183,7 @@ Hai điểm hạn chế của đợt UAT: (1) UAT không chạy trên môi trư�
 
 Tỷ lệ đóng: **42/67** lỗi hợp lệ (62,7%); riêng lỗi High **18/22** (81,8%). Theo nguồn phát hiện: 55 lỗi do M5 tìm qua kiểm thử, 2 từ UAT chính thức (DEF-43, 44), 10 từ buổi PCG (DEF-45..54). Theo giai đoạn: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..44), PCG 19/11 (DEF-45..54), kiểm thử PR #102–#109 ngày 20/11 (DEF-55..67), chốt 24/11 (DEF-68).
 
-Lỗi High chưa đóng: DEF-40 (migration chèn tài khoản demo, M0), DEF-41 (kéo thẻ qua lại tự nâng điểm, M1 + M3), DEF-65 (người ngoài xem ai chấm ai, M4), DEF-66 (gửi email báo cáo, M0, In Progress). Theo tiêu chí ở mục 1.4, M0 cần sửa hoặc ghi quyết định chấp nhận rủi ro vào Change Log trước khi gắn tag. Chi tiết: `docs/qa/defect-log.md`.
+Lỗi High chưa đóng: DEF-40 (migration chèn tài khoản demo, M0), DEF-41 (kéo thẻ qua lại tự nâng điểm, M1 + M3), DEF-65 (người ngoài xem ai chấm ai, M4), DEF-66 (gửi email báo cáo, M0, In Progress). Theo tiêu chí ở mục 1.4, ngày 24/11 lúc 22:21 M0 đã **chấp nhận rủi ro** cho cả 4 lỗi, kèm điều kiện né khi demo, và ghi vào Change Log. Chi tiết: `docs/qa/defect-log.md`.
 
 ### 4.3 Các lỗi đáng chú ý
 
@@ -233,13 +233,13 @@ Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, bu
 
 | Hạng mục | Kết quả |
 |---|---|
-| Release tag | `<chờ M0: tag v1.0.0>`. Chưa gắn vì còn 4 lỗi High chưa đóng (DEF-40, 41, 65, 66) và bản sửa DEF-55..57 nằm trên nhánh `nam-anh`, cần merge vào `master` trước |
+| Release tag | `v1.0.0` trên commit merge `nam-anh` vào `master` (sau khi M0 chấp nhận rủi ro cho DEF-40, 41, 65, 66 ngày 24/11) |
 | URL demo | `<chờ M0: chốt nơi chạy>`. Hiện có bản Render `https://fairshare-web-3iuo.onrender.com` (nhánh `deploy/render`, dùng cho UAT 17/11 và PCG 19/11). Đề xuất (`docs/deploy/demo-hosting.md`): trình chiếu trên máy M5 (`http://localhost:8081`), mở tunnel tạm chỉ trong giờ UAT; so sánh 4 phương án máy chung / VPS / LAN / tunnel |
 | Tài khoản demo | 5 tài khoản riêng `demo01..demo05@fairshare.test` do `scripts/demo-seed.py` tạo: nhóm 12 thẻ, tỷ lệ đóng góp khác nhau, chấm chéo có cả trường hợp đủ và dưới ngưỡng ẩn danh. Danh sách: `docs/deploy/demo-accounts.md`, mật khẩu ngẫu nhiên lưu ngoài Git. Đã chạy thử 16/11. UAT dùng riêng 12 tài khoản `uat01..uat12` |
 | Quy trình dựng demo | `docs/deploy/demo-checklist.md`: dựng sạch, seed, khóa tài khoản lỗi DEF-40, kiểm tra 7 bước trước giờ demo |
 | Release notes | Ứng viên release 24/11 `docs/deploy/release-notes-v1.0.0.md`: tính năng, thay đổi CR-02, 42 lỗi đã sửa, lỗi còn tồn tại và cách né, kết quả kiểm thử cuối, hướng dẫn chạy |
 | Video demo dự phòng | Đã quay 15/11 bằng `scripts/record-demo.ps1` (102 giây, có chú thích từng bước). File 84 MB nên không đưa vào Git; bản online: https://drive.google.com/file/d/1HE7ZnfLf49j5UMruRp-0IG11czHqGZjV/view |
-| Smoke test trên bản release | PASS trên ứng viên release `master` @ `677a9be` (24/11, `staging-smoke-2026-11-24.txt`) và sau bản sửa DEF-55..57. Tag chưa gắn |
+| Smoke test trên bản release | PASS trên ứng viên release `master` @ `677a9be` (24/11, `staging-smoke-2026-11-24.txt`) và sau bản sửa DEF-55..57. Docker CI chạy lại khi merge vào `master` |
 
 ---
 

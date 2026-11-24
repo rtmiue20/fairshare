@@ -23,7 +23,7 @@
 | **G2** – truy vết bằng chứng | IT-BRD-06, 07 đạt; evidence 200 cho 5/5 thành viên nhóm demo | Đạt |
 | Defect Log | 68 lỗi: **42 Closed**, 18 Open, 6 Fixed – chờ retest, 1 In Progress, 1 Rejected | Còn **3 High Open** + 1 High In Progress |
 
-**Kết luận của QA:** chức năng chính (board, đo đóng góp, chấm chéo ẩn danh, PDF) chạy đúng và đạt G2, G4. Bản `master` @ `677a9be` **chưa đạt tiêu chí release** vì còn 4 lỗi High chưa đóng (DEF-40, 41, 65 Open; DEF-66 In Progress). Để gắn tag `v1.0.0`, M0 cần chấp nhận rủi ro bằng văn bản cho các lỗi này, hoặc nhóm sửa trước. Bản sửa hạ tầng DEF-55..57 của M5 nằm trên nhánh `nam-anh`, cần merge trước khi gắn tag.
+**Kết luận của QA:** chức năng chính (board, đo đóng góp, chấm chéo ẩn danh, PDF) chạy đúng và đạt G2, G4. Còn 4 lỗi High chưa đóng (DEF-40, 41, 65 Open; DEF-66 In Progress); **M0 đã chấp nhận rủi ro cho cả 4 lỗi ngày 24/11 lúc 22:21**, kèm điều kiện né khi demo (`defect-log.md`, mục "Quyết định chấp nhận rủi ro"). Với quyết định này, bản đạt tiêu chí release. Bản sửa hạ tầng DEF-55..57 của M5 nằm trên nhánh `nam-anh`, cần merge trước khi gắn tag.
 
 ## 2. Tiến trình qua các sprint
 
@@ -104,7 +104,7 @@ Tiêu chí lấy từ chương Kiểm thử & Triển khai, mục 1.4 (`docs/rep
 | Tiêu chí | Kết quả 24/11 | Đạt? |
 |---|---|---|
 | Unit test 0 fail trên `master` | 243/243, 99/99 | Đạt |
-| Mọi lỗi High đóng, hoặc có quyết định chấp nhận rủi ro ghi trong Change Log, trước release | 3 Open (DEF-40, 41, 65) + 1 In Progress (DEF-66), **chưa có quyết định của M0** | **Chưa đạt** |
+| Mọi lỗi High đóng, hoặc có quyết định chấp nhận rủi ro ghi trong Change Log, trước release | 3 Open (DEF-40, 41, 65) + 1 In Progress (DEF-66); **M0 chấp nhận rủi ro 24/11 22:21** | Đạt (theo quyết định chấp nhận rủi ro) |
 | Defect chỉ đóng khi có PR sửa, ca kiểm thử chạy lại đạt, ngày đóng | 6 lỗi đóng 24/11 đều có ca chạy lại (UAT-SEC-03..06, RT7-55..57, RT7-64a, b) | Đạt |
 | UAT: ≥ 10 phiếu và không còn lỗi chặn luồng | 10 phiếu; DEF-43 (chặn Audit Trail) đã đóng 20/11 | Đạt (G5 về mức hài lòng chưa đạt, xem `uat-report.md`) |
 | G4: xuất PDF < 10 s | 0,237 s | Đạt |
