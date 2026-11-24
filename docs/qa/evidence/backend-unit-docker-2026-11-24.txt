@@ -1,0 +1,56 @@
+24/11/2026 21:45:11 (GMT+7)
+commit: 677a9be
+Lệnh: cd fairshare-backend && mvn -B test (Testcontainers chạy thật trên Docker 29.9.3, 0 skip)
+
+[INFO] Tests run: 243, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+
+Chi tiết theo lớp test:
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.653 s -- in Unit Test cho M? h?nh ?o l??ng ??ng g?p ?a chi?u 4 t?ng (Sprint 4 - CR-03)
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.457 s -- in Unit Test cho ContributionController (M3 - Sprint 4)
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.219 s -- in Unit tests for ScoringEngine v1
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in Benchmark ki?m th? hi?u n?ng truy v?n Dashboard (Sprint 5 - WBS 5.4.1 & 5.4.2)
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.398 s -- in Unit Test cho ContributionService (M3 - Sprint 4)
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in Unit Test cho Evidence Traceability Routine & Service (M3 - Sprint 4 / Th? 3)
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.888 s -- in Unit Test cho ManualContributionController (Card 8 - M3 Sprint 5)
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.067 s -- in Ki?m th? hi?u n?ng x? l? d? li?u l?n 500 Tasks / 6 Th?nh vi?n (WBS 5.4.3 - M3)
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.337 s -- in Unit Test cho ManualContributionService (Card 8 - M3 Sprint 5)
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.438 s -- in 4. Quy?n tr?n M?/??ng ??t (Sprint) & Xu?t B?o C?o PDF: Ch? Leader
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.527 s -- in 1. Quy?n tr?n Board & Column: Leader vs Th?nh vi?n
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.549 s -- in 2. Quy?n tr?n Card (Th?): K?o th?, S?a, X?a
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.206 s -- in 3. Endpoint chung kh?ng b? ch?n nh?m (T?o th?, Comment, Checklist)
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.729 s -- in Spring MVC Integration Tests: Role-Based Access Control (Leader vs Member) on APIs (M1)
+Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.689 s -- in Unit tests for BoardService & ActivityEvent Generation (M1)
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.100 s -- in 3. Quy?n tr?n Th?: Th?nh vi?n ch? s?a/di chuy?n th? c?a m?nh (Leader s?a ???c m?i th?)
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.050 s -- in 1. Quy?n tr?n Board (T?o, S?a, X?a): Ch? Leader
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in 4. Endpoint th?nh vi?n kh?ng b? ch?n nh?m (Create card, Comment, Checklist)
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.059 s -- in 2. Quy?n tr?n C?t (T?o, S?a, X?a): Ch? Leader
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.265 s -- in Unit tests for Role-Based Access Control (Leader vs Member) on Board & Report APIs (M1)
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.585 s -- in Unit Test cho AiChatService (TCREI + Gemini Integration)
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.194 s -- in Immutability & Append-Only Tests for ActivityEvent (M1)
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.084 s -- in Backward Compatibility Tests for ActivitySource.TRELLO legacy data (M1)
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.68 s -- in com.fairshare.user.UserRepositoryTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.175 s -- in API ??ng nh?p (Login)
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in API ??ng k? (Register)
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in API ??ng xu?t (Logout)
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.204 s -- in Unit Test cho AuthService (M3 - Backend 1)
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.157 s -- in Endpoint nghi?p v? ph?i y?u c?u ??ng nh?p
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.057 s -- in H?p ??ng API /api/auth (acceptance test cho module auth)
+Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.288 s -- in com.fairshare.auth.AuthApiTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in Unit Test cho JwtService (M3 - Backend 1)
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.186 s -- in Unit Test cho AuthController (M3 - Backend 1)
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.fairshare.auth.AuthTest
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.096 s -- in Unit Test cho TeamController - Dashboard & Evidence Endpoints (DEF-22)
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.127 s -- in Unit tests for TeamService (M2 - Qu?n l? Nh?m, M? m?i & Cam k?t Consent)
+Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in Unit tests for MemberService (M2 - Qu?n l? th?nh vi?n & ??i vai tr?)
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.660 s -- in com.fairshare.report.PdfReportServiceTest
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in com.fairshare.alert.InactivityAlertServiceTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in Unit Test cho TeamSecurityService (DEF-12 - Ph?n quy?n theo nh?m)
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.fairshare.upload.FileUploadServiceTest
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in Unit tests for Sprint Permission (Leader vs Member): M?/??ng ??t
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in Unit tests for SprintService (M2 - Qu?n l? Sprint & ??ng Sprint)
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in com.fairshare.peerreview.PeerReviewServiceTest
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in Unit tests for AnonymityAggregator (M4)
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.497 s -- in com.fairshare.FairShareApplicationTests
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.184 s -- in com.fairshare.expense.SplitServiceTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in com.fairshare.expense.ExpenseRepositoryTest

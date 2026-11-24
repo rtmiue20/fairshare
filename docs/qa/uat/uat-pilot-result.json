@@ -1,8 +1,8 @@
 {
-  "run": "1795068239",
+  "run": "1795531870",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-19T13:04:01",
-  "passed": 20,
+  "executed_at": "2026-11-24T21:51:11",
+  "passed": 22,
   "total": 24,
   "cases": [
     {
@@ -18,7 +18,7 @@
       "area": "M2",
       "name": "Tạo nhóm: người tạo là LEADER, sinh mã mời 6–8 ký tự",
       "expected": "HTTP 201/200, inviteCode 6–8 ký tự",
-      "actual": "HTTP 201, inviteCode='FS12DEA0'",
+      "actual": "HTTP 201, inviteCode='FSFA0325'",
       "result": "PASS"
     },
     {
@@ -74,7 +74,7 @@
       "area": "M2",
       "name": "Leader tạo sprint mới",
       "expected": "HTTP 200/201",
-      "actual": "HTTP 201, sprintId=13",
+      "actual": "HTTP 201, sprintId=14",
       "result": "PASS"
     },
     {
@@ -130,7 +130,7 @@
       "area": "Core",
       "name": "Leader xuất PDF nhóm A",
       "expected": "HTTP 200, file %PDF",
-      "actual": "HTTP 200, 70644 byte",
+      "actual": "HTTP 200, 70820 byte",
       "result": "PASS"
     },
     {
@@ -154,15 +154,15 @@
       "area": "Sec",
       "name": "Người ngoài nhóm xem khai báo đóng góp của nhóm A",
       "expected": "HTTP 403",
-      "actual": "HTTP 200, 1 mục",
-      "result": "FAIL"
+      "actual": "HTTP 403, - mục",
+      "result": "PASS"
     },
     {
       "id": "UAT-SEC-04",
       "area": "Sec",
       "name": "uat02 khai báo đóng góp đứng tên uat03 (giả danh)",
       "expected": "HTTP 403",
-      "actual": "HTTP 201, người được ghi = 127",
+      "actual": "HTTP 201, người được ghi = 116",
       "result": "FAIL"
     },
     {
@@ -170,7 +170,7 @@
       "area": "Sec",
       "name": "uat02 tự duyệt khai báo của mình bằng cách gửi reviewerId=uat03",
       "expected": "HTTP 403",
-      "actual": "HTTP 200, trạng thái = APPROVED",
+      "actual": "HTTP 400, trạng thái = None",
       "result": "FAIL"
     },
     {
@@ -178,8 +178,8 @@
       "area": "Sec",
       "name": "Người ngoài nhóm duyệt khai báo của nhóm A",
       "expected": "HTTP 403",
-      "actual": "HTTP 200",
-      "result": "FAIL"
+      "actual": "HTTP 403",
+      "result": "PASS"
     },
     {
       "id": "UAT-SEC-07",

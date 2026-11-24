@@ -1,0 +1,111 @@
+{
+  "run": "1795532128",
+  "base": "http://localhost:8081",
+  "team": 14,
+  "results": [
+    {
+      "id": "RT7-55",
+      "defect": "DEF-55",
+      "name": "Tải ảnh đại diện PNG hợp lệ (64×64) trong image Docker",
+      "expected": "HTTP 200, có avatarUrl",
+      "actual": "HTTP 200; avatarUrl=/uploads/avatars/1795532129218_fc4cf174.png; ",
+      "result": "PASS"
+    },
+    {
+      "id": "RT7-56",
+      "defect": "DEF-56",
+      "name": "Ảnh vừa tải mở được qua Nginx (:8081)",
+      "expected": "HTTP 200, Content-Type image/png",
+      "actual": "HTTP 200, Content-Type image/png, 136 byte",
+      "result": "PASS"
+    },
+    {
+      "id": "RT7-57",
+      "defect": "DEF-57",
+      "name": "Ảnh PNG hợp lệ 2.3 MB qua Nginx",
+      "expected": "Không bị 413 của Nginx (200, hoặc thông báo JSON của app)",
+      "actual": "HTTP 200, Content-Type application/json; {'success': True, 'message': 'Cập nhật ảnh đại diện thành công', 'data': {'id': 166, 'email': 'rt7_c_1795532128@staging.local', 'fullName': 'RT7 C', 'studentId': None, 'phone': None, 'major': None, 'teamRole': None, 'bio': None, 'githubUsername': None, 'avatarUrl': '/uploads/avatars/1795532129322_67917322.png', 'createdAt': '2026-11-24T21:55:28'}, 'error': …",
+      "result": "PASS"
+    },
+    {
+      "id": "RT7-60",
+      "defect": "DEF-60",
+      "name": "File HTML đặt tên evil.png, Content-Type image/png",
+      "expected": "Bị từ chối (4xx)",
+      "actual": "HTTP 200; {'success': True, 'message': 'Cập nhật ảnh đại diện thành công', 'data': {'id': 165, 'email': 'rt7_b_1795532128@staging.local', 'fullName': 'RT7 B', 'studentId': None, 'phone': None, 'major': None, 'teamRole': None, 'bio': None, 'githubUsername': None, 'avatarUrl': '/uploads/avatars/1795532129347_ec487ec5.png', 'createdAt': '2026-11-24T21:55:28'}, 'error': None, 'timestamp': '2026-11-24T…",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT7-59",
+      "defect": "DEF-59",
+      "name": "Thành viên thường B sửa tên nhóm",
+      "expected": "HTTP 403, tên nhóm không đổi",
+      "actual": "HTTP 200; tên nhóm trong CSDL: 'Đổi tên bởi member'",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT7-58a",
+      "defect": "DEF-58",
+      "name": "Người ngoài nhóm E nhắc nhở cảnh báo của nhóm",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200; Đã gửi nhắc nhở thành công",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT7-58b",
+      "defect": "DEF-58",
+      "name": "Người ngoài nhóm E đánh dấu đã giải quyết cảnh báo của nhóm",
+      "expected": "HTTP 403, cảnh báo vẫn chưa giải quyết",
+      "actual": "HTTP 200; resolved trong CSDL = 1",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT7-64a",
+      "defect": "DEF-64",
+      "name": "Người ngoài E gửi phiếu đứng tên C (reviewerId=C) chấm B",
+      "expected": "HTTP 403, không lưu phiếu",
+      "actual": "HTTP 403; số phiếu trong đợt: 0",
+      "result": "PASS"
+    },
+    {
+      "id": "RT7-64b",
+      "defect": "DEF-64",
+      "name": "Thành viên B gửi phiếu kèm reviewerId=A (Leader) chấm C",
+      "expected": "Phiếu đứng tên B (id 165), không đứng tên A (id 164)",
+      "actual": "HTTP 200; reviewer_id trong CSDL = 165",
+      "result": "PASS"
+    },
+    {
+      "id": "RT7-65a",
+      "defect": "DEF-65",
+      "name": "Người ngoài E xem B đã chấm ai, bao nhiêu điểm",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200; 1 phiếu lộ ra",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT7-65b",
+      "defect": "DEF-65",
+      "name": "Người ngoài E xem danh sách đợt chấm của nhóm",
+      "expected": "HTTP 403",
+      "actual": "HTTP 200; 1 đợt lộ ra",
+      "result": "FAIL"
+    },
+    {
+      "id": "RT7-66a",
+      "defect": "DEF-66",
+      "name": "Người ngoài E gửi email báo cáo cho B (kèm teamId của nhóm)",
+      "expected": "HTTP 403, hoặc success=false trả lời ngay (không gửi email)",
+      "actual": "HTTP 200, success=False, 0.0 s; Không thể gửi email: Bạn không phải thành viên của nhóm này",
+      "result": "PASS"
+    },
+    {
+      "id": "RT7-66b",
+      "defect": "DEF-66",
+      "name": "Người ngoài E gửi email báo cáo cho B (bỏ trống teamId)",
+      "expected": "HTTP 403, hoặc success=false trả lời ngay (không gửi email)",
+      "actual": "HTTP 200, success=False, 0.0 s; Không thể gửi email: The given id must not be null",
+      "result": "PASS"
+    }
+  ]
+}

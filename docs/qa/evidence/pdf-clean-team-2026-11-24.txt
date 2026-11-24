@@ -1,0 +1,8 @@
+24/11/2026 21:59 (GMT+7) · master @ 677a9be (+ bản sửa DEF-55..57 của nam-anh, không liên quan PDF) · staging http://localhost:8081
+Mục đích: đo lại G4 trên nhóm demo sạch tạo qua API (scripts/demo-seed.py), vì nhóm seed id 1 bị dữ liệu migration V24/V25 làm lệch (DEF-40, PDF-01..04 của regression-sprint5.py).
+Nhóm: id 5 "Nhóm 07 – FairShare (demo)", 5 thành viên, sprint 9, Leader demo01 (mật khẩu trong .demo-credentials.local, không commit)
+Lệnh: GET /api/reports/teams/5/sprints/9/pdf, 11 lần liên tiếp bằng token Leader
+Kết quả: HTTP 200 cả 11 lần, file %PDF hợp lệ, chậm nhất 0,237 s, p50 0,086 s, 70,8 KB (G4: < 10 s → ĐẠT)
+Nội dung (pdftotext): đủ 5/5 tên thành viên có dấu; có điểm chấm chéo 4.3/5 và 4.7/5 (đủ 3 người chấm)
+Truy vết (G2): GET /api/contributions/evidence cho 5 thành viên → 200 cả 5
+File PDF: report-clean-team-2026-11-24.pdf

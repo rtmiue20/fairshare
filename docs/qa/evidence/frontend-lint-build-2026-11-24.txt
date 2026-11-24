@@ -1,0 +1,15 @@
+24/11/2026 21:45:19 (GMT+7)
+commit: 677a9be
+node: v22.23.5
+npm run lint:
+
+> fairshare-frontend@0.0.1 lint
+> eslint .
+
+npm run build:
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 10.38s

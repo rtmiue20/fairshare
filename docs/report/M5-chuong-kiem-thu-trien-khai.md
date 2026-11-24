@@ -1,10 +1,10 @@
-# CHƯƠNG: KIỂM THỬ VÀ TRIỂN KHAI (BẢN NHÁP 1)
+# CHƯƠNG: KIỂM THỬ VÀ TRIỂN KHAI (BẢN CUỐI)
 
 **Người viết:** M5 – Khiếu Hoàng Nam Anh (MSSV 31241022203), PM QA & Deployment, WP5
-**Bản nháp:** 16/11/2026, cập nhật 18/11 (kết quả UAT chính thức). Số liệu kiểm thử tự động đến `master` @ `f18a705` (retest staging, pilot UAT, unit test ngày 16/11, 23:00–23:30 GMT+7) | **Nộp cho M0 ghép báo cáo bản 1:** hạn 18/11/2026, 21:00
+**Bản cuối:** 24/11/2026 (Sprint 7), sửa từ bản nháp 16/11 và 18/11. Số liệu kiểm thử tự động đến `master` @ `677a9be` (lần kiểm thử cuối 24/11, 21:45–22:00 GMT+7; `docs/qa/test-report-final.md`) | **Nộp cho M0 ghép báo cáo cuối:** hạn 25/11/2026, 12:00
 **Nguồn số liệu:** `docs/qa/` (test case, test report, integration log, defect log, evidence), `docs/deploy/staging.md`, `.github/workflows/`
 
-> Các chỗ `<TODO: …>` là số liệu **chưa có**: lần chạy cuối trên bản release, release tag và URL/video demo (18/11). Bản nháp này không tự điền các số liệu đó.
+> Còn hai chỗ chờ quyết định của M0, ghi dạng `<chờ M0: …>`: gắn tag release (phụ thuộc quyết định chấp nhận rủi ro cho 4 lỗi High) và URL demo; một chỗ `<cần bổ sung: …>` là link Test Plan Sprint 2 (không có trong repo). Chương không tự điền các mục đó.
 
 > **Lưu ý CR-02:** Kế hoạch ban đầu thu thập dữ liệu từ Trello qua API/Webhook. Theo Change Request **CR-02**, nhóm đã thay bằng **Task Board nội bộ**. Vì vậy mọi ca kiểm thử từ Sprint 4 trở đi kiểm tra luồng *board nội bộ → sự kiện hoạt động → điểm đóng góp*, không còn kiểm thử tích hợp Trello. Mã tích hợp Trello cũ đã được gỡ (DEF-25, đóng 11/11).
 
@@ -48,7 +48,7 @@ Kiểm thử nhằm chứng minh hệ thống đạt các mục tiêu chất lư
 - Mỗi defect chỉ được đóng khi có: PR sửa, ca kiểm thử chạy lại đạt, và ngày đóng.
 - UAT đạt khi có ≥ 10 phiếu và không còn lỗi chặn luồng.
 
-`<TODO: dẫn link Test Plan bản đầy đủ (Sprint 2) nếu nhóm lưu ngoài repo>`
+`<cần bổ sung: link Test Plan bản đầy đủ (Sprint 2) nếu nhóm lưu ngoài repo>`
 
 ---
 
@@ -60,7 +60,7 @@ Kiểm thử nhằm chứng minh hệ thống đạt các mục tiêu chất lư
 | `frontend-ci.yml` | Push mọi nhánh, PR | `npm ci` → ESLint → Vitest (xuất JUnit XML) → `tsc` + `vite build` |
 | `docker-ci.yml` | PR vào `master`, push `master`, chạy tay | Build 3 image, `compose up`, chờ DB healthy, kiểm tra Flyway, backend và Nginx |
 
-**Trạng thái CI ngày 16/11 (`master` @ `f18a705`):** Frontend CI và Docker Compose smoke test chạy trên chính commit này, đều xanh. Backend CI chỉ chạy khi `fairshare-backend/` thay đổi. Lần xanh gần nhất có cùng mã backend là push `026e74d` lên `nam-anh` (16/11 23:02); `mvn test` chạy tay cùng ngày cũng đạt 233/233.
+**Trạng thái CI trên bản cuối (`master` @ `677a9be`, 23/11 21:58):** cả ba workflow Backend CI, Frontend CI và Docker Compose smoke test đều xanh; hai lần merge trước đó (`9e52fe1`, `6c15eba`, 22/11) cũng xanh. `mvn test` chạy tay ngày 24/11 đạt 243/243.
 
 Kèm theo là các script chạy tay trên Windows (`scripts/ci-*.ps1`) và script tóm tắt kết quả (`summarize-backend.py`, `summarize-frontend.py`). Nhờ đó các thành viên chạy được cùng bộ kiểm tra trên máy mình trước khi mở PR.
 
@@ -78,11 +78,14 @@ Kèm theo là các script chạy tay trên Windows (`scripts/ci-*.ps1`) và scri
 | 10/11 (Sprint 5) | `master` @ `0ed8f05` | 124 test: 0 lỗi, 7 skip | 65/65 pass (15 file) | 7 skip: nhóm `AuthContract` còn `@Disabled` (DEF-01) |
 | 14/11 (Sprint 6) | `master` @ `d2eab98` | 178 test: 165 pass, 4 lỗi, 9 skip | **74/74 pass (17 file)** | 4 lỗi mới (DEF-27). 9 skip là test Testcontainers (máy chạy không có Docker) |
 | **15/11 (Sprint 6)** | `master` @ `d2eab98` | **195 test: 191 pass, 4 lỗi, 0 skip** | – | Chạy `mvn test` trong container Maven có Docker: `AuthApiTest` và các test Testcontainers chạy thật và đạt (đóng DEF-01). 4 lỗi vẫn là DEF-27 |
-| **16/11 (Sprint 6)** | `master` @ `f18a705` | **233 test: 233 pass, 0 lỗi, 0 skip** | **86/86 pass (20 file)** | Trong Docker như 15/11. DEF-27 đã sửa (đóng). Frontend chạy bằng Node 20 như CI |
+| 16/11 (Sprint 6) | `master` @ `f18a705` | 233 test: 233 pass, 0 lỗi, 0 skip | 86/86 pass (20 file) | Trong Docker như 15/11. DEF-27 đã sửa (đóng). Frontend chạy bằng Node 20 như CI |
+| 19/11 (trước release) | `master` @ `adb33ad` | 236/236, 0 skip | 89/89 (20 file) | |
+| 20/11 | `master` @ `709e660` | 238/238, 0 skip | 96/96 | |
+| **24/11 (Sprint 7, bản cuối)** | `master` @ `677a9be` | **243 test: 243 pass, 0 lỗi, 0 skip** | **99/99 pass (21 file)**, lint 0 lỗi | Testcontainers chạy thật |
 
-Số test backend tăng từ 26 lên 233 sau bốn sprint. Phần lớn là test phân quyền, chấm chéo và đóng góp mà các chủ module bổ sung sau mỗi lần sửa lỗi.
+Số test backend tăng từ 26 lên 243, frontend từ 17 lên 99. Phần lớn là test phân quyền, chấm chéo và đóng góp mà các chủ module bổ sung sau mỗi lần sửa lỗi.
 
-Minh chứng: `docs/qa/evidence/backend-unit-docker-2026-11-16.txt`, `frontend-unit-2026-11-16.txt` và các file cùng loại ngày 10/11, 14/11, 15/11 (mục lục: `docs/qa/evidence/README.md`).
+Minh chứng: `docs/qa/evidence/backend-unit-docker-2026-11-24.txt`, `frontend-unit-2026-11-24.txt` và các file cùng loại ngày 10/11, 14/11, 15/11, 16/11, 19/11 (mục lục: `docs/qa/evidence/README.md`).
 
 ### 3.2 Test case Sprint 3 (auth, user, frontend)
 
@@ -96,7 +99,9 @@ Minh chứng: `docs/qa/evidence/backend-unit-docker-2026-11-16.txt`, `frontend-u
 | 10/11 | `0ed8f05` | **18/23 pass** | Sau khi M4 sửa (PR #57): luồng chấm chéo 11/12, **đạt yêu cầu ẩn danh** |
 | 11/11 | `8b51f18` | 21/23 pass | Đóng DEF-11 (giả mạo hoàn thành card), DEF-24 (phân quyền board) |
 | 15/11 | `d2eab98` | 23/23 pass | Lần đầu đạt trọn. Đóng DEF-12 (người ngoài nhóm xem kết quả chấm chéo), DEF-16 (nguồn bằng chứng) |
-| **16/11** | `f18a705` | **23/23 pass** | Giữ nguyên sau 39 commit mới (PR #78–#92), staging dựng sạch |
+| 16/11 | `f18a705` | 23/23 pass | Giữ nguyên sau 39 commit mới (PR #78–#92), staging dựng sạch |
+| 19/11, 20/11 | `adb33ad`, `709e660` | 23/23 pass | 20/11: chạy với giờ +07 (`TZ=Asia/Ho_Chi_Minh`); với giờ UTC, IT-BRD-04 lệch do script, không phải lỗi app |
+| **24/11** | `677a9be` | **23/23 pass** | Bản cuối; chạy lại sau bản sửa Nginx của M5 vẫn 23/23 |
 
 ### 3.4 Kiểm thử hồi quy Sprint 5 (30 ca)
 
@@ -115,6 +120,8 @@ Minh chứng: `docs/qa/evidence/backend-unit-docker-2026-11-16.txt`, `frontend-u
 
 **Kiểm tra trước release, 19/11 trên `master` @ `adb33ad`:** 26/30. Bốn ca PDF-01..04 lỗi vì migration V24/V25 (DEF-40) chèn dữ liệu demo vào nhóm id 1, làm bộ dữ liệu 500 sự kiện của M3 không còn khớp (nhóm 1 không có sprint 4). Xuất PDF trên một nhóm sạch tạo qua API vẫn đạt: HTTP 200, chậm nhất 0,061 s, đủ thành viên, có điểm chấm chéo và bảng truy vết. Cùng ngày: unit backend 236/236, frontend 89/89, tích hợp 23/23, pilot UAT 20/24, retest 2/9 (`docs/qa/evidence/*-2026-11-19.txt`).
 
+**Lần cuối, 24/11 trên `master` @ `677a9be`:** vẫn **26/30** (SCR 8/8, DASH 5/5, PERM 6/6, TRL 3/3, PDF 4/8) vì cùng nguyên nhân dữ liệu DEF-40. PDF-05..08 (tiếng Việt, chặn người ngoài, sprint sai) đều đạt (`docs/qa/evidence/regression-2026-11-24.txt`).
+
 ### 3.5 Hiệu năng xuất PDF (mục tiêu G4 < 10 giây)
 
 Đo trên dữ liệu mẫu M3 (6 thành viên, 100 sự kiện mỗi sprint), mỗi sprint 1 lần lạnh và 10 lần liên tiếp:
@@ -129,6 +136,7 @@ Minh chứng: `docs/qa/evidence/backend-unit-docker-2026-11-16.txt`, `frontend-u
 Phía server (51 lần): trung vị 27 ms, chậm nhất 204 ms. Lần đo lại ngày 11/11: chậm nhất 0,109 s. Như vậy **G4 đạt**, nhanh hơn mục tiêu hơn 90 lần.
 **Đo lại chính thức ngày 15/11 trên `master`** (đã có bản sửa DEF-20): 11 lần × 4 sprint, mọi lần HTTP 200, file khoảng 70 KB, **chậm nhất 0,078 s**, p50 từ 0,031 đến 0,041 s.
 **Đo lại ngày 16/11 trên `master` @ `f18a705`:** 11 lần × 4 sprint, mọi lần HTTP 200, file 71–72 KB, **chậm nhất 0,064 s**, p50 từ 0,034 đến 0,041 s (`docs/qa/evidence/regression-2026-11-16.txt`).
+**Đo lần cuối ngày 24/11 trên `master` @ `677a9be`:** dữ liệu M3 (sprint 1–3, 132–135 sự kiện/sprint) chậm nhất **0,110 s**; nhóm demo sạch (5 người, có 3 phiếu chấm) 11 lần, mọi lần HTTP 200, chậm nhất **0,237 s**, p50 0,086 s, PDF đủ tên tiếng Việt và điểm chấm chéo 4.3/5, 4.7/5 (`docs/qa/evidence/pdf-clean-team-2026-11-24.txt`). **G4 đạt** trên bản cuối.
 
 ### 3.6 Kiểm thử chấp nhận người dùng (UAT)
 
@@ -150,6 +158,12 @@ Khi kiểm chứng bản Render, M2 ghi nhận 2 lỗi mới: **DEF-43 (High)** 
 
 Hai điểm hạn chế của đợt UAT: (1) UAT không chạy trên môi trường UAT do M5 chuẩn bị, nên M5 không đối chiếu được dữ liệu đóng góp của người thử, ví dụ lọc thao tác kéo thẻ bất thường (DEF-41); (2) nhánh Render có migration V23–V25, nên CSDL Render nhiều khả năng có tài khoản demo với mật khẩu công khai (DEF-40). Nguồn: `uat-formal-report.md` và `uat-responses-2026-11-17.csv` trên thẻ Trello của M2; kết luận chốt UAT: `docs/qa/uat/uat-closure.md` mục 5.
 
+**Kiểm soát chéo (PCG) – 19/11.** Nhóm PCG test bản Render trong buổi họp; M5 phân loại 17 góp ý thành 10 lỗi (DEF-45..54), 5 yêu cầu thay đổi (M0 quyết định) và 1 việc kiểm thử. PCG không điền phiếu nên không cộng vào G5 (`docs/qa/uat/pcg-feedback-2026-11-19.md`). Đến 24/11: 1 lỗi đóng (DEF-45), 5 lỗi Fixed – chờ retest, 4 lỗi còn mở.
+
+**Pilot trên bản cuối – 24/11** (`master` @ `677a9be`): **22/24 đạt**. 2 ca chống gian lận chỉ lệch mã trạng thái: API bỏ qua `userId` giả và ghi khai báo cho chính người gọi (201), tự duyệt bị chặn bằng 400 thay vì 403. Mục tiêu chống gian lận đạt nên DEF-31, 32 đóng ngày 24/11.
+
+**Kết luận G5: chưa đạt.** Đạt số lượng người thử (10 phiếu) nhưng SUS 47,0 và CSAT 60% dưới ngưỡng. Tổng hợp và nguyên nhân: `docs/qa/uat-report.md`.
+
 ---
 
 ## 4. Quản lý lỗi (Defect Log)
@@ -158,16 +172,18 @@ Hai điểm hạn chế của đợt UAT: (1) UAT không chạy trên môi trư�
 
 `Open` → `In Progress` → `Fixed` (dev đã sửa) → `Closed` (M5 chạy lại ca kiểm thử đạt). Mỗi lỗi có mức độ (High/Medium/Low), người xử lý theo lát cắt dọc, bằng chứng và đề xuất sửa. M5 cập nhật `docs/qa/defect-log.md` sau mỗi lần chạy tích hợp hoặc hồi quy.
 
-### 4.2 Số liệu (18/11/2026, sau UAT chính thức; lần retest gần nhất 16/11 trên `master` @ `f18a705`)
+### 4.2 Số liệu cuối (24/11/2026, `master` @ `677a9be`)
 
-| Mức độ | Open | In Progress | Fixed – chờ retest | Closed | Tổng |
-|---|---|---|---|---|---|
-| High | 4 | 0 | 0 | 12 | 16 |
-| Medium | 1 | 0 | 0 | 10 | 11 |
-| Low | 5 | 0 | 0 | 11 | 16 (+1 bị rút: DEF-29) |
-| **Tổng** | **10** | **0** | **0** | **33** | **43 (+1 rút)** |
+| Mức độ | Open | In Progress | Fixed – chờ retest | Closed | Rejected | Tổng |
+|---|---|---|---|---|---|---|
+| High | 3 | 1 | 0 | 18 | 0 | 22 |
+| Medium | 6 | 0 | 1 | 12 | 0 | 19 |
+| Low | 9 | 0 | 5 | 12 | 1 | 27 |
+| **Tổng** | **18** | **1** | **6** | **42** | **1** | **68** |
 
-Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..42, trong đó pilot UAT và quay demo tìm được DEF-31..39, retest 16/11 tìm được DEF-40..42). Ngày 16/11 đóng 7 lỗi (DEF-27, 33..38). UAT chính thức (17/11) tìm thêm DEF-43, 44. Tính đến 18/11, 4 lỗi High đang mở: DEF-31 (M3, chưa sửa), DEF-40 (M0), DEF-41 (M1 + M3), DEF-43 (M3, bản sửa chưa merge). DEF-29 bị rút vì M5 ghi nhầm. Đề xuất chấp nhận rủi ro cho các lỗi High còn mở, chờ M0 quyết định: `docs/qa/uat/uat-closure.md`.
+Tỷ lệ đóng: **42/67** lỗi hợp lệ (62,7%); riêng lỗi High **18/22** (81,8%). Theo nguồn phát hiện: 55 lỗi do M5 tìm qua kiểm thử, 2 từ UAT chính thức (DEF-43, 44), 10 từ buổi PCG (DEF-45..54). Theo giai đoạn: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..19), hồi quy Sprint 5 (DEF-20..26), Sprint 6 (DEF-27..44), PCG 19/11 (DEF-45..54), kiểm thử PR #102–#109 ngày 20/11 (DEF-55..67), chốt 24/11 (DEF-68).
+
+Lỗi High chưa đóng: DEF-40 (migration chèn tài khoản demo, M0), DEF-41 (kéo thẻ qua lại tự nâng điểm, M1 + M3), DEF-65 (người ngoài xem ai chấm ai, M4), DEF-66 (gửi email báo cáo, M0, In Progress). Theo tiêu chí ở mục 1.4, M0 cần sửa hoặc ghi quyết định chấp nhận rủi ro vào Change Log trước khi gắn tag. Chi tiết: `docs/qa/defect-log.md`.
 
 ### 4.3 Các lỗi đáng chú ý
 
@@ -177,9 +193,11 @@ Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..
 | DEF-11 | Client tự gửi tên cột "Done", giả được việc hoàn thành card (rủi ro R05 – gian lận) | M1 dùng tên cột thật. Đóng 11/11 |
 | DEF-20 | Xuất PDF luôn lỗi 500 (transaction chỉ đọc gọi routine có ghi). Unit test dùng mock nên không phát hiện, chỉ test tích hợp mới bắt được | M0 sửa. Đóng 15/11 |
 | DEF-27 | Commit mới làm hỏng 4 unit test, CI backend đỏ ngay trước release | Bổ sung mock trong test. Đóng 16/11 (233/233) |
-| DEF-31, 33 | API tin tham số `userId`/`reviewerId`/`role` từ client, không đọc người dùng từ token → giả danh, tự duyệt, tự làm Leader | DEF-33: M2 sửa (PR #81), đóng 16/11. DEF-31: M3 chưa sửa, khuyến nghị không dùng Khai báo đóng góp khi UAT/demo |
+| DEF-31, 33, 64 | API tin tham số `userId`/`reviewerId`/`role` từ client, không đọc người dùng từ token → giả danh, tự duyệt, tự làm Leader, chấm chéo thay người khác | DEF-33: M2 sửa (PR #81), đóng 16/11. DEF-31: M3 sửa, đóng 24/11. DEF-64: M4 sửa (PR #113), đóng 24/11 |
 | DEF-38, 41, 42 | Kéo thẻ lặp lại để tự cộng điểm: vào Review (DEF-38), qua lại To Do ↔ In Progress (DEF-41, 50% → 91,67%), đổi tên thẻ để né bản sửa (DEF-42) | DEF-38: M1 sửa, đóng 16/11. DEF-41, 42 phát hiện khi M5 thử biến thể của DEF-38; giao M1, M3 |
-| DEF-40 | Migration Flyway chèn tài khoản demo có mật khẩu công khai và ghi đè dữ liệu nhóm id 1 ở mọi CSDL | Giao M0. M5 khóa 5 tài khoản trên CSDL demo/UAT (checklist demo bước 4) |
+| DEF-40 | Migration Flyway chèn tài khoản demo có mật khẩu công khai và ghi đè dữ liệu nhóm id 1 ở mọi CSDL | Giao M0, **còn mở**. M5 khóa 6 tài khoản trên CSDL demo/UAT (checklist demo bước 4) |
+| DEF-55, 56, 57 | Bản Docker không lưu và không hiển thị được ảnh tải lên (thư mục thuộc root, Nginx không chuyển `/uploads/**`, giới hạn 1MB). Chỉ lộ ra khi test đúng image chạy thật, Render không bị | M5 sửa `Dockerfile`, `docker-compose.yml` (volume `uploads_data`), `nginx.conf`. Đóng 24/11 sau retest |
+| DEF-65 | Người ngoài nhóm xem được người A đã chấm ai, bao nhiêu điểm qua một API khác. Kết quả trên giao diện vẫn ẩn danh, nhưng cam kết G3 bị vượt qua đường API | Giao M4, **còn mở** |
 
 ### 4.4 Bài học từ quản lý lỗi
 
@@ -187,6 +205,8 @@ Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..
 - Ghi "Closed" khi chưa chạy lại test dẫn tới đóng sai (DEF-07 từng bị ghi Closed khi còn 1/5 test giả). Quy tắc mới: chỉ M5 đóng lỗi, và phải có ca kiểm thử chạy lại.
 - Rà soát chỉ bằng đọc code cũng có thể sai: DEF-29 (14/11) bị rút ngày 15/11 vì endpoint nằm ở controller khác chỗ M5 tìm. Vì vậy lỗi chỉ nên ghi sau khi đã chạy thử.
 - Với lỗi gian lận, retest phải thử cả biến thể, không chỉ đúng bước tái hiện cũ. Bản sửa DEF-38 đạt bước cũ nhưng vẫn để lọt DEF-41, 42.
+- Một bản sửa bảo mật phải đóng mọi đường vào, không chỉ đường trong bước tái hiện: DEF-66 đã chặn người ngoài khi có `teamId`, nhưng bỏ trống `teamId` thì không kiểm tra quyền (chỉ lỗi tình cờ). Kiểm thử phân quyền nên thử cả tham số thiếu và tham số giả.
+- Lỗi chỉ có trên bản Docker (DEF-55..57) không lộ ra khi test bằng `mvn spring-boot:run` hay trên Render. Kiểm thử trước release phải chạy đúng image sẽ phát hành.
 - Ngày 16/11, ba merge vào `master` ghi đè `defect-log.md` bằng bản cũ (DEF-18, 20, 21 quay về Open), và một số lỗi được người sửa tự đánh dấu Closed. M5 dựng lại file từ bản 15/11 và nhắc lại quy ước: dev ghi "Fixed – chờ retest", chỉ M5 đóng.
 
 ---
@@ -199,9 +219,9 @@ Theo nguồn phát hiện: Sprint 3 (DEF-01..07), tích hợp Sprint 4 (DEF-08..
 |---|---|---|
 | Backend | Build nhiều tầng: `maven:3.9-eclipse-temurin-21-alpine` build jar → `eclipse-temurin:21-jre-alpine` | Image chỉ chứa JRE 21 và jar |
 | Frontend | Build nhiều tầng: `node:20-alpine` build Vite → `nginx:alpine` | Nginx phục vụ file tĩnh và chuyển tiếp `/api` sang backend |
-| CSDL | MariaDB 10.11 | Schema do Flyway quản lý (23 migration, V1–V23, tính đến 16/11) |
+| CSDL | MariaDB 10.11 | Schema do Flyway quản lý (28 migration, V1–V28, tính đến 24/11) |
 
-`docker-compose.yml` dựng 3 service trên mạng `fairshare-network`. Bản staging (`docker-compose.staging.yml`) bổ sung: bắt buộc `JWT_SECRET`, ẩn cổng DB, healthcheck, giới hạn dung lượng log.
+`docker-compose.yml` dựng 3 service trên mạng `fairshare-network`, kèm 2 volume: `db_data` (CSDL) và `uploads_data` (ảnh đại diện, tệp đính kèm; thêm 24/11 cho DEF-55). Nginx chuyển `/api/**` và `/uploads/**` sang backend, nhận tệp tới 20MB (DEF-56, 57). Bản staging (`docker-compose.staging.yml`) bổ sung: bắt buộc `JWT_SECRET`, ẩn cổng DB, healthcheck, giới hạn dung lượng log.
 
 ### 5.2 Môi trường staging
 
@@ -213,13 +233,13 @@ Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, bu
 
 | Hạng mục | Kết quả |
 |---|---|
-| Release tag | `<TODO: tag, commit, ngày – 18/11>` |
-| URL demo | `<TODO: chờ M0 chốt>`. Đề xuất (`docs/deploy/demo-hosting.md`): trình chiếu trên máy M5 (`http://localhost:8081`), mở tunnel tạm chỉ trong giờ UAT; so sánh 4 phương án máy chung / VPS / LAN / tunnel |
+| Release tag | `<chờ M0: tag v1.0.0>`. Chưa gắn vì còn 4 lỗi High chưa đóng (DEF-40, 41, 65, 66) và bản sửa DEF-55..57 nằm trên nhánh `nam-anh`, cần merge vào `master` trước |
+| URL demo | `<chờ M0: chốt nơi chạy>`. Hiện có bản Render `https://fairshare-web-3iuo.onrender.com` (nhánh `deploy/render`, dùng cho UAT 17/11 và PCG 19/11). Đề xuất (`docs/deploy/demo-hosting.md`): trình chiếu trên máy M5 (`http://localhost:8081`), mở tunnel tạm chỉ trong giờ UAT; so sánh 4 phương án máy chung / VPS / LAN / tunnel |
 | Tài khoản demo | 5 tài khoản riêng `demo01..demo05@fairshare.test` do `scripts/demo-seed.py` tạo: nhóm 12 thẻ, tỷ lệ đóng góp khác nhau, chấm chéo có cả trường hợp đủ và dưới ngưỡng ẩn danh. Danh sách: `docs/deploy/demo-accounts.md`, mật khẩu ngẫu nhiên lưu ngoài Git. Đã chạy thử 16/11. UAT dùng riêng 12 tài khoản `uat01..uat12` |
 | Quy trình dựng demo | `docs/deploy/demo-checklist.md`: dựng sạch, seed, khóa tài khoản lỗi DEF-40, kiểm tra 7 bước trước giờ demo |
-| Release notes | Bản nháp `docs/deploy/release-notes-v1.0.0.md`: tính năng, thay đổi CR-02, lỗi đã sửa, lỗi còn tồn tại và cách né, hướng dẫn chạy |
+| Release notes | Ứng viên release 24/11 `docs/deploy/release-notes-v1.0.0.md`: tính năng, thay đổi CR-02, 42 lỗi đã sửa, lỗi còn tồn tại và cách né, kết quả kiểm thử cuối, hướng dẫn chạy |
 | Video demo dự phòng | Đã quay 15/11 bằng `scripts/record-demo.ps1` (102 giây, có chú thích từng bước). File 84 MB nên không đưa vào Git; bản online: https://drive.google.com/file/d/1HE7ZnfLf49j5UMruRp-0IG11czHqGZjV/view |
-| Smoke test trên bản release | PASS trên ứng viên release `master` @ `adb33ad` (19/11, `staging-smoke-2026-11-19.txt`). Tag chưa gắn |
+| Smoke test trên bản release | PASS trên ứng viên release `master` @ `677a9be` (24/11, `staging-smoke-2026-11-24.txt`) và sau bản sửa DEF-55..57. Tag chưa gắn |
 
 ---
 
@@ -230,3 +250,5 @@ Dựng bằng một lệnh `./scripts/staging-up.sh`: tự sinh mật khẩu, bu
 - **Script kiểm thử phải đi theo thay đổi của sản phẩm.** Ngày 15/11 có 10 ca fail giả, do backend đổi hành vi (tự tạo sprint, siết quyền báo cáo) mà script chưa cập nhật. Cần đọc kỹ ca fail trước khi ghi defect.
 - **Chưa có test end-to-end giao diện** (ví dụ Playwright). Luồng UI hiện chỉ kiểm thử qua UAT thủ công.
 - Kế hoạch kiểm thử ban đầu có tích hợp Trello. Sau CR-02, toàn bộ phần này được thay bằng kiểm thử board nội bộ.
+- **Lần kiểm thử cuối (24/11) chưa phủ giao diện và bản Render.** 10 lỗi giao diện chỉ được rà mã, chưa kiểm trên trình duyệt; DEF-67 chỉ có trên Render. Tính năng mới PR #112 (chatbox AI) chỉ có unit test của tác giả.
+- **Tính năng tiếp tục được thêm sau khi khóa phạm vi 18/11 17:00** (6 PR: #105, #107, #108, #109, #112, #113): đợt kiểm thử 20/11 ghi 13 lỗi mới, làm số lỗi mở tăng ngay trước release. Đề xuất: sau khi khóa phạm vi chỉ nhận PR sửa lỗi.
