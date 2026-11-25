@@ -82,6 +82,7 @@ export const TaskCalendar: React.FC<{
     return new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6 * 7 - 1);
   });
   const hasCustomTimelineRef = useRef<boolean>(false);
+  const [canEditTimeline, setCanEditTimeline] = useState<boolean>(false);
 
   // Thời gian thực: cập nhật mỗi 30 giây để highlight luôn đúng ngày hôm nay (kể cả qua nửa đêm)
   const [now, setNow] = useState<Date>(() => new Date());
@@ -101,6 +102,7 @@ export const TaskCalendar: React.FC<{
   // Tải lịch dự án từ Database theo teamId (teams.start_date / end_date)
   useEffect(() => {
     hasCustomTimelineRef.current = false;
+    setCanEditTimeline(false);
     setDbCards([]);
     setIsDbConnected(false);
     if (!teamId) return;
@@ -110,6 +112,7 @@ export const TaskCalendar: React.FC<{
       .then((res) => {
         if (cancelled) return;
         const team = res.data;
+        setCanEditTimeline(team?.currentRole === 'LEADER');
         if (team?.startDate && team?.endDate) {
           setProjectStart(fromYmd(team.startDate));
           setProjectEnd(fromYmd(team.endDate));
@@ -338,6 +341,7 @@ export const TaskCalendar: React.FC<{
 
   // Lưu khoảng thời gian vào Storage
   const handleSaveTimeline = async (start: Date, end: Date) => {
+    if (!canEditTimeline) return;
     if (end.getTime() < start.getTime()) {
       showToast.error('Ngày kết thúc phải sau ngày bắt đầu', 'Timeline');
       throw new Error('invalid range');
@@ -479,15 +483,17 @@ export const TaskCalendar: React.FC<{
             </span>
           </div>
 
-          <button
-            type="button"
-            className="task-calendar-opt-btn"
-            onClick={() => setIsTimelineModalOpen(true)}
-            aria-label="Tùy chọn khoảng thời gian dự án"
-            title="Thiết lập khoảng thời gian dự án"
-          >
-            <MoreHorizontal size={18} />
-          </button>
+          {canEditTimeline && (
+            <button
+              type="button"
+              className="task-calendar-opt-btn"
+              onClick={() => setIsTimelineModalOpen(true)}
+              aria-label="Tùy chọn khoảng thời gian dự án"
+              title="Thiết lập khoảng thời gian dự án"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+          )}
         </div>
 
         {/* Timeline Grid (Hỗ trợ Kéo Chuột / Vuốt Cảm Ứng) */}
@@ -595,13 +601,15 @@ export const TaskCalendar: React.FC<{
       </div>
 
       {/* Modal Chọn Khoảng Thời Gian Dự Án (Image 1 Style) */}
-      <ProjectTimelineModal
-        isOpen={isTimelineModalOpen}
-        onClose={() => setIsTimelineModalOpen(false)}
-        startDate={projectStart}
-        endDate={projectEnd}
-        onSave={handleSaveTimeline}
-      />
+      {canEditTimeline && (
+        <ProjectTimelineModal
+          isOpen={isTimelineModalOpen}
+          onClose={() => setIsTimelineModalOpen(false)}
+          startDate={projectStart}
+          endDate={projectEnd}
+          onSave={handleSaveTimeline}
+        />
+      )}
 
       {/* Modal Chi tiết Task khi click vào Pill */}
       <TaskDetailModal

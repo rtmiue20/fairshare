@@ -598,7 +598,7 @@ export const TeamDetailPage: React.FC = () => {
               </div>
               <h3 className="font-semibold text-zinc-100 text-sm">Tự nguyện & Minh bạch</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Sinh viên có toàn quyền lựa chọn cung cấp minh chứng Trello, commit Git hay chỉ số hoạt động mà không bị bắt buộc.
+                Thành viên tự nguyện xác nhận đồng thuận chia sẻ dữ liệu hoạt động trên Bảng công việc nội bộ, tỷ lệ đóng góp và đánh giá chéo ẩn danh.
               </p>
             </div>
 
@@ -630,7 +630,10 @@ export const TeamDetailPage: React.FC = () => {
         isOpen={isConsentOpen}
         onClose={() => setIsConsentOpen(false)}
         teamId={team?.id ?? 1}
-        onSuccess={() => setIsConsentOpen(false)}
+        onSuccess={() => {
+          setIsConsentOpen(false);
+          fetchTeam();
+        }}
       />
 
       {/* Team Members Modal - Add Members with DB connection & Copy Mã mời */}

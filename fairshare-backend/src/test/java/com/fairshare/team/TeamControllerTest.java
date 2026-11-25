@@ -9,6 +9,8 @@ import com.fairshare.contribution.service.ContributionService;
 import com.fairshare.sprint.dto.SprintDto;
 import com.fairshare.sprint.service.SprintService;
 import com.fairshare.team.controller.TeamController;
+import com.fairshare.team.dto.CreateTeamRequest;
+import com.fairshare.team.dto.TeamDto;
 import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.service.MemberService;
 import com.fairshare.team.service.TeamService;
@@ -36,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -232,5 +235,65 @@ class TeamControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data[0].name", is("Sprint 1")));
+    }
+
+    @Test
+    @DisplayName("PUT /api/teams/{teamId} (DEF-59) - Leader cập nhật thông tin nhóm thành công 200 OK")
+    void updateTeam_whenLeader_shouldReturn200() throws Exception {
+        User leader = new User();
+        leader.setId(10L);
+        leader.setEmail("leader@ueh.edu.vn");
+
+        TeamDto updatedDto = TeamDto.builder()
+                .id(1L)
+                .name("Nhóm mới")
+                .currentRole("LEADER")
+                .build();
+
+        when(authentication.getName()).thenReturn("leader@ueh.edu.vn");
+        when(userRepository.findByEmail("leader@ueh.edu.vn")).thenReturn(Optional.of(leader));
+        when(teamService.updateTeam(eq(1L), any(CreateTeamRequest.class), eq(10L))).thenReturn(updatedDto);
+
+        mockMvc.perform(put("/api/teams/{teamId}", 1L)
+                        .principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Nhóm mới\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.name", is("Nhóm mới")));
+
+        verify(teamSecurityService).assertTeamLeader(eq(1L), any(Authentication.class));
+        verify(teamService).updateTeam(eq(1L), any(CreateTeamRequest.class), eq(10L));
+    }
+
+    @Test
+    @DisplayName("PUT /api/teams/{teamId} (DEF-59) - MEMBER thường hoặc người ngoài bị từ chối 403 Forbidden")
+    void updateTeam_whenNotLeader_shouldReturn403() throws Exception {
+        doThrow(new ForbiddenException("Chỉ nhóm trưởng (LEADER) mới có quyền chỉnh sửa thông tin nhóm"))
+                .when(teamSecurityService).assertTeamLeader(eq(1L), any(Authentication.class));
+
+        mockMvc.perform(put("/api/teams/{teamId}", 1L)
+                        .principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Đổi tên bởi member\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.message", is("Chỉ nhóm trưởng (LEADER) mới có quyền chỉnh sửa thông tin nhóm")));
+
+        verifyNoInteractions(teamService);
+    }
+
+    @Test
+    @DisplayName("PUT /api/teams/{teamId} (DEF-59) - Chưa xác thực trả về 403 Forbidden")
+    void updateTeam_whenUnauthenticated_shouldReturn403() throws Exception {
+        doThrow(new ForbiddenException("Chỉ nhóm trưởng (LEADER) mới có quyền chỉnh sửa thông tin nhóm"))
+                .when(teamSecurityService).assertTeamLeader(eq(1L), (Authentication) isNull());
+
+        mockMvc.perform(put("/api/teams/{teamId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Hacker\"}"))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(teamService);
     }
 }
