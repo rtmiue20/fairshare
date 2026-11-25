@@ -1,6 +1,7 @@
 package com.fairshare.report.controller;
 
 import com.fairshare.common.dto.ApiResponse;
+import com.fairshare.common.security.TeamSecurityService;
 import com.fairshare.report.dto.IndividualReportDto;
 import com.fairshare.report.dto.OverviewReportDto;
 import com.fairshare.report.dto.ReportDto;
@@ -24,6 +25,7 @@ public class ReportController {
     private final PdfReportService pdfReportService;
     private final ReportService reportService;
     private final UserRepository userRepository;
+    private final TeamSecurityService teamSecurityService;
 
     /**
      * Xuat va tai file PDF bao cao dong gop cua Sprint (Chi Leader moi co quyen).
@@ -95,8 +97,13 @@ public class ReportController {
      * Gửi email báo cáo cá nhân cho một thành viên cụ thể (userIds[0]).
      */
     @PostMapping("/send-email")
-    public ApiResponse<String> sendEmail(@RequestBody SendReportRequest request) {
+    public ApiResponse<String> sendEmail(
+            @RequestBody SendReportRequest request,
+            Authentication authentication) {
         try {
+            if (request.getTeamId() != null && authentication != null) {
+                teamSecurityService.assertTeamMember(request.getTeamId(), authentication);
+            }
             if (request.getUserIds() == null || request.getUserIds().isEmpty()) {
                 return ApiResponse.error("Cần cung cấp ít nhất một userId");
             }
@@ -113,8 +120,13 @@ public class ReportController {
      * Gửi email báo cáo cá nhân cho tất cả thành viên trong nhóm.
      */
     @PostMapping("/send-all-emails")
-    public ApiResponse<String> sendAllEmails(@RequestBody SendReportRequest request) {
+    public ApiResponse<String> sendAllEmails(
+            @RequestBody SendReportRequest request,
+            Authentication authentication) {
         try {
+            if (request.getTeamId() != null && authentication != null) {
+                teamSecurityService.assertTeamMember(request.getTeamId(), authentication);
+            }
             reportService.sendAllEmails(request.getTeamId(), request.getSprintId());
             return ApiResponse.ok("Email đã được gửi đến tất cả thành viên trong nhóm");
         } catch (Exception e) {

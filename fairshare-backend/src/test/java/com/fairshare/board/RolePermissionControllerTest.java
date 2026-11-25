@@ -6,6 +6,7 @@ import com.fairshare.board.dto.*;
 import com.fairshare.board.service.BoardService;
 import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.GlobalExceptionHandler;
+import com.fairshare.common.security.TeamSecurityService;
 import com.fairshare.report.controller.ReportController;
 import com.fairshare.report.service.PdfReportService;
 import com.fairshare.report.service.ReportService;
@@ -61,6 +62,8 @@ class RolePermissionControllerTest {
     private MemberService memberService;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private TeamSecurityService teamSecurityService;
 
     @Mock
     private Authentication leaderAuth;
@@ -92,7 +95,7 @@ class RolePermissionControllerTest {
 
         BoardController boardController = new BoardController(boardService, userRepository);
         SprintController sprintController = new SprintController(sprintService, userRepository);
-        ReportController reportController = new ReportController(pdfReportService, reportService, userRepository);
+        ReportController reportController = new ReportController(pdfReportService, reportService, userRepository, teamSecurityService);
         TeamController teamController = new TeamController(teamService, memberService, sprintService, userRepository);
         CardController cardController = new CardController(boardService, userRepository);
 

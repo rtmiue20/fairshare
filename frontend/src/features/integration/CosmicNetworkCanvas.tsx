@@ -1699,8 +1699,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       />
 
       {/* 2. Top Floating Toolbar + Simulation / Impact CTA */}
-      <div className="pointer-events-none absolute top-3 inset-x-0 z-30 pl-12 pr-3 sm:px-14 flex flex-wrap items-center justify-center gap-2">
-        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300 max-w-full">
+      <div className="pointer-events-none absolute top-3 inset-x-0 z-30 px-2 sm:px-14 flex flex-wrap items-center justify-center gap-2">
+        <div className="pointer-events-auto flex items-center justify-start sm:justify-center gap-0.5 sm:gap-1 p-1 sm:p-1.5 rounded-2xl bg-white/95 dark:bg-[#1f1f23]/95 backdrop-blur-xl border border-zinc-200/90 dark:border-white/10 shadow-xl text-zinc-700 dark:text-zinc-300 max-w-full overflow-x-auto scrollbar-none">
         <button
           type="button"
           title="Sơ đồ tổng quan (Overview Galaxy)"
@@ -1816,11 +1816,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         </div>
 
         {/* Simulation / Impact Button */}
-        <div className="pointer-events-auto lg:absolute lg:right-6 lg:top-0 flex items-center">
+        <div className="pointer-events-auto lg:absolute lg:right-6 lg:top-0 flex items-center shrink-0">
           <button
             type="button"
             onClick={onOpenImpactModal}
-            className="px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5 whitespace-nowrap"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5 whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Khai báo rào cản</span>
@@ -2529,32 +2529,32 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           data-testid="ai-chatbox-dock"
         >
           {/* Top KPI Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-white/10 px-3 sm:px-4 py-2.5 sm:py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
-            <div>
-              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Đóng góp p_i</span>
-              <strong className="text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5" />
+          <div className="grid grid-cols-4 divide-x divide-zinc-200 dark:divide-white/10 px-2 sm:px-4 py-2 sm:py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
+            <div className="px-0.5 sm:px-1">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Đóng góp p_i</span>
+              <strong className="text-xs sm:text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-0.5 sm:gap-1">
+                <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                 <span>{((finalPct || 0.22) * 100).toFixed(1)}%</span>
               </strong>
             </div>
-            <div>
-              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Điểm C_i</span>
-              <strong className="text-sm font-extrabold text-zinc-900 dark:text-white flex items-center justify-center gap-1">
-                <Target className="w-3.5 h-3.5 text-zinc-400" />
+            <div className="px-0.5 sm:px-1">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Điểm C_i</span>
+              <strong className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-white flex items-center justify-center gap-0.5 sm:gap-1">
+                <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-zinc-400 shrink-0" />
                 <span>{(compositeScore || 33.1).toFixed(1)}</span>
               </strong>
             </div>
-            <div>
-              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Khoảng cách δ_i</span>
-              <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1">
-                <Users className="w-3.5 h-3.5" />
+            <div className="px-0.5 sm:px-1">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Khoảng cách δ_i</span>
+              <strong className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-0.5 sm:gap-1">
+                <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                 <span>{(distanceToCenter || 2.2).toFixed(2)}</span>
               </strong>
             </div>
-            <div>
-              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium">Khả dụng a_i</span>
-              <strong className="text-sm font-extrabold text-amber-600 dark:text-amber-300 flex items-center justify-center gap-1">
-                <ThumbsUp className="w-3.5 h-3.5" />
+            <div className="px-0.5 sm:px-1">
+              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Khả dụng a_i</span>
+              <strong className="text-xs sm:text-sm font-extrabold text-amber-600 dark:text-amber-300 flex items-center justify-center gap-0.5 sm:gap-1">
+                <ThumbsUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                 <span>{((availabilityFactor || 1.0) * 100).toFixed(0)}%</span>
               </strong>
             </div>

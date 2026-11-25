@@ -108,7 +108,7 @@ export const TeamListPage: React.FC = () => {
           </div>
 
           {/* Right-aligned Action Buttons matching AlertList header */}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', marginLeft: 'auto', flexShrink: 0 }}>
+          <div className="project-action-pills-bar">
             {teams.length > 1 && (
               <select
                 aria-label="Chọn nhóm dự án"
@@ -143,6 +143,8 @@ export const TeamListPage: React.FC = () => {
                     border: '1px solid var(--line)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                   title="Quản lý thành viên & Mã mời"
                 >
@@ -165,6 +167,8 @@ export const TeamListPage: React.FC = () => {
                     border: '1px solid var(--line)',
                     textDecoration: 'none',
                     transition: 'all 0.15s ease',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <Award size={14} />
@@ -186,6 +190,8 @@ export const TeamListPage: React.FC = () => {
                     border: '1px solid var(--line)',
                     textDecoration: 'none',
                     transition: 'all 0.15s ease',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <BarChart3 size={14} />
@@ -214,6 +220,8 @@ export const TeamListPage: React.FC = () => {
                 cursor: 'pointer',
                 boxShadow: '0 6px 18px -4px rgba(79, 70, 229, 0.45)',
                 transition: 'all 0.15s ease',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               <FolderPlus size={14} />

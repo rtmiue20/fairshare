@@ -187,6 +187,10 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             role: m.role === 'LEADER' ? 'Leader' : 'Thành viên',
             avatarUrl: (m as unknown as { avatarUrl?: string | null }).avatarUrl ?? m.user?.avatarUrl,
             bio: m.user?.bio,
+            email: m.user?.email || (m as unknown as { email?: string }).email || null,
+            studentId: m.user?.studentId || (m as unknown as { studentId?: string }).studentId || null,
+            phone: m.user?.phone || (m as unknown as { phone?: string }).phone || null,
+            major: m.user?.major || (m as unknown as { major?: string }).major || null,
           };
         });
         setAvailableMembers(dynamicMembers);
@@ -712,7 +716,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     const bio = memberOption?.bio;
     const tasks = Number(sc?.taskCompletedCount ?? (target.trelloScore && target.trelloScore > 0 ? Math.round(target.trelloScore / 5) : 0));
     const edits = Number(sc?.docsEditCount ?? Math.round((target.trelloScore ?? 0) + (target.manualScore ?? 0)));
-    const peerFromPct = target.peerPct && target.peerPct > 0 ? Number(((target.peerPct / 100) * 5).toFixed(1)) : 4.5;
+    const peerFromPct = target.peerPct && target.peerPct > 0 ? Number(((target.peerPct / 100) * 5).toFixed(1)) : 0;
     const peer = Number(sc?.peerReviewScore ?? (target.d4Peer && target.d4Peer > 0 ? Number((target.d4Peer * 5).toFixed(1)) : peerFromPct));
     const scOnTime = (sc as unknown as { onTimeRate?: number })?.onTimeRate;
     const scRework = (sc as unknown as { reworkCount?: number })?.reworkCount ?? 0;
@@ -743,12 +747,12 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       // ignore
     }
 
-    const email = localProfile.email || (target.userId === user?.id ? user?.email : undefined) || (target.userId === 1 ? 'mt200206@gmail.com' : `user${target.userId}@gmail.com`);
-    const studentId = localProfile.studentId || (target.userId === user?.id ? user?.studentId : undefined) || (target.userId === 1 ? '31241027455' : undefined);
-    const phone = localProfile.phone || (target.userId === user?.id ? user?.phone : undefined) || (target.userId === 1 ? '0913114207' : undefined);
-    const major = localProfile.major || (target.userId === user?.id ? user?.major : undefined) || (target.userId === 1 ? 'Software Engineering' : 'Công nghệ Thông tin');
-    const teamRole = localProfile.teamRole || roleFromTeam || (target.userId === 1 ? 'Project Manager' : role);
-    const bioText = localProfile.bio || bio || (target.userId === 1 ? 'Phụ trách quản lý đồ án, thiết kế kiến trúc hệ thống và điều phối tiến độ toàn nhóm.' : undefined);
+    const email = localProfile.email || (target.userId === user?.id ? user?.email : undefined) || memberOption?.email || target.userEmail || undefined;
+    const studentId = localProfile.studentId || (target.userId === user?.id ? user?.studentId : undefined) || memberOption?.studentId || undefined;
+    const phone = localProfile.phone || (target.userId === user?.id ? user?.phone : undefined) || memberOption?.phone || undefined;
+    const major = localProfile.major || (target.userId === user?.id ? user?.major : undefined) || memberOption?.major || undefined;
+    const teamRole = localProfile.teamRole || roleFromTeam || role;
+    const bioText = localProfile.bio || bio || undefined;
 
     return {
       isTop,
@@ -771,7 +775,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       major,
       teamRole,
     };
-  }, [safeSummaryItems, selectedUserId, scores, availableMembers, avgOnTimeRate, avatarMap, user?.id, user?.avatarUrl]);
+  }, [safeSummaryItems, selectedUserId, scores, availableMembers, avgOnTimeRate, avatarMap, user?.id, user?.avatarUrl, user?.email, user?.major, user?.phone, user?.studentId]);
 
   if (initialized && teams.length === 0 && !propTeamId && !urlTeamId) {
     return <NoProjectState />;
@@ -1084,18 +1088,10 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             {/* ───────── COMPONENT 3: SẢN LƯỢNG D1 OUTPUT ───────── */}
             <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="mb-2">
                   <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
                     Sản lượng D1 Output
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setDashboardViewTab('audit')}
-                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center gap-1 transition cursor-pointer"
-                  >
-                    <span>Chi tiết</span>
-                    <ChevronRight size={13} />
-                  </button>
                 </div>
 
                 {/* Hero Metric Thật */}
@@ -1183,18 +1179,10 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
             {/* ───────── COMPONENT 4: CHỈ SỐ NĂNG LỰC 4D ───────── */}
             <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#181a24] border border-slate-200/90 dark:border-white/10 shadow-[0_10px_30px_-8px_rgba(0,0,0,0.06)] dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)] flex flex-col justify-between transition-all">
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="mb-1">
                   <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
                     Chỉ số Năng lực 4D
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setDashboardViewTab('radar')}
-                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center gap-1 transition cursor-pointer"
-                  >
-                    <span>Radar 4D</span>
-                    <ChevronRight size={13} />
-                  </button>
                 </div>
                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                   Chuẩn hóa z-score đa chiều: Sản lượng (D1), Tin cậy (D2), Chấm chéo (D4)
