@@ -225,7 +225,7 @@ export const TeamListPage: React.FC = () => {
               }}
             >
               <FolderPlus size={14} />
-              <span>+ Tạo dự án</span>
+              <span>Tạo dự án</span>
             </button>
           </div>
         </div>

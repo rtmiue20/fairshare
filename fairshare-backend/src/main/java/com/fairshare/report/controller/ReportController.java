@@ -74,7 +74,11 @@ public class ReportController {
     @GetMapping("/overview")
     public ApiResponse<OverviewReportDto> getOverviewReport(
             @RequestParam Long teamId,
-            @RequestParam Long sprintId) {
+            @RequestParam Long sprintId,
+            Authentication authentication) {
+        if (teamId != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
         OverviewReportDto report = reportService.getOverviewReport(teamId, sprintId);
         return ApiResponse.ok(report);
     }
@@ -87,9 +91,21 @@ public class ReportController {
     public ApiResponse<IndividualReportDto> getIndividualReport(
             @RequestParam Long teamId,
             @RequestParam Long sprintId,
-            @RequestParam Long userId) {
+            @RequestParam Long userId,
+            Authentication authentication) {
+        if (teamId != null && authentication != null) {
+            teamSecurityService.assertTeamMember(teamId, authentication);
+        }
         IndividualReportDto report = reportService.getIndividualReport(teamId, sprintId, userId);
         return ApiResponse.ok(report);
+    }
+
+    @GetMapping("/email-status")
+    public ApiResponse<java.util.Map<String, Object>> getEmailStatus() {
+        return ApiResponse.ok(java.util.Map.of(
+                "configured", reportService.isEmailConfigured(),
+                "senderEmail", reportService.getSenderEmail()
+        ));
     }
 
     /**
@@ -127,8 +143,8 @@ public class ReportController {
             if (request.getTeamId() != null && authentication != null) {
                 teamSecurityService.assertTeamMember(request.getTeamId(), authentication);
             }
-            reportService.sendAllEmails(request.getTeamId(), request.getSprintId());
-            return ApiResponse.ok("Email đã được gửi đến tất cả thành viên trong nhóm");
+            String resultMsg = reportService.sendAllEmails(request.getTeamId(), request.getSprintId());
+            return ApiResponse.ok(resultMsg);
         } catch (Exception e) {
             return ApiResponse.error("Lỗi khi gửi email hàng loạt: " + e.getMessage());
         }

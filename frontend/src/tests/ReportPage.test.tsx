@@ -46,6 +46,12 @@ vi.mock('../api/board.api', () => ({
   },
 }));
 
+vi.mock('../api/activity.api', () => ({
+  activityApi: {
+    getByTeam: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  },
+}));
+
 vi.mock('../components/ui/Toast', () => ({
   showToast: vi.fn(),
 }));

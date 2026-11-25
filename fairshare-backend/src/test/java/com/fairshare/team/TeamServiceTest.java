@@ -2,6 +2,7 @@ package com.fairshare.team;
 
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.DuplicateResourceException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.team.dto.CreateTeamRequest;
 import com.fairshare.team.dto.TeamDto;
@@ -202,5 +203,58 @@ class TeamServiceTest {
 
         boolean status = teamService.getConsentStatus(1L, 20L);
         assertTrue(status);
+    }
+
+    @Test
+    @DisplayName("updateTeam (DEF-59): LEADER cập nhật thông tin nhóm thành công")
+    void updateTeam_asLeader_success() {
+        CreateTeamRequest request = new CreateTeamRequest();
+        request.setName("FairShare Đã Cập Nhật");
+        request.setLecturer("TS. Nguyễn Văn A");
+        request.setSprintCount(6);
+
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 10L)).thenReturn(Optional.of(leaderMember));
+        when(teamRepository.findById(1L)).thenReturn(Optional.of(team));
+        when(teamRepository.save(any(Team.class))).thenAnswer(i -> i.getArgument(0));
+        when(teamMemberRepository.findByTeamId(1L)).thenReturn(List.of(leaderMember));
+        when(consentRepository.findByTeamIdAndUserId(1L, 10L)).thenReturn(Optional.empty());
+
+        TeamDto result = teamService.updateTeam(1L, request, 10L);
+
+        assertNotNull(result);
+        assertEquals("FairShare Đã Cập Nhật", result.getName());
+        assertEquals("TS. Nguyễn Văn A", result.getLecturer());
+        assertEquals(6, result.getSprintCount());
+        verify(teamRepository).save(team);
+    }
+
+    @Test
+    @DisplayName("updateTeam (DEF-59): MEMBER thường bị từ chối bằng ForbiddenException và không lưu")
+    void updateTeam_asMember_throwsForbidden() {
+        TeamMember regularMember = new TeamMember();
+        regularMember.setId(102L);
+        regularMember.setTeam(team);
+        regularMember.setUser(memberUser);
+        regularMember.setRole(MemberRole.MEMBER);
+
+        CreateTeamRequest request = new CreateTeamRequest();
+        request.setName("Đổi tên bởi member");
+
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 20L)).thenReturn(Optional.of(regularMember));
+
+        assertThrows(ForbiddenException.class, () -> teamService.updateTeam(1L, request, 20L));
+        verify(teamRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateTeam (DEF-59): Người ngoài nhóm bị từ chối bằng ForbiddenException và không lưu")
+    void updateTeam_asOutsider_throwsForbidden() {
+        CreateTeamRequest request = new CreateTeamRequest();
+        request.setName("Đổi tên bởi outsider");
+
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 999L)).thenReturn(Optional.empty());
+
+        assertThrows(ForbiddenException.class, () -> teamService.updateTeam(1L, request, 999L));
+        verify(teamRepository, never()).save(any());
     }
 }

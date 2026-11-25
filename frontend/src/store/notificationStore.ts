@@ -278,7 +278,7 @@ function formatBackendAlertNotifTitle(alertType?: string): string {
     case 'TASK_TODO':
       return 'Công việc cần bắt đầu thực hiện';
     case 'INACTIVITY_WARNING':
-      return 'Cảnh báo thành viên im lặng quá lâu (CR-04)';
+      return 'Cảnh báo thành viên im lặng quá lâu';
     case 'CUSTOM_ERROR':
       return 'Cảnh báo khẩn cấp / Quá hạn';
     case 'CUSTOM_WARNING':
@@ -737,7 +737,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
                 (typeUpper.startsWith('CUSTOM_') && parsed.senderLabel) ||
                 a.userName ||
                 'Hệ thống FairShare',
-              authorRole: 'Giám sát CR-04',
+              authorRole: 'Giám sát tiến độ',
               avatarBg:
                 notifType === 'error'
                   ? 'linear-gradient(135deg, #ef4444, #be123c)'

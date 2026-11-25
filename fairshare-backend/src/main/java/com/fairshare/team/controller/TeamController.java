@@ -91,10 +91,13 @@ public class TeamController {
             @PathVariable Long teamId,
             @RequestBody CreateTeamRequest request,
             Authentication authentication) {
-        if (teamSecurityService != null && authentication != null) {
-            teamSecurityService.assertTeamMember(teamId, authentication);
+        if (teamSecurityService != null) {
+            teamSecurityService.assertTeamLeader(teamId, authentication);
         }
         Long userId = getUserId(authentication);
+        if (userId == null) {
+            throw new ForbiddenException("Bạn không có quyền thực hiện thao tác này");
+        }
         TeamDto updated = teamService.updateTeam(teamId, request, userId);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật thông tin dự án thành công", updated));
     }

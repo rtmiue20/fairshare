@@ -384,6 +384,52 @@ body {
   flex-wrap: wrap;
 }
 
+/* Timeline Gantt: giới hạn chiều cao có thanh kéo cuộn dọc và hiệu ứng hover */
+.timeline-gantt-list {
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 8px;
+  overscroll-behavior: contain;
+}
+
+.timeline-gantt-row {
+  border-radius: 10px;
+  padding-inline: 8px;
+  transition: background 0.15s ease;
+}
+
+.timeline-gantt-row:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+/* Spreadsheet: giới hạn chiều cao có thanh kéo cuộn dọc và giữ sticky header */
+.spreadsheet-card {
+  max-height: 460px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.spreadsheet-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface2, #1f1f23);
+}
+
+.spreadsheet-table tbody {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+}
+
+.spreadsheet-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.spreadsheet-table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.06);
+}
+
 @media (max-width: 900px) {
   .project-page-head {
     flex-direction: column;

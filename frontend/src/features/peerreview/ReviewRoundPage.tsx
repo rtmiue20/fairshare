@@ -25,7 +25,6 @@ import {
   Square,
   RefreshCw,
   ThumbsUp,
-  Share2,
   MessageCircle,
   Eye,
   EyeOff,
@@ -151,8 +150,20 @@ export const ReviewRoundPage: React.FC = () => {
   // Active Evaluator (current user)
   const currentEvaluatorId = currentUser?.id || 1;
 
-  // KEY FEATURE: Nút bật/tắt "Ẩn danh" trên trang
+  // KEY FEATURE: Chỉ Trưởng nhóm (Leader) mới được phép tắt chế độ ẩn danh để xem danh tính;
+  // Thành viên thường luôn ở chế độ ẩn danh bắt buộc.
   const [isAnonymous, setIsAnonymous] = useState<boolean>(true);
+  const isCurrentUserLeader = useMemo(
+    () => members.some((m) => m.id === currentEvaluatorId && m.isLeader),
+    [members, currentEvaluatorId]
+  );
+  const effectiveAnonymous = !isCurrentUserLeader || isAnonymous;
+
+  useEffect(() => {
+    if (!isCurrentUserLeader) {
+      setIsAnonymous(true);
+    }
+  }, [isCurrentUserLeader]);
 
   // Filter by selected reviewee (0 = Tất cả thành viên)
   const [selectedMemberId, setSelectedMemberId] = useState<number>(0);
@@ -190,6 +201,36 @@ export const ReviewRoundPage: React.FC = () => {
   // Likes state map (id -> count, id -> userLiked)
   const [likesMap, setLikesMap] = useState<Record<number, number>>({});
   const [userLikedMap, setUserLikedMap] = useState<Record<number, boolean>>({});
+
+  // Replies state map (reviewId -> list of replies)
+  interface ReviewReplyItem {
+    id: string;
+    authorId: number;
+    authorName: string;
+    content: string;
+    createdAt: string;
+  }
+  const [repliesMap, setRepliesMap] = useState<Record<number, ReviewReplyItem[]>>({});
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyDraft, setReplyDraft] = useState<string>('');
+
+  const likeStorageKey = `fairshare_review_likes_${currentTeamId}_${activeRoundId}_${currentEvaluatorId}`;
+  const replyStorageKey = `fairshare_review_replies_${currentTeamId}_${activeRoundId}`;
+
+  useEffect(() => {
+    try {
+      const savedLikes = localStorage.getItem(likeStorageKey);
+      setUserLikedMap(savedLikes ? JSON.parse(savedLikes) : {});
+    } catch {
+      setUserLikedMap({});
+    }
+    try {
+      const savedReplies = localStorage.getItem(replyStorageKey);
+      setRepliesMap(savedReplies ? JSON.parse(savedReplies) : {});
+    } catch {
+      setRepliesMap({});
+    }
+  }, [likeStorageKey, replyStorageKey]);
 
   // ==================== MULTI-STEP REVIEW MODAL STATES ====================
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
@@ -453,27 +494,70 @@ export const ReviewRoundPage: React.FC = () => {
     [rounds, activeRoundId]
   );
 
-  // Handle Like — calls real API with optimistic local update
+  // Handle Like — calls real API, caps at team member count, and persists toggle state
+  const maxTeamLikes = members.length > 0 ? members.length : 1;
   const handleToggleLike = async (reviewId: number, currentLikes: number) => {
     const wasLiked = Boolean(userLikedMap[reviewId]);
     const nextLiked = !wasLiked;
-    setUserLikedMap((prev) => ({ ...prev, [reviewId]: nextLiked }));
-    setLikesMap((prev) => ({
-      ...prev,
-      [reviewId]: nextLiked
-        ? (prev[reviewId] ?? currentLikes) + 1
-        : Math.max(0, (prev[reviewId] ?? currentLikes) - 1),
-    }));
+    const baseLikes = Math.min(maxTeamLikes, Math.max(0, likesMap[reviewId] ?? currentLikes));
+    const optimisticLikes = nextLiked
+      ? Math.min(maxTeamLikes, baseLikes + 1)
+      : Math.max(0, baseLikes - 1);
+
+    const nextLikedMap = { ...userLikedMap, [reviewId]: nextLiked };
+    setUserLikedMap(nextLikedMap);
+    setLikesMap((prev) => ({ ...prev, [reviewId]: optimisticLikes }));
+    try {
+      localStorage.setItem(likeStorageKey, JSON.stringify(nextLikedMap));
+    } catch {
+      // ignore storage quota errors
+    }
 
     try {
-      const res = await peerReviewApi.toggleLike(reviewId);
+      const res = await peerReviewApi.toggleLike(reviewId, wasLiked);
       if (res?.data != null) {
-        setLikesMap((prev) => ({ ...prev, [reviewId]: res.data as number }));
+        const capped = Math.min(maxTeamLikes, Math.max(0, Number(res.data)));
+        setLikesMap((prev) => ({ ...prev, [reviewId]: capped }));
       }
     } catch {
       setUserLikedMap((prev) => ({ ...prev, [reviewId]: wasLiked }));
-      setLikesMap((prev) => ({ ...prev, [reviewId]: currentLikes }));
+      setLikesMap((prev) => ({ ...prev, [reviewId]: baseLikes }));
+      try {
+        localStorage.setItem(likeStorageKey, JSON.stringify({ ...userLikedMap, [reviewId]: wasLiked }));
+      } catch {
+        // ignore
+      }
     }
+  };
+
+  // Handle Reply — inline reply persisted per team & round
+  const handleSendReply = (reviewId: number) => {
+    const trimmed = replyDraft.trim();
+    if (!trimmed) return;
+    const currentMember = members.find((m) => m.id === currentEvaluatorId);
+    const authorName = currentMember?.name || currentUser?.fullName || 'Thành viên';
+    const newReply: ReviewReplyItem = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      authorId: currentEvaluatorId,
+      authorName,
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+    setRepliesMap((prev) => {
+      const updated = {
+        ...prev,
+        [reviewId]: [...(prev[reviewId] || []), newReply],
+      };
+      try {
+        localStorage.setItem(replyStorageKey, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+    setReplyDraft('');
+    setReplyingToId(null);
+    showToast({ message: 'Đã gửi phản hồi nhận xét!', type: 'success' });
   };
 
   // Open Multi-Step Review Modal
@@ -502,7 +586,7 @@ export const ReviewRoundPage: React.FC = () => {
     setModalPunctuality(5);
     setModalCooperation(5);
     setModalFeedback('');
-    setModalIsAnonymous(isAnonymous);
+    setModalIsAnonymous(effectiveAnonymous);
     setShowReviewModal(true);
   };
 
@@ -1396,60 +1480,80 @@ export const ReviewRoundPage: React.FC = () => {
             >
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {isAnonymous ? <EyeOff size={18} color={isLight ? '#059669' : '#a7f3d0'} /> : <Eye size={18} color={isLight ? '#d97706' : '#fed7aa'} />}
+                  {effectiveAnonymous ? <EyeOff size={18} color={isLight ? '#059669' : '#a7f3d0'} /> : <Eye size={18} color={isLight ? '#d97706' : '#fed7aa'} />}
                   <span style={{ fontSize: '13px', fontWeight: 700, color: isLight ? '#0f172a' : '#ffffff' }}>
                     Chế độ Ẩn danh:
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsAnonymous(!isAnonymous)}
-                  style={{
-                    position: 'relative',
-                    width: '48px',
-                    height: '26px',
-                    borderRadius: '13px',
-                    backgroundColor: isAnonymous ? '#10b981' : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255, 255, 255, 0.25)'),
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s ease',
-                    padding: '2px',
-                    outline: 'none',
-                  }}
-                  title={isAnonymous ? 'Bật: Hiển thị Anonymous001, Anonymous002,...' : 'Tắt: Hiển thị tên thật user'}
-                >
-                  <div
+                {isCurrentUserLeader ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsAnonymous(!isAnonymous)}
                     style={{
-                      width: '22px',
-                      height: '22px',
-                      borderRadius: '50%',
-                      backgroundColor: '#ffffff',
-                      transform: isAnonymous ? 'translateX(22px)' : 'translateX(0)',
-                      transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      position: 'relative',
+                      width: '48px',
+                      height: '26px',
+                      borderRadius: '13px',
+                      backgroundColor: effectiveAnonymous ? '#10b981' : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255, 255, 255, 0.25)'),
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease',
+                      padding: '2px',
+                      outline: 'none',
                     }}
-                  />
-                </button>
+                    title={effectiveAnonymous ? 'Bật: Hiển thị Anonymous001, Anonymous002,...' : 'Tắt: Hiển thị tên thật user (Quyền Trưởng nhóm)'}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '50%',
+                        backgroundColor: '#ffffff',
+                        transform: effectiveAnonymous ? 'translateX(22px)' : 'translateX(0)',
+                        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      }}
+                    />
+                  </button>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      borderRadius: '999px',
+                      backgroundColor: isLight ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.2)',
+                      color: isLight ? '#047857' : '#6ee7b7',
+                      border: isLight ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(16, 185, 129, 0.4)',
+                    }}
+                    title="Chỉ Trưởng nhóm mới có quyền xem danh tính người đánh giá"
+                  >
+                    Bắt buộc
+                  </span>
+                )}
               </div>
 
               <div
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: isAnonymous ? (isLight ? '#059669' : '#a7f3d0') : (isLight ? '#d97706' : '#fed7aa'),
+                  color: effectiveAnonymous ? (isLight ? '#059669' : '#a7f3d0') : (isLight ? '#d97706' : '#fed7aa'),
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
                 }}
               >
-                {isAnonymous ? (
+                {effectiveAnonymous ? (
                   <>
-                    <CheckCircle2 size={12} /> BẬT: Hiển thị Anonymous001, Anonymous002,...
+                    <CheckCircle2 size={12} />{' '}
+                    {isCurrentUserLeader
+                      ? 'BẬT: Hiển thị Anonymous001, Anonymous002,...'
+                      : 'BẬT (Thành viên): Chỉ Trưởng nhóm mới được xem danh tính'}
                   </>
                 ) : (
                   <>
-                    <Eye size={12} /> TẮT: Hiển thị tên thật thành viên
+                    <Eye size={12} /> TẮT (Trưởng nhóm): Hiển thị tên thật người đánh giá
                   </>
                 )}
               </div>
@@ -1684,16 +1788,21 @@ export const ReviewRoundPage: React.FC = () => {
               </div>
             ) : (
               filteredReviews.map((review) => {
-                const displayName = isAnonymous
-                  ? reviewerAnonymousMap.get(review.reviewerId) || `Anonymous${String(review.reviewerId % 100).padStart(3, '0')}`
+                const displayName = effectiveAnonymous
+                  ? (review.reviewerName?.startsWith('Anonymous')
+                      ? review.reviewerName
+                      : reviewerAnonymousMap.get(review.reviewerId) || `Anonymous${String(Math.abs(review.reviewerId) % 100).padStart(3, '0')}`)
                   : review.reviewerName;
 
-                const reviewerObj = members.find((m) => m.id === review.reviewerId);
-                const avatarBg = isAnonymous ? '#6366f1' : reviewerObj?.color || '#3b82f6';
-                const avatarText = isAnonymous ? '🕶️' : getInitials(review.reviewerName);
+                const reviewerObj = effectiveAnonymous ? undefined : members.find((m) => m.id === review.reviewerId);
+                const avatarBg = effectiveAnonymous ? '#6366f1' : reviewerObj?.color || '#3b82f6';
+                const avatarText = effectiveAnonymous ? '🕶️' : getInitials(review.reviewerName);
 
-                const currentLikes = likesMap[review.id] ?? (review.likesCount || 0);
+                const rawLikes = likesMap[review.id] ?? (review.likesCount || 0);
+                const currentLikes = Math.min(maxTeamLikes, Math.max(0, rawLikes));
                 const isLiked = Boolean(userLikedMap[review.id]);
+                const reviewReplies = repliesMap[review.id] || [];
+                const isReplying = replyingToId === review.id;
 
                 const formattedDate = review.submittedAt
                   ? new Date(review.submittedAt).toLocaleDateString('vi-VN', {
@@ -1739,7 +1848,7 @@ export const ReviewRoundPage: React.FC = () => {
                             backgroundColor: avatarBg,
                             color: '#ffffff',
                             fontWeight: 700,
-                            fontSize: isAnonymous ? '16px' : '14px',
+                            fontSize: effectiveAnonymous ? '16px' : '14px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1762,7 +1871,7 @@ export const ReviewRoundPage: React.FC = () => {
                             >
                               {displayName}
                             </h4>
-                            {isAnonymous && (
+                            {effectiveAnonymous && (
                               <span
                                 style={{
                                   fontSize: '10px',
@@ -1877,7 +1986,7 @@ export const ReviewRoundPage: React.FC = () => {
                         'Thành viên hoàn thành tốt công việc được phân công, phối hợp ăn ý với nhóm và duy trì tiến độ sprint ổn định.'}
                     </p>
 
-                    {/* Footer Actions: Reply, Share, Likes */}
+                    {/* Footer Actions: Reply, Likes */}
                     <div
                       style={{
                         display: 'flex',
@@ -1888,62 +1997,46 @@ export const ReviewRoundPage: React.FC = () => {
                         borderTop: isLight ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <button
-                          type="button"
-                          onClick={() => showToast({ message: 'Tính năng phản hồi đang được phát triển', type: 'info' })}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            background: 'none',
-                            border: 'none',
-                            padding: '6px 10px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: theme.subTextColor,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <MessageCircle size={14} /> Reply
-                        </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <button
                           type="button"
                           onClick={() => {
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(review.feedback);
-                              showToast({ message: 'Đã sao chép nhận xét!', type: 'success' });
-                            }
+                            setReplyingToId(isReplying ? null : review.id);
+                            setReplyDraft('');
                           }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '5px',
-                            background: 'none',
+                            background: isReplying
+                              ? isLight
+                                ? 'rgba(99, 102, 241, 0.1)'
+                                : 'rgba(99, 102, 241, 0.18)'
+                              : 'none',
                             border: 'none',
                             padding: '6px 10px',
                             borderRadius: '8px',
                             fontSize: '12px',
                             fontWeight: 600,
-                            color: theme.subTextColor,
+                            color: isReplying ? '#6366f1' : theme.subTextColor,
                             cursor: 'pointer',
                           }}
                         >
-                          <Share2 size={14} /> Share
+                          <MessageCircle size={14} /> Reply{reviewReplies.length > 0 ? ` (${reviewReplies.length})` : ''}
                         </button>
                       </div>
 
                       {/* Likes Button */}
                       <button
                         type="button"
-                        onClick={() => handleToggleLike(review.id, review.likesCount || 0)}
+                        onClick={() => handleToggleLike(review.id, currentLikes)}
+                        title={`Tối đa ${maxTeamLikes} lượt thích (theo sĩ số nhóm)`}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
                           background: 'none',
-                          border: 'none',
+                          border: isLiked ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid transparent',
                           padding: '6px 12px',
                           borderRadius: '8px',
                           fontSize: '13px',
@@ -1962,6 +2055,94 @@ export const ReviewRoundPage: React.FC = () => {
                         <ThumbsUp size={15} fill={isLiked ? '#6366f1' : 'transparent'} />
                       </button>
                     </div>
+
+                    {/* Replies list & inline reply box */}
+                    {(reviewReplies.length > 0 || isReplying) && (
+                      <div
+                        style={{
+                          marginTop: '10px',
+                          paddingTop: '10px',
+                          borderTop: isLight ? '1px dashed rgba(0,0,0,0.08)' : '1px dashed rgba(255,255,255,0.08)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                        }}
+                      >
+                        {reviewReplies.map((rep) => {
+                          const replyAuthor = rep.authorId === currentEvaluatorId
+                            ? 'Bạn'
+                            : effectiveAnonymous
+                            ? 'Thành viên ẩn danh'
+                            : rep.authorName;
+                          return (
+                            <div
+                              key={rep.id}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '10px',
+                                backgroundColor: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)',
+                                fontSize: '12px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                <strong style={{ color: theme.headingColor, fontSize: '11.5px' }}>{replyAuthor}</strong>
+                                <span style={{ fontSize: '10.5px', color: theme.subTextColor }}>
+                                  {new Date(rep.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                                </span>
+                              </div>
+                              <div style={{ color: theme.textColor, lineHeight: 1.45 }}>{rep.content}</div>
+                            </div>
+                          );
+                        })}
+
+                        {isReplying && (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
+                            <input
+                              type="text"
+                              value={replyDraft}
+                              onChange={(e) => setReplyDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSendReply(review.id);
+                                }
+                              }}
+                              placeholder="Nhập phản hồi cho nhận xét này..."
+                              style={{
+                                flex: 1,
+                                padding: '7px 12px',
+                                borderRadius: '10px',
+                                border: isLight ? '1px solid rgba(0,0,0,0.14)' : '1px solid rgba(255,255,255,0.15)',
+                                backgroundColor: isLight ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                                color: theme.textColor,
+                                fontSize: '12px',
+                                outline: 'none',
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSendReply(review.id)}
+                              disabled={!replyDraft.trim()}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '7px 12px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                backgroundColor: replyDraft.trim() ? '#6366f1' : (isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'),
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: replyDraft.trim() ? 'pointer' : 'not-allowed',
+                              }}
+                            >
+                              <Send size={12} /> Gửi
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })

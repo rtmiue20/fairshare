@@ -16,10 +16,12 @@ import java.util.Map;
 public class MultidimensionalNetworkDto {
 
     private Long teamId;
+    private String teamName;
     private Long sprintId;
     private String sprintName;
     private Long focusedUserId;
     private String focusedUserName;
+    private String focusedUserRole;
 
     // Metrics tổng hợp của thành viên đang xem
     private BigDecimal finalPct;

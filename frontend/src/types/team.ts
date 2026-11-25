@@ -53,6 +53,6 @@ export interface CreateTeamRequest {
 
 export interface ConsentRequest {
   consented: boolean;
-  shareTrelloActivity: boolean;
-  shareDocsActivity: boolean;
+  shareTrelloActivity?: boolean;
+  shareDocsActivity?: boolean;
 }

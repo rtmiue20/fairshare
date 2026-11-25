@@ -330,7 +330,7 @@ public class InactivityAlertService {
 
                 if (daysInactive >= thresholdDays) {
                     String expectedMsg = String.format(
-                            "Thành viên %s không có hoạt động trong %d ngày liên tiếp (vượt ngưỡng %d ngày cảnh báo theo CR-04).",
+                            "Thành viên %s không có hoạt động trong %d ngày liên tiếp (vượt ngưỡng %d ngày cảnh báo).",
                             u.getFullName(),
                             daysInactive,
                             thresholdDays
@@ -540,12 +540,50 @@ public class InactivityAlertService {
         return null;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String remindMember(Long alertId) {
-        Alert alert = alertRepository.findById(alertId)
+        return remindMember(alertId, null);
+    }
+
+    @Transactional
+    public String remindMember(Long alertId, String senderEmail) {
+        Alert sourceAlert = alertRepository.findById(alertId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alert not found: " + alertId));
-        String userName = alert.getUser() != null ? alert.getUser().getFullName() : "thành viên";
-        log.info("Reminder sent to member: {} for alert: {}", userName, alertId);
+        User targetUser = sourceAlert.getUser();
+        Team team = sourceAlert.getTeam();
+        String userName = targetUser != null ? targetUser.getFullName() : "thành viên";
+
+        if (targetUser != null && team != null) {
+            String senderLabel = "Nhóm trưởng";
+            if (senderEmail != null && !senderEmail.isBlank() && userRepository != null) {
+                User sender = userRepository.findByEmail(senderEmail).orElse(null);
+                if (sender != null && sender.getFullName() != null && !sender.getFullName().isBlank()) {
+                    senderLabel = sender.getFullName();
+                }
+            }
+
+            String taskTitle = extractCardTitleFromAlert(sourceAlert);
+            StringBuilder msgBuilder = new StringBuilder();
+            msgBuilder.append("[Nhắc nhở tiến độ] ");
+            if (taskTitle != null && !taskTitle.isBlank()) {
+                msgBuilder.append("Vui lòng kiểm tra và cập nhật tiến độ công việc \"").append(taskTitle).append("\".");
+                msgBuilder.append(" | Công việc: ").append(taskTitle);
+            } else {
+                msgBuilder.append("Bạn có lời nhắc cập nhật hoạt động và tiến độ công việc mới trong nhóm.");
+            }
+            msgBuilder.append(" | Người báo: ").append(senderLabel);
+
+            Alert reminderAlert = new Alert();
+            reminderAlert.setTeam(team);
+            reminderAlert.setUser(targetUser);
+            reminderAlert.setAlertType("CUSTOM_WARNING");
+            reminderAlert.setSeverity("WARNING");
+            reminderAlert.setMessage(msgBuilder.toString());
+            reminderAlert.setResolved(false);
+            alertRepository.save(reminderAlert);
+        }
+
+        log.info("Reminder sent and persisted to member: {} for alert: {}", userName, alertId);
         return "Đã gửi thông báo nhắc nhở đến " + userName;
     }
 
