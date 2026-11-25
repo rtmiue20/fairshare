@@ -1,6 +1,8 @@
 package com.fairshare.common.security;
 
 import com.fairshare.common.exception.ForbiddenException;
+import com.fairshare.team.entity.MemberRole;
+import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
 import com.fairshare.user.entity.User;
 import com.fairshare.user.repository.UserRepository;
@@ -74,6 +76,88 @@ class TeamSecurityServiceTest {
 
         assertThrows(ForbiddenException.class,
                 () -> teamSecurityService.assertTeamMember(teamId, authentication));
+    }
+
+    @Test
+    @DisplayName("assertTeamLeader (userId): LEADER vượt qua kiểm tra quyền")
+    void testAssertTeamLeader_ByUserId_Success() {
+        TeamMember leader = new TeamMember();
+        leader.setRole(MemberRole.LEADER);
+
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 10L)).thenReturn(Optional.of(leader));
+
+        assertDoesNotThrow(() -> teamSecurityService.assertTeamLeader(1L, 10L));
+    }
+
+    @Test
+    @DisplayName("assertTeamLeader (userId): MEMBER thường bị chặn -> Ném ForbiddenException (DEF-59)")
+    void testAssertTeamLeader_ByUserId_MemberThrowsForbidden() {
+        TeamMember member = new TeamMember();
+        member.setRole(MemberRole.MEMBER);
+
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 20L)).thenReturn(Optional.of(member));
+
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
+                () -> teamSecurityService.assertTeamLeader(1L, 20L));
+        assertEquals("Chỉ nhóm trưởng (LEADER) mới có quyền chỉnh sửa thông tin nhóm", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("assertTeamLeader (userId): Người ngoài nhóm bị chặn -> Ném ForbiddenException (DEF-59)")
+    void testAssertTeamLeader_ByUserId_OutsiderThrowsForbidden() {
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 99L)).thenReturn(Optional.empty());
+
+        ForbiddenException ex = assertThrows(ForbiddenException.class,
+                () -> teamSecurityService.assertTeamLeader(1L, 99L));
+        assertEquals("Bạn không phải thành viên của nhóm này", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("assertTeamLeader (Authentication): LEADER xác thực thành công")
+    void testAssertTeamLeader_WithAuth_LeaderSuccess() {
+        User leaderUser = new User();
+        leaderUser.setId(10L);
+        leaderUser.setEmail("leader@ueh.edu.vn");
+
+        TeamMember leader = new TeamMember();
+        leader.setRole(MemberRole.LEADER);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("leader@ueh.edu.vn");
+        when(userRepository.findByEmail("leader@ueh.edu.vn")).thenReturn(Optional.of(leaderUser));
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 10L)).thenReturn(Optional.of(leader));
+
+        assertDoesNotThrow(() -> teamSecurityService.assertTeamLeader(1L, authentication));
+    }
+
+    @Test
+    @DisplayName("assertTeamLeader (Authentication): MEMBER bị chặn -> Ném ForbiddenException (DEF-59)")
+    void testAssertTeamLeader_WithAuth_MemberThrowsForbidden() {
+        User memberUser = new User();
+        memberUser.setId(20L);
+        memberUser.setEmail("member@ueh.edu.vn");
+
+        TeamMember member = new TeamMember();
+        member.setRole(MemberRole.MEMBER);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("member@ueh.edu.vn");
+        when(userRepository.findByEmail("member@ueh.edu.vn")).thenReturn(Optional.of(memberUser));
+        when(teamMemberRepository.findByTeamIdAndUserId(1L, 20L)).thenReturn(Optional.of(member));
+
+        assertThrows(ForbiddenException.class,
+                () -> teamSecurityService.assertTeamLeader(1L, authentication));
+    }
+
+    @Test
+    @DisplayName("assertTeamLeader (Authentication): Chưa đăng nhập / null -> Ném ForbiddenException (DEF-59)")
+    void testAssertTeamLeader_WithAuth_NullOrUnauthenticatedThrowsForbidden() {
+        assertThrows(ForbiddenException.class,
+                () -> teamSecurityService.assertTeamLeader(1L, (Authentication) null));
+
+        when(authentication.isAuthenticated()).thenReturn(false);
+        assertThrows(ForbiddenException.class,
+                () -> teamSecurityService.assertTeamLeader(1L, authentication));
     }
 }
 

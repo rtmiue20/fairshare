@@ -136,6 +136,7 @@ describe('ProfileSettingsPage Component Tests', () => {
         {
           id: 10,
           name: 'Đồ án Phát triển AI',
+          currentRole: 'LEADER',
           courseName: 'CS401',
           description: 'Hệ thống AI',
           inviteCode: 'FS-CS401',
@@ -201,6 +202,80 @@ describe('ProfileSettingsPage Component Tests', () => {
     await waitFor(() => {
       expect(teamApi.revokeConsent).toHaveBeenCalledWith(10);
       expect(screen.getByRole('button', { name: /Ký đồng thuận/i })).toBeInTheDocument();
+    });
+  });
+
+  it('hides project edit actions for non-leader MEMBER (DEF-59)', async () => {
+    useProjectStore.setState({
+      teams: [
+        {
+          id: 10,
+          name: 'Đồ án Nhóm 7',
+          currentRole: 'MEMBER',
+          courseName: 'PRJ301',
+          createdAt: '2026-11-10T00:00:00Z',
+        },
+      ],
+      activeTeamId: 10,
+      loading: false,
+      initialized: true,
+    });
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa dự án/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Thêm/i }));
+    expect(screen.queryByRole('menuitem', { name: /Chỉnh sửa dự án/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Dự án/i }));
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa dự án/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/Chỉ nhóm trưởng mới có quyền chỉnh sửa thông tin dự án/i)).toBeInTheDocument();
+  });
+
+  it('shows only real collected data scopes without Git or 4/4 fake rights on Decree 13 tab (DEF-50)', async () => {
+    useProjectStore.setState({
+      teams: [
+        {
+          id: 10,
+          name: 'Đồ án Nhóm 7',
+          currentRole: 'MEMBER',
+          createdAt: '2026-11-10T00:00:00Z',
+        },
+      ],
+      activeTeamId: 10,
+      loading: false,
+      initialized: true,
+    });
+    vi.mocked(teamApi.getConsentStatus).mockResolvedValue({
+      data: { consented: false },
+      message: 'OK',
+      success: true,
+    });
+    vi.mocked(teamApi.submitConsent).mockResolvedValue({
+      data: undefined,
+      message: 'OK',
+      success: true,
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText(/NĐ 13\/2023 Chưa đồng thuận/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /Nghị định 13/i }));
+
+    expect(screen.queryByText(/Git Commits/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/4\/4 Quyền/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trello/i)).not.toBeInTheDocument();
+
+    expect(screen.getByText(/Hoạt động trên Bảng công việc \(Task Board\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tổng hợp & đối soát tỷ lệ đóng góp/i)).toBeInTheDocument();
+    expect(screen.getByText(/Đánh giá chéo ẩn danh \(Peer Review\)/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ký đồng thuận/i }));
+
+    await waitFor(() => {
+      expect(teamApi.submitConsent).toHaveBeenCalledWith(10, { consented: true });
     });
   });
 });

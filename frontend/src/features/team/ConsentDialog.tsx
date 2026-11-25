@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ShieldCheck, X, CheckCircle2, AlertCircle, Check, GitCommit, Trello, FileText } from 'lucide-react';
+import { ShieldCheck, X, CheckCircle2, AlertCircle, Check, Kanban, Layers, Users } from 'lucide-react';
 import { teamApi } from '../../api/team.api';
 
 export interface ConsentDialogProps {
@@ -10,31 +10,49 @@ export interface ConsentDialogProps {
   onSuccess: () => void;
 }
 
+const DATA_SCOPES = [
+  {
+    title: 'Hoạt động trên Bảng công việc (Task Board)',
+    desc: 'Ghi nhận thời gian tạo, phân công, chuyển trạng thái và hoàn thành thẻ công việc trên bảng nội bộ của dự án.',
+    icon: <Kanban size={13} className="text-sky-400 shrink-0 mt-0.5" />,
+  },
+  {
+    title: 'Tổng hợp & đối soát tỷ lệ đóng góp',
+    desc: 'Tính toán khối lượng hoàn thành, khai báo đóng góp và nhật ký truy vết nguồn gốc trên bảng điều khiển chung của dự án.',
+    icon: <Layers size={13} className="text-indigo-400 shrink-0 mt-0.5" />,
+  },
+  {
+    title: 'Đánh giá chéo ẩn danh (Peer Review)',
+    desc: 'Thu thập điểm và nhận xét đánh giá giữa các thành viên, hiển thị ở dạng điểm tổng hợp ẩn danh nhằm bảo vệ danh tính người chấm.',
+    icon: <Users size={13} className="text-emerald-400 shrink-0 mt-0.5" />,
+  },
+];
+
 export const ConsentDialog: React.FC<ConsentDialogProps> = ({
   isOpen,
   onClose,
   teamId,
   onSuccess,
 }) => {
-  const [shareTrello, setShareTrello] = useState(true);
-  const [shareGit, setShareGit] = useState(true);
-  const [shareDocs, setShareDocs] = useState(true);
+  const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    setErrorMsg(null);
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed) return;
+    setErrorMsg(null);
     try {
       setLoading(true);
-      if (teamApi?.submitConsent) {
-        await teamApi.submitConsent(teamId, {
-          consented: true,
-          shareTrelloActivity: shareTrello,
-          shareDocsActivity: shareDocs,
-        });
-      }
+      await teamApi.submitConsent(teamId, { consented: true });
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
@@ -42,13 +60,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
         onClose();
       }, 1000);
     } catch {
-      // Mock fallback for offline demonstration
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        onSuccess();
-        onClose();
-      }, 1000);
+      setErrorMsg('Không thể lưu xác nhận đồng thuận. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -73,7 +85,8 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleClose}
             className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded-md"
           >
             <X size={16} />
@@ -95,71 +108,49 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
             <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/60 flex items-start gap-2.5">
               <AlertCircle size={14} className="text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-[11px] text-zinc-400 leading-relaxed">
-                Hệ thống FairShare chỉ thu thập dữ liệu minh chứng tối thiểu phục vụ đối soát đóng góp đồ án học phần. Bạn có toàn quyền bật/tắt từng nguồn dữ liệu dưới đây.
+                Hệ thống FairShare chỉ thu thập và xử lý 3 nhóm dữ liệu thực tế dưới đây để phục vụ đối soát đóng góp trong phạm vi dự án.
               </p>
             </div>
 
-            {/* Checkbox Options */}
-            <div className="space-y-2.5">
-              <label className="flex items-start gap-3 p-3 rounded-lg bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={shareTrello}
-                  onChange={(e) => setShareTrello(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded bg-zinc-850 border-zinc-700 text-emerald-500 focus:ring-0 focus:ring-offset-0"
-                />
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                    <Trello size={12} className="text-blue-400" />
-                    <span>Hoạt động Trello Board</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                    Chia sẻ số thẻ hoàn thành, checklists và bình luận tiến độ.
-                  </p>
-                </div>
-              </label>
+            {errorMsg && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-[11px] text-rose-300">
+                {errorMsg}
+              </div>
+            )}
 
-              <label className="flex items-start gap-3 p-3 rounded-lg bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={shareGit}
-                  onChange={(e) => setShareGit(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded bg-zinc-850 border-zinc-700 text-emerald-500 focus:ring-0 focus:ring-offset-0"
-                />
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                    <GitCommit size={12} className="text-purple-400" />
-                    <span>Minh chứng Git Repository</span>
+            {/* Read-only list of real collected data scopes */}
+            <div className="space-y-2">
+              {DATA_SCOPES.map((scope) => (
+                <div
+                  key={scope.title}
+                  className="flex items-start gap-2.5 p-3 rounded-lg bg-zinc-900/40 border border-zinc-800"
+                >
+                  {scope.icon}
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-zinc-200">{scope.title}</div>
+                    <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{scope.desc}</p>
                   </div>
-                  <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                    Chia sẻ số lượng commit, Pull Request và thay đổi mã nguồn.
-                  </p>
                 </div>
-              </label>
-
-              <label className="flex items-start gap-3 p-3 rounded-lg bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={shareDocs}
-                  onChange={(e) => setShareDocs(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded bg-zinc-850 border-zinc-700 text-emerald-500 focus:ring-0 focus:ring-offset-0"
-                />
-                <div className="flex-1">
-                  <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                    <FileText size={12} className="text-amber-400" />
-                    <span>Tài liệu Google Docs / Drive</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500 font-mono mt-0.5">
-                    Chia sẻ lịch sử đóng góp tài liệu phân tích nghiệp vụ (BA).
-                  </p>
-                </div>
-              </label>
+              ))}
             </div>
+
+            {/* Single genuine consent checkbox */}
+            <label className="flex items-start gap-3 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/25 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded bg-zinc-850 border-zinc-700 text-emerald-500 focus:ring-0 focus:ring-offset-0"
+              />
+              <span className="text-xs text-zinc-200 leading-relaxed">
+                Tôi đã đọc, hiểu và đồng ý cho hệ thống xử lý 3 nhóm dữ liệu trên trong phạm vi dự án này.
+              </span>
+            </label>
 
             {/* Rights Summary */}
             <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-zinc-500 font-mono">
               <span className="flex items-center gap-1 text-emerald-400">
-                <Check size={11} /> 4/4 quyền theo NĐ 13/2023
+                <Check size={11} /> Tuân thủ Nghị định 13/2023/NĐ-CP
               </span>
               <span>Có thể rút lại bất kỳ lúc nào</span>
             </div>
@@ -168,7 +159,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/80">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={loading}
                 className="px-3.5 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
               >
@@ -176,7 +167,7 @@ export const ConsentDialog: React.FC<ConsentDialogProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={!agreed || loading}
                 className="px-4 py-2 text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 rounded-lg transition-colors shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Đang lưu...' : 'Xác nhận đồng ý'}
