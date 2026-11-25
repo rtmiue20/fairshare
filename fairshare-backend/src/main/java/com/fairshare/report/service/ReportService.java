@@ -2,6 +2,8 @@ package com.fairshare.report.service;
 
 import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.repository.ActivityEventRepository;
+import com.fairshare.board.entity.Card;
+import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.contribution.entity.ContributionScore;
 import com.fairshare.contribution.repository.ContributionScoreRepository;
@@ -43,6 +45,9 @@ public class ReportService {
 
     @Autowired(required = false)
     private ConsentRepository consentRepository;
+
+    @Autowired(required = false)
+    private CardRepository cardRepository;
 
     // -------------------------------------------------------------------------
     // Overview Report
@@ -95,16 +100,35 @@ public class ReportService {
         double gini = calculateGini(finalPcts);
         String giniLabel = giniLabel(gini);
 
-        // Build member DTOs
+        // Build member DTOs (sync Done cards from Kanban board if available)
+        Map<Long, Integer> boardDoneCardsMap = new java.util.HashMap<>();
+        int totalBoardDoneCards = 0;
+        if (cardRepository != null) {
+            List<Card> teamCards = cardRepository.findByBoardTeamId(teamId);
+            for (Card card : teamCards) {
+                String colName = card.getColumn() != null && card.getColumn().getName() != null
+                        ? card.getColumn().getName().trim().toLowerCase()
+                        : "";
+                boolean isDone = colName.contains("done") || colName.contains("complete") || colName.contains("hoàn thành");
+                if (isDone && card.getAssignee() != null) {
+                    boardDoneCardsMap.merge(card.getAssignee().getId(), 1, Integer::sum);
+                    totalBoardDoneCards++;
+                }
+            }
+        }
+
         List<OverviewReportDto.MemberReportDto> memberDtos = new ArrayList<>();
         for (TeamMember tm : members) {
             User u = tm.getUser();
             ContributionScore cs = scoreMap.get(u.getId());
 
-            long tasksDone = events.stream()
+            long eventTasksDone = events.stream()
                     .filter(e -> e.getUser() != null && e.getUser().getId().equals(u.getId()))
                     .filter(e -> e.getEventType() != null && e.getEventType().toUpperCase().contains("COMPLETED"))
                     .count();
+            int tasksDone = !boardDoneCardsMap.isEmpty()
+                    ? boardDoneCardsMap.getOrDefault(u.getId(), 0)
+                    : (int) eventTasksDone;
 
             memberDtos.add(OverviewReportDto.MemberReportDto.builder()
                     .userId(u.getId())
@@ -121,12 +145,16 @@ public class ReportService {
                     .availabilityFactor(cs != null && cs.getAvailabilityFactor() != null ? cs.getAvailabilityFactor().doubleValue() : 1.0)
                     .isSuspicious(cs != null && Boolean.TRUE.equals(cs.getIsSuspicious()))
                     .hasSufficientEvidence(cs == null || cs.getHasSufficientEvidence() == null || Boolean.TRUE.equals(cs.getHasSufficientEvidence()))
-                    .tasksCompleted((int) tasksDone)
+                    .tasksCompleted(tasksDone)
                     .confidenceIntervalLow(cs != null && cs.getConfidenceIntervalLow() != null ? cs.getConfidenceIntervalLow().doubleValue() : 0.0)
                     .confidenceIntervalHigh(cs != null && cs.getConfidenceIntervalHigh() != null ? cs.getConfidenceIntervalHigh().doubleValue() : 0.0)
                     .evidenceStatus(cs != null && Boolean.TRUE.equals(cs.getHasSufficientEvidence()) ? "SUFFICIENT" : "INSUFFICIENT_EVIDENCE")
                     .build());
         }
+
+        int totalTasks = !boardDoneCardsMap.isEmpty()
+                ? totalBoardDoneCards
+                : (int) events.stream().filter(e -> e.getEventType() != null && e.getEventType().toUpperCase().contains("COMPLETED")).count();
 
         return OverviewReportDto.builder()
                 .teamId(teamId)
@@ -136,7 +164,7 @@ public class ReportService {
                 .startDate(sprint.getStartDate() != null ? sprint.getStartDate().toString() : "")
                 .endDate(sprint.getEndDate() != null ? sprint.getEndDate().toString() : "")
                 .totalMembers(members.size())
-                .totalTasks((int) events.stream().filter(e -> e.getEventType() != null && e.getEventType().toUpperCase().contains("COMPLETED")).count())
+                .totalTasks(totalTasks)
                 .totalEvents(events.size())
                 .giniCoefficient(gini)
                 .giniLabel(giniLabel)
@@ -215,24 +243,51 @@ public class ReportService {
     // Email sending
     // -------------------------------------------------------------------------
 
+    public boolean isEmailConfigured() {
+        return emailService.isSmtpConfigured();
+    }
+
+    public String getSenderEmail() {
+        return emailService.getSenderEmail();
+    }
+
     @Transactional
     public void sendIndividualEmail(Long teamId, Long sprintId, Long userId) {
         IndividualReportDto report = getIndividualReport(teamId, sprintId, userId);
+        if (report.getEmail() == null || report.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Thành viên " + report.getUserName() + " chưa có email hợp lệ.");
+        }
         String html = buildIndividualHtmlEmail(report);
         String subject = "[FairShare] Báo cáo đóng góp cá nhân – " + report.getSprintName();
         emailService.sendHtmlEmail(report.getEmail(), subject, html);
     }
 
     @Transactional
-    public void sendAllEmails(Long teamId, Long sprintId) {
+    public String sendAllEmails(Long teamId, Long sprintId) {
         List<TeamMember> members = teamMemberRepository.findByTeamIdWithUser(teamId);
+        int sentCount = 0;
+        int skippedCount = 0;
+        Exception lastError = null;
         for (TeamMember tm : members) {
+            if (tm.getUser() == null || tm.getUser().getEmail() == null || tm.getUser().getEmail().isBlank()) {
+                skippedCount++;
+                continue;
+            }
             try {
                 sendIndividualEmail(teamId, sprintId, tm.getUser().getId());
+                sentCount++;
             } catch (Exception e) {
+                lastError = e;
                 log.error("Failed to send email to user {}: {}", tm.getUser().getId(), e.getMessage());
             }
         }
+        if (sentCount == 0 && lastError != null) {
+            throw new IllegalStateException(lastError.getMessage(), lastError);
+        }
+        if (skippedCount > 0 || lastError != null) {
+            return String.format("Đã gửi email báo cáo cho %d/%d thành viên.", sentCount, members.size());
+        }
+        return String.format("Đã gửi email báo cáo cho toàn bộ %d thành viên trong nhóm.", sentCount);
     }
 
     // -------------------------------------------------------------------------

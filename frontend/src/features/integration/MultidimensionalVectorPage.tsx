@@ -12,6 +12,7 @@ import {
 import { CosmicNetworkCanvas } from './CosmicNetworkCanvas';
 import { TimelineScrubber } from './TimelineScrubber';
 import { InspectorDrawer } from './InspectorDrawer';
+import { ImpactDeclarationModal } from './ImpactDeclarationModal';
 import { Spinner } from '../../components/ui/Spinner';
 import { showToast } from '../../components/ui/Toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -25,20 +26,23 @@ export const MultidimensionalVectorPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(user?.id || null);
   const [selectedNode, setSelectedNode] = useState<NetworkNodeDto | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
-  const [members, setMembers] = useState<Array<{ id: number; fullName: string; email: string }>>([]);
+  const [members, setMembers] = useState<Array<{ id: number; fullName: string; email: string; role?: string }>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [isTimelineCollapsed, setIsTimelineCollapsed] = useState<boolean>(true); // default sleek collapsed in overview
   const [isOpenImpactModalDirectly, setIsOpenImpactModalDirectly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview');
   const [selectedEvent, setSelectedEvent] = useState<NeuronEventItem | null>(null);
-  const [cutDay, setCutDay] = useState<number>(5);
+  const [cutDay, setCutDay] = useState<number>(14);
 
   const teamId =
     activeTeamId ||
     teams[0]?.id ||
     (typeof window !== 'undefined' ? Number(localStorage.getItem('fairshare_active_team_id')) : null) ||
     0;
+
+  const activeTeam = teams.find((t) => Number(t.id) === Number(teamId)) || teams[0];
+  const projectName = networkData?.teamName || activeTeam?.name || 'Dự án nhóm';
 
   // Load team members
   useEffect(() => {
@@ -48,128 +52,105 @@ export const MultidimensionalVectorPage: React.FC = () => {
       .then((res) => {
         const rawMembers = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         if (rawMembers.length > 0) {
-          const list = rawMembers.map((tm) => ({
-            id: tm.user?.id || tm.userId || tm.id,
-            fullName: tm.user?.fullName || tm.fullName || 'Thành viên',
-            email: tm.user?.email || tm.email || '',
-          }));
+          const list = rawMembers.map((tm) => {
+            const rawRole = (tm as { role?: string }).role;
+            const roleLabel = rawRole === 'LEADER' ? 'Trưởng nhóm' : rawRole ? 'Thành viên' : undefined;
+            return {
+              id: tm.user?.id || tm.userId || tm.id,
+              fullName: tm.user?.fullName || tm.fullName || 'Thành viên',
+              email: tm.user?.email || tm.email || '',
+              role: roleLabel,
+            };
+          });
           setMembers(list);
           setSelectedUserId((prev) => prev || list[0].id);
         }
       })
       .catch((err) => {
-        console.warn('Could not fetch members, using defaults:', err);
+        console.warn('Could not fetch members:', err);
       });
   }, [teamId]);
 
   const createFallbackData = useCallback(() => {
     const targetMember = members.find((m) => m.id === selectedUserId);
-    const targetName =
-      targetMember?.fullName ||
-      (selectedUserId === 110
-        ? 'Trần Thu Trang (Frontend Dev)'
-        : selectedUserId === 109
-        ? 'Nguyễn Hoàng Nam (Trưởng nhóm)'
-        : selectedUserId === 111
-        ? 'Lê Quốc Bảo (Backend Dev)'
-        : selectedUserId === 112
-        ? 'Phạm Minh Đức (DevOps)'
-        : selectedUserId === 113
-        ? 'Đặng Thảo Vy (QA Engineer)'
-        : user?.fullName || 'Trần Thu Trang (Frontend Dev)');
+    const targetUserId = targetMember?.id || selectedUserId || user?.id || 0;
+    const targetName = targetMember?.fullName || user?.fullName || 'Thành viên';
+    const targetRole = targetMember?.role || 'Thành viên';
 
-    const isTrang = targetName.includes('Trang') || selectedUserId === 110;
-    const isNam = targetName.includes('Nam') || selectedUserId === 109;
-    const isBao = targetName.includes('Bảo') || selectedUserId === 111;
-
-    const finalPct = isNam ? 0.39 : isTrang ? 0.22 : isBao ? 0.15 : 0.20;
-    const compositeScore = isNam ? 65.6 : isTrang ? 33.1 : isBao ? 25.4 : 35.0;
-    const distanceToCenter = isNam ? 1.34 : isTrang ? 2.20 : isBao ? 2.85 : 1.80;
-    const availabilityFactor = isBao ? 0.90 : 1.0;
-    const d1 = isNam ? 2.4 : isTrang ? 1.8 : 1.5;
-    const d2 = isNam ? 1.9 : isTrang ? 1.6 : 1.2;
-    const d3 = isNam ? 2.1 : isTrang ? 1.7 : 1.4;
-    const d4 = isNam ? 2.0 : isTrang ? 1.5 : 1.3;
-
-    const mockData: MultidimensionalNetworkDto = {
+    const emptyData: MultidimensionalNetworkDto = {
       teamId,
-      sprintId: selectedSprintId || 2,
-      sprintName:
-        selectedSprintId === 1
-          ? 'Sprint 1 - Thiết kế Kiến trúc & UI Kit'
-          : selectedSprintId === 2
-          ? 'Sprint 2 - Phát triển Tính năng & Tích hợp API'
-          : 'Sprint 3 - Hoàn thiện MVP & UI Chấm chéo',
-      focusedUserId: selectedUserId || 110,
+      teamName: activeTeam?.name || 'Dự án nhóm',
+      sprintId: selectedSprintId || 1,
+      sprintName: selectedSprintId ? `Sprint ${selectedSprintId}` : 'Sprint hiện tại',
+      focusedUserId: targetUserId,
       focusedUserName: targetName,
-      finalPct,
-      score: finalPct * 100,
-      d1Output: d1,
-      d2Reliability: d2,
-      d3Collaboration: d3,
-      d4Peer: d4,
-      compositeScore,
-      availabilityFactor,
-      confidenceIntervalLow: Number((finalPct * 100 - 2.5).toFixed(1)),
-      confidenceIntervalHigh: Number((finalPct * 100 + 2.5).toFixed(1)),
-      distanceToCenter,
+      focusedUserRole: targetRole,
+      finalPct: 0,
+      score: 0,
+      d1Output: 0,
+      d2Reliability: 0,
+      d3Collaboration: 0,
+      d4Peer: 0,
+      compositeScore: 0,
+      availabilityFactor: 1.0,
+      distanceToCenter: 0,
       isSuspicious: false,
-      hasSufficientEvidence: true,
-      totalEventsCount: isNam ? 28 : isTrang ? 22 : 16,
+      hasSufficientEvidence: false,
+      totalEventsCount: 0,
       tierBreakdown: {
         rawFeatures: {
-          cardsCompleted: isNam ? 10 : isTrang ? 7 : 6,
-          totalStoryPoints: isNam ? 18.0 : isTrang ? 12.5 : 11.0,
-          onTimeRate: isNam ? 0.95 : isTrang ? 0.88 : 0.82,
-          manualPoints: isNam ? 5.0 : isTrang ? 3.0 : 2.5,
+          cardsCompleted: 0,
+          totalStoryPoints: 0,
+          onTimeRate: 1,
+          manualPoints: 0,
         },
         logFeatures: {
-          ln_1_sp: Number(Math.log1p(isNam ? 18.0 : 12.5).toFixed(2)),
-          ln_1_cards: Number(Math.log1p(isNam ? 10 : 7).toFixed(2)),
-          ln_1_manual: Number(Math.log1p(isNam ? 5.0 : 3.0).toFixed(2)),
+          ln_1_sp: 0,
+          ln_1_cards: 0,
+          ln_1_manual: 0,
         },
         robustZScores: {
-          z_sp: d1,
-          z_ontime: d2,
-          z_collab: d3,
-          z_peer: d4,
+          z_sp: 0,
+          z_ontime: 0,
+          z_collab: 0,
+          z_peer: 0,
         },
         dimensions: {
-          D1_Output: d1,
-          D2_Reliability: d2,
-          D3_Collaboration: d3,
-          D4_Peer: d4,
+          D1_Output: 0,
+          D2_Reliability: 0,
+          D3_Collaboration: 0,
+          D4_Peer: 0,
         },
-        availabilityFactor,
-        availabilityBonusFactor: 1.0 + 0.5 * (1.0 - availabilityFactor),
+        availabilityFactor: 1.0,
+        availabilityBonusFactor: 1.0,
         adjustedDimensions: {
-          D1_prime: d1,
-          D2_prime: d2,
-          D3_prime: d3,
-          D4_prime: d4,
+          D1_prime: 0,
+          D2_prime: 0,
+          D3_prime: 0,
+          D4_prime: 0,
         },
-        compositeScore,
-        finalPercentage: finalPct,
+        compositeScore: 0,
+        finalPercentage: 0,
       },
       nodes: [
         {
-          id: `root-${selectedUserId || 110}`,
+          id: `root-${targetUserId}`,
           label: targetName,
           type: 'ROOT',
           category: 'MEMBER',
-          weight: compositeScore,
-          badge: `${(finalPct * 100).toFixed(1)}%`,
+          weight: 0,
+          badge: '0.0%',
           status: 'NORMAL',
           color: '#6366f1',
-          description: 'Thành viên quan sát',
+          description: 'Chưa có dữ liệu từ máy chủ',
         },
         {
           id: 'dim-d1',
           label: 'D1 - Sản lượng (Output)',
           type: 'DIMENSION',
           category: 'D1',
-          weight: d1,
-          badge: `+${d1.toFixed(2)}`,
+          weight: 0,
+          badge: '+0.00',
           status: 'ACTIVE',
           color: '#10b981',
           description: 'Story points, Cards hoàn thành, Độ khó thẻ',
@@ -179,8 +160,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D2 - Tin cậy & Tiến độ',
           type: 'DIMENSION',
           category: 'D2',
-          weight: d2,
-          badge: `+${d2.toFixed(2)}`,
+          weight: 0,
+          badge: '+0.00',
           status: 'ACTIVE',
           color: '#06b6d4',
           description: 'Tỷ lệ đúng hạn, Độ trễ trung vị, Rework',
@@ -190,8 +171,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D3 - Phối hợp & Review',
           type: 'DIMENSION',
           category: 'D3',
-          weight: d3,
-          badge: `+${d3.toFixed(2)}`,
+          weight: 0,
+          badge: '+0.00',
           status: 'ACTIVE',
           color: '#8b5cf6',
           description: 'Comment xây dựng, Review chéo, @mentions',
@@ -201,8 +182,8 @@ export const MultidimensionalVectorPage: React.FC = () => {
           label: 'D4 - Đánh giá đồng cấp',
           type: 'DIMENSION',
           category: 'D4',
-          weight: d4,
-          badge: `+${d4.toFixed(2)}`,
+          weight: 0,
+          badge: '+0.00',
           status: 'ACTIVE',
           color: '#ec4899',
           description: 'Chấm chéo ẩn danh (≥ 3 lượt đánh giá)',
@@ -213,44 +194,25 @@ export const MultidimensionalVectorPage: React.FC = () => {
           type: 'CATEGORY',
           category: 'IMPEDIMENT',
           weight: 1.0,
-          badge: isBao ? '1 Rào cản' : '0 Rào cản',
-          status: isBao ? 'WARN' : 'ACTIVE',
+          badge: '0 Rào cản',
+          status: 'ACTIVE',
           color: '#f59e0b',
           description: 'Lý do tiến độ trễ & ảnh hưởng khả dụng',
         },
-        {
-          id: 'imp-1',
-          label: isBao
-            ? 'Trùng lịch thi học phần (a_i = 0.90 bù hợp lệ)'
-            : 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
-          type: 'IMPEDIMENT',
-          category: 'IMPEDIMENT',
-          weight: isBao ? 1.5 : 0.0,
-          badge: 'Khả dụng',
-          status: isBao ? 'WARN' : 'ACTIVE',
-          color: '#f59e0b',
-          description: "Bù khả dụng kích hoạt: D' = D * (1 + 0.5(1 - a_i))",
-        },
       ],
       links: [
-        { source: `root-${selectedUserId || 110}`, target: 'dim-d1', weight: 1.0, type: 'PRIMARY', color: '#10b981', animated: true },
-        { source: `root-${selectedUserId || 110}`, target: 'dim-d2', weight: 1.0, type: 'PRIMARY', color: '#06b6d4', animated: true },
-        { source: `root-${selectedUserId || 110}`, target: 'dim-d3', weight: 1.0, type: 'PRIMARY', color: '#8b5cf6', animated: true },
-        { source: `root-${selectedUserId || 110}`, target: 'dim-d4', weight: 1.0, type: 'PRIMARY', color: '#ec4899', animated: true },
-        { source: `root-${selectedUserId || 110}`, target: 'cat-impediments', weight: 1.0, type: 'SECONDARY', color: '#f59e0b', animated: true },
+        { source: `root-${targetUserId}`, target: 'dim-d1', weight: 1.0, type: 'PRIMARY', color: '#10b981', animated: true },
+        { source: `root-${targetUserId}`, target: 'dim-d2', weight: 1.0, type: 'PRIMARY', color: '#06b6d4', animated: true },
+        { source: `root-${targetUserId}`, target: 'dim-d3', weight: 1.0, type: 'PRIMARY', color: '#8b5cf6', animated: true },
+        { source: `root-${targetUserId}`, target: 'dim-d4', weight: 1.0, type: 'PRIMARY', color: '#ec4899', animated: true },
+        { source: `root-${targetUserId}`, target: 'cat-impediments', weight: 1.0, type: 'SECONDARY', color: '#f59e0b', animated: true },
       ],
-      sprints: [
-        { id: 1, name: 'Sprint 1 - Thiết kế Kiến trúc & UI Kit', isCurrent: false, status: 'COMPLETED' },
-        { id: 2, name: 'Sprint 2 - Phát triển Tính năng & Tích hợp API', isCurrent: true, status: 'ACTIVE' },
-        { id: 3, name: 'Sprint 3 - Hoàn thiện MVP & UI Chấm chéo', isCurrent: false, status: 'PLANNED' },
-        { id: 4, name: 'Sprint 4 - Cảnh báo sớm & Báo cáo PDF', isCurrent: false, status: 'PLANNED' },
-        { id: 5, name: 'Sprint 5 - Kiểm thử & Bảo vệ đồ án', isCurrent: false, status: 'PLANNED' },
-      ],
+      sprints: [],
     };
-    setNetworkData(mockData);
-    const rootNode = mockData.nodes.find((n) => n.type === 'ROOT');
-    setSelectedNode(rootNode || mockData.nodes[0]);
-  }, [teamId, selectedSprintId, selectedUserId, user?.fullName, members]);
+    setNetworkData(emptyData);
+    const rootNode = emptyData.nodes.find((n) => n.type === 'ROOT');
+    setSelectedNode(rootNode || emptyData.nodes[0]);
+  }, [teamId, activeTeam?.name, selectedSprintId, selectedUserId, user?.id, user?.fullName, members]);
 
   // Fetch from Real MariaDB Backend
   const fetchNetworkGraph = useCallback(async () => {
@@ -265,6 +227,9 @@ export const MultidimensionalVectorPage: React.FC = () => {
 
       if (res.data) {
         setNetworkData(res.data);
+        const rootMeta = res.data.nodes?.find((n) => n.type === 'ROOT')?.metadata as Record<string, unknown> | undefined;
+        const sprintDaysNum = typeof rootMeta?.sprintDays === 'number' && rootMeta.sprintDays > 0 ? rootMeta.sprintDays : 14;
+        setCutDay(sprintDaysNum);
         if (!selectedSprintId && res.data.sprintId) {
           setSelectedSprintId(res.data.sprintId);
         }
@@ -293,7 +258,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
       const res = await contributionApi.logImpactEvent(payload);
       if (res.data) {
         setNetworkData(res.data);
-        showToast('Đã lưu rào cản vào CSDL MariaDB & tính lại vector');
+        showToast('Đã xác nhận khai báo rào cản & cập nhật mạng lưới');
       }
     } catch (err: unknown) {
       console.error('Error logging impact:', err);
@@ -464,6 +429,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
         ) : (
           <CosmicNetworkCanvas
             teamId={teamId}
+            projectName={projectName}
             networkData={networkData}
             nodes={networkData?.nodes || []}
             links={networkData?.links || []}
@@ -476,6 +442,7 @@ export const MultidimensionalVectorPage: React.FC = () => {
             onSelectFilter={(f) => setActiveFilter(f)}
             onOpenImpactModal={() => setIsOpenImpactModalDirectly(true)}
             focusedUserName={networkData?.focusedUserName}
+            focusedUserRole={networkData?.focusedUserRole || members.find((m) => m.id === (selectedUserId ?? networkData?.focusedUserId))?.role}
             finalPct={networkData?.finalPct}
             sprintName={networkData?.sprintName}
             viewMode={viewMode}
@@ -522,14 +489,30 @@ export const MultidimensionalVectorPage: React.FC = () => {
           onResolveSuspicion={handleResolveSuspicion}
           onRecalculateScores={handleRecalculateScores}
           isUpdating={isUpdating}
-          isOpenImpactModalDirectly={isOpenImpactModalDirectly}
-          onCloseImpactModalDirectly={() => setIsOpenImpactModalDirectly(false)}
+          onOpenImpactModal={() => setIsOpenImpactModalDirectly(true)}
           selectedEvent={selectedEvent}
           onSelectEvent={setSelectedEvent}
           cutDay={cutDay}
-          maxDays={14}
+          maxDays={
+            typeof (networkData?.nodes?.find((n) => n.type === 'ROOT')?.metadata as Record<string, unknown> | undefined)?.sprintDays === 'number'
+              ? ((networkData?.nodes?.find((n) => n.type === 'ROOT')?.metadata as Record<string, unknown>).sprintDays as number)
+              : 14
+          }
         />
       </div>
+
+      {/* 4. Centered Step-by-Step Impact / Barrier Declaration Modal (Accessible from both Overview and Detail views) */}
+      <ImpactDeclarationModal
+        isOpen={isOpenImpactModalDirectly}
+        teamId={teamId}
+        sprintId={resolvedSprintId}
+        sprintName={networkData?.sprintName}
+        userId={resolvedUserId}
+        userName={networkData?.focusedUserName || members.find((m) => m.id === resolvedUserId)?.fullName}
+        isSubmitting={isUpdating}
+        onClose={() => setIsOpenImpactModalDirectly(false)}
+        onSubmit={handleLogImpact}
+      />
     </div>
   );
 };

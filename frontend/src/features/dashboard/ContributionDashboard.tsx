@@ -5,6 +5,8 @@ import { useProjectStore } from '../../store/projectStore';
 import { NoProjectState } from '../team/NoProjectState';
 import { peerReviewApi } from '../../api/peerReview.api';
 import { teamApi } from '../../api/team.api';
+import { boardApi } from '../../api/board.api';
+import { parseChecklistFromDescription } from '../team/TaskDetailModal';
 import { DashboardHeroCanvas, HeroMemberItem } from './DashboardHeroCanvas';
 import { getMemberInitials } from '../../utils/format';
 import { ContributionPieChart } from './ContributionPieChart';
@@ -249,6 +251,69 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
   const [summary, setSummary] = useState<ContributionSummary | null>(null);
   const [summaryItems, setSummaryItems] = useState<ContributionSummaryItem[]>([]);
   const [evidence, setEvidence] = useState<EvidenceItemDto[]>([]);
+  const [boardTaskMap, setBoardTaskMap] = useState<Record<number, number>>({});
+  const [boardTaskLoaded, setBoardTaskLoaded] = useState<boolean>(false);
+
+  // Đồng bộ số task hoàn thành thực tế từ Kanban Board của Dự án
+  useEffect(() => {
+    if (!currentTeamId) return;
+    let alive = true;
+    const syncBoardTasks = async () => {
+      try {
+        const boardsRes = await boardApi.getBoardsByTeam(currentTeamId);
+        const boards = Array.isArray(boardsRes?.data) ? boardsRes.data : [];
+        if (boards.length === 0) {
+          if (alive) {
+            setBoardTaskMap({});
+            setBoardTaskLoaded(true);
+          }
+          return;
+        }
+        const detailedBoards = await Promise.all(
+          boards.map(async (b) => {
+            if (Array.isArray(b.columns) && b.columns.length > 0) return b;
+            const res = await boardApi.getBoardById(b.id).catch(() => null);
+            return res?.data ?? b;
+          })
+        );
+        const counts: Record<number, number> = {};
+        detailedBoards.forEach((b) => {
+          (b.columns || []).forEach((col) => {
+            const colLower = (col.name || '').toLowerCase();
+            const isDoneCol =
+              colLower.includes('done') ||
+              colLower.includes('complete') ||
+              colLower.includes('hoàn thành');
+            if (!isDoneCol) return;
+            (col.cards || []).forEach((card) => {
+              const uids = new Set<number>();
+              if (typeof card.assigneeId === 'number' && card.assigneeId > 0) {
+                uids.add(card.assigneeId);
+              }
+              const { assignees } = parseChecklistFromDescription(card.description);
+              assignees.forEach((a) => {
+                const n = Number(a.id);
+                if (Number.isFinite(n) && n > 0) uids.add(n);
+              });
+              uids.forEach((uid) => {
+                counts[uid] = (counts[uid] ?? 0) + 1;
+              });
+            });
+          });
+        });
+        if (alive) {
+          setBoardTaskMap(counts);
+          setBoardTaskLoaded(true);
+        }
+      } catch {
+        if (alive) setBoardTaskLoaded(false);
+      }
+    };
+    syncBoardTasks();
+    return () => {
+      alive = false;
+    };
+  }, [currentTeamId]);
 
   // State cho Modal truy vết bằng chứng (Card 7)
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState<boolean>(false);
@@ -499,7 +564,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
     if (summary?.scores && Array.isArray(summary.scores) && summary.scores.length > 0) {
       return summary.scores.map((s) => ({
         ...s,
-        taskCompletedCount: Number(s.taskCompletedCount ?? (s as unknown as { cardsCompleted?: number }).cardsCompleted ?? 0),
+        taskCompletedCount: boardTaskLoaded
+          ? (boardTaskMap[s.userId] ?? 0)
+          : Number(s.taskCompletedCount ?? (s as unknown as { cardsCompleted?: number }).cardsCompleted ?? 0),
         docsEditCount: Number(s.docsEditCount ?? 0),
         manualScore: Number(s.manualScore ?? 0),
         percentage: Number(s.percentage ?? 0),
@@ -510,7 +577,9 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       return safeSummaryItems.map((m) => {
         const trello = Number(m.trelloScore ?? 0);
         const manual = Number(m.manualScore ?? 0);
-        const tasksCount = trello > 0 ? Math.round(trello / 5) : 0;
+        const tasksCount = boardTaskLoaded
+          ? (boardTaskMap[m.userId] ?? 0)
+          : (trello > 0 ? Math.round(trello / 5) : 0);
         const docsCount = tasksCount > 0 ? Math.round(tasksCount * 2 + manual) : 0;
         const peerRating = m.d4Peer && m.d4Peer > 0
           ? Number((m.d4Peer * 5).toFixed(1))
@@ -529,7 +598,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
       });
     }
     return [];
-  }, [summary, safeSummaryItems]);
+  }, [summary, safeSummaryItems, boardTaskLoaded, boardTaskMap]);
 
   // Thành viên đang được xem trên Radar Chart
   const radarMember = useMemo(() => {
@@ -992,7 +1061,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                     </div>
 
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                      {featuredMember.bio || `${featuredMember.role} · Đóng góp ${featuredMember.pct}% (C_i ${featuredMember.compositeScore.toFixed(1)}) cho ${currentSprintLabel}.`}
+                      {featuredMember.bio || `${featuredMember.role} · Đóng góp ${featuredMember.pct}% cho ${currentSprintLabel}.`}
                     </p>
                   </div>
 
@@ -1005,7 +1074,7 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                       </span>
                       <span className="flex items-center gap-1.5" title="Số sự kiện tài liệu / Git">
                         <Activity size={13} className="text-slate-400" />
-                        <span>{featuredMember.edits} sk</span>
+                        <span>{featuredMember.edits} sự kiện</span>
                       </span>
                     </div>
 
@@ -1020,7 +1089,6 @@ export const ContributionDashboard: React.FC<ContributionDashboardProps> = ({ te
                       className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-[#252836] text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-white/10 shadow-xs hover:bg-slate-100 dark:hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer shrink-0"
                     >
                       <span>Chi tiết</span>
-                      <span className="text-slate-400">+</span>
                     </button>
                   </div>
                 </div>
