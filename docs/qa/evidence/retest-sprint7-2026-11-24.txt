@@ -1,0 +1,60 @@
+24/11/2026 21:53:26 (GMT+7) · master @ 677a9be
+== Retest Sprint 7 trên http://localhost:8081 (run 1795532006)
+   team=13 sprint=18 A=159 B=160 C=161 E=162
+
+== Ảnh đại diện qua Nginx (bản Docker)
+[PASS] RT7-55 (DEF-55) Tải ảnh đại diện PNG hợp lệ (64×64) trong image Docker
+       mong đợi: HTTP 200, có avatarUrl
+       thực tế : HTTP 200; avatarUrl=/uploads/avatars/1795532007247_fcff9d1d.png; 
+[FAIL] RT7-56 (DEF-56) Ảnh vừa tải mở được qua Nginx (:8081)
+       mong đợi: HTTP 200, Content-Type image/png
+       thực tế : HTTP 200, Content-Type text/html, 990 byte
+[FAIL] RT7-57 (DEF-57) Ảnh PNG hợp lệ 2.3 MB qua Nginx
+       mong đợi: Không bị 413 của Nginx (200, hoặc thông báo JSON của app)
+       thực tế : HTTP 413, Content-Type text/html; <html>
+<head><title>413 Request Entity Too Large</title></head>
+<body>
+<cente
+[FAIL] RT7-60 (DEF-60) File HTML đặt tên evil.png, Content-Type image/png
+       mong đợi: Bị từ chối (4xx)
+       thực tế : HTTP 200; {'success': True, 'message': 'Cập nhật ảnh đại diện thành công', 'data': {'id': 160, 'email': 'rt7_b_1795532006@staging.local', 'fullName': 'RT7 B', 'studentId': None, 'phone': None, 'major': None, 'teamRole': None, 'bio': None, 'githubUsername': None, 'avatarUrl': '/uploads/avatars/1795532007279_336a4891.png', 'createdAt': '2026-11-24T21:53:27'}, 'error': None, 'timestamp': '2026-11-24T21:53:27.282623892'}
+
+== Sửa thông tin nhóm
+[FAIL] RT7-59 (DEF-59) Thành viên thường B sửa tên nhóm
+       mong đợi: HTTP 403, tên nhóm không đổi
+       thực tế : HTTP 200; tên nhóm trong CSDL: 'Đổi tên bởi member'
+
+== Cảnh báo của nhóm
+   tạo cảnh báo: HTTP 200, id=58
+[FAIL] RT7-58a (DEF-58) Người ngoài nhóm E nhắc nhở cảnh báo của nhóm
+       mong đợi: HTTP 403
+       thực tế : HTTP 200; Đã gửi nhắc nhở thành công
+[FAIL] RT7-58b (DEF-58) Người ngoài nhóm E đánh dấu đã giải quyết cảnh báo của nhóm
+       mong đợi: HTTP 403, cảnh báo vẫn chưa giải quyết
+       thực tế : HTTP 200; resolved trong CSDL = 1
+
+== Chấm chéo
+   đợt chấm 14
+[PASS] RT7-64a (DEF-64) Người ngoài E gửi phiếu đứng tên C (reviewerId=C) chấm B
+       mong đợi: HTTP 403, không lưu phiếu
+       thực tế : HTTP 403; số phiếu trong đợt: 0
+[PASS] RT7-64b (DEF-64) Thành viên B gửi phiếu kèm reviewerId=A (Leader) chấm C
+       mong đợi: Phiếu đứng tên B (id 160), không đứng tên A (id 159)
+       thực tế : HTTP 200; reviewer_id trong CSDL = 160
+[FAIL] RT7-65a (DEF-65) Người ngoài E xem B đã chấm ai, bao nhiêu điểm
+       mong đợi: HTTP 403
+       thực tế : HTTP 200; 1 phiếu lộ ra
+[FAIL] RT7-65b (DEF-65) Người ngoài E xem danh sách đợt chấm của nhóm
+       mong đợi: HTTP 403
+       thực tế : HTTP 200; 1 đợt lộ ra
+
+== Gửi email báo cáo
+[PASS] RT7-66a (DEF-66) Người ngoài E gửi email báo cáo cho B (kèm teamId của nhóm)
+       mong đợi: HTTP 403, hoặc success=false trả lời ngay (không gửi email)
+       thực tế : HTTP 200, success=False, 0.0 s; Không thể gửi email: Bạn không phải thành viên của nhóm này
+[PASS] RT7-66b (DEF-66) Người ngoài E gửi email báo cáo cho B (bỏ trống teamId)
+       mong đợi: HTTP 403, hoặc success=false trả lời ngay (không gửi email)
+       thực tế : HTTP 200, success=False, 0.0 s; Không thể gửi email: The given id must not be null
+
+TỔNG: 5/13 PASS
+Đã ghi docs/qa/evidence/retest-result-2026-11-24.json

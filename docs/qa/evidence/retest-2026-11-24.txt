@@ -1,0 +1,40 @@
+24/11/2026 21:51:00 (GMT+7) · master @ 677a9be
+== Retest Sprint 6 trên http://localhost:8081 (run 1795531868)
+   team=8 sprint=12 board=11 cột=['To Do', 'In Progress', 'Review', 'Done']
+
+== DEF-38: kéo thẻ vào Review lặp lại
+[PASS] RT-38a (DEF-38) C kéo thẻ của B vào Review 6 lần chỉ sinh 1 REVIEW_CARD
+       mong đợi: 1 sự kiện REVIEW_CARD của C cho thẻ này
+       thực tế : 1 sự kiện; HTTP [200]
+[PASS] RT-38b (DEF-38) Tỷ lệ đóng góp của C không tăng khi kéo lặp
+       mong đợi: finalPct sau 6 lần = sau 1 lần
+       thực tế : sau 1 lần 28.46%, sau 6 lần 28.46%
+[FAIL] RT-38c (DEF-38) Đổi tiêu đề thẻ rồi kéo lại vào Review không sinh thêm REVIEW_CARD
+       mong đợi: vẫn 1 sự kiện REVIEW_CARD của C cho thẻ này
+       thực tế : đổi tên HTTP 200; 2 sự kiện REVIEW_CARD
+
+== Người phụ trách kéo thẻ của mình qua lại (cùng loại R05)
+[FAIL] RT-41a (mới) D kéo thẻ 5 SP của mình To Do <-> In Progress 10 vòng: tổng SP của CARD_MOVED không tăng
+       mong đợi: tổng storyPoints CARD_MOVED của D không đổi
+       thực tế : 21 CARD_MOVED, tổng SP 5.0 -> 105.0
+[FAIL] RT-41b (mới) Tỷ lệ đóng góp của D không tăng khi chỉ kéo qua lại, chưa hoàn thành thẻ
+       mong đợi: finalPct không đổi
+       thực tế : 27.7% -> 33.02%
+
+== DEF-19: thành viên thường tạo đợt chấm chéo
+[FAIL] RT-19 (DEF-19) Thành viên thường tạo đợt chấm bị chặn bằng 403
+       mong đợi: HTTP 403
+       thực tế : HTTP 400: Only a team leader can manage review rounds
+
+== DEF-40: migration V23 seed dữ liệu demo
+[FAIL] RT-40a (DEF-40) Migration không được chèn tài khoản demo vào CSDL thật
+       mong đợi: 0 tài khoản id 109..113 do migration tạo
+       thực tế : V23 đã chạy: 1; tài khoản demo: 5
+[FAIL] RT-40b (DEF-40) Không đăng nhập được bằng tài khoản demo có mật khẩu công khai trong repo
+       mong đợi: HTTP 401
+       thực tế : HTTP 200
+[FAIL] RT-40c (DEF-40) Migration không gắn thành viên/dữ liệu demo vào nhóm id 1 (nhóm thật đầu tiên)
+       mong đợi: 0 thành viên demo trong team 1
+       thực tế : 5 thành viên demo trong team 1
+
+TỔNG: 2/9 PASS

@@ -1,6 +1,6 @@
 # Minh chứng kiểm thử và triển khai (WP5 – M5)
 
-**Phụ trách:** M5 – Khiếu Hoàng Nam Anh · **Cập nhật:** 19/11/2026 13:20 (GMT+7)
+**Phụ trách:** M5 – Khiếu Hoàng Nam Anh · **Cập nhật:** 24/11/2026 22:10 (GMT+7)
 
 Thư mục này lưu log chạy test, kết quả JSON, file PDF mẫu, ảnh màn hình và video demo dùng làm minh chứng cho defect log (`docs/qa/defect-log.md`), chương Kiểm thử & Triển khai (`docs/report/M5-chuong-kiem-thu-trien-khai.md`) và Mini-PM Report.
 
@@ -13,7 +13,42 @@ Quy ước tên file: `<loại>-<yyyy-mm-dd>.<đuôi>`. File mới (từ 14/11) 
 | Video demo dự phòng (102 giây, quay 15/11 trên staging) | https://drive.google.com/file/d/1HE7ZnfLf49j5UMruRp-0IG11czHqGZjV/view |
 | Sheet QA (tab "UAT pilot", "Defect log") | https://docs.google.com/spreadsheets/d/104KW7se8hVV37DPfD7vKPBYUGpkmSk94uUbg0KYrkb8/edit |
 
-## Lần chạy mới nhất: 19/11/2026 (kiểm tra trước release), `master` @ `adb33ad`
+## Mục lục nhanh theo hồ sơ nộp (Sprint 7)
+
+| Cần chứng minh | File chính (lần cuối) | Tài liệu dùng |
+|---|---|---|
+| Unit test 100% pass, 0 skip | `backend-unit-docker-2026-11-24.txt` (243/243), `frontend-unit-2026-11-24.txt` (99/99), `frontend-lint-build-2026-11-24.txt` | Chương mục 3.1, Final Test Report 3.1 |
+| Staging dựng được, smoke PASS | `staging-compose-ps-2026-11-24.txt`, `staging-smoke-2026-11-24.txt` | Chương 5.2, release notes |
+| Tích hợp luồng cốt lõi | `integration-2026-11-24.txt` (23/23), `../integration-result-sprint4.json` | Chương 3.3 |
+| Hồi quy | `regression-2026-11-24.txt` (26/30), `../regression-result-sprint5.json` | Chương 3.4 |
+| G4 – PDF < 10 s | `pdf-clean-team-2026-11-24.txt`, `report-clean-team-2026-11-24.pdf` (0,237 s) | Chương 3.5 |
+| Chống gian lận, phân quyền | `uat-pilot-2026-11-24.txt` (22/24), `retest-2026-11-24.txt` (2/9), `retest-sprint7-*-2026-11-24.*` (5/13 → 7/13) | Defect Log 24/11 |
+| Bản sửa hạ tầng DEF-55..57 của M5 | `staging-compose-ps-fix-2026-11-24.txt`, `retest-sprint7-after-fix-2026-11-24.txt`, `integration-after-fix-2026-11-24.txt` | Defect Log, chương 5.1 |
+| UAT, G5 | `../uat-report.md`, `../uat/uat-closure.md`, `../uat/pcg-feedback-2026-11-19.md` | Chương 3.6 |
+| Video demo dự phòng | Link Google Drive ở mục "Bản online" | Chương 5.3 |
+| Kết quả CI | GitHub Actions: Backend CI, Frontend CI, Docker Compose smoke test đều xanh trên `master` @ `677a9be` (23/11 21:58) | Chương 2 |
+
+## Lần chạy cuối: 24/11/2026 (Sprint 7), `master` @ `677a9be`
+
+Staging dựng sạch từ `master` @ `677a9be` (merge PR #113, 23/11 21:58). Jar (`mvn package`) và bundle frontend (`npm run build`) build trên máy chạy rồi đóng image từ cùng mã nguồn; image nền kéo riêng vì Docker Hub giới hạn lượt. Nạp seed M3 `large_dataset_500_tasks.sql`, chạy `uat-seed.py`, `demo-seed.py`. Sau đó M5 sửa DEF-55..57 (nhánh `nam-anh`), dựng lại container và chạy lại các bộ liên quan.
+
+| File | Nội dung | Kết quả | Ghi chú |
+|---|---|---|---|
+| `staging-compose-ps-2026-11-24.txt`, `staging-smoke-2026-11-24.txt` | Dựng staging, `staging-smoke.sh` | 3 container healthy, **PASS** | |
+| `backend-unit-docker-2026-11-24.txt` | `mvn -B test`, Testcontainers chạy thật | **243 test, 0 lỗi, 0 skip** | 48 lớp test |
+| `frontend-unit-2026-11-24.txt` | Vitest (Node 22) | **21 file, 99/99** | |
+| `frontend-lint-build-2026-11-24.txt` | `npm run lint`, `npm run build` | 0 lỗi; build đạt | Cảnh báo kích thước chunk |
+| `integration-2026-11-24.txt` | `integration-sprint4.py` (`TZ=Asia/Ho_Chi_Minh`) | **23/23** | |
+| `regression-2026-11-24.txt` | `regression-sprint5.py` | **26/30** (PDF-01..04 FAIL) | Do dữ liệu V24/V25 (DEF-40), như 19/11 |
+| `pdf-clean-team-2026-11-24.txt`, `report-clean-team-2026-11-24.pdf` | Xuất PDF nhóm demo sạch, 11 lần | HTTP 200, **chậm nhất 0,237 s**, đủ 5 tên, điểm 4.3/5, 4.7/5; evidence 200 cho 5/5 | G4, G2 đạt |
+| `retest-2026-11-24.txt`, `retest-result-sprint6-2026-11-24.json` | `retest-sprint6.py` | **2/9** | DEF-19, 40, 41, 42 còn lỗi |
+| `uat-pilot-2026-11-24.txt` (JSON: `../uat/uat-pilot-result.json`) | `uat-pilot.py` | **22/24** | UAT-SEC-04, 05 chỉ lệch mã trạng thái; DEF-31, 32 đóng |
+| `retest-sprint7-2026-11-24.txt` | `retest-sprint7.py` (mới, 13 ca) trên `master` | **5/13** | Có bước cấp quyền tạm `/app/uploads` trong container để kiểm riêng DEF-56, 57, 60 |
+| `staging-compose-ps-fix-2026-11-24.txt` | Dựng lại với `Dockerfile`, `docker-compose.yml`, `nginx.conf` đã sửa | 3 container healthy; `/app/uploads` thuộc `fairshare` | |
+| `retest-sprint7-after-fix-2026-11-24.txt`, `retest-sprint7-result-2026-11-24.json` | `retest-sprint7.py` sau bản sửa | **7/13** | Đóng DEF-55, 56, 57; còn DEF-58, 59, 60, 65 |
+| `integration-after-fix-2026-11-24.txt` | Tích hợp sau bản sửa Nginx | **23/23** | Không hồi quy |
+
+## Lần chạy 19/11/2026 (kiểm tra trước release), `master` @ `adb33ad`
 
 Staging dựng sạch từ `master` @ `adb33ad` (merge PR #103, 18/11 14:06). Jar và bundle frontend build trên máy chạy rồi đóng image (cùng mã nguồn; build trong container bị chặn bởi chứng chỉ proxy của máy chạy). Nạp seed M3 `large_dataset_500_tasks.sql`, chạy `uat-seed.py` và `demo-seed.py`.
 
@@ -72,4 +107,4 @@ Staging dựng lại sạch (`./scripts/staging-up.sh reset` rồi `./scripts/st
 ## Lưu ý
 
 - `staging-up-2026-11-15.log` chỉ có trên máy M5 (đuôi `.log` bị `.gitignore`). Từ 16/11 log dựng staging lưu đuôi `.txt` sau khi đã kiểm không có bí mật.
-- Số liệu trong tài liệu phải lấy từ file ở bảng "Lần chạy mới nhất". Khi chạy lại, thêm file mới theo ngày, không ghi đè file cũ.
+- Số liệu trong tài liệu phải lấy từ file ở bảng "Lần chạy cuối". Khi chạy lại, thêm file mới theo ngày, không ghi đè file cũ.

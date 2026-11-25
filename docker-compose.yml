@@ -51,6 +51,8 @@ services:
       TZ: Asia/Ho_Chi_Minh
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - uploads_data:/app/uploads    # DEF-55: giữ ảnh đại diện/đính kèm khi tạo lại container
     depends_on:
       db:
         condition: service_healthy   # Chờ DB sẵn sàng, tránh Flyway lỗi kết nối lúc khởi động
@@ -76,3 +78,4 @@ networks:
 
 volumes:
   db_data:
+  uploads_data:

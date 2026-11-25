@@ -1,17 +1,17 @@
 {
-  "run": "1795068211",
+  "run": "1795532163",
   "base_url": "http://localhost:8081",
-  "executed_at": "2026-11-19T13:03:33",
+  "executed_at": "2026-11-24T21:56:06",
   "ids": {
-    "team": 4,
-    "sprint": 8,
-    "round": 8,
+    "team": 15,
+    "sprint": 20,
+    "round": 16,
     "users": {
-      "A": 115,
-      "B": 116,
-      "C": 117,
-      "D": 118,
-      "E": 119
+      "A": 168,
+      "B": 169,
+      "C": 170,
+      "D": 171,
+      "E": 172
     }
   },
   "passed": 23,
@@ -20,7 +20,7 @@
     {
       "id": "IT-BRD-01",
       "name": "Tạo card sinh CARD_CREATED nguồn BOARD, gắn đúng sprint",
-      "expected": "3 sự kiện CARD_CREATED, source=BOARD, sprintId=8",
+      "expected": "3 sự kiện CARD_CREATED, source=BOARD, sprintId=20",
       "actual": "3 sự kiện, source=['BOARD']",
       "result": "PASS"
     },
@@ -60,7 +60,7 @@
       "id": "IT-BRD-05",
       "name": "API tổng hợp đóng góp (sp_calculate_contribution_scores) trả điểm cho thành viên có card Done",
       "expected": "HTTP 200; B và C có finalPct > 0",
-      "actual": "HTTP 200; user 115: finalPct=13.69, user 116: finalPct=43.69, user 117: finalPct=19.62, user 118: finalPct=23.0",
+      "actual": "HTTP 200; user 168: finalPct=13.69, user 169: finalPct=43.69, user 170: finalPct=19.62, user 171: finalPct=23.0",
       "result": "PASS"
     },
     {
@@ -115,15 +115,15 @@
     {
       "id": "IT-PR-01",
       "name": "API liệt kê đợt chấm theo sprint",
-      "expected": "HTTP 200, có round 8",
-      "actual": "HTTP 200; [8]",
+      "expected": "HTTP 200, có round 16",
+      "actual": "HTTP 200; [16]",
       "result": "PASS"
     },
     {
       "id": "IT-PR-02",
       "name": "Gửi đánh giá: API trả thành công và lưu vào bảng review_submissions",
-      "expected": "HTTP 200; 1 dòng (115, 117, QUALITY, 4)",
-      "actual": "HTTP 200; DB: '115\\t117\\tQUALITY\\t4'",
+      "expected": "HTTP 200; 1 dòng (168, 170, QUALITY, 4)",
+      "actual": "HTTP 200; DB: '168\\t170\\tQUALITY\\t4'",
       "result": "PASS"
     },
     {
