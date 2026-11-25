@@ -9,7 +9,9 @@ RUN mvn -B clean package -DskipTests
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S fairshare && adduser -S fairshare -G fairshare
+# DEF-55: thư mục lưu ảnh đại diện/đính kèm (app.upload.dir=uploads -> /app/uploads) phải ghi được bởi user fairshare
+RUN addgroup -S fairshare && adduser -S fairshare -G fairshare \
+    && mkdir -p /app/uploads && chown fairshare:fairshare /app/uploads
 COPY --from=build /app/target/*.jar app.jar
 USER fairshare
 EXPOSE 8080

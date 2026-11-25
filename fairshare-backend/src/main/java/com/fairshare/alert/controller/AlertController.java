@@ -87,10 +87,14 @@ public class AlertController {
     }
 
     @PostMapping("/{alertId}/remind")
-    public ResponseEntity<ApiResponse<String>> remindMember(@PathVariable Long alertId) {
+    public ResponseEntity<ApiResponse<String>> remindMember(
+            @PathVariable Long alertId,
+            Authentication authentication
+    ) {
+        String senderEmail = authentication != null ? authentication.getName() : null;
         return ResponseEntity.ok(ApiResponse.ok(
                 "Đã gửi nhắc nhở thành công",
-                alertService.remindMember(alertId)
+                alertService.remindMember(alertId, senderEmail)
         ));
     }
 }

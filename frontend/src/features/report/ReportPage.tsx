@@ -13,6 +13,8 @@ import { contributionApi } from '../../api/contribution.api';
 import { teamApi } from '../../api/team.api';
 import { peerReviewApi, ReviewSprint } from '../../api/peerReview.api';
 import { boardApi } from '../../api/board.api';
+import { activityApi } from '../../api/activity.api';
+import { parseChecklistFromDescription } from '../team/TaskDetailModal';
 import { useProjectStore } from '../../store/projectStore';
 import { useAuthStore } from '../../store/authStore';
 import { NoProjectState } from '../team/NoProjectState';
@@ -358,11 +360,14 @@ export const ReportPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const [sumRes, teamRes, boardRes, roundRes] = await Promise.allSettled([
+      const [sumRes, teamRes, boardRes, roundRes, contribRes] = await Promise.allSettled([
         contributionApi.getContributionSummary(currentTeamId, selectedSprintId),
         teamApi.getTeamById(currentTeamId),
         boardApi.getBoardsByTeam(currentTeamId),
         peerReviewApi.getRoundsByTeam(currentTeamId),
+        typeof contributionApi.getContributions === 'function'
+          ? contributionApi.getContributions(currentTeamId, selectedSprintId)
+          : Promise.resolve(null),
       ]);
 
       // Team Details
@@ -391,22 +396,75 @@ export const ReportPage: React.FC = () => {
         }
       }
 
-      // Board Cards per Assignee
+      // Real Board Done Cards per Assignee (100% synced with Dự án & Dashboard)
       const memberCardsMap: Record<number, number> = {};
+      let boardHasData = false;
       if (boardRes.status === 'fulfilled' && boardRes.value?.data && Array.isArray(boardRes.value.data)) {
-        boardRes.value.data.forEach((board) => {
-          if (Array.isArray(board.columns)) {
+        const boardsList = boardRes.value.data;
+        const detailedBoards = await Promise.all(
+          boardsList.map(async (b) => {
+            if (Array.isArray(b.columns) && b.columns.length > 0) return b;
+            if (typeof boardApi.getBoardById === 'function') {
+              const detailRes = await boardApi.getBoardById(b.id).catch(() => null);
+              return detailRes?.data ?? b;
+            }
+            return b;
+          })
+        );
+        detailedBoards.forEach((board) => {
+          if (Array.isArray(board.columns) && board.columns.length > 0) {
+            boardHasData = true;
             board.columns.forEach((col) => {
+              const colLower = (col.name || '').trim().toLowerCase();
+              const isDoneCol =
+                colLower.includes('done') ||
+                colLower.includes('complete') ||
+                colLower.includes('hoàn thành');
+              if (!isDoneCol) return;
               if (Array.isArray(col.cards)) {
                 col.cards.forEach((c) => {
-                  if (c.assigneeId) {
-                    memberCardsMap[c.assigneeId] = (memberCardsMap[c.assigneeId] || 0) + 1;
-                  }
+                  const uids = new Set<number>();
+                  if (c.assigneeId) uids.add(c.assigneeId);
+                  const { assignees } = parseChecklistFromDescription(c.description);
+                  assignees.forEach((a) => {
+                    const n = Number(a.id);
+                    if (Number.isFinite(n) && n > 0) uids.add(n);
+                  });
+                  uids.forEach((uid) => {
+                    memberCardsMap[uid] = (memberCardsMap[uid] || 0) + 1;
+                  });
                 });
               }
             });
           }
         });
+      }
+
+      // Real activity / docsEditCount map (synced with Dashboard & ActivityEvent DB)
+      const docsEditMap: Record<number, number> = {};
+      const backendTaskCountMap: Record<number, number> = {};
+      if (contribRes.status === 'fulfilled' && contribRes.value?.data?.scores && Array.isArray(contribRes.value.data.scores)) {
+        contribRes.value.data.scores.forEach((s) => {
+          if (s.userId != null) {
+            docsEditMap[s.userId] = Number(s.docsEditCount ?? 0);
+            backendTaskCountMap[s.userId] = Number(s.taskCompletedCount ?? 0);
+          }
+        });
+      }
+      const activityCountMap: Record<number, number> = {};
+      if (Object.keys(docsEditMap).length === 0 && typeof activityApi?.getByTeam === 'function') {
+        try {
+          const actRes = await activityApi.getByTeam(currentTeamId);
+          if (actRes?.data && Array.isArray(actRes.data)) {
+            actRes.data.forEach((ev) => {
+              if (ev.userId != null) {
+                activityCountMap[ev.userId] = (activityCountMap[ev.userId] || 0) + 1;
+              }
+            });
+          }
+        } catch {
+          // ignore if activity endpoint unavailable
+        }
       }
 
       // Peer Review Round corresponding to sprint
@@ -464,18 +522,24 @@ export const ReportPage: React.FC = () => {
           const trelloScore = item.trelloScore ?? 0;
           const manualScore = item.manualScore ?? 0;
 
-          // Card count
+          // Card count (100% synced with Kanban Done cards or backend score DTO)
           let taskCount = 0;
-          if (memberCardsMap[item.userId] !== undefined) {
-            taskCount = memberCardsMap[item.userId];
+          if (boardHasData) {
+            taskCount = memberCardsMap[item.userId] ?? 0;
+          } else if (backendTaskCountMap[item.userId] !== undefined) {
+            taskCount = backendTaskCountMap[item.userId];
           } else if (trelloScore > 0) {
-            taskCount = Math.max(1, Math.round(trelloScore / 2.5));
+            taskCount = Math.max(1, Math.round(trelloScore / 5));
           }
 
-          // Real edits / activity count
+          // Real activity / event count (synced with Dashboard & ActivityEvent DB)
           let editsCount = 0;
-          if (pct > 0 || trelloScore > 0) {
-            editsCount = Math.max(12, Math.round(trelloScore * 8 + manualScore * 10));
+          if (docsEditMap[item.userId] !== undefined) {
+            editsCount = docsEditMap[item.userId];
+          } else if (activityCountMap[item.userId] !== undefined) {
+            editsCount = activityCountMap[item.userId];
+          } else if (pct > 0 || trelloScore > 0) {
+            editsCount = Math.round(trelloScore + manualScore);
           }
 
           // Peer score
@@ -530,6 +594,25 @@ export const ReportPage: React.FC = () => {
           if (!a.isLeader && b.isLeader) return 1;
           return b.pct - a.pct;
         });
+
+        // Chuẩn hóa tỷ lệ % thành viên để tổng luôn bằng đúng 100.0%, không bao giờ vượt 100%
+        const rawPctSum = mapped.reduce((acc, m) => acc + m.pct, 0);
+        if (rawPctSum > 0 && mapped.length > 0) {
+          if (rawPctSum > 100.5 || rawPctSum < 99.5) {
+            mapped.forEach((m) => {
+              m.pct = Number(((m.pct / rawPctSum) * 100).toFixed(1));
+            });
+          }
+          const adjustedSum = mapped.reduce((acc, m) => acc + m.pct, 0);
+          const diff = Number((100 - adjustedSum).toFixed(1));
+          if (diff !== 0) {
+            const targetIdx = mapped.reduce(
+              (best, m, i) => (m.pct >= mapped[best].pct ? i : best),
+              0
+            );
+            mapped[targetIdx].pct = Math.max(0, Number((mapped[targetIdx].pct + diff).toFixed(1)));
+          }
+        }
 
         setMembers(mapped);
         setSelectedUserId((prev) => (prev ? prev : (mapped[0]?.userId ?? null)));
@@ -680,19 +763,43 @@ export const ReportPage: React.FC = () => {
     setTimeout(() => window.print(), 400);
   };
 
+  const openMailtoDraft = (recipientEmails: string[], subject: string, body: string) => {
+    const valid = recipientEmails.map((e) => e.trim()).filter(Boolean);
+    if (valid.length === 0) return;
+    const mailtoUrl = `mailto:${encodeURIComponent(valid.join(','))}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoUrl, '_blank', 'noopener,noreferrer');
+  };
+
   // Handle Send Individual Email
   const handleSendIndividualEmail = async (userId: number, memberName: string) => {
     if (!currentTeamId) return;
+    const targetMember = members.find((m) => m.userId === userId);
     try {
       setSendingEmailUserId(userId);
       const res = await reportApi.sendIndividualEmail(currentTeamId, selectedSprintId, userId);
-      if (res && (res.success || res.data)) {
+      if (res && res.success) {
         showToast(`Đã gửi báo cáo cá nhân thành công tới email của ${memberName}`);
       } else {
-        showToast(`Báo cáo cá nhân đã được đóng gói và gửi tới email đăng ký của ${memberName}`);
+        const errMsg = res?.message || 'Không thể gửi email từ máy chủ.';
+        if (errMsg.includes('SMTP_NOT_CONFIGURED') && targetMember?.email) {
+          const sprintLabel = currentSprint?.name || `Sprint ${selectedSprintId}`;
+          const subject = `[FairShare] Báo cáo đóng góp cá nhân – ${sprintLabel}`;
+          const body =
+            `Xin chào ${memberName},\n\n` +
+            `Báo cáo đóng góp nhóm ${teamName} (${sprintLabel}):\n` +
+            `- Tỷ lệ đóng góp: ${targetMember.pct}%\n` +
+            `- Chỉ số 4D: D1=${targetMember.d1Output}, D2=${targetMember.d2Reliability}, D3=${targetMember.d3Collaboration}, D4=${targetMember.d4Peer}\n` +
+            `- Công việc hoàn thành: ${targetMember.tasks} tasks · Hoạt động: ${targetMember.edits} sự kiện\n\n` +
+            `Trân trọng,\nFairShare`;
+          openMailtoDraft([targetMember.email], subject, body);
+          showToast('Máy chủ chưa cấu hình SMTP — đã mở bản nháp email trên thiết bị của bạn.');
+        } else {
+          showToast(errMsg);
+        }
       }
-    } catch {
-      showToast(`Đã gửi báo cáo đóng góp cá nhân của ${memberName} qua email đăng ký`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi kết nối khi gửi email.';
+      showToast(`Không thể gửi email tới ${memberName}: ${msg}`);
     } finally {
       setSendingEmailUserId(null);
     }
@@ -704,13 +811,27 @@ export const ReportPage: React.FC = () => {
     try {
       setSendingAllEmails(true);
       const res = await reportApi.sendAllEmails(currentTeamId, selectedSprintId);
-      if (res && (res.success || res.data)) {
-        showToast(`Đã gửi thành công báo cáo cá nhân cho toàn bộ ${members.length} thành viên`);
+      if (res && res.success) {
+        showToast(res.data || `Đã gửi thành công báo cáo cá nhân cho toàn bộ ${members.length} thành viên`);
       } else {
-        showToast(`Đã gửi email báo cáo cá nhân cho tất cả thành viên trong nhóm`);
+        const errMsg = res?.message || 'Không thể gửi email hàng loạt từ máy chủ.';
+        if (errMsg.includes('SMTP_NOT_CONFIGURED')) {
+          const emails = members.map((m) => m.email).filter(Boolean);
+          const sprintLabel = currentSprint?.name || `Sprint ${selectedSprintId}`;
+          const subject = `[FairShare] Tổng kết đóng góp nhóm ${teamName} – ${sprintLabel}`;
+          const summaryLines = members
+            .map((m) => `- ${m.name}: ${m.pct}% (${m.tasks} tasks, ${m.edits} sự kiện)`)
+            .join('\n');
+          const body = `Xin chào cả nhóm ${teamName},\n\nTổng kết đóng góp ${sprintLabel}:\n${summaryLines}\n\nTrân trọng,\nFairShare`;
+          openMailtoDraft(emails, subject, body);
+          showToast('Máy chủ chưa cấu hình SMTP — đã mở bản nháp email tới toàn bộ thành viên.');
+        } else {
+          showToast(errMsg);
+        }
       }
-    } catch {
-      showToast(`Đã gửi email báo cáo đóng góp đa chiều cho tất cả thành viên`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi kết nối khi gửi email hàng loạt.';
+      showToast(`Lỗi gửi email: ${msg}`);
     } finally {
       setSendingAllEmails(false);
     }
@@ -742,7 +863,9 @@ export const ReportPage: React.FC = () => {
   }, [members, selectedUserId]);
 
   const totalPercentage = useMemo(() => {
-    return members.reduce((acc, m) => acc + m.pct, 0).toFixed(1);
+    const sum = members.reduce((acc, m) => acc + m.pct, 0);
+    if (sum === 0) return '0';
+    return Math.abs(sum - 100) <= 1.0 ? '100' : String(Math.min(100, Math.round(sum)));
   }, [members]);
 
   const totalTasks = useMemo(() => {

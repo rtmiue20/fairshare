@@ -149,10 +149,12 @@ export interface SprintTimelineDto {
 
 export interface MultidimensionalNetworkDto {
   teamId: number;
+  teamName?: string;
   sprintId: number;
   sprintName: string;
   focusedUserId: number;
   focusedUserName: string;
+  focusedUserRole?: string;
   finalPct: number;
   score: number;
   d1Output: number;

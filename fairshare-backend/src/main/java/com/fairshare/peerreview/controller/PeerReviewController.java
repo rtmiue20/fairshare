@@ -115,20 +115,25 @@ public class PeerReviewController {
     @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<PeerReviewDetailDto>>> getRoundReviewDetails(
             @PathVariable Long roundId,
-            @RequestParam(required = false) Long revieweeId
+            @RequestParam(required = false) Long revieweeId,
+            Authentication authentication
     ) {
-        List<PeerReviewDetailDto> list = peerReviewService.getRoundReviewDetails(roundId, revieweeId);
+        Long requesterId = authentication != null && authentication.getName() != null
+                ? getUserId(authentication)
+                : null;
+        List<PeerReviewDetailDto> list = peerReviewService.getRoundReviewDetails(roundId, revieweeId, requesterId);
         return ResponseEntity.ok(ApiResponse.ok("Chi tiết đánh giá của đợt chấm chéo", list));
     }
 
     @PostMapping("/submissions/{submissionId}/like")
     public ResponseEntity<ApiResponse<Integer>> toggleLike(
             @PathVariable Long submissionId,
+            @RequestParam(required = false, defaultValue = "false") boolean unlike,
             Authentication authentication
     ) {
         Long userId = getUserId(authentication);
-        int newCount = peerReviewService.toggleLike(submissionId, userId);
-        return ResponseEntity.ok(ApiResponse.ok("Đã thích nhận xét", newCount));
+        int newCount = peerReviewService.toggleLike(submissionId, userId, unlike);
+        return ResponseEntity.ok(ApiResponse.ok(unlike ? "Đã bỏ thích nhận xét" : "Đã thích nhận xét", newCount));
     }
 
     @GetMapping("/team/{teamId}/done-cards")

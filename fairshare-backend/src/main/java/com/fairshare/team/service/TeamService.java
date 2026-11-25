@@ -6,6 +6,7 @@ import com.fairshare.board.repository.BoardColumnRepository;
 import com.fairshare.board.repository.BoardRepository;
 import com.fairshare.common.exception.BusinessException;
 import com.fairshare.common.exception.DuplicateResourceException;
+import com.fairshare.common.exception.ForbiddenException;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
@@ -245,6 +246,14 @@ public class TeamService {
     public TeamDto updateTeam(Long teamId, CreateTeamRequest request, Long userId) {
         if (teamId == null) {
             throw new BusinessException("Team id is required");
+        }
+        if (userId == null) {
+            throw new ForbiddenException("Chỉ nhóm trưởng (LEADER) mới có quyền chỉnh sửa thông tin nhóm");
+        }
+        TeamMember actor = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .orElseThrow(() -> new ForbiddenException("Bạn không phải thành viên của nhóm này"));
+        if (actor.getRole() != MemberRole.LEADER) {
+            throw new ForbiddenException("Chỉ nhóm trưởng (LEADER) mới có quyền chỉnh sửa thông tin nhóm");
         }
         Team team = getById(teamId);
         if (request.getName() != null && !request.getName().isBlank()) {

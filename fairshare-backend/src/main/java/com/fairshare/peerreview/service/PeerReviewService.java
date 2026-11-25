@@ -248,9 +248,21 @@ public class PeerReviewService {
 
     @Transactional(readOnly = true)
     public List<PeerReviewDetailDto> getRoundReviewDetails(Long roundId, Long revieweeId) {
+        return getRoundReviewDetails(roundId, revieweeId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PeerReviewDetailDto> getRoundReviewDetails(Long roundId, Long revieweeId, Long requesterId) {
         if (roundId == null) {
             return List.of();
         }
+        ReviewRound round = getRound(roundId);
+        Long teamId = round.getTeam() != null ? round.getTeam().getId() : null;
+        boolean isLeader = requesterId != null && teamId != null
+                && teamMemberRepository.findByTeamIdAndUserId(teamId, requesterId)
+                        .map(m -> m.getRole() == MemberRole.LEADER)
+                        .orElse(false);
+
         List<ReviewSubmission> submissions;
         if (revieweeId != null && revieweeId > 0) {
             submissions = reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(roundId, revieweeId);
@@ -267,12 +279,21 @@ public class PeerReviewService {
                         Collectors.toList()
                 ));
 
+        Map<Long, Integer> anonymousAliasMap = new LinkedHashMap<>();
+        int aliasCounter = 1;
+        int maxTeamLikes = teamId != null ? Math.max(1, teamMemberRepository.findByTeamId(teamId).size()) : Integer.MAX_VALUE;
+
         List<PeerReviewDetailDto> results = new ArrayList<>();
         for (List<ReviewSubmission> list : grouped.values()) {
             if (list.isEmpty()) continue;
             ReviewSubmission first = list.get(0);
             User reviewer = first.getReviewer();
             User reviewee = first.getReviewee();
+
+            if (!anonymousAliasMap.containsKey(reviewer.getId())) {
+                anonymousAliasMap.put(reviewer.getId(), aliasCounter++);
+            }
+            int aliasIdx = anonymousAliasMap.get(reviewer.getId());
 
             double avg = list.stream().mapToInt(ReviewSubmission::getScore).average().orElse(0.0);
             Integer quality = list.stream().filter(s -> s.getCriterion() == ReviewCriterion.QUALITY).map(ReviewSubmission::getScore).findFirst().orElse(null);
@@ -296,8 +317,8 @@ public class PeerReviewService {
                     .map(s -> new PeerReviewDetailDto.CriterionScoreDto(s.getCriterion(), s.getScore()))
                     .toList();
 
-            // Real likes from DB (sum of all submissions in this reviewer-reviewee group)
-            int totalLikes = list.stream().mapToInt(ReviewSubmission::getLikesCount).sum();
+            // Real likes from DB (capped at team member count; take max across criteria rows to avoid 3x inflation)
+            int totalLikes = Math.min(maxTeamLikes, list.stream().mapToInt(ReviewSubmission::getLikesCount).max().orElse(0));
 
             // Card linkage (take from first submission that has a card)
             Card linkedCard = list.stream()
@@ -309,9 +330,11 @@ public class PeerReviewService {
             results.add(PeerReviewDetailDto.builder()
                     .id(first.getId())
                     .reviewRoundId(roundId)
-                    .reviewerId(reviewer.getId())
-                    .reviewerName(reviewer.getFullName() != null && !reviewer.getFullName().isBlank() ? reviewer.getFullName() : reviewer.getEmail())
-                    .reviewerEmail(reviewer.getEmail())
+                    .reviewerId(isLeader ? reviewer.getId() : -(long) aliasIdx)
+                    .reviewerName(isLeader
+                            ? (reviewer.getFullName() != null && !reviewer.getFullName().isBlank() ? reviewer.getFullName() : reviewer.getEmail())
+                            : String.format("Anonymous%03d", aliasIdx))
+                    .reviewerEmail(isLeader ? reviewer.getEmail() : null)
                     .revieweeId(reviewee.getId())
                     .revieweeName(reviewee.getFullName() != null && !reviewee.getFullName().isBlank() ? reviewee.getFullName() : reviewee.getEmail())
                     .averageScore(Math.round(avg * 100.0) / 100.0)
@@ -331,9 +354,20 @@ public class PeerReviewService {
 
     @Transactional
     public int toggleLike(Long submissionId, Long userId) {
+        return toggleLike(submissionId, userId, false);
+    }
+
+    @Transactional
+    public int toggleLike(Long submissionId, Long userId, boolean unlike) {
         ReviewSubmission submission = reviewSubmissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review submission not found: " + submissionId));
-        submission.setLikesCount(submission.getLikesCount() + 1);
+        Long teamId = submission.getReviewRound() != null && submission.getReviewRound().getTeam() != null
+                ? submission.getReviewRound().getTeam().getId()
+                : null;
+        int maxTeamLikes = teamId != null ? Math.max(1, teamMemberRepository.findByTeamId(teamId).size()) : Integer.MAX_VALUE;
+        int current = Math.min(maxTeamLikes, Math.max(0, submission.getLikesCount()));
+        int next = unlike ? Math.max(0, current - 1) : Math.min(maxTeamLikes, current + 1);
+        submission.setLikesCount(next);
         reviewSubmissionRepository.save(submission);
         return submission.getLikesCount();
     }

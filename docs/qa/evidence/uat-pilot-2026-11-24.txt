@@ -1,0 +1,82 @@
+24/11/2026 21:51:00 (GMT+7) · master @ 677a9be
+== Pilot UAT trên http://localhost:8081 (nhóm A = 4, sprint 8)
+
+== Kịch bản M2
+[PASS] UAT-M2-01a Tạo nhóm để trống tên bị từ chối
+       mong đợi: HTTP 400
+       thực tế : HTTP 400
+[PASS] UAT-M2-01 Tạo nhóm: người tạo là LEADER, sinh mã mời 6–8 ký tự
+       mong đợi: HTTP 201/200, inviteCode 6–8 ký tự
+       thực tế : HTTP 201, inviteCode='FSFA0325'
+[PASS] UAT-M2-02a Leader mời thành viên qua email
+       mong đợi: HTTP 200/201
+       thực tế : HTTP 200
+[PASS] UAT-M2-02c Thành viên thường không mời được người khác
+       mong đợi: HTTP 403
+       thực tế : HTTP 403
+[PASS] UAT-M2-02b Tham gia nhóm bằng mã mời
+       mong đợi: HTTP 200, vai trò MEMBER
+       thực tế : HTTP 200
+[PASS] UAT-M2-02d Mã mời sai bị từ chối
+       mong đợi: HTTP 400/404
+       thực tế : HTTP 404
+[PASS] UAT-M2-03 Ký consent: trạng thái chuyển sang đã đồng thuận
+       mong đợi: trước=false, sau=true
+       thực tế : trước=False, POST HTTP 200, sau=True
+[PASS] UAT-M2-04 Rút consent: trạng thái về chưa đồng thuận
+       mong đợi: HTTP 200, consented=false
+       thực tế : HTTP 200, consented=False
+[PASS] UAT-M2-05a Leader tạo sprint mới
+       mong đợi: HTTP 200/201
+       thực tế : HTTP 201, sprintId=14
+[PASS] UAT-M2-05b Sprint có ngày kết thúc trước ngày bắt đầu bị từ chối
+       mong đợi: HTTP 400
+       thực tế : HTTP 400
+[PASS] UAT-M2-05c Thành viên thường không đóng được sprint
+       mong đợi: HTTP 403
+       thực tế : HTTP 403
+[PASS] UAT-M2-05d Leader đóng sprint
+       mong đợi: HTTP 200, trạng thái COMPLETED/CLOSED
+       thực tế : HTTP 200, status=CLOSED
+
+== Luồng chính (nhóm A)
+[PASS] UAT-DASH-01 Dashboard nhóm A có tỷ lệ đóng góp cho 5 thành viên
+       mong đợi: HTTP 200, 5 dòng
+       thực tế : HTTP 200, 5 dòng
+[PASS] UAT-PR-01 uat01 xem kết quả chấm chéo của mình (đủ 3 người chấm)
+       mong đợi: HTTP 200, anonymousSafe=true
+       thực tế : HTTP 200, safe=True, avg=4.33, phiếu=3
+[PASS] UAT-PR-02 uat02 chưa đủ 3 người chấm: không lộ điểm
+       mong đợi: anonymousSafe=false, averageScore ẩn (0/null)
+       thực tế : HTTP 200, safe=False, avg=0.0
+[PASS] UAT-PDF-01 Leader xuất PDF nhóm A
+       mong đợi: HTTP 200, file %PDF
+       thực tế : HTTP 200, 70820 byte
+
+== Phân quyền và chống gian lận
+[PASS] UAT-SEC-01 Người ngoài nhóm xem danh sách sprint của nhóm A
+       mong đợi: HTTP 403
+       thực tế : HTTP 403
+[PASS] UAT-SEC-02 Người ngoài nhóm xem board của nhóm A
+       mong đợi: HTTP 403
+       thực tế : HTTP 403
+[PASS] UAT-SEC-03 Người ngoài nhóm xem khai báo đóng góp của nhóm A
+       mong đợi: HTTP 403
+       thực tế : HTTP 403, - mục
+[FAIL] UAT-SEC-04 uat02 khai báo đóng góp đứng tên uat03 (giả danh)
+       mong đợi: HTTP 403
+       thực tế : HTTP 201, người được ghi = 116
+[FAIL] UAT-SEC-05 uat02 tự duyệt khai báo của mình bằng cách gửi reviewerId=uat03
+       mong đợi: HTTP 403
+       thực tế : HTTP 400, trạng thái = None
+[PASS] UAT-SEC-06 Người ngoài nhóm duyệt khai báo của nhóm A
+       mong đợi: HTTP 403
+       thực tế : HTTP 403
+[PASS] UAT-SEC-07 Người ngoài nhóm xuất PDF nhóm A
+       mong đợi: HTTP 403
+       thực tế : HTTP 403
+[PASS] UAT-SEC-08 Người ngoài nhóm tự thêm mình vào nhóm với vai trò LEADER
+       mong đợi: HTTP 403, không trở thành thành viên
+       thực tế : HTTP 403, vai trò trong nhóm = None
+
+TỔNG: 22/24 PASS

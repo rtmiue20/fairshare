@@ -97,7 +97,7 @@ describe('AlertList Component (CR-04 Rule-Based Alerts & Inactivity)', () => {
     // Title should be formatted based on alertType
     await waitFor(() => {
       expect(screen.getByText('Công việc In Progress đã quá hạn chót')).toBeInTheDocument();
-      expect(screen.getByText('Cảnh báo thành viên im lặng quá lâu (CR-04)')).toBeInTheDocument();
+      expect(screen.getByText('Cảnh báo thành viên im lặng quá lâu')).toBeInTheDocument();
       expect(screen.getByText('Đủ điều kiện giải mã điểm chéo 360° (Nghị định 13)')).toBeInTheDocument();
     });
 

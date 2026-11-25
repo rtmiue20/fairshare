@@ -51,6 +51,12 @@ vi.mock('../utils/pdfExport', () => ({
   exportOverviewReportPdf: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../api/activity.api', () => ({
+  activityApi: {
+    getByTeam: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  },
+}));
+
 vi.mock('../components/ui/Toast', () => ({
   showToast: vi.fn(),
 }));

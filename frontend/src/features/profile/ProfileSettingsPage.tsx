@@ -233,6 +233,7 @@ export const ProfileSettingsPage: React.FC = () => {
 
   // Active project resolution
   const activeTeam = teams.find((t) => t.id === activeTeamId) || (teams.length > 0 ? teams[0] : null);
+  const canEditProject = !activeTeam || activeTeam.currentRole === 'LEADER';
 
   const [projectSettings, setProjectSettings] = useState<ProjectForm>({
     projectName: '',
@@ -417,6 +418,10 @@ export const ProfileSettingsPage: React.FC = () => {
   };
 
   const startEdit = (section: Exclude<EditSection, null>) => {
+    if (section === 'project' && !canEditProject) {
+      flashError('Chỉ nhóm trưởng mới có quyền chỉnh sửa thông tin dự án.');
+      return;
+    }
     if (section === 'project') {
       projectSnapshot.current = { ...projectSettings };
       setActiveTab('project');
@@ -436,6 +441,11 @@ export const ProfileSettingsPage: React.FC = () => {
 
   const handleSaveProjectSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditProject) {
+      flashError('Chỉ nhóm trưởng mới có quyền chỉnh sửa thông tin dự án.');
+      setEditing(null);
+      return;
+    }
     if (projectSettings.sprintCount < 1 || projectSettings.sprintCount > 12) {
       flashError('Số sprint phải nằm trong khoảng 1 - 12.');
       return;
@@ -462,7 +472,13 @@ export const ProfileSettingsPage: React.FC = () => {
         flashSuccess(`Đã lưu thiết lập cục bộ (${projectSettings.sprintCount} Sprint). Hãy tạo hoặc tham gia dự án để áp dụng.`);
       }
       setEditing(null);
-    } catch {
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 403) {
+        flashError('Chỉ nhóm trưởng mới có quyền chỉnh sửa thông tin dự án.');
+        setEditing(null);
+        return;
+      }
       if (activeTeam?.id) {
         localStorage.setItem(`fairshare_project_settings_${activeTeam.id}`, JSON.stringify(projectSettings));
       }
@@ -573,7 +589,7 @@ export const ProfileSettingsPage: React.FC = () => {
         setConsented(false);
         flashSuccess('Đã rút đồng thuận xử lý dữ liệu cá nhân.');
       } else {
-        await teamApi.submitConsent(activeTeam.id, { consented: true, shareTrelloActivity: true, shareDocsActivity: true });
+        await teamApi.submitConsent(activeTeam.id, { consented: true });
         setConsented(true);
         flashSuccess('Đã ký cam kết dữ liệu theo Nghị định 13/2023/NĐ-CP.');
       }
@@ -623,20 +639,16 @@ export const ProfileSettingsPage: React.FC = () => {
 
   const consentRows = [
     [
-      'Ghi nhận lịch sử mã nguồn (Git Commits & PRs)',
-      'Đồng bộ mã hash commit, pull requests và tần suất đóng góp kỹ thuật từ các kho lưu trữ được liên kết.',
+      'Hoạt động trên Bảng công việc (Task Board)',
+      'Ghi nhận thời gian tạo, phân công, chuyển trạng thái và hoàn thành thẻ công việc trên bảng nội bộ của dự án.',
     ],
     [
-      'Theo dõi tiến độ thẻ công việc (Task Board)',
-      'Ghi nhận thời gian tạo, phân công, chuyển trạng thái và hoàn thành nhiệm vụ trên bảng công việc của dự án.',
+      'Tổng hợp & đối soát tỷ lệ đóng góp',
+      'Tính toán khối lượng hoàn thành, khai báo đóng góp và nhật ký truy vết nguồn gốc trên bảng điều khiển chung của dự án.',
     ],
     [
-      'Minh bạch hóa chỉ số đóng góp đa chiều',
-      'Công khai tỷ lệ đóng góp, khối lượng hoàn thành và dữ liệu đối soát trên Dashboard chung của dự án.',
-    ],
-    [
-      'Bảo mật đánh giá chéo ẩn danh (Peer Review)',
-      'Áp dụng cơ chế ẩn danh bảo vệ thông tin danh tính cá nhân khi tham gia gửi và nhận đánh giá năng lực đồng nghiệp.',
+      'Đánh giá chéo ẩn danh (Peer Review)',
+      'Thu thập điểm và nhận xét đánh giá giữa các thành viên, hiển thị ở dạng điểm tổng hợp ẩn danh nhằm bảo vệ danh tính người chấm.',
     ],
   ];
 
@@ -677,9 +689,11 @@ export const ProfileSettingsPage: React.FC = () => {
                   <Copy size={14} /> Sao chép mã mời dự án
                 </button>
                 <div className="ps-menu-sep" />
-                <button role="menuitem" type="button" onClick={() => { setMoreOpen(false); startEdit('project'); }}>
-                  <Pencil size={14} /> Chỉnh sửa dự án
-                </button>
+                {canEditProject && (
+                  <button role="menuitem" type="button" onClick={() => { setMoreOpen(false); startEdit('project'); }}>
+                    <Pencil size={14} /> Chỉnh sửa dự án
+                  </button>
+                )}
                 <button role="menuitem" type="button" onClick={handleReload}>
                   <RefreshCw size={14} /> Tải lại dữ liệu
                 </button>
@@ -873,7 +887,11 @@ export const ProfileSettingsPage: React.FC = () => {
 
             <div className="ps-col">
               <div className="ps-card">
-                <CardHeader title="Dự án hiện tại" onEdit={() => startEdit('project')} editLabel="Chỉnh sửa dự án" />
+                <CardHeader
+                  title="Dự án hiện tại"
+                  onEdit={canEditProject ? () => startEdit('project') : undefined}
+                  editLabel="Chỉnh sửa dự án"
+                />
                 {activeTeam ? (
                   <div className="ps-info-grid">
                     <InfoItem label="Tên đề tài" value={projectSettings.projectName} />
@@ -918,13 +936,18 @@ export const ProfileSettingsPage: React.FC = () => {
                 <CardHeader
                   title="Thiết lập dự án"
                   editing={editing === 'project'}
-                  onEdit={() => startEdit('project')}
+                  onEdit={canEditProject ? () => startEdit('project') : undefined}
                   editLabel="Chỉnh sửa dự án"
                   extra={<span className="ps-chip">{projectSettings.courseCode || 'Chưa có mã HP'}</span>}
                 />
                 {!activeTeam && (
                   <div className="ps-empty" style={{ marginBottom: 14 }}>
                     Chưa có dự án được chọn. Bạn có thể tự điền thông tin bên dưới hoặc nhấn <strong>+ Tạo dự án</strong> trên thanh điều hướng để khởi tạo đồ án mới.
+                  </div>
+                )}
+                {activeTeam && !canEditProject && (
+                  <div className="ps-empty" style={{ marginBottom: 14 }}>
+                    Chỉ nhóm trưởng mới có quyền chỉnh sửa thông tin dự án.
                   </div>
                 )}
                 {editing === 'project' ? (
@@ -1050,7 +1073,17 @@ export const ProfileSettingsPage: React.FC = () => {
           <div className="ps-grid">
             <div className="ps-col">
               <div className="ps-card">
-                <CardHeader title="Quyền xử lý dữ liệu cá nhân" extra={<span className={`ps-chip ${consentOk ? 'ok' : 'warn'}`}>{consentOk ? '4/4 Quyền' : '0/4 Quyền'}</span>} />
+                <CardHeader
+                  title="Phạm vi dữ liệu được thu thập & xử lý"
+                  extra={
+                    <span className={`ps-chip ${consentOk ? 'ok' : consented === false ? 'warn' : ''}`}>
+                      {consentOk ? 'Đã đồng thuận' : consented === false ? 'Chưa đồng thuận' : 'Chưa xác định'}
+                    </span>
+                  }
+                />
+                <p className="ps-desc" style={{ marginBottom: 14 }}>
+                  Một thỏa thuận đồng thuận chung áp dụng cho 3 nhóm dữ liệu thực tế của dự án bên dưới; bạn có thể ký hoặc rút toàn bộ đồng thuận bất kỳ lúc nào.
+                </p>
                 <div className="ps-list">
                   {consentRows.map(([t, s]) => (
                     <div className="ps-list-row" key={t}>
@@ -1058,7 +1091,7 @@ export const ProfileSettingsPage: React.FC = () => {
                         <div className="ps-list-t">{t}</div>
                         <div className="ps-list-s">{s}</div>
                       </div>
-                      <span className={`ps-chip ${consentOk ? 'ok' : ''}`}>{consentOk ? 'ĐÃ ĐỒNG THUẬN' : 'CHƯA ĐỒNG THUẬN'}</span>
+                      <span className={`ps-chip ${consentOk ? 'ok' : ''}`}>{consentOk ? 'Đang áp dụng' : 'Chưa kích hoạt'}</span>
                     </div>
                   ))}
                 </div>

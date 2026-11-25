@@ -188,10 +188,19 @@ export const TopNav: React.FC = () => {
     }
     const matchedTeam = activeTeamId ? teams.find((t) => t.id === activeTeamId) : undefined;
     if (activeTeamId && matchedTeam) {
-      syncWithBackend(activeTeamId, {
-        userScope,
-        memberNameMap: buildMemberNameMap(matchedTeam),
-      });
+      const doSync = () =>
+        syncWithBackend(activeTeamId, {
+          userScope,
+          memberNameMap: buildMemberNameMap(matchedTeam),
+        });
+      doSync();
+      const pollTimer = window.setInterval(doSync, 15000);
+      const onWindowFocus = () => doSync();
+      window.addEventListener('focus', onWindowFocus);
+      return () => {
+        window.clearInterval(pollTimer);
+        window.removeEventListener('focus', onWindowFocus);
+      };
     } else {
       setScope(userScope, null);
     }
@@ -666,7 +675,7 @@ export const TopNav: React.FC = () => {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-semibold transition-all shadow-sm cursor-pointer"
                 >
                   <Plus size={13} />
-                  <span>+ Tạo dự án</span>
+                  <span>Tạo dự án</span>
                 </button>
               )}
             </div>

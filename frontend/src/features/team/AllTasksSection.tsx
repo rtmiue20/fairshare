@@ -1393,26 +1393,36 @@ export const AllTasksSection: React.FC<{
             <span>Tiến độ dòng thời gian các công việc</span>
           </div>
           <div className="timeline-gantt-list">
-            {displayedTasks.map((task, idx) => (
-              <div key={task.id} className="timeline-gantt-row">
-                <div className="timeline-gantt-label">
-                  <strong>{task.title}</strong>
-                  <small>{task.projectTag} · {task.dueDate}</small>
-                </div>
-                <div className="timeline-gantt-track">
-                  <div
-                    className="timeline-gantt-bar"
-                    style={{
-                      left: `${(idx * 7) % 50}%`,
-                      width: `${Math.max(25, task.progress)}%`,
-                      backgroundColor: getProgressColor(task.progress),
-                    }}
-                  >
-                    <span>{task.progress}%</span>
+            {displayedTasks.map((task) => {
+              const clampedProgress = Math.max(0, Math.min(100, Number(task.progress ?? 0)));
+              const isZero = clampedProgress === 0;
+              return (
+                <div
+                  key={task.id}
+                  className="timeline-gantt-row"
+                  onClick={() => handleOpenTaskDetail(task)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="timeline-gantt-label">
+                    <strong>{task.title}</strong>
+                    <small>{task.projectTag} · {task.dueDate}</small>
+                  </div>
+                  <div className="timeline-gantt-track">
+                    <div
+                      className="timeline-gantt-bar"
+                      style={{
+                        left: 0,
+                        width: isZero ? '44px' : `${Math.max(8, clampedProgress)}%`,
+                        backgroundColor: isZero ? 'rgba(148, 163, 184, 0.25)' : getProgressColor(clampedProgress),
+                        color: isZero ? 'var(--fg2)' : '#ffffff',
+                      }}
+                    >
+                      <span>{clampedProgress}%</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

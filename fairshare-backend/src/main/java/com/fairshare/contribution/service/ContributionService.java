@@ -3,6 +3,8 @@ package com.fairshare.contribution.service;
 import com.fairshare.activity.entity.ActivityEvent;
 import com.fairshare.activity.entity.ActivitySource;
 import com.fairshare.activity.repository.ActivityEventRepository;
+import com.fairshare.board.entity.Card;
+import com.fairshare.board.repository.CardRepository;
 import com.fairshare.common.exception.ResourceNotFoundException;
 import com.fairshare.contribution.dto.*;
 import com.fairshare.contribution.entity.ContributionScore;
@@ -15,6 +17,7 @@ import com.fairshare.peerreview.repository.ReviewRoundRepository;
 import com.fairshare.peerreview.repository.ReviewSubmissionRepository;
 import com.fairshare.sprint.entity.Sprint;
 import com.fairshare.sprint.repository.SprintRepository;
+import com.fairshare.team.entity.MemberRole;
 import com.fairshare.team.entity.Team;
 import com.fairshare.team.entity.TeamMember;
 import com.fairshare.team.repository.TeamMemberRepository;
@@ -27,7 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,6 +51,7 @@ public class ContributionService {
     private final ManualContributionRepository manualContributionRepository;
     private final ReviewRoundRepository reviewRoundRepository;
     private final ReviewSubmissionRepository reviewSubmissionRepository;
+    private final CardRepository cardRepository;
 
     /**
      * Tổng hợp điểm đóng góp thành viên bằng Stored Procedure và trả về DTO tóm tắt.
@@ -298,8 +305,10 @@ public class ContributionService {
 
             int tasksCount = res.getCardsCompleted() > 0
                     ? res.getCardsCompleted()
-                    : (saved.getTrelloScore() != null ? Math.max(1, saved.getTrelloScore().divide(new BigDecimal("5.0"), 0, RoundingMode.HALF_UP).intValue()) : 8);
-            int docsCount = Math.max(5, tasksCount * 2);
+                    : (saved.getTrelloScore() != null && saved.getTrelloScore().compareTo(BigDecimal.ZERO) > 0
+                            ? saved.getTrelloScore().divide(new BigDecimal("5.0"), 0, RoundingMode.HALF_UP).intValue()
+                            : 0);
+            int docsCount = tasksCount > 0 ? Math.max(0, tasksCount * 2) : 0;
 
             dtos.add(ContributionDto.builder()
                     .id(saved.getId())
@@ -426,19 +435,67 @@ public class ContributionService {
         User user = userRepository.findById(userScore.getUserId())
                 .orElse(teamMembers.get(0).getUser());
 
-        // Truy xuất các ActivityEvent của thành viên trong sprint
-        List<ActivityEvent> memberEvents = activityEventRepository.findBySprintIdAndUserId(targetSprint.getId(), user.getId());
-        if (memberEvents.isEmpty()) {
-            memberEvents = activityEventRepository.findByTeamIdAndUserId(teamId, user.getId());
-        }
+        String focusedUserRole = teamMembers.stream()
+                .filter(tm -> tm.getUser() != null && user.getId().equals(tm.getUser().getId()))
+                .map(tm -> tm.getRole() == MemberRole.LEADER ? "Trưởng nhóm" : "Thành viên")
+                .findFirst()
+                .orElse("Thành viên");
 
-        // Truy xuất các đóng góp thủ công
+        LocalDate sprintStart = targetSprint.getStartDate() != null
+                ? targetSprint.getStartDate()
+                : LocalDate.now().minusDays(13);
+        LocalDate sprintEnd = targetSprint.getEndDate() != null
+                ? targetSprint.getEndDate()
+                : sprintStart.plusDays(13);
+        int sprintTotalDays = (int) Math.max(1L, ChronoUnit.DAYS.between(sprintStart, sprintEnd) + 1L);
+
+        // Truy xuất các ActivityEvent của thành viên trong sprint (không trộn lẫn sprint khác)
+        List<ActivityEvent> memberEvents = new ArrayList<>(
+                activityEventRepository.findBySprintIdAndUserId(targetSprint.getId(), user.getId())
+        );
+        if (memberEvents.isEmpty()) {
+            memberEvents = activityEventRepository.findByTeamIdAndUserId(teamId, user.getId()).stream()
+                    .filter(ev -> ev.getSprint() == null || targetSprint.getId().equals(ev.getSprint().getId()))
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
+        memberEvents.sort(Comparator.comparing(ActivityEvent::getOccurredAt, Comparator.nullsLast(Comparator.naturalOrder())));
+
+        // Truy xuất các đóng góp thủ công thực tế của thành viên
         List<ManualContribution> memberManuals = manualContributionRepository
                 .findByTeamIdAndSprintIdAndUserId(teamId, targetSprint.getId(), user.getId());
+
+        // Truy xuất các thẻ Kanban thực tế được gán cho thành viên trong dự án
+        List<Card> memberCards = cardRepository != null
+                ? cardRepository.findByBoardTeamId(teamId).stream()
+                        .filter(c -> c.getAssignee() != null && user.getId().equals(c.getAssignee().getId()))
+                        .toList()
+                : Collections.emptyList();
+
+        // Truy xuất đánh giá chéo ẩn danh nhận được (Peer Review)
+        List<ReviewRound> sprintRounds = reviewRoundRepository.findBySprintId(targetSprint.getId());
+        if (sprintRounds.isEmpty()) {
+            sprintRounds = reviewRoundRepository.findByTeamId(teamId).stream()
+                    .filter(r -> r.getSprint() == null || targetSprint.getId().equals(r.getSprint().getId()))
+                    .toList();
+        }
+        List<ReviewSubmission> peerSubmissions = new ArrayList<>();
+        for (ReviewRound round : sprintRounds) {
+            peerSubmissions.addAll(reviewSubmissionRepository.findByReviewRoundIdAndRevieweeId(round.getId(), user.getId()));
+        }
 
         // Tạo cấu trúc đồ thị mạng lưới
         List<MultidimensionalNetworkDto.NetworkNodeDto> nodes = new ArrayList<>();
         List<MultidimensionalNetworkDto.NetworkLinkDto> links = new ArrayList<>();
+
+        Map<String, Object> rootMeta = new LinkedHashMap<>();
+        rootMeta.put("email", user.getEmail() != null ? user.getEmail() : "");
+        rootMeta.put("teamName", team.getName() != null ? team.getName() : "");
+        rootMeta.put("role", focusedUserRole);
+        rootMeta.put("sprintStartDate", sprintStart.toString());
+        rootMeta.put("sprintEndDate", sprintEnd.toString());
+        rootMeta.put("sprintDays", sprintTotalDays);
+        rootMeta.put("availability", userScore.getAvailabilityFactor() != null ? userScore.getAvailabilityFactor() : 1.0);
+        rootMeta.put("distanceToCenter", userScore.getDistanceToCenter() != null ? userScore.getDistanceToCenter() : 0.0);
 
         String rootId = "root-" + user.getId();
         nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
@@ -446,16 +503,12 @@ public class ContributionService {
                 .label(user.getFullName())
                 .type("ROOT")
                 .category("MEMBER")
-                .weight(userScore.getScore() != null ? userScore.getScore().doubleValue() : 50.0)
-                .badge(String.format("%.1f%%", userScore.getPercentage() != null ? userScore.getPercentage().doubleValue() * 100 : 20.0))
+                .weight(userScore.getScore() != null ? userScore.getScore().doubleValue() : 0.0)
+                .badge(String.format("%.1f%%", userScore.getPercentage() != null ? userScore.getPercentage().doubleValue() * 100 : 0.0))
                 .status(Boolean.TRUE.equals(userScore.getIsSuspicious()) ? "SUSPICIOUS" : "NORMAL")
                 .color("#6366f1")
-                .description("Điểm tổng hợp: " + String.format("%.1f", userScore.getCompositeScore() != null ? userScore.getCompositeScore() : 50.0) + "/100")
-                .metadata(Map.of(
-                        "email", user.getEmail() != null ? user.getEmail() : "",
-                        "availability", userScore.getAvailabilityFactor() != null ? userScore.getAvailabilityFactor() : 1.0,
-                        "distanceToCenter", userScore.getDistanceToCenter() != null ? userScore.getDistanceToCenter() : 0.0
-                ))
+                .description("Điểm tổng hợp: " + String.format("%.1f", userScore.getCompositeScore() != null ? userScore.getCompositeScore() : 0.0) + "/100")
+                .metadata(rootMeta)
                 .build());
 
         // 4 Dimension Hub Nodes (D1, D2, D3, D4) + Impediments Category Hub
@@ -564,33 +617,36 @@ public class ContributionService {
                 .animated(true)
                 .build());
 
-        // Trích xuất các lá sự kiện từ memberEvents
+        // Trích xuất các lá sự kiện từ memberEvents thực tế trong DB
         int eventLimit = 0;
-        int d1Count = 0;
-        int d2Count = 0;
-        int d3Count = 0;
-        int impCount = 0;
+        List<String> doneCardDetailsNormalized = new ArrayList<>();
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm");
 
         for (ActivityEvent ev : memberEvents) {
             eventLimit++;
-            if (eventLimit > 25) break;
+            if (eventLimit > 40) break;
 
             String type = ev.getEventType() != null ? ev.getEventType().toUpperCase() : "EVENT";
             String nodeId = "ev-" + ev.getId();
+            Map<String, Object> evMeta = buildEventMetadata(ev, sprintStart, sprintTotalDays, dateFmt, timeFmt);
 
             if (type.contains("COMPLETED") || type.contains("DONE")) {
-                d1Count++;
+                if (ev.getDetails() != null) {
+                    doneCardDetailsNormalized.add(ev.getDetails().toLowerCase());
+                }
                 double sp = ev.getStoryPoints() != null ? ev.getStoryPoints() : 1.0;
                 nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
                         .id(nodeId)
-                        .label(ev.getDetails() != null ? truncate(ev.getDetails(), 36) : "Thẻ hoàn thành")
+                        .label(ev.getDetails() != null ? truncate(ev.getDetails(), 42) : "Thẻ hoàn thành")
                         .type("EVENT")
                         .category("D1")
                         .weight(sp)
-                        .badge(sp + " SP")
+                        .badge(String.format("%.1f SP", sp))
                         .status("DONE")
                         .color("#10b981")
                         .description(ev.getDetails())
+                        .metadata(evMeta)
                         .build());
                 links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
                         .source(d1Id)
@@ -602,18 +658,19 @@ public class ContributionService {
 
                 // Nếu task bị trễ hạn -> liên kết sang D2 và Rào cản
                 if (Boolean.FALSE.equals(ev.getIsOnTime()) || (ev.getDelayDays() != null && ev.getDelayDays() > 0)) {
-                    d2Count++;
                     String delayNodeId = "delay-" + ev.getId();
+                    double delayVal = ev.getDelayDays() != null ? ev.getDelayDays() : 1.0;
                     nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
                             .id(delayNodeId)
-                            .label("Trễ " + ev.getDelayDays() + " ngày: " + truncate(ev.getDetails(), 28))
+                            .label("Trễ " + String.format("%.1f", delayVal) + " ngày: " + truncate(ev.getDetails(), 28))
                             .type("IMPEDIMENT")
                             .category("D2")
-                            .weight(ev.getDelayDays() != null ? ev.getDelayDays() : 1.0)
+                            .weight(delayVal)
                             .badge("Trễ hạn")
                             .status("WARN")
                             .color("#ef4444")
                             .description("Độ trễ làm giảm chỉ số độ tin cậy D2")
+                            .metadata(evMeta)
                             .build());
                     links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
                             .source(d2Id)
@@ -629,12 +686,32 @@ public class ContributionService {
                             .type("IMPACT")
                             .color("#f59e0b")
                             .build());
+                } else {
+                    String onTimeNodeId = "ontime-" + ev.getId();
+                    nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
+                            .id(onTimeNodeId)
+                            .label("Đúng hạn: " + truncate(ev.getDetails(), 32))
+                            .type("EVENT")
+                            .category("D2")
+                            .weight(1.0)
+                            .badge("Đúng hạn")
+                            .status("DONE")
+                            .color("#06b6d4")
+                            .description(ev.getDetails())
+                            .metadata(evMeta)
+                            .build());
+                    links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
+                            .source(d2Id)
+                            .target(onTimeNodeId)
+                            .weight(0.8)
+                            .type("DETAIL")
+                            .color("#06b6d4")
+                            .build());
                 }
-            } else if (type.contains("REWORK") || type.contains("REOPEN")) {
-                d2Count++;
+            } else if (type.contains("REWORK") || type.contains("REOPEN") || type.contains("BACK")) {
                 nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
                         .id(nodeId)
-                        .label("Rework: " + (ev.getDetails() != null ? truncate(ev.getDetails(), 30) : "Thẻ mở lại"))
+                        .label("Rework: " + (ev.getDetails() != null ? truncate(ev.getDetails(), 32) : "Thẻ mở lại"))
                         .type("IMPEDIMENT")
                         .category("D2")
                         .weight(1.5)
@@ -642,6 +719,7 @@ public class ContributionService {
                         .status("WARN")
                         .color("#f97316")
                         .description(ev.getDetails())
+                        .metadata(evMeta)
                         .build());
                 links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
                         .source(d2Id)
@@ -657,11 +735,10 @@ public class ContributionService {
                         .type("IMPACT")
                         .color("#f59e0b")
                         .build());
-            } else if (type.contains("COMMENT") || type.contains("REVIEW") || type.contains("SUPPORT")) {
-                d3Count++;
+            } else if (type.contains("COMMENT") || type.contains("REVIEW") || type.contains("SUPPORT") || type.contains("HELPFUL")) {
                 nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
                         .id(nodeId)
-                        .label(ev.getDetails() != null ? truncate(ev.getDetails(), 32) : "Hỗ trợ đồng đội")
+                        .label(ev.getDetails() != null ? truncate(ev.getDetails(), 36) : "Hỗ trợ đồng đội")
                         .type("EVENT")
                         .category("D3")
                         .weight(1.0)
@@ -669,6 +746,7 @@ public class ContributionService {
                         .status("NORMAL")
                         .color("#a855f7")
                         .description(ev.getDetails())
+                        .metadata(evMeta)
                         .build());
                 links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
                         .source(d3Id)
@@ -678,17 +756,17 @@ public class ContributionService {
                         .color("#a855f7")
                         .build());
             } else if (type.contains("IMPEDIMENT") || type.contains("AVAILABILITY") || type.contains("BLOCKER")) {
-                impCount++;
                 nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
                         .id(nodeId)
-                        .label(ev.getDetails() != null ? truncate(ev.getDetails(), 32) : "Rào cản ngoại cảnh")
+                        .label(ev.getDetails() != null ? truncate(ev.getDetails(), 36) : "Rào cản ngoại cảnh")
                         .type("IMPEDIMENT")
                         .category("IMPEDIMENT")
-                        .weight(1.2)
+                        .weight(ev.getDelayDays() != null ? ev.getDelayDays() : 1.0)
                         .badge("Khả dụng / Rào cản")
                         .status("WARN")
                         .color("#f59e0b")
                         .description(ev.getDetails())
+                        .metadata(evMeta)
                         .build());
                 links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
                         .source(impId)
@@ -700,20 +778,75 @@ public class ContributionService {
             }
         }
 
-        // Bổ sung các leaf node về đóng góp thủ công đã xác nhận
+        // Bổ sung các thẻ Kanban đã hoàn thành nếu chưa có trong ActivityEvent
+        List<Card> missingDoneCards = new ArrayList<>();
+        for (Card card : memberCards) {
+            String colName = card.getColumn() != null && card.getColumn().getName() != null
+                    ? card.getColumn().getName().toLowerCase()
+                    : "";
+            boolean isDoneCol = colName.contains("done") || colName.contains("hoàn thành") || colName.contains("completed");
+            if (!isDoneCol) continue;
+
+            String titleLower = card.getTitle() != null ? card.getTitle().toLowerCase() : "";
+            boolean alreadyInEvents = !titleLower.isEmpty() && doneCardDetailsNormalized.stream().anyMatch(d -> d.contains(titleLower));
+            if (!alreadyInEvents) {
+                missingDoneCards.add(card);
+                double sp = card.getStoryPoints() != null ? card.getStoryPoints() : 1.0;
+                String cardNodeId = "card-" + card.getId();
+                LocalDateTime cardTime = card.getUpdatedAt() != null ? card.getUpdatedAt() : card.getCreatedAt();
+                Map<String, Object> cMeta = new LinkedHashMap<>();
+                cMeta.put("source", "Bảng Kanban");
+                cMeta.put("sp", sp);
+                cMeta.put("difficulty", card.getDifficultyLevel() != null ? card.getDifficultyLevel() : 2);
+                cMeta.put("dayIndex", computeSprintDayIndex(cardTime, sprintStart, sprintTotalDays));
+                cMeta.put("occurredDate", cardTime != null ? cardTime.format(dateFmt) : sprintStart.format(dateFmt));
+                cMeta.put("time", cardTime != null ? cardTime.format(timeFmt) : "--:--");
+
+                nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
+                        .id(cardNodeId)
+                        .label(truncate(card.getTitle(), 42))
+                        .type("EVENT")
+                        .category("D1")
+                        .weight(sp)
+                        .badge(String.format("%.1f SP", sp))
+                        .status("DONE")
+                        .color("#10b981")
+                        .description("Thẻ Kanban hoàn thành · Độ khó Level " + (card.getDifficultyLevel() != null ? card.getDifficultyLevel() : 2))
+                        .metadata(cMeta)
+                        .build());
+                links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
+                        .source(d1Id)
+                        .target(cardNodeId)
+                        .weight(0.8)
+                        .type("DETAIL")
+                        .color("#10b981")
+                        .build());
+            }
+        }
+
+        // Bổ sung các leaf node về đóng góp thủ công thực tế
         for (ManualContribution mc : memberManuals) {
             String mNodeId = "manual-" + mc.getId();
             double mSp = mc.getStoryPoints() != null ? mc.getStoryPoints().doubleValue() : 1.0;
+            LocalDateTime mcTime = mc.getCreatedAt();
+            Map<String, Object> mcMeta = new LinkedHashMap<>();
+            mcMeta.put("source", "Khai báo");
+            mcMeta.put("sp", mSp);
+            mcMeta.put("dayIndex", computeSprintDayIndex(mcTime, sprintStart, sprintTotalDays));
+            mcMeta.put("occurredDate", mcTime != null ? mcTime.format(dateFmt) : sprintStart.format(dateFmt));
+            mcMeta.put("time", mcTime != null ? mcTime.format(timeFmt) : "--:--");
+
             nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
                     .id(mNodeId)
-                    .label("Ngoài hệ thống: " + truncate(mc.getTaskName() != null ? mc.getTaskName() : mc.getTitle(), 30))
+                    .label("Ngoài hệ thống: " + truncate(mc.getTaskName() != null ? mc.getTaskName() : mc.getTitle(), 32))
                     .type("EVENT")
                     .category("D1")
                     .weight(mSp)
-                    .badge(mSp + " SP (Khai báo)")
+                    .badge(String.format("%.1f SP (Khai báo)", mSp))
                     .status("APPROVED".equalsIgnoreCase(mc.getStatus()) ? "DONE" : "PENDING")
                     .color("#34d399")
                     .description("Minh chứng: " + (mc.getEvidenceLink() != null ? mc.getEvidenceLink() : "Nội bộ"))
+                    .metadata(mcMeta)
                     .build());
             links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
                     .source(d1Id)
@@ -724,13 +857,53 @@ public class ContributionService {
                     .build());
         }
 
-        // Nếu dữ liệu mẫu còn ít, tạo các nút tác động ngoại cảnh mẫu để minh họa trực quan
-        if (nodes.size() < 10) {
-            addSyntheticImpactNodes(nodes, links, d1Id, d2Id, d3Id, d4Id, impId, userScore);
+        // Bổ sung các lượt chấm chéo ẩn danh thực tế (D4 - bảo vệ ẩn danh 100%, không trả danh tính người chấm)
+        if (!peerSubmissions.isEmpty()) {
+            Map<Long, List<ReviewSubmission>> groupedByReviewer = peerSubmissions.stream()
+                    .filter(s -> s.getReviewer() != null)
+                    .collect(Collectors.groupingBy(s -> s.getReviewer().getId(), LinkedHashMap::new, Collectors.toList()));
+            int anonIdx = 0;
+            for (List<ReviewSubmission> reviewerSubs : groupedByReviewer.values()) {
+                anonIdx++;
+                double avgSubScore = reviewerSubs.stream().mapToInt(ReviewSubmission::getScore).average().orElse(0.0);
+                LocalDateTime rTime = reviewerSubs.get(0).getCreatedAt();
+                String criteriaSummary = reviewerSubs.stream()
+                        .map(s -> (s.getCriterion() != null ? s.getCriterion().name() : "CRITERIA") + ": " + s.getScore() + "/5")
+                        .collect(Collectors.joining(" · "));
+
+                Map<String, Object> rMeta = new LinkedHashMap<>();
+                rMeta.put("source", "Chấm chéo");
+                rMeta.put("score", avgSubScore);
+                rMeta.put("dayIndex", computeSprintDayIndex(rTime, sprintStart, sprintTotalDays));
+                rMeta.put("occurredDate", rTime != null ? rTime.format(dateFmt) : sprintEnd.format(dateFmt));
+                rMeta.put("time", rTime != null ? rTime.format(timeFmt) : "--:--");
+
+                String prNodeId = "peer-anon-" + anonIdx;
+                nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
+                        .id(prNodeId)
+                        .label("Đánh giá ẩn danh #" + anonIdx + " · " + String.format("%.1f", avgSubScore) + "/5")
+                        .type("EVENT")
+                        .category("D4")
+                        .weight(avgSubScore)
+                        .badge(String.format("%.1f/5 ★", avgSubScore))
+                        .status("NORMAL")
+                        .color("#ec4899")
+                        .description("Chấm chéo ẩn danh · " + criteriaSummary)
+                        .metadata(rMeta)
+                        .build());
+                links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
+                        .source(d4Id)
+                        .target(prNodeId)
+                        .weight(0.9)
+                        .type("DETAIL")
+                        .color("#ec4899")
+                        .build());
+            }
         }
 
-        // Tạo breakdown 4 tầng công thức chi tiết
-        MultidimensionalNetworkDto.TierBreakdownDto breakdown = buildTierBreakdown(userScore, memberEvents, memberManuals);
+        // Tạo breakdown 4 tầng công thức chi tiết từ dữ liệu thực tế
+        MultidimensionalNetworkDto.TierBreakdownDto breakdown = buildTierBreakdown(
+                userScore, memberEvents, missingDoneCards, memberManuals, peerSubmissions);
 
         // Danh sách sprints
         List<MultidimensionalNetworkDto.SprintTimelineDto> sprintList = sprints.stream()
@@ -746,10 +919,12 @@ public class ContributionService {
 
         return MultidimensionalNetworkDto.builder()
                 .teamId(teamId)
+                .teamName(team.getName())
                 .sprintId(targetSprint.getId())
                 .sprintName(targetSprint.getName())
                 .focusedUserId(user.getId())
                 .focusedUserName(user.getFullName())
+                .focusedUserRole(focusedUserRole)
                 .finalPct(userScore.getPercentage())
                 .score(userScore.getScore())
                 .d1Output(userScore.getD1Output())
@@ -763,7 +938,7 @@ public class ContributionService {
                 .distanceToCenter(userScore.getDistanceToCenter())
                 .isSuspicious(userScore.getIsSuspicious())
                 .hasSufficientEvidence(userScore.getHasSufficientEvidence())
-                .totalEventsCount(memberEvents.size())
+                .totalEventsCount(memberEvents.size() + missingDoneCards.size() + memberManuals.size() + peerSubmissions.size())
                 .tierBreakdown(breakdown)
                 .nodes(nodes)
                 .links(links)
@@ -890,28 +1065,136 @@ public class ContributionService {
         return getMultidimensionalNetwork(sprint.getTeam().getId(), sprintId, userId);
     }
 
-    private MultidimensionalNetworkDto.TierBreakdownDto buildTierBreakdown(
-            ContributionDto cs, List<ActivityEvent> events, List<ManualContribution> manuals) {
+    private Map<String, Object> buildEventMetadata(
+            ActivityEvent ev,
+            LocalDate sprintStart,
+            int sprintTotalDays,
+            DateTimeFormatter dateFmt,
+            DateTimeFormatter timeFmt) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        String sourceLabel = switch (ev.getSource() != null ? ev.getSource() : ActivitySource.BOARD) {
+            case BOARD -> "Bảng Kanban";
+            case MANUAL -> "Khai báo";
+            case DOCS -> "Tài liệu";
+            default -> ev.getSource().name();
+        };
+        meta.put("source", sourceLabel);
+        meta.put("dayIndex", computeSprintDayIndex(ev.getOccurredAt(), sprintStart, sprintTotalDays));
+        meta.put("occurredDate", ev.getOccurredAt() != null ? ev.getOccurredAt().format(dateFmt) : sprintStart.format(dateFmt));
+        meta.put("time", ev.getOccurredAt() != null ? ev.getOccurredAt().format(timeFmt) : "--:--");
+        if (ev.getStoryPoints() != null) meta.put("sp", ev.getStoryPoints());
+        if (ev.getDifficultyLevel() != null) meta.put("difficulty", ev.getDifficultyLevel());
+        if (ev.getDelayDays() != null) meta.put("delayDays", ev.getDelayDays());
+        if (ev.getIsOnTime() != null) meta.put("isOnTime", ev.getIsOnTime());
+        return meta;
+    }
 
-        int cardsDone = cs.getCardsCompleted() != null ? cs.getCardsCompleted() : 0;
-        double sp = cs.getTotalStoryPoints() != null ? cs.getTotalStoryPoints() : 0.0;
-        double onTime = cs.getOnTimeRate() != null ? cs.getOnTimeRate() : 1.0;
-        double manualSp = manuals.stream()
+    private int computeSprintDayIndex(LocalDateTime occurredAt, LocalDate sprintStart, int sprintTotalDays) {
+        if (occurredAt == null || sprintStart == null) return 1;
+        long diff = ChronoUnit.DAYS.between(sprintStart, occurredAt.toLocalDate()) + 1L;
+        return (int) Math.max(1L, Math.min(sprintTotalDays, diff));
+    }
+
+    private MultidimensionalNetworkDto.TierBreakdownDto buildTierBreakdown(
+            ContributionDto cs,
+            List<ActivityEvent> events,
+            List<Card> missingDoneCards,
+            List<ManualContribution> manuals,
+            List<ReviewSubmission> peerSubs) {
+
+        int doneEventCount = 0;
+        int onTimeEventCount = 0;
+        double doneSp = 0.0;
+        double totalDifficulty = 0.0;
+        int difficultyCount = 0;
+        double totalDelayDays = 0.0;
+        int reworkCount = 0;
+        int commentCount = 0;
+        int reviewForOthersCount = 0;
+        int supportMentionCount = 0;
+
+        for (ActivityEvent ev : events) {
+            String type = ev.getEventType() != null ? ev.getEventType().toUpperCase() : "";
+            if (type.contains("COMPLETED") || type.contains("DONE")) {
+                doneEventCount++;
+                doneSp += ev.getStoryPoints() != null ? ev.getStoryPoints() : 1.0;
+                if (ev.getDifficultyLevel() != null && ev.getDifficultyLevel() > 0) {
+                    totalDifficulty += ev.getDifficultyLevel();
+                    difficultyCount++;
+                }
+                if (Boolean.TRUE.equals(ev.getIsOnTime())) {
+                    onTimeEventCount++;
+                }
+                if (ev.getDelayDays() != null && ev.getDelayDays() > 0) {
+                    totalDelayDays += ev.getDelayDays();
+                }
+            }
+            if (type.contains("REWORK") || type.contains("REOPEN") || type.contains("BACK")) {
+                reworkCount++;
+            }
+            if (Boolean.TRUE.equals(ev.getIsHelpfulComment()) || type.contains("COMMENT")) {
+                commentCount++;
+            }
+            if (Boolean.TRUE.equals(ev.getIsReviewForOthers()) || type.contains("REVIEW")) {
+                reviewForOthersCount++;
+            }
+            if (Boolean.TRUE.equals(ev.getIsSupportMention()) || type.contains("SUPPORT")) {
+                supportMentionCount++;
+            }
+        }
+
+        for (Card c : missingDoneCards) {
+            doneSp += c.getStoryPoints() != null ? c.getStoryPoints() : 1.0;
+            if (c.getDifficultyLevel() != null && c.getDifficultyLevel() > 0) {
+                totalDifficulty += c.getDifficultyLevel();
+                difficultyCount++;
+            }
+            onTimeEventCount++;
+        }
+
+        int cardsDone = doneEventCount + missingDoneCards.size();
+        double sp = Math.round(doneSp * 10.0) / 10.0;
+        double onTime = cardsDone > 0
+                ? Math.round(((double) onTimeEventCount / cardsDone) * 100.0) / 100.0
+                : (cs.getOnTimeRate() != null ? Math.round(cs.getOnTimeRate() * 100.0) / 100.0 : 1.0);
+        double avgDiff = difficultyCount > 0 ? Math.round((totalDifficulty / difficultyCount) * 10.0) / 10.0 : 0.0;
+        double avgDelay = cardsDone > 0 ? Math.round((totalDelayDays / cardsDone) * 10.0) / 10.0 : 0.0;
+
+        double manualSp = Math.round(manuals.stream()
                 .filter(m -> "APPROVED".equalsIgnoreCase(m.getStatus()))
                 .mapToDouble(m -> m.getStoryPoints() != null ? m.getStoryPoints().doubleValue() : 0.0)
-                .sum();
+                .sum() * 10.0) / 10.0;
+
+        int peerReviewCount = peerSubs.size();
+        int peerUniqueReviewers = (int) peerSubs.stream()
+                .filter(s -> s.getReviewer() != null)
+                .map(s -> s.getReviewer().getId())
+                .distinct()
+                .count();
+        double peerAvgScore = peerSubs.isEmpty()
+                ? 0.0
+                : Math.round(peerSubs.stream().mapToInt(ReviewSubmission::getScore).average().orElse(0.0) * 10.0) / 10.0;
 
         double d1 = cs.getD1Output() != null ? cs.getD1Output() : 0.0;
         double d2 = cs.getD2Reliability() != null ? cs.getD2Reliability() : 0.0;
         double d3 = cs.getD3Collaboration() != null ? cs.getD3Collaboration() : 0.0;
         double d4 = cs.getD4Peer() != null ? cs.getD4Peer() : 0.0;
-        double comp = cs.getCompositeScore() != null ? cs.getCompositeScore() : 50.0;
+        double comp = cs.getCompositeScore() != null ? cs.getCompositeScore() : 0.0;
 
         Map<String, Object> raw = new LinkedHashMap<>();
         raw.put("cardsCompleted", cardsDone);
         raw.put("totalStoryPoints", sp);
         raw.put("onTimeRate", onTime);
+        raw.put("avgDifficulty", avgDiff);
+        raw.put("avgDelayDays", avgDelay);
+        raw.put("reworkCount", reworkCount);
+        raw.put("commentCount", commentCount);
+        raw.put("reviewForOthersCount", reviewForOthersCount);
+        raw.put("supportMentionCount", supportMentionCount);
         raw.put("manualPoints", manualSp);
+        raw.put("peerReviewCount", peerReviewCount);
+        raw.put("peerUniqueReviewers", peerUniqueReviewers);
+        raw.put("peerAvgScore", peerAvgScore);
         raw.put("d1Output", d1);
         raw.put("d2Reliability", d2);
         raw.put("d3Collaboration", d3);
@@ -955,83 +1238,6 @@ public class ContributionService {
                 .compositeScore(comp)
                 .finalPercentage(cs.getPercentage() != null ? cs.getPercentage().doubleValue() : 0.0)
                 .build();
-    }
-
-    private void addSyntheticImpactNodes(
-            List<MultidimensionalNetworkDto.NetworkNodeDto> nodes,
-            List<MultidimensionalNetworkDto.NetworkLinkDto> links,
-            String d1Id, String d2Id, String d3Id, String d4Id, String impId,
-            ContributionDto score) {
-
-        // Node tác động ngoại cảnh: Bị ốm & thi cử
-        String node1 = "imp-synthetic-1";
-        nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
-                .id(node1)
-                .label("Trùng lịch thi cử & ốm 2 ngày (a_i = 0.85)")
-                .type("IMPEDIMENT")
-                .category("IMPEDIMENT")
-                .weight(1.5)
-                .badge("Khả dụng")
-                .status("WARN")
-                .color("#f59e0b")
-                .description("Hệ số khả dụng a_i giảm còn 0.85, công thức kích hoạt bù D' = D * (1 + 0.5*(1 - a_i))")
-                .build());
-        links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
-                .source(impId)
-                .target(node1)
-                .weight(1.0)
-                .type("IMPACT")
-                .color("#f59e0b")
-                .build());
-
-        // Node rào cản kỹ thuật: Chờ đối tác
-        String node2 = "imp-synthetic-2";
-        nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
-                .id(node2)
-                .label("Chờ review pull request từ đối tác (Trễ 1.2 ngày)")
-                .type("IMPEDIMENT")
-                .category("D2")
-                .weight(1.2)
-                .badge("Blocker")
-                .status("WARN")
-                .color("#ef4444")
-                .description("Card bị nghẽn ở cột Review làm tăng độ trễ trung vị")
-                .build());
-        links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
-                .source(d2Id)
-                .target(node2)
-                .weight(0.9)
-                .type("WARN")
-                .color("#ef4444")
-                .build());
-        links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
-                .source(impId)
-                .target(node2)
-                .weight(0.6)
-                .type("IMPACT")
-                .color("#f59e0b")
-                .build());
-
-        // Node phối hợp: Hỗ trợ debug cho đồng đội
-        String node3 = "collab-synthetic-3";
-        nodes.add(MultidimensionalNetworkDto.NetworkNodeDto.builder()
-                .id(node3)
-                .label("Hỗ trợ đồng đội giải quyết blocker API (+2 lượt @mention)")
-                .type("EVENT")
-                .category("D3")
-                .weight(1.0)
-                .badge("Support")
-                .status("NORMAL")
-                .color("#8b5cf6")
-                .description("Gia tăng điểm đóng góp trục Collaboration D3")
-                .build());
-        links.add(MultidimensionalNetworkDto.NetworkLinkDto.builder()
-                .source(d3Id)
-                .target(node3)
-                .weight(0.8)
-                .type("DETAIL")
-                .color("#8b5cf6")
-                .build());
     }
 
     private String truncate(String text, int max) {
