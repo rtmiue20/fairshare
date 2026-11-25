@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Search,
-  ChevronDown,
   ArrowUpRight,
   ArrowDownLeft,
   Calendar,
@@ -25,6 +24,9 @@ import {
   X,
   UserCheck,
 } from 'lucide-react';
+import { GlassDropdown } from '../../components/ui/GlassDropdown';
+import { exportLedgerToXlsx } from '../../utils/exportLedgerXlsx';
+import { printLedgerReport } from '../../utils/printLedgerReport';
 import {
   AreaChart,
   Area,
@@ -422,33 +424,26 @@ export const ManualContributionPage: React.FC = () => {
     }
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
+  // Export XLSX chuẩn định dạng Excel
+  const handleExportXlsx = async () => {
     if (filteredContributions.length === 0) {
       showToast.info('Không có dữ liệu đóng góp để xuất.');
       return;
     }
 
-    const headers = ['Mã đóng góp', 'Tiêu đề công việc', 'Người thực hiện', 'Story Points', 'Trạng thái', 'Ngày tạo', 'Minh chứng'];
-    const rows = filteredContributions.map((c) => [
-      `#0${c.id}`,
-      `"${c.taskName.replace(/"/g, '""')}"`,
-      `"${(c.userName || 'Thành viên').replace(/"/g, '""')}"`,
-      c.storyPoints,
-      c.status,
-      c.createdAt,
-      `"${c.evidenceLink || ''}"`,
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `FairShare_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast.success('Đã xuất file báo cáo Ledger (CSV) thành công!');
+    try {
+      const currentTeamName = teams.find((t) => t.id === currentTeamId)?.name || 'FairShare';
+      const currentSprintName = sprints.find((s) => s.id === selectedSprintId)?.name || `Sprint ${selectedSprintId}`;
+      await exportLedgerToXlsx({
+        items: filteredContributions,
+        projectName: currentTeamName,
+        sprintName: currentSprintName,
+        getCategoryLabel: (link, task) => getCategoryMeta(link, task).label,
+      });
+      showToast.success('Đã xuất file Excel (.xlsx) báo cáo Ledger thành công!');
+    } catch {
+      showToast.error('Không thể xuất file Excel. Vui lòng thử lại.');
+    }
   };
 
   // Select all checkboxes
@@ -509,45 +504,41 @@ export const ManualContributionPage: React.FC = () => {
         {/* Action controls on top right */}
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Time period / Sprint dropdown */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-sm">
-            <Calendar size={14} className="text-zinc-400" />
-            <span className="text-zinc-400 font-normal">Time period:</span>
-            <select
-              aria-label="Chọn Sprint"
-              value={selectedSprintId}
-              onChange={(e) => setSelectedSprintId(Number(e.target.value))}
-              className="appearance-none bg-transparent text-zinc-800 dark:text-zinc-200 font-semibold focus:outline-none cursor-pointer text-xs max-w-[155px] sm:max-w-[240px] truncate"
-            >
-              {sprints.map((sp) => (
-                <option key={sp.id} value={sp.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
-                  {sp.name} {sp.isCurrent ? '• Hiện tại' : ''}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={13} className="text-zinc-400" />
-          </div>
+          <GlassDropdown
+            ariaLabel="Chọn Sprint"
+            prefixLabel="Time period:"
+            icon={<Calendar size={14} className="text-cyan-500 dark:text-cyan-400" />}
+            headerTitle="DANH SÁCH SPRINT"
+            menuWidthClass="w-72 sm:w-80"
+            labelMaxWidthClass="max-w-[140px] sm:max-w-[200px]"
+            value={selectedSprintId}
+            onChange={(val) => setSelectedSprintId(Number(val))}
+            options={sprints.map((sp) => ({
+              value: sp.id,
+              label: sp.name,
+              badge: sp.isCurrent ? 'Hiện tại' : undefined,
+            }))}
+          />
 
           {/* Account switcher */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs shadow-sm">
-            <UserCheck size={14} className="text-indigo-500 shrink-0" />
-            <select
-              aria-label="Tài khoản thực hiện"
-              value={currentUserId}
-              onChange={(e) => setCurrentUserId(Number(e.target.value))}
-              className="bg-transparent text-zinc-800 dark:text-zinc-200 font-medium focus:outline-none cursor-pointer text-xs max-w-[150px] truncate"
-            >
-              {availableUsers.map((u) => (
-                <option key={u.id} value={u.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
-                  {u.name} ({u.role})
-                </option>
-              ))}
-            </select>
-          </div>
+          <GlassDropdown
+            ariaLabel="Tài khoản thực hiện"
+            icon={<UserCheck size={14} className="text-indigo-500 dark:text-indigo-400" />}
+            headerTitle="TÀI KHOẢN THỰC HIỆN"
+            menuWidthClass="w-64 sm:w-72"
+            labelMaxWidthClass="max-w-[140px] sm:max-w-[180px]"
+            value={currentUserId}
+            onChange={(val) => setCurrentUserId(Number(val))}
+            options={availableUsers.map((u) => ({
+              value: u.id,
+              label: `${u.name} (${u.role})`,
+            }))}
+          />
 
           {/* Export Button */}
           <button
             type="button"
-            onClick={handleExportCSV}
+            onClick={handleExportXlsx}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-200 transition-colors shadow-sm cursor-pointer"
           >
             <Share2 size={13} />
@@ -557,7 +548,21 @@ export const ManualContributionPage: React.FC = () => {
           {/* Print Button */}
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => {
+              if (filteredContributions.length === 0) {
+                showToast.info('Không có dữ liệu đóng góp để in.');
+                return;
+              }
+              const currentTeamName = teams.find((t) => t.id === currentTeamId)?.name || 'FairShare';
+              const currentSprintName = sprints.find((s) => s.id === selectedSprintId)?.name || `Sprint ${selectedSprintId}`;
+              printLedgerReport({
+                items: filteredContributions,
+                projectName: currentTeamName,
+                sprintName: currentSprintName,
+                exportedBy: user?.fullName || undefined,
+                getCategoryLabel: (link, task) => getCategoryMeta(link, task).label,
+              });
+            }}
             title="In sổ cái Ledger"
             className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm cursor-pointer"
           >
@@ -567,8 +572,8 @@ export const ManualContributionPage: React.FC = () => {
           {/* Download Button */}
           <button
             type="button"
-            onClick={handleExportCSV}
-            title="Tải tệp dữ liệu"
+            onClick={handleExportXlsx}
+            title="Tải tệp Excel (.xlsx)"
             className="p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm cursor-pointer"
           >
             <Download size={15} />
@@ -951,35 +956,36 @@ export const ManualContributionPage: React.FC = () => {
           {/* Filters & Sort */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Filter status */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300">
-              <span className="text-zinc-400">Filters:</span>
-              <select
-                aria-label="Lọc trạng thái"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'APPROVED' | 'PENDING' | 'REJECTED')}
-                className="bg-transparent font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="ALL" className="bg-white dark:bg-zinc-900">Tất cả</option>
-                <option value="APPROVED" className="bg-white dark:bg-zinc-900">Đã duyệt (Approved)</option>
-                <option value="PENDING" className="bg-white dark:bg-zinc-900">Chờ duyệt (Pending)</option>
-                <option value="REJECTED" className="bg-white dark:bg-zinc-900">Từ chối (Rejected)</option>
-              </select>
-            </div>
+            <GlassDropdown
+              ariaLabel="Lọc trạng thái"
+              prefixLabel="Filters:"
+              menuWidthClass="w-56"
+              align="right"
+              triggerClassName="bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700"
+              value={statusFilter}
+              onChange={(val) => setStatusFilter(val as 'ALL' | 'APPROVED' | 'PENDING' | 'REJECTED')}
+              options={[
+                { value: 'ALL', label: 'Tất cả' },
+                { value: 'APPROVED', label: 'Đã duyệt (Approved)' },
+                { value: 'PENDING', label: 'Chờ duyệt (Pending)' },
+                { value: 'REJECTED', label: 'Từ chối (Rejected)' },
+              ]}
+            />
 
             {/* Sort order */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300">
-              <select
-                aria-label="Sắp xếp"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'recent' | 'oldest' | 'points')}
-                className="appearance-none bg-transparent font-medium focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="recent" className="bg-white dark:bg-zinc-900">Recent transactions</option>
-                <option value="oldest" className="bg-white dark:bg-zinc-900">Oldest transactions</option>
-                <option value="points" className="bg-white dark:bg-zinc-900">Highest points</option>
-              </select>
-              <ChevronDown size={13} className="text-zinc-400 pointer-events-none" />
-            </div>
+            <GlassDropdown
+              ariaLabel="Sắp xếp"
+              menuWidthClass="w-52"
+              align="right"
+              triggerClassName="bg-zinc-50 dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700"
+              value={sortBy}
+              onChange={(val) => setSortBy(val as 'recent' | 'oldest' | 'points')}
+              options={[
+                { value: 'recent', label: 'Recent transactions' },
+                { value: 'oldest', label: 'Oldest transactions' },
+                { value: 'points', label: 'Highest points' },
+              ]}
+            />
           </div>
         </div>
 

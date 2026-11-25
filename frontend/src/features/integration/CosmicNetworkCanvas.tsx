@@ -46,6 +46,7 @@ import {
 
 export interface CosmicNetworkCanvasProps {
   teamId?: number;
+  projectName?: string;
   networkData?: MultidimensionalNetworkDto | null;
   nodes: NetworkNodeDto[];
   links: NetworkLinkDto[];
@@ -55,17 +56,18 @@ export interface CosmicNetworkCanvasProps {
   onSelectFilter?: (filter: string) => void;
   onOpenImpactModal?: () => void;
   focusedUserName?: string;
+  focusedUserRole?: string;
   finalPct?: number;
   sprintName?: string;
   viewMode?: 'overview' | 'detail';
   onSwitchViewMode?: (mode: 'overview' | 'detail') => void;
-  sprints?: Array<{ id: number; name: string; isCurrent?: boolean; status?: string }>;
+  sprints?: Array<{ id: number; name: string; startDate?: string; endDate?: string; isCurrent?: boolean; status?: string }>;
   selectedSprintId?: number | null;
   onSelectSprint?: (sprintId: number) => void;
   compositeScore?: number;
   distanceToCenter?: number;
   availabilityFactor?: number;
-  members?: Array<{ id: number; fullName: string; email: string }>;
+  members?: Array<{ id: number; fullName: string; email: string; role?: string }>;
   selectedUserId?: number | null;
   onSelectUser?: (userId: number) => void;
   selectedEvent?: NeuronEventItem | null;
@@ -216,37 +218,27 @@ const renderInlineFormatted = (line: string): React.ReactNode => {
 
 export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   teamId,
+  projectName,
   networkData,
   nodes,
   onSelectNode,
   activeFilter,
   onSelectFilter,
   onOpenImpactModal,
-  focusedUserName = 'Minh Trieu',
-  finalPct = 0.35,
-  sprintName = 'Sprint 3: Hoàn thiện MVP & UI Chấm chéo',
+  focusedUserName = 'Thành viên',
+  focusedUserRole,
+  finalPct = 0,
+  sprintName = 'Sprint hiện tại',
   viewMode = 'overview',
   onSwitchViewMode,
-  sprints = [
-    { id: 1, name: 'Sprint 1', isCurrent: false, status: 'COMPLETED' },
-    { id: 2, name: 'Sprint 2', isCurrent: false, status: 'COMPLETED' },
-    { id: 3, name: 'Sprint 3', isCurrent: true, status: 'ACTIVE' },
-    { id: 4, name: 'Sprint 4', isCurrent: false, status: 'PLANNED' },
-    { id: 5, name: 'Sprint 5', isCurrent: false, status: 'PLANNED' },
-  ],
-  selectedSprintId = 3,
+  sprints = [],
+  selectedSprintId = null,
   onSelectSprint,
-  compositeScore = 99.1,
-  distanceToCenter = 2.52,
+  compositeScore = 0,
+  distanceToCenter = 0,
   availabilityFactor = 1.0,
-  members = [
-    { id: 109, fullName: 'Nguyễn Hoàng Nam', email: 'nam@educonnect.vn' },
-    { id: 110, fullName: 'Trần Thu Trang', email: 'trang@educonnect.vn' },
-    { id: 111, fullName: 'Lê Quốc Bảo', email: 'bao@educonnect.vn' },
-    { id: 112, fullName: 'Phạm Minh Đức', email: 'duc@educonnect.vn' },
-    { id: 113, fullName: 'Đặng Thảo Vy', email: 'vy@educonnect.vn' },
-  ],
-  selectedUserId = 110,
+  members = [],
+  selectedUserId = null,
   onSelectUser,
   selectedEvent,
   onSelectEvent,
@@ -297,13 +289,48 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     const source =
       sprints && sprints.length > 0
         ? sprints
-        : [
-            { id: 1, name: 'Sprint 1', isCurrent: false, status: 'CLOSED' },
-            { id: 2, name: 'Sprint 2', isCurrent: false, status: 'CLOSED' },
-            { id: 3, name: 'Sprint 3', isCurrent: true, status: 'ACTIVE' },
-          ];
+        : sprintName
+        ? [{ id: selectedSprintId ?? networkData?.sprintId ?? 1, name: sprintName, isCurrent: true, status: 'ACTIVE' }]
+        : [];
     return formatSprintsWithWeeks(source);
-  }, [sprints]);
+  }, [sprints, sprintName, selectedSprintId, networkData?.sprintId]);
+
+  const rootMeta = useMemo(() => {
+    const root = (nodes || []).find((n) => n.type === 'ROOT');
+    return (root?.metadata || {}) as Record<string, unknown>;
+  }, [nodes]);
+
+  const resolvedProjectName =
+    projectName ||
+    networkData?.teamName ||
+    (typeof rootMeta.teamName === 'string' && rootMeta.teamName) ||
+    'Dự án nhóm';
+
+  const activeMemberObj = useMemo(() => {
+    const targetId = selectedUserId ?? networkData?.focusedUserId;
+    return members.find((m) => m.id === targetId) || members[0];
+  }, [members, selectedUserId, networkData?.focusedUserId]);
+
+  const resolvedUserRole =
+    focusedUserRole ||
+    networkData?.focusedUserRole ||
+    (typeof rootMeta.role === 'string' && rootMeta.role) ||
+    activeMemberObj?.role ||
+    'Thành viên';
+
+  const sprintTotalDays = useMemo(() => {
+    const d = Number(rootMeta.sprintDays);
+    return Number.isFinite(d) && d > 0 ? d : 14;
+  }, [rootMeta.sprintDays]);
+
+  const activeSprintStartDate = useMemo(() => {
+    const fromSprint = orderedSprints.find((s) =>
+      selectedSprintId != null ? s.id === selectedSprintId : Boolean(s.isCurrent || s.status === 'ACTIVE')
+    )?.startDate;
+    if (fromSprint) return fromSprint;
+    if (typeof rootMeta.sprintStartDate === 'string' && rootMeta.sprintStartDate) return rootMeta.sprintStartDate;
+    return '';
+  }, [orderedSprints, selectedSprintId, rootMeta.sprintStartDate]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -327,7 +354,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
   // Detail View State
   const [selectedAxis, setSelectedAxis] = useState<'D1' | 'D2' | 'D3' | 'D4' | 'IMP'>('D1');
-  const [internalCutDay, setInternalCutDay] = useState<number>(5);
+  const [internalCutDay, setInternalCutDay] = useState<number>(14);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [itemFocus, setItemFocus] = useState<number>(0);
   const [stageDimensions, setStageDimensions] = useState({ width: 900, height: 650 });
@@ -382,151 +409,109 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     return (parts[parts.length - 2][0] + parts[parts.length - 1][0]).toUpperCase();
   }, [focusedUserName]);
 
-  // Generate Realistic Deterministic Events + Real DB Nodes for the selected member
+  // Build Events strictly from Real MariaDB Nodes (Zero fake/sample data)
   const memberEvents = useMemo<NeuronEventItem[]>(() => {
-    const nameLower = (focusedUserName || '').toLowerCase();
-    const isFrontend = nameLower.includes('trang') || selectedUserId === 110;
-    const isLeader = nameLower.includes('nam') || selectedUserId === 109;
-    const isBackend = nameLower.includes('bảo') || selectedUserId === 111;
-    const isQA = nameLower.includes('vy') || selectedUserId === 113;
-
-    const mid = String(selectedUserId || 110);
+    const mid = String(selectedUserId ?? networkData?.focusedUserId ?? 0);
     const list: NeuronEventItem[] = [];
 
-    // 0. Nạp các nút sự kiện & rào cản thực tế trả về từ CSDL MariaDB (/api/contributions/network-graph)
     const dbEventNodes = (nodes || []).filter(
       (n) => (n.type === 'EVENT' || n.type === 'IMPEDIMENT') && !n.id.includes('synthetic')
     );
+
     dbEventNodes.forEach((n, idx) => {
+      const meta = (n.metadata || {}) as Record<string, unknown>;
       const axis: NeuronEventItem['axis'] =
         n.type === 'IMPEDIMENT' || n.category === 'IMPEDIMENT'
           ? 'IMP'
           : n.category === 'D1' || n.category === 'D2' || n.category === 'D3' || n.category === 'D4'
           ? n.category
           : 'D1';
-      const src = n.id.startsWith('manual-')
-        ? 'Khai báo'
-        : axis === 'IMP'
-        ? 'Rào cản DB'
-        : axis === 'D4'
-        ? 'Chấm chéo'
-        : 'Board / Git';
-      const weightVal = typeof n.weight === 'number' ? n.weight : 1.5;
+
+      const src =
+        typeof meta.source === 'string' && meta.source
+          ? meta.source
+          : n.id.startsWith('manual-')
+          ? 'Khai báo'
+          : axis === 'IMP'
+          ? 'Rào cản DB'
+          : axis === 'D4'
+          ? 'Chấm chéo'
+          : 'Bảng Kanban';
+
+      const dayIndex =
+        typeof meta.dayIndex === 'number' && Number.isFinite(meta.dayIndex)
+          ? Math.max(1, Math.min(sprintTotalDays, meta.dayIndex))
+          : Math.min(sprintTotalDays, Math.max(1, Math.round(((idx + 1) / Math.max(1, dbEventNodes.length)) * sprintTotalDays)));
+
+      const occurredDate = typeof meta.occurredDate === 'string' ? meta.occurredDate : '';
+      const timeStr = typeof meta.time === 'string' && meta.time !== '--:--' ? meta.time : '';
+      const formattedTime = occurredDate ? (timeStr ? `${occurredDate} · ${timeStr}` : occurredDate) : 'Trong Sprint';
+
+      const weightVal = typeof n.weight === 'number' ? n.weight : 1.0;
+      const isWarn = n.status === 'WARN';
+      const dpVal =
+        axis === 'IMP'
+          ? 0
+          : isWarn
+          ? -Number(Math.min(2.5, Math.max(0.3, weightVal * 0.4)).toFixed(1))
+          : Number(Math.min(3.5, Math.max(0.2, weightVal * 0.35)).toFixed(1));
+
       list.push({
         id: `db-${n.id}`,
         mid,
         axis,
-        kind: axis === 'IMP' ? 'imp' : axis === 'D3' ? 'review' : 'card',
+        kind: axis === 'IMP' ? 'imp' : axis === 'D3' ? 'review' : axis === 'D4' ? 'rate' : 'card',
         title: n.label,
         src,
-        day: Math.min(14, Math.max(1, Math.round(((idx + 1) / Math.max(1, dbEventNodes.length)) * 14))),
-        time: 'DB Sync',
-        impact: n.status === 'WARN' ? -Math.abs(weightVal) : weightVal,
-        dp: n.status === 'WARN' && axis !== 'IMP' ? -0.6 : Number((weightVal * 0.35).toFixed(1)),
-        evid: n.description || `${src} · ${n.badge || 'Sự kiện đã lưu trong MariaDB'}`,
+        day: dayIndex,
+        time: formattedTime,
+        impact: isWarn ? -Math.abs(weightVal) : weightVal,
+        dp: dpVal,
+        evid: n.description || `${src} · ${n.badge || 'Sự kiện đã lưu trong CSDL'}`,
         meta: { sp: weightVal },
       });
     });
 
-    const hasTitle = (title: string) =>
-      list.some((item) => item.title.toLowerCase().includes(title.slice(0, 18).toLowerCase()));
-
-    const pushIfNew = (item: NeuronEventItem) => {
-      if (!hasTitle(item.title)) {
-        list.push(item);
-      }
-    };
-
-    // D1: Output / Sản lượng (phân bổ từ ngày 1 đến ngày 14 của Sprint)
-    if (isFrontend) {
-      [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Giao diện Chấm chéo', src: 'Trello', day: 2, time: '10:15', impact: 5.0, dp: 1.4, evid: 'Trello · thẻ #104 · Doing → Done · 5 SP · UI Chấm chéo ẩn danh', meta: { sp: 5 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'doc' as const, title: 'Chỉnh sửa · SRS v2.1 (Mục 4 UI Kit)', src: 'Google Docs', day: 5, time: '14:20', impact: 2.5, dp: 0.8, evid: 'Google Docs · revision r48 · +850 từ · Đặc tả Figma Token', meta: { words: 850 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tích hợp API Axios', src: 'Trello', day: 8, time: '16:45', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #108 · Doing → Done · 3 SP · Interceptor JWT', meta: { sp: 3 } },
-        { id: `${mid}-d1-4`, mid, axis: 'D1' as const, kind: 'check' as const, title: 'Check item · Responsive Mobile TopNav', src: 'Trello', day: 11, time: '09:30', impact: 1.0, dp: 0.3, evid: 'Trello · checklist 5/5 hoàn thành', meta: {} },
-        { id: `${mid}-d1-5`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Form Khai Báo Thủ Công', src: 'Trello', day: 14, time: '11:00', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #112 · Doing → Done · 3 SP · Upload ảnh minh chứng', meta: { sp: 3 } },
-      ].forEach(pushIfNew);
-    } else if (isLeader) {
-      [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kiến trúc Spring Boot 3', src: 'Trello', day: 3, time: '11:00', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #92 · Doing → Done · 5 SP · Clean Architecture', meta: { sp: 5 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Cấu hình Docker Compose', src: 'Trello', day: 8, time: '15:30', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #96 · Doing → Done · 3 SP · Multi-stage build', meta: { sp: 3 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Tối ưu Stored Procedure', src: 'Trello', day: 14, time: '17:00', impact: 5.0, dp: 1.5, evid: 'Trello · thẻ #101 · Doing → Done · 5 SP · Giảm latency còn 0.35ms', meta: { sp: 5 } },
-      ].forEach(pushIfNew);
-    } else if (isBackend) {
-      [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · RESTful API Swagger', src: 'Trello', day: 3, time: '14:00', impact: 3.0, dp: 0.9, evid: 'Trello · thẻ #105 · Doing → Done · 3 SP · OpenApi 3.0', meta: { sp: 3 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Migration Flyway V21-V23', src: 'Trello', day: 8, time: '10:30', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #109 · Doing → Done · 3 SP · Versioned migrations', meta: { sp: 3 } },
-        { id: `${mid}-d1-3`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Scoring Engine 4 Tầng', src: 'Trello', day: 14, time: '16:15', impact: 5.0, dp: 1.6, evid: 'Trello · thẻ #115 · Doing → Done · 5 SP · Robust z-score', meta: { sp: 5 } },
-      ].forEach(pushIfNew);
-    } else if (isQA) {
-      [
-        { id: `${mid}-d1-1`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Kịch bản UAT Scenarios', src: 'Trello', day: 6, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · thẻ #102 · Doing → Done · 3 SP · Test matrix M2', meta: { sp: 3 } },
-        { id: `${mid}-d1-2`, mid, axis: 'D1' as const, kind: 'card' as const, title: 'Hoàn thành thẻ · Đóng Defect DEF-16/17/22', src: 'Trello', day: 14, time: '15:10', impact: 3.0, dp: 1.1, evid: 'Trello · thẻ #110 · Doing → Done · 3 SP · Defect verification', meta: { sp: 3 } },
-      ].forEach(pushIfNew);
-    } else {
-      pushIfNew({ id: `${mid}-d1-1`, mid, axis: 'D1', kind: 'card', title: 'Hoàn thành thẻ · Nhiệm vụ Sprint', src: 'Trello', day: 14, time: '11:20', impact: 3.0, dp: 1.0, evid: 'Trello · hoàn thành thẻ đúng tiến độ', meta: { sp: 3 } });
-    }
-
-    // D2: Reliability / Tin cậy & Đúng hạn
-    pushIfNew({ id: `${mid}-d2-1`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Thẻ chính Sprint', src: 'Trello', day: 6, time: '18:00', impact: 1.0, dp: 0.4, evid: 'Trello · hoàn thành trước due date 12 giờ', meta: {} });
-    pushIfNew({ id: `${mid}-d2-2`, mid, axis: 'D2', kind: 'ontime', title: 'Đúng hạn bàn giao · Tài liệu kỹ thuật', src: 'Google Docs', day: 14, time: '17:30', impact: 1.0, dp: 0.4, evid: 'Google Docs · bàn giao đúng hạn mốc tuần 2', meta: {} });
-    if (isBackend) {
-      pushIfNew({ id: `${mid}-d2-3`, mid, axis: 'D2', kind: 'rework', title: 'Rework · Thẻ kéo lại Review → Doing', src: 'Trello', day: 9, time: '16:00', impact: -1.5, dp: -0.8, evid: 'Trello · Phát hiện lỗi validation DTO · Trừ điểm tin cậy D2', meta: {} });
-    }
-
-    // D3: Collaboration / Phối hợp
-    pushIfNew({ id: `${mid}-d3-1`, mid, axis: 'D3', kind: 'review', title: 'Review chéo PR @Nguyễn Hoàng Nam · Module Vector', src: 'GitHub', day: 4, time: '13:40', impact: 1.2, dp: 0.6, evid: 'GitHub PR #89 · để lại 4 inline comments & Approve', meta: { peer: 'nam' } });
-    pushIfNew({ id: `${mid}-d3-2`, mid, axis: 'D3', kind: 'comment', title: 'Phản hồi bình luận trong SRS v2.1', src: 'Google Docs', day: 9, time: '15:15', impact: 0.6, dp: 0.3, evid: 'Google Docs · resolve 3 trao đổi về kiến trúc', meta: { peer: 'trang' } });
-    pushIfNew({ id: `${mid}-d3-3`, mid, axis: 'D3', kind: 'help', title: 'Hỗ trợ đồng đội · Ghép cặp fix CORS & Auth', src: 'Trello', day: 13, time: '10:00', impact: 1.5, dp: 0.7, evid: 'Trello · được thêm vào thẻ đồng giải quyết blockers', meta: { peer: 'bao' } });
-
-    // D4: Peer Review / Chấm chéo
-    pushIfNew({ id: `${mid}-d4-1`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #1 · 4.8 / 5 sao', src: 'Chấm chéo', day: 11, time: '17:00', impact: 1.8, dp: 0.9, evid: 'Chấm chéo ẩn danh · Tiêu chí: Đúng hạn 5/5, Chất lượng 4.8/5, Hỗ trợ 4.8/5', meta: { rt: 4.8 } });
-    pushIfNew({ id: `${mid}-d4-2`, mid, axis: 'D4', kind: 'rate', title: 'Đánh giá ẩn danh #2 · 5.0 / 5 sao', src: 'Chấm chéo', day: 14, time: '17:30', impact: 2.4, dp: 1.2, evid: 'Chấm chéo ẩn danh · Đồng đội đánh giá xuất sắc về tinh thần trách nhiệm', meta: { rt: 5.0 } });
-
-    // IMP: Impediments / Rào cản & Khả dụng (nếu DB chưa có node IMP thực)
+    // If no impediment recorded in DB, reflect exact availability state cleanly
     const hasDbImp = list.some((item) => item.axis === 'IMP');
     if (!hasDbImp) {
-      if (isBackend) {
-        list.push({
-          id: `${mid}-imp-1`,
-          mid,
-          axis: 'IMP',
-          kind: 'imp',
-          title: 'Trùng lịch thi học phần (a_i = 0.90 bù hợp lệ)',
-          src: 'Khai báo',
-          day: 3,
-          time: '08:00',
-          impact: 2.0,
-          dp: 2.4,
-          evid: "Khai báo thủ công · 2 ngày vắng do thi học kỳ · Leader đã phê duyệt · Bù D' = D * (1 + 0.5(1 - a_i))",
-          meta: { days: 2 },
-        });
-      } else {
-        list.push({
-          id: `${mid}-imp-1`,
-          mid,
-          axis: 'IMP',
-          kind: 'imp',
-          title: 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
-          src: 'Khai báo',
-          day: 1,
-          time: '09:00',
-          impact: 0.0,
-          dp: 0.0,
-          evid: 'Thành viên tham gia đầy đủ 100% các buổi sprint, không yêu cầu bù khả dụng',
-          meta: { days: 0 },
-        });
-      }
+      const avail = availabilityFactor ?? 1.0;
+      list.push({
+        id: `${mid}-imp-status`,
+        mid,
+        axis: 'IMP',
+        kind: 'imp',
+        title:
+          avail < 0.999
+            ? `Điều chỉnh khả dụng (a_i = ${avail.toFixed(2)})`
+            : 'Không phát sinh rào cản ngoại cảnh (a_i = 1.00)',
+        src: 'Hệ thống',
+        day: 1,
+        time: activeSprintStartDate || 'Từ đầu Sprint',
+        impact: avail < 0.999 ? Number(((1 - avail) * 10).toFixed(1)) : 0,
+        dp: avail < 0.999 ? Number(((1 - avail) * 12).toFixed(1)) : 0,
+        evid:
+          avail < 0.999
+            ? `Thành viên được ghi nhận hệ số khả dụng a_i = ${avail.toFixed(2)}, kích hoạt bù D' = D · (1 + 0.5(1 - a_i)).`
+            : 'Thành viên tham gia đầy đủ 100%, không phát sinh rào cản ngoại cảnh cần bù khả dụng.',
+        meta: { days: 0 },
+      });
     }
 
     return list;
-  }, [focusedUserName, selectedUserId, nodes]);
+  }, [selectedUserId, networkData?.focusedUserId, nodes, sprintTotalDays, availabilityFactor, activeSprintStartDate]);
 
-  // Mốc ngày tối đa khớp chính xác với ngày của sự kiện cuối cùng (thường là ngày 14 của Sprint)
+  // Maximum day matches sprint span & latest event
   const maxDay = useMemo(() => {
-    if (!memberEvents || memberEvents.length === 0) return 14;
-    return Math.max(1, ...memberEvents.map((e) => e.day));
-  }, [memberEvents]);
+    const eventMax = memberEvents.length > 0 ? Math.max(...memberEvents.map((e) => e.day)) : 1;
+    return Math.max(1, sprintTotalDays, eventMax);
+  }, [memberEvents, sprintTotalDays]);
+
+  useEffect(() => {
+    if (propCutDay === undefined) {
+      setInternalCutDay(maxDay);
+    }
+  }, [maxDay, selectedSprintId, selectedUserId, propCutDay]);
 
   // Bộ đếm thời gian phát lại (Sprint Replay simulation) — tự động dừng khi thẻ vừa hiện ra hết
   useEffect(() => {
@@ -566,222 +551,248 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     return activeEvents.filter((ev) => ev.axis === selectedAxis);
   }, [activeEvents, selectedAxis]);
 
-  // Hub definitions mapped to project 4-tier model (Constellation layout)
+  // Hub definitions mapped cleanly to real DB metrics across 6 balanced orbital sectors
   const constellationHubs = useMemo<ConstellationHub[]>(() => {
-    const nameLower = (focusedUserName || '').toLowerCase();
-    const isFrontend = nameLower.includes('trang') || selectedUserId === 110;
-    const isLeader = nameLower.includes('nam') || selectedUserId === 109;
-    const isBackend = nameLower.includes('bảo') || selectedUserId === 111;
-    const isQA = nameLower.includes('vy') || selectedUserId === 113;
+    const raw = (networkData?.tierBreakdown?.rawFeatures || {}) as Record<string, unknown>;
+    const cardsDone = Number(raw.cardsCompleted ?? 0);
+    const totalSp = Number(raw.totalStoryPoints ?? 0);
+    const onTimeRate = Number(raw.onTimeRate ?? 1);
+    const manualSp = Number(raw.manualPoints ?? 0);
+    const avgDifficulty = Number(raw.avgDifficulty ?? 0);
+    const avgDelayDays = Number(raw.avgDelayDays ?? 0);
+    const reworkCount = Number(raw.reworkCount ?? 0);
+    const commentCount = Number(raw.commentCount ?? 0);
+    const reviewForOthersCount = Number(raw.reviewForOthersCount ?? 0);
+    const supportMentionCount = Number(raw.supportMentionCount ?? 0);
+    const peerUniqueReviewers = Number(raw.peerUniqueReviewers ?? 0);
+    const peerAvgScore = Number(raw.peerAvgScore ?? 0);
 
-    const pctVal = Math.round((finalPct || 0.22) * 100);
-
-    const d1TaskCount = isLeader ? 10 : isFrontend ? 7 : isQA ? 8 : isBackend ? 6 : 5;
-    const d1SpCount = isLeader ? '18.0 SP' : isFrontend ? '12.5 SP' : isQA ? '10.0 SP' : isBackend ? '11.0 SP' : '9.5 SP';
-    const d1ManualCount = isLeader ? '+5.0 SP' : isFrontend ? '+3.0 SP' : isBackend ? '+2.5 SP' : '+2.0 SP';
-    const d2OnTimePct = isLeader ? 95 : isFrontend ? 88 : isQA ? 92 : isBackend ? 82 : 90;
-    const d2Latency = isBackend ? '0.5 ngày' : '0.2 ngày';
-    const d2Rework = isBackend ? 'Rework 8%' : 'Rework 0%';
-    const d3Reviews = isLeader ? '12 Lượt' : isFrontend ? '5 Lượt' : isQA ? '8 Lượt' : '4 Lượt';
-    const d3Comments = isLeader ? '28 Thảo luận' : isFrontend ? '16 Thảo luận' : isQA ? '22 Thảo luận' : '12 Thảo luận';
-    const d4PeerScore = isLeader ? '9.6 / 10' : isFrontend ? '8.8 / 10' : isQA ? '9.0 / 10' : '8.5 / 10';
-    const d4ReviewCount = '4/4 Lượt';
-
-    const dbD1Nodes = (nodes || []).filter(
-      (n) => n.type === 'EVENT' && n.category === 'D1' && !n.id.includes('synthetic')
+    const dbD1BoardNodes = (nodes || []).filter(
+      (n) => n.type === 'EVENT' && n.category === 'D1' && !n.id.startsWith('manual-') && !n.id.includes('synthetic')
+    );
+    const dbManualNodes = (nodes || []).filter(
+      (n) => n.type === 'EVENT' && n.id.startsWith('manual-')
+    );
+    const dbD2Nodes = (nodes || []).filter(
+      (n) => (n.type === 'EVENT' || n.type === 'IMPEDIMENT') && n.category === 'D2' && !n.id.includes('synthetic')
+    );
+    const dbD3Nodes = (nodes || []).filter(
+      (n) => n.type === 'EVENT' && n.category === 'D3' && !n.id.includes('synthetic')
+    );
+    const dbD4Nodes = (nodes || []).filter(
+      (n) => n.type === 'EVENT' && n.category === 'D4' && !n.id.includes('synthetic')
     );
     const dbImpNodes = (nodes || []).filter(
-      (n) => (n.type === 'IMPEDIMENT' || n.category === 'IMPEDIMENT') && n.id !== 'cat-impediments' && !n.id.includes('synthetic')
+      (n) => n.category === 'IMPEDIMENT' && n.id !== 'cat-impediments' && !n.id.includes('synthetic')
     );
 
-    const d1Satellites = dbD1Nodes.length > 0
-      ? dbD1Nodes.slice(0, 3).map((n, i) => ({
-          id: `sat-db-d1-${i}`,
-          label: n.label.length > 30 ? `${n.label.slice(0, 27)}...` : n.label,
-          count: Math.max(1, Math.round(Number(n.weight || 1))),
-          color: ['#38bdf8', '#34d399', '#a78bfa'][i % 3],
-          angleOffset: [-0.28, 0.25, 0.6][i % 3],
-          distOffset: [70, 65, 85][i % 3],
-        }))
-      : isFrontend
-      ? [
-          { id: 'sat-1', label: 'Giao diện Chấm chéo', count: 5, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
-          { id: 'sat-2', label: 'Tích hợp API Axios', count: 4, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
-          { id: 'sat-3', label: 'Form khai báo thủ công', count: 3, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
-        ]
-      : [
-          { id: 'sat-1', label: 'Kiến trúc Spring Boot 3', count: 8, color: '#38bdf8', angleOffset: -0.28, distOffset: 70 },
-          { id: 'sat-2', label: 'Cấu hình Docker Compose', count: 5, color: '#34d399', angleOffset: 0.25, distOffset: 65 },
-          { id: 'sat-3', label: 'Tối ưu Stored Procedure', count: 5, color: '#a78bfa', angleOffset: 0.6, distOffset: 85 },
-        ];
+    const truncLabel = (str: string, max = 26) => (str.length > max ? `${str.slice(0, max - 3)}...` : str);
+    const availPct = Math.round((availabilityFactor ?? 1) * 100);
+    const collabTotal = commentCount + reviewForOthersCount + supportMentionCount + dbD3Nodes.length;
 
-    const impSatellites = dbImpNodes.length > 0
-      ? dbImpNodes.slice(0, 3).map((n, i) => ({
-          id: `sat-db-imp-${i}`,
-          label: n.label.length > 32 ? `${n.label.slice(0, 29)}...` : n.label,
-          count: Math.max(1, Math.round(Number(n.weight || 1))),
-          color: i % 2 === 0 ? '#fbbf24' : '#10b981',
-          angleOffset: [-0.25, 0.3, 0.65][i % 3],
-          distOffset: [65, 75, 85][i % 3],
-        }))
-      : [
-          { id: 'sat-22', label: isBackend ? 'Trùng lịch thi học phần' : 'Không có rào cản', count: isBackend ? 1 : 0, color: '#fbbf24', angleOffset: -0.25, distOffset: 65 },
-          { id: 'sat-23', label: "Kích hoạt bù D' = D*(1+0.5(1-a_i))", count: isBackend ? 1 : 0, color: '#10b981', angleOffset: 0.3, distOffset: 75 },
-        ];
+    const d1Satellites =
+      dbD1BoardNodes.length > 0
+        ? dbD1BoardNodes.slice(0, 3).map((n, i) => ({
+            id: `sat-d1-${n.id}`,
+            label: truncLabel(n.label, 28),
+            count: Number(Number(n.weight || 1).toFixed(1)),
+            color: ['#34d399', '#38bdf8', '#a78bfa'][i % 3],
+            angleOffset: [-0.34, 0, 0.34][i % 3],
+            distOffset: [78, 86, 78][i % 3],
+          }))
+        : [
+            {
+              id: 'sat-d1-empty',
+              label: 'Chưa có thẻ hoàn thành',
+              count: 0,
+              color: '#34d399',
+              angleOffset: 0,
+              distOffset: 78,
+            },
+          ];
+
+    const manualSatellites =
+      dbManualNodes.length > 0
+        ? dbManualNodes.slice(0, 2).map((n, i) => ({
+            id: `sat-manual-${n.id}`,
+            label: truncLabel(n.label.replace(/^Ngoài hệ thống:\s*/i, ''), 26),
+            count: Number(Number(n.weight || 1).toFixed(1)),
+            color: i === 0 ? '#34d399' : '#38bdf8',
+            angleOffset: i === 0 ? -0.26 : 0.26,
+            distOffset: 76,
+          }))
+        : [
+            {
+              id: 'sat-diff',
+              label: avgDifficulty > 0 ? `Độ khó TB Lv ${avgDifficulty.toFixed(1)}` : 'Chưa ghi nhận khai báo ngoài',
+              count: avgDifficulty > 0 ? Number(avgDifficulty.toFixed(1)) : 0,
+              color: '#34d399',
+              angleOffset: 0,
+              distOffset: 76,
+            },
+          ];
+
+    const d2Satellites =
+      dbD2Nodes.length > 0
+        ? dbD2Nodes.slice(0, 2).map((n, i) => ({
+            id: `sat-d2-${n.id}`,
+            label: truncLabel(n.label, 26),
+            count: Number(Number(n.weight || 1).toFixed(1)),
+            color: n.status === 'WARN' ? '#f87171' : '#22d3ee',
+            angleOffset: i === 0 ? -0.24 : 0.24,
+            distOffset: 78,
+          }))
+        : [
+            {
+              id: 'sat-d2-summary',
+              label: reworkCount > 0 ? `Mở lại / Rework` : avgDelayDays > 0 ? 'Độ trễ TB (ngày)' : 'Đúng tiến độ Sprint',
+              count: reworkCount > 0 ? reworkCount : avgDelayDays > 0 ? avgDelayDays : Math.round(onTimeRate * 100),
+              color: reworkCount > 0 || avgDelayDays > 0 ? '#f87171' : '#22d3ee',
+              angleOffset: 0,
+              distOffset: 76,
+            },
+          ];
+
+    const d3Satellites =
+      dbD3Nodes.length > 0
+        ? dbD3Nodes.slice(0, 2).map((n, i) => ({
+            id: `sat-d3-${n.id}`,
+            label: truncLabel(n.label, 26),
+            count: Number(Number(n.weight || 1).toFixed(1)),
+            color: i === 0 ? '#a78bfa' : '#c084fc',
+            angleOffset: i === 0 ? -0.24 : 0.24,
+            distOffset: 78,
+          }))
+        : [
+            {
+              id: 'sat-d3-comments',
+              label: 'Thảo luận & Review hộ',
+              count: commentCount + reviewForOthersCount,
+              color: '#a78bfa',
+              angleOffset: -0.22,
+              distOffset: 76,
+            },
+            {
+              id: 'sat-d3-support',
+              label: 'Hỗ trợ đồng đội (@mention)',
+              count: supportMentionCount,
+              color: '#34d399',
+              angleOffset: 0.24,
+              distOffset: 80,
+            },
+          ];
+
+    const d4Satellites =
+      dbD4Nodes.length > 0
+        ? dbD4Nodes.slice(0, 2).map((n, i) => ({
+            id: `sat-d4-${n.id}`,
+            label: truncLabel(n.label, 26),
+            count: Number(Number(n.weight || 0).toFixed(1)),
+            color: i === 0 ? '#f472b6' : '#ec4899',
+            angleOffset: i === 0 ? -0.22 : 0.22,
+            distOffset: 74,
+          }))
+        : [
+            {
+              id: 'sat-d4-status',
+              label: peerUniqueReviewers >= 3 ? 'Đủ lượt ẩn danh hợp lệ' : 'Lượt chấm chéo ẩn danh (cần ≥3)',
+              count: peerUniqueReviewers,
+              color: '#f472b6',
+              angleOffset: 0,
+              distOffset: 74,
+            },
+          ];
+
+    const impSatellites =
+      dbImpNodes.length > 0
+        ? dbImpNodes.slice(0, 2).map((n, i) => ({
+            id: `sat-imp-${n.id}`,
+            label: truncLabel(n.label, 26),
+            count: Number(Number(n.weight || 1).toFixed(1)),
+            color: '#fbbf24',
+            angleOffset: i === 0 ? -0.22 : 0.22,
+            distOffset: 76,
+          }))
+        : [
+            {
+              id: 'sat-imp-clear',
+              label: availabilityFactor < 0.999 ? 'Bù công bằng từ khả dụng' : 'Không phát sinh rào cản',
+              count: availPct,
+              color: availabilityFactor < 0.999 ? '#fbbf24' : '#34d399',
+              angleOffset: 0,
+              distOffset: 76,
+            },
+          ];
 
     return [
       {
         id: 'hub-d1-tasks',
-        label: 'Thẻ hoàn thành (Tasks)',
+        label: 'D1 · Sản lượng & Thẻ',
         category: 'D1',
-        percentage: Math.min(100, Math.round(pctVal * 1.5)),
-        badge: `${Math.max(d1TaskCount, dbD1Nodes.length)} Thẻ`,
+        percentage: Math.min(100, Math.round((finalPct ?? 0) * 100)),
+        badge: `${cardsDone} Thẻ · ${totalSp} SP`,
         color: '#10b981',
-        angle: -2.35,
-        distance: 280,
+        angle: -2.42,
+        distance: 215,
         satellites: d1Satellites,
       },
       {
-        id: 'hub-d1-sp',
-        label: 'Story Points & Trọng số',
-        category: 'D1',
-        percentage: 38,
-        badge: d1SpCount,
-        color: '#34d399',
-        angle: -1.82,
-        distance: 310,
-        satellites: [
-          { id: 'sat-4', label: 'Độ khó TB Level 2.2', count: 8, color: '#38bdf8', angleOffset: -0.2, distOffset: 60 },
-          { id: 'sat-5', label: 'Tối đa 5 SP/card', count: 5, color: '#f59e0b', angleOffset: 0.35, distOffset: 70 },
-        ],
-      },
-      {
         id: 'hub-d1-manual',
-        label: 'Đóng góp ngoài Board',
+        label: 'Ngoài Board & Độ khó',
         category: 'D1',
-        percentage: 24,
-        badge: d1ManualCount,
+        percentage: 25,
+        badge: `${manualSp} SP`,
         color: '#059669',
-        angle: -1.25,
-        distance: 350,
-        satellites: [
-          { id: 'sat-6', label: 'SRS v2.1 (+1.2k từ)', count: 4, color: '#34d399', angleOffset: -0.25, distOffset: 65 },
-          { id: 'sat-7', label: 'Slide thuyết trình Sprint 2', count: 3, color: '#38bdf8', angleOffset: 0.3, distOffset: 75 },
-        ],
+        angle: -1.42,
+        distance: 205,
+        satellites: manualSatellites,
       },
       {
-        id: 'hub-d2-ontime',
-        label: 'Tỷ lệ đúng hạn bàn giao',
+        id: 'hub-d2-reliability',
+        label: 'D2 · Tiến độ & Tin cậy',
         category: 'D2',
-        percentage: d2OnTimePct,
-        badge: `${d2OnTimePct}% Đúng hạn`,
+        percentage: Math.round(onTimeRate * 100),
+        badge: `${Math.round(onTimeRate * 100)}% Đúng hạn`,
         color: '#06b6d4',
-        angle: -0.68,
-        distance: 340,
-        satellites: [
-          { id: 'sat-8', label: 'Thẻ hoàn thành trước Due', count: 12, color: '#22d3ee', angleOffset: -0.25, distOffset: 60 },
-          { id: 'sat-9', label: 'Cam kết mốc Milestone', count: 4, color: '#34d399', angleOffset: 0.3, distOffset: 70 },
-        ],
-      },
-      {
-        id: 'hub-d2-latency',
-        label: 'Độ trễ trung vị (Lead Time)',
-        category: 'D2',
-        percentage: 16,
-        badge: d2Latency,
-        color: '#22d3ee',
-        angle: -0.15,
-        distance: 360,
-        satellites: [
-          { id: 'sat-10', label: 'Thời gian Doing → Done', count: 6, color: '#38bdf8', angleOffset: -0.3, distOffset: 65 },
-          { id: 'sat-11', label: 'Thời gian giải quyết blocker', count: 3, color: '#f59e0b', angleOffset: 0.25, distOffset: 65 },
-        ],
-      },
-      {
-        id: 'hub-d2-rework',
-        label: 'Kiểm thử & Rework',
-        category: 'D2',
-        percentage: isBackend ? 18 : 6,
-        badge: d2Rework,
-        color: '#0891b2',
-        angle: 0.42,
-        distance: 320,
-        satellites: [
-          { id: 'sat-12', label: 'Card mở lại sau Review', count: isBackend ? 2 : 0, color: '#f87171', angleOffset: -0.2, distOffset: 60 },
-          { id: 'sat-13', label: 'Defect Log đã fix xong', count: 4, color: '#34d399', angleOffset: 0.3, distOffset: 70 },
-        ],
-      },
-      {
-        id: 'hub-d3-reviews',
-        label: 'Review chéo đồng đội',
-        category: 'D3',
-        percentage: 32,
-        badge: d3Reviews,
-        color: '#8b5cf6',
-        angle: 1.05,
-        distance: 330,
-        satellites: [
-          { id: 'sat-14', label: 'PR Review Approve', count: 6, color: '#c084fc', angleOffset: -0.25, distOffset: 65 },
-          { id: 'sat-15', label: 'Góp ý tài liệu Google Docs', count: 5, color: '#38bdf8', angleOffset: 0.3, distOffset: 75 },
-        ],
+        angle: -0.48,
+        distance: 225,
+        satellites: d2Satellites,
       },
       {
         id: 'hub-d3-collab',
-        label: 'Thảo luận & Hỗ trợ (@Mentions)',
+        label: 'D3 · Phối hợp nhóm',
         category: 'D3',
-        percentage: 45,
-        badge: d3Comments,
-        color: '#a78bfa',
-        angle: 1.62,
-        distance: 290,
-        satellites: [
-          { id: 'sat-16', label: 'Comment mang tính xây dựng', count: 18, color: '#a78bfa', angleOffset: -0.25, distOffset: 65 },
-          { id: 'sat-17', label: 'Được gán đồng thực hiện', count: 4, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
-        ],
+        percentage: Math.min(100, collabTotal * 15),
+        badge: `${collabTotal} Tương tác`,
+        color: '#8b5cf6',
+        angle: 0.42,
+        distance: 225,
+        satellites: d3Satellites,
       },
       {
         id: 'hub-d4-peer',
-        label: 'Điểm chấm chéo ẩn danh',
+        label: 'D4 · Chấm chéo ẩn danh',
         category: 'D4',
-        percentage: Math.round(((compositeScore || 33.1) / 100) * 100),
-        badge: d4PeerScore,
+        percentage: Math.min(100, Math.round((peerAvgScore / 5) * 100)),
+        badge: peerUniqueReviewers > 0 ? `${peerAvgScore.toFixed(1)}/5 ★` : '0 Lượt',
         color: '#ec4899',
-        angle: 2.18,
-        distance: 320,
-        satellites: [
-          { id: 'sat-18', label: 'Chất lượng đóng góp: 4.8/5', count: 4, color: '#f472b6', angleOffset: -0.25, distOffset: 65 },
-          { id: 'sat-19', label: 'Trách nhiệm & Thái độ: 5.0/5', count: 4, color: '#ec4899', angleOffset: 0.25, distOffset: 70 },
-        ],
-      },
-      {
-        id: 'hub-d4-valid',
-        label: 'Lượt chấm hợp lệ (≥3)',
-        category: 'D4',
-        percentage: 100,
-        badge: d4ReviewCount,
-        color: '#f472b6',
-        angle: 2.65,
-        distance: 350,
-        satellites: [
-          { id: 'sat-20', label: 'Ẩn danh danh tính 100%', count: 4, color: '#f472b6', angleOffset: -0.2, distOffset: 65 },
-          { id: 'sat-21', label: 'Đủ điều kiện tính điểm D4', count: 1, color: '#34d399', angleOffset: 0.3, distOffset: 65 },
-        ],
+        angle: 1.57,
+        distance: 185,
+        satellites: d4Satellites,
       },
       {
         id: 'hub-impediments',
-        label: 'Rào cản ngoại cảnh & Khả dụng',
+        label: `Rào cản & Khả dụng (${dbImpNodes.length})`,
         category: 'IMPEDIMENT',
-        percentage: dbImpNodes.length > 0 ? Math.min(100, dbImpNodes.length * 25) : (isBackend ? 20 : 0),
-        badge: dbImpNodes.length > 0
-          ? `${dbImpNodes.length} Rào cản (a_i=${availabilityFactor.toFixed(2)})`
-          : (isBackend ? '1 Rào cản (a_i=0.90)' : `Khả dụng ${(availabilityFactor * 100).toFixed(0)}% (a_i=${availabilityFactor.toFixed(2)})`),
+        percentage: availPct,
+        badge: `a_i ${availabilityFactor.toFixed(2)}`,
         color: '#f59e0b',
-        angle: 3.14,
-        distance: 270,
+        angle: 2.82,
+        distance: 215,
         satellites: impSatellites,
       },
     ];
-  }, [focusedUserName, finalPct, compositeScore, selectedUserId, nodes, availabilityFactor]);
+  }, [networkData?.tierBreakdown?.rawFeatures, nodes, finalPct, availabilityFactor]);
 
   const filteredHubs = useMemo(() => {
     if (activeFilter === 'ALL') return constellationHubs;
@@ -885,12 +896,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         return;
       }
 
+      const originX = width / 2 + (width > 960 ? 22 : 0) + transform.x;
+      const originY = height / 2 - (height > 560 ? 24 : 0) + transform.y;
+
       ctx.save();
-      ctx.translate(width / 2 + transform.x, height / 2 + transform.y);
+      ctx.translate(originX, originY);
       ctx.scale(transform.scale, transform.scale);
 
       // 3. Orbital Concentric Rings
-      [220, 280, 340, 400].forEach((r, idx) => {
+      [165, 215, 265, 315].forEach((r, idx) => {
         if (isDark) {
           ctx.strokeStyle = idx % 2 === 0 ? 'rgba(70, 180, 210, 0.14)' : 'rgba(70, 180, 210, 0.07)';
         } else {
@@ -902,10 +916,33 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         ctx.stroke();
       });
 
-      // 4. Beams from Center Core to Hubs
+      const hubR = 25;
+      const coreR = 46;
+
+      interface PillBox {
+        id: string;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        anchorX: number;
+        anchorY: number;
+        movable: boolean;
+        draw: (bx: number, by: number) => void;
+      }
+
+      const pillBoxes: PillBox[] = [];
+      const circleObstacles: Array<{ cx: number; cy: number; r: number }> = [
+        { cx: 0, cy: 0, r: coreR + 12 },
+        // Core labels obstacle
+        { cx: 0, cy: coreR + 34, r: 44 },
+      ];
+
+      // 4. Beams, Satellites & Hub Circles (defer label pills to final anti-collision pass)
       filteredHubs.forEach((hub) => {
         const hx = Math.cos(hub.angle) * hub.distance;
         const hy = Math.sin(hub.angle) * hub.distance;
+        circleObstacles.push({ cx: hx, cy: hy, r: hubR + 8 });
 
         // Gradient beam
         const grad = ctx.createLinearGradient(0, 0, hx, hy);
@@ -925,7 +962,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         ctx.stroke();
 
         // Traveling pulse particle along beam
-        const pulseProgress = (t * 0.4 + hub.angle) % 1;
+        const pulseProgress = (t * 0.4 + Math.abs(hub.angle)) % 1;
         const px = hx * pulseProgress;
         const py = hy * pulseProgress;
         ctx.fillStyle = isDark ? '#ffffff' : '#b45309';
@@ -933,126 +970,230 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         ctx.arc(px, py, 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // 5. Lines from Hub to its Satellites (NEURONS)
+        // 5. Lines & Dots for Hub Satellites
         hub.satellites.forEach((sat) => {
           const satAngle = hub.angle + sat.angleOffset;
           const satDist = hub.distance + sat.distOffset;
           const sx = Math.cos(satAngle) * satDist;
           const sy = Math.sin(satAngle) * satDist;
 
-          ctx.strokeStyle = isDark ? 'rgba(120, 210, 235, 0.4)' : 'rgba(15, 23, 42, 0.22)';
-          ctx.lineWidth = isDark ? 1.0 : 1.3;
+          ctx.strokeStyle = isDark ? 'rgba(120, 210, 235, 0.45)' : 'rgba(15, 23, 42, 0.22)';
+          ctx.lineWidth = isDark ? 1.1 : 1.3;
           ctx.beginPath();
           ctx.moveTo(hx, hy);
           ctx.lineTo(sx, sy);
           ctx.stroke();
 
-          // Satellite Node (Glow + Node Circle)
           ctx.fillStyle = sat.color;
           ctx.beginPath();
           ctx.arc(sx, sy, 5.5, 0, Math.PI * 2);
           ctx.fill();
-
           ctx.strokeStyle = isDark ? '#ffffff' : '#0f172a';
           ctx.lineWidth = 1.4;
           ctx.stroke();
 
-          // ========================================================
-          // CRITICAL FIX: HIGH-CONTRAST SATELLITE (NEURON) PILL BADGE
-          // Khắc phục hoàn toàn chữ mờ, đọc rõ 100% trên cả 2 theme
-          // ========================================================
-          ctx.font = '600 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          // Measure satellite pill and place outward from galaxy center
+          ctx.font = '600 11.5px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
           const labelPart = sat.label;
           const countPart = ` (${sat.count})`;
           const labelWidth = ctx.measureText(labelPart).width;
           const countWidth = ctx.measureText(countPart).width;
-          const totalWidth = labelWidth + countWidth;
+          const padX = 8;
+          const badgeH = 22;
+          const badgeW = labelWidth + countWidth + padX * 2;
 
-          const padX = 7;
-          const badgeH = 20;
-          const badgeW = totalWidth + padX * 2;
-          const badgeX = sx + 8;
-          const badgeY = sy - badgeH / 2;
+          const cosA = Math.cos(satAngle);
+          const sinA = Math.sin(satAngle);
+          let initX = sx + 10;
+          let initY = sy - badgeH / 2;
 
-          // Pill Background Container (Xám đen mờ ảo đồng bộ trang Đóng góp)
-          ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
-          ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : `${sat.color}99`;
-          ctx.lineWidth = 1.1;
-          ctx.beginPath();
-          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
-          ctx.fill();
-          ctx.stroke();
+          if (cosA <= -0.18) {
+            initX = sx - 10 - badgeW;
+          } else if (Math.abs(cosA) < 0.18) {
+            initX = sx - badgeW / 2;
+            initY = sinA < 0 ? sy - 10 - badgeH : sy + 10;
+          }
 
-          // Text Label
-          ctx.fillStyle = isDark ? '#f8fafc' : '#0f172a';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(labelPart, badgeX + padX, sy);
+          pillBoxes.push({
+            id: sat.id,
+            x: initX,
+            y: initY,
+            w: badgeW,
+            h: badgeH,
+            anchorX: sx,
+            anchorY: sy,
+            movable: true,
+            draw: (bx, by) => {
+              // Subtle leader line if nudged away from dot
+              const cxPill = bx + badgeW / 2;
+              const cyPill = by + badgeH / 2;
+              const edgeX = sx < cxPill ? bx : bx + badgeW;
+              if (Math.hypot(edgeX - sx, cyPill - sy) > 14) {
+                ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.35)' : 'rgba(100, 116, 139, 0.35)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(edgeX, cyPill);
+                ctx.stroke();
+              }
 
-          // Highlighted Count
-          ctx.fillStyle = sat.color;
-          ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
-          ctx.fillText(countPart, badgeX + padX + labelWidth, sy);
+              ctx.fillStyle = isDark ? 'rgba(24, 24, 29, 0.95)' : 'rgba(255, 255, 255, 0.97)';
+              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.14)' : `${sat.color}aa`;
+              ctx.lineWidth = 1.1;
+              ctx.beginPath();
+              ctx.roundRect(bx, by, badgeW, badgeH, 7);
+              ctx.fill();
+              ctx.stroke();
+
+              ctx.fillStyle = isDark ? '#f8fafc' : '#0f172a';
+              ctx.font = '600 11.5px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(labelPart, bx + padX, cyPill);
+
+              ctx.fillStyle = sat.color;
+              ctx.font = 'bold 11.5px system-ui, -apple-system, sans-serif';
+              ctx.fillText(countPart, bx + padX + labelWidth, cyPill);
+            },
+          });
         });
 
         // 6. Hub Circle Body
-        const hubR = 21;
-        const hubGlow = ctx.createRadialGradient(hx, hy, 0, hx, hy, hubR * 2.2);
-        hubGlow.addColorStop(0, isDark ? `${hub.color}aa` : `${hub.color}55`);
+        const hubGlow = ctx.createRadialGradient(hx, hy, 0, hx, hy, hubR * 2.1);
+        hubGlow.addColorStop(0, isDark ? `${hub.color}aa` : `${hub.color}4d`);
         hubGlow.addColorStop(1, 'transparent');
         ctx.fillStyle = hubGlow;
         ctx.beginPath();
-        ctx.arc(hx, hy, hubR * 2.2, 0, Math.PI * 2);
+        ctx.arc(hx, hy, hubR * 2.1, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = isDark ? '#1f1f23' : '#ffffff';
         ctx.beginPath();
         ctx.arc(hx, hy, hubR, 0, Math.PI * 2);
         ctx.fill();
-
         ctx.strokeStyle = hub.color;
         ctx.lineWidth = 2.4;
         ctx.stroke();
 
-        // Hub Badge inside
+        // Auto-fit Hub Badge strictly inside the circle (support 2-line split on '·')
         ctx.fillStyle = isDark ? '#ffffff' : hub.color;
-        ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(hub.badge, hx, hy);
+        const maxInnerW = hubR * 1.68;
+        ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+        if (ctx.measureText(hub.badge).width <= maxInnerW) {
+          ctx.fillText(hub.badge, hx, hy);
+        } else if (hub.badge.includes('·')) {
+          const [topLine, botLine] = hub.badge.split('·').map((s) => s.trim());
+          ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
+          ctx.fillText(topLine, hx, hy - 6);
+          ctx.fillText(botLine, hx, hy + 6);
+        } else if (hub.badge.includes(' ')) {
+          const spIdx = hub.badge.indexOf(' ');
+          const topLine = hub.badge.slice(0, spIdx);
+          const botLine = hub.badge.slice(spIdx + 1);
+          ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
+          ctx.fillText(topLine, hx, hy - 6);
+          ctx.fillText(botLine, hx, hy + 6);
+        } else {
+          ctx.font = 'bold 9.5px system-ui, -apple-system, sans-serif';
+          ctx.fillText(hub.badge, hx, hy);
+        }
 
-        // Hub Label outside with pill background
+        // Hub Label Pill (locked under its hub circle, included in collision solver)
         const hubLabel = hub.label;
         ctx.font = 'bold 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         const hTextW = ctx.measureText(hubLabel).width;
-        const hPadX = 9;
-        const hBadgeH = 22;
+        const hPadX = 10;
+        const hBadgeH = 23;
         const hBadgeW = hTextW + hPadX * 2;
-        const hBadgeY = hy + hubR + 14 - hBadgeH / 2;
+        const hBadgeX = hx - hBadgeW / 2;
+        const hBadgeY = hy + hubR + 6;
 
-        ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
-        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : `${hub.color}aa`;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.roundRect(hx - hBadgeW / 2, hBadgeY, hBadgeW, hBadgeH, 6);
-        ctx.fill();
-        ctx.stroke();
+        pillBoxes.push({
+          id: `hub-lbl-${hub.id}`,
+          x: hBadgeX,
+          y: hBadgeY,
+          w: hBadgeW,
+          h: hBadgeH,
+          anchorX: hx,
+          anchorY: hy,
+          movable: false,
+          draw: (bx, by) => {
+            ctx.fillStyle = isDark ? 'rgba(24, 24, 29, 0.95)' : 'rgba(255, 255, 255, 0.97)';
+            ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.16)' : `${hub.color}bb`;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, hBadgeW, hBadgeH, 7);
+            ctx.fill();
+            ctx.stroke();
 
-        ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(hubLabel, hx, hy + hubR + 14);
+            ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
+            ctx.font = 'bold 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(hubLabel, bx + hBadgeW / 2, by + hBadgeH / 2);
+          },
+        });
       });
 
+      // 6b. 2D Bounding-Box Collision Avoidance Solver for Movable Satellite Pills
+      const gapX = 8;
+      const gapY = 6;
+      const minCanvasY = (-originY + 64) / Math.max(0.4, transform.scale);
+      for (let iter = 0; iter < 8; iter++) {
+        for (let i = 0; i < pillBoxes.length; i++) {
+          const a = pillBoxes[i];
+          if (!a.movable) continue;
+
+          if (a.y < minCanvasY) {
+            a.y = minCanvasY;
+          }
+
+          // Avoid Hub/Core circles
+          for (const c of circleObstacles) {
+            const closestX = Math.max(a.x, Math.min(c.cx, a.x + a.w));
+            const closestY = Math.max(a.y, Math.min(c.cy, a.y + a.h));
+            const dx = closestX - c.cx;
+            const dy = closestY - c.cy;
+            const dist = Math.hypot(dx, dy);
+            if (dist < c.r) {
+              const pushDirY = a.y + a.h / 2 >= c.cy ? 1 : -1;
+              a.y += pushDirY * (c.r - dist + 6);
+            }
+          }
+
+          // Avoid other pills (both hub labels & sibling satellites)
+          for (let j = 0; j < pillBoxes.length; j++) {
+            if (i === j) continue;
+            const b = pillBoxes[j];
+            const overlapX = Math.min(a.x + a.w + gapX, b.x + b.w + gapX) - Math.max(a.x, b.x);
+            const overlapY = Math.min(a.y + a.h + gapY, b.y + b.h + gapY) - Math.max(a.y, b.y);
+            if (overlapX > 0 && overlapY > 0) {
+              const aCenterY = a.y + a.h / 2;
+              const bCenterY = b.y + b.h / 2;
+              const dir = aCenterY >= bCenterY ? 1 : -1;
+              const stepY = b.movable ? overlapY * 0.55 : overlapY + 2;
+              a.y += dir * stepY;
+              if (b.movable) {
+                b.y -= dir * overlapY * 0.45;
+              }
+            }
+          }
+        }
+      }
+
+      // Draw all Hub Labels & Satellite Pills cleanly ON TOP
+      pillBoxes.forEach((p) => p.draw(p.x, p.y));
+
       // 7. Center Core Orb (Focused Member Sun)
-      const coreR = 48;
-      const coreGlow = ctx.createRadialGradient(0, 0, coreR * 0.4, 0, 0, coreR * 3.2);
+      const coreGlow = ctx.createRadialGradient(0, 0, coreR * 0.4, 0, 0, coreR * 3.0);
       coreGlow.addColorStop(0, 'rgba(245, 194, 100, 0.9)');
       coreGlow.addColorStop(0.5, 'rgba(245, 160, 50, 0.35)');
       coreGlow.addColorStop(1, 'transparent');
       ctx.fillStyle = coreGlow;
       ctx.beginPath();
-      ctx.arc(0, 0, coreR * 3.2, 0, Math.PI * 2);
+      ctx.arc(0, 0, coreR * 3.0, 0, Math.PI * 2);
       ctx.fill();
 
       // Rotating Spikes around Core
@@ -1086,14 +1227,14 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       ctx.lineWidth = 2.4;
       ctx.stroke();
 
-      // Core Titles with High-Contrast Pill (Xám đen mờ ảo đồng bộ trang Đóng góp)
+      // Core Titles with High-Contrast Pill
       const userName = focusedUserName || 'Thành viên';
-      ctx.font = 'bold 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = 'bold 14.5px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       const uTextW = ctx.measureText(userName).width;
       const uPadX = 12;
       const uBadgeH = 26;
       const uBadgeW = uTextW + uPadX * 2;
-      const uBadgeY = coreR + 25 - uBadgeH / 2;
+      const uBadgeY = coreR + 24 - uBadgeH / 2;
 
       ctx.fillStyle = isDark ? 'rgba(31, 31, 35, 0.94)' : 'rgba(255, 255, 255, 0.96)';
       ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(217, 119, 6, 0.45)';
@@ -1106,12 +1247,13 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(userName, 0, coreR + 25);
+      ctx.fillText(userName, 0, coreR + 24);
 
-      const sprintSub = sprintName ? sprintName.split(':')[0] : 'FairShare Core · Sprint 3';
-      ctx.font = '600 11.5px monospace';
+      const sprintShort = sprintName ? sprintName.split(':')[0].split('-')[0].trim() : 'Sprint hiện tại';
+      const coreSubtitle = `${resolvedProjectName} · ${sprintShort}`;
+      ctx.font = '600 11.5px system-ui, -apple-system, sans-serif';
       ctx.fillStyle = isDark ? '#fcd34d' : '#b45309';
-      ctx.fillText(sprintSub, 0, coreR + 46);
+      ctx.fillText(coreSubtitle, 0, coreR + 46);
 
       ctx.restore();
 
@@ -1230,7 +1372,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       isRunning = false;
       cancelAnimationFrame(animFrame);
     };
-  }, [transform, filteredHubs, starField, viewMode, focusedUserName, sprintName, orderedSprints, selectedSprintId, isDark, isLegendCollapsed]);
+  }, [transform, filteredHubs, starField, viewMode, focusedUserName, resolvedProjectName, sprintName, orderedSprints, selectedSprintId, isDark, isLegendCollapsed]);
 
   // Handle Resize for canvas with HiDPI support
   useEffect(() => {
@@ -1372,8 +1514,10 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
       }
     }
 
-    const px = e.clientX - rect.left - rect.width / 2 - transform.x;
-    const py = e.clientY - rect.top - rect.height / 2 - transform.y;
+    const originX = rect.width / 2 + (rect.width > 960 ? 22 : 0) + transform.x;
+    const originY = rect.height / 2 - (rect.height > 560 ? 24 : 0) + transform.y;
+    const px = e.clientX - rect.left - originX;
+    const py = e.clientY - rect.top - originY;
     const scaledX = px / transform.scale;
     const scaledY = py / transform.scale;
 
@@ -1387,7 +1531,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     for (const hub of filteredHubs) {
       const hx = Math.cos(hub.angle) * hub.distance;
       const hy = Math.sin(hub.angle) * hub.distance;
-      if (Math.hypot(scaledX - hx, scaledY - hy) < 32) {
+      if (Math.hypot(scaledX - hx, scaledY - hy) < 34) {
         const matched = nodes.find((n) => n.id.includes(hub.category.toLowerCase())) || nodes[0];
         if (matched) {
           onSelectNode(matched);
@@ -1408,11 +1552,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
     (questionText: string): { answer: string; tcrei: TcreiPromptBreakdown; followUps: string[] } => {
       const q = questionText.toLowerCase();
       const currentName = networkData?.focusedUserName || focusedUserName || 'Thành viên';
-      const pctNum = (networkData?.finalPct ?? finalPct ?? 0.22) * 100;
+      const pctNum = (networkData?.finalPct ?? finalPct ?? 0) * 100;
       const pctStr = `${pctNum.toFixed(1)}%`;
-      const ciNum = networkData?.compositeScore ?? compositeScore ?? 33.1;
+      const ciNum = networkData?.compositeScore ?? compositeScore ?? 0;
       const scoreStr = `${ciNum.toFixed(1)}/100`;
-      const deltaStr = `${(networkData?.distanceToCenter ?? distanceToCenter ?? 2.2).toFixed(2)}`;
+      const deltaStr = `${(networkData?.distanceToCenter ?? distanceToCenter ?? 0).toFixed(2)}`;
       const aiVal = networkData?.availabilityFactor ?? availabilityFactor ?? 1.0;
       const d1 = networkData?.d1Output ?? 0;
       const d2 = networkData?.d2Reliability ?? 0;
@@ -1553,8 +1697,8 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
   const buildLocalTeamReviewFallback = useCallback(() => {
     const currentName = networkData?.focusedUserName || focusedUserName || 'Thành viên';
-    const pctNum = (networkData?.finalPct ?? finalPct ?? 0.22) * 100;
-    const ciNum = networkData?.compositeScore ?? compositeScore ?? 33.1;
+    const pctNum = (networkData?.finalPct ?? finalPct ?? 0) * 100;
+    const ciNum = networkData?.compositeScore ?? compositeScore ?? 0;
     const aiVal = networkData?.availabilityFactor ?? availabilityFactor ?? 1.0;
     const d1 = networkData?.d1Output ?? 0;
     const d2 = networkData?.d2Reliability ?? 0;
@@ -1661,15 +1805,15 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
   // ==========================================
   const w = stageDimensions.width;
   const h = stageDimensions.height;
-  const ox = Math.min(130, Math.max(90, w * 0.14));
+  const ox = Math.min(140, Math.max(96, w * 0.14));
   const oy = h * 0.48;
-  const ch = Math.max(52, Math.min(72, (h - 200) / 5 - 12));
-  const gap = Math.max(8, Math.min(18, (h - 200 - ch * 5) / 4));
-  const catL = ox + 115;
-  const catW = Math.max(150, Math.min(185, w * 0.22));
-  const xL = catL + catW + Math.max(48, Math.min(100, w * 0.08));
-  const itemW = Math.max(220, Math.min(340, w - xL - 28));
-  const curve = Math.max(24, Math.min(54, w * 0.055));
+  const ch = Math.max(58, Math.min(74, (h - 210) / 5 - 12));
+  const gap = Math.max(10, Math.min(20, (h - 210 - ch * 5) / 4));
+  const catL = ox + Math.max(132, Math.min(165, w * 0.16));
+  const catW = Math.max(162, Math.min(200, w * 0.22));
+  const xL = catL + catW + Math.max(48, Math.min(92, w * 0.08));
+  const itemW = Math.max(230, Math.min(360, w - xL - 28));
+  const curve = Math.max(22, Math.min(50, w * 0.05));
 
   const totalCatH = ch * 5 + gap * 4;
   const catYPositions = useMemo(() => {
@@ -1819,8 +1963,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
         <div className="pointer-events-auto lg:absolute lg:right-6 lg:top-0 flex items-center shrink-0">
           <button
             type="button"
+            data-testid="btn-open-impact-modal"
             onClick={onOpenImpactModal}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5 whitespace-nowrap shrink-0"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-[0_0_20px_rgba(59,130,246,0.35)] flex items-center gap-1.5 transition transform hover:-translate-y-0.5 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Khai báo rào cản</span>
@@ -2037,7 +2182,7 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
               const ad = Math.abs(dIdx);
               if (ad > 5) return null;
 
-              const step = Math.max(50, Math.min(64, h / 12));
+              const step = Math.max(60, Math.min(70, (h - 210) / 7));
               const ey = oy + dIdx * step;
               const ex = xL + curve * (1 - Math.pow(Math.min(1, ad / 5), 2)) + 6;
               const sx = catL + catW;
@@ -2130,20 +2275,20 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             </div>
 
             {/* Orb Member Labels */}
-            <div className="mt-2 text-center w-56 -ml-6">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                EduConnect <br />
-                <span className="text-amber-600 dark:text-amber-300 font-extrabold">{focusedUserName}</span>
+            <div className="mt-2 text-center w-56 mx-auto">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                <span className="block truncate">{resolvedProjectName}</span>
+                <span className="text-amber-600 dark:text-amber-300 font-extrabold block truncate">{focusedUserName}</span>
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Frontend Dev · Nhóm 1</p>
+              <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{resolvedUserRole}</p>
 
               <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-cyan-500/25 text-[11px] font-mono text-cyan-700 dark:text-cyan-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-                <span>p = {((finalPct || 0.22) * 100).toFixed(1)}% · C_i = {(compositeScore || 33.1).toFixed(1)}</span>
+                <span>p = {((finalPct ?? 0) * 100).toFixed(1)}% · C_i = {(compositeScore ?? 0).toFixed(1)}</span>
               </div>
 
               {/* Member Selector Dropdown — Custom Beautiful */}
-              <div className="mt-2.5 relative">
+              <div className="mt-2.5 relative flex justify-center">
                 <button
                   type="button"
                   onClick={() => setShowMemberDropdown((v) => !v)}
@@ -2158,15 +2303,16 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 shadow-xs"
                     style={{ background: 'linear-gradient(135deg,#6366f1,#06b6d4)', color: '#fff' }}
                   >
-                    {(members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'U')
+                    {(activeMemberObj?.fullName || focusedUserName || 'U')
                       .split(' ')
+                      .filter(Boolean)
                       .slice(-2)
                       .map((w) => w[0])
                       .join('')
                       .toUpperCase()}
                   </span>
                   <span className="truncate max-w-[130px] text-left font-bold tracking-tight">
-                    {members.find((m) => m.id === (selectedUserId || 110))?.fullName || 'Chọn thành viên'}
+                    {activeMemberObj?.fullName || focusedUserName || 'Chọn thành viên'}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 ml-auto shrink-0 transition-transform ${showMemberDropdown ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'}`} />
                 </button>
@@ -2190,9 +2336,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
 
                     <div className="max-h-60 overflow-y-auto p-1.5 space-y-1" style={{ scrollbarWidth: 'thin' }}>
                       {members.map((m) => {
-                        const isActive = (selectedUserId || 110) === m.id;
+                        const isActive = (selectedUserId ?? activeMemberObj?.id) === m.id;
                         const roleMatch = m.fullName.match(/\(([^)]+)\)/);
-                        const role = roleMatch ? roleMatch[1] : null;
+                        const role = m.role || (roleMatch ? roleMatch[1] : null);
                         const displayName = roleMatch ? m.fullName.replace(/ *\([^)]*\)/, '').trim() : m.fullName;
                         const initials = displayName.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || 'U';
                         const colors = ['#6366f1,#8b5cf6', '#06b6d4,#0891b2', '#10b981,#059669', '#ec4899,#db2777', '#f59e0b,#d97706'];
@@ -2307,18 +2453,18 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                 const ad = Math.abs(dIdx);
                 if (ad > 5) return null;
 
-                const step = Math.max(50, Math.min(64, h / 12));
-                const itemY = oy + dIdx * step - 24;
+                const step = Math.max(60, Math.min(70, (h - 210) / 7));
+                const itemY = oy + dIdx * step - 26;
                 const itemX = xL + curve * (1 - Math.pow(Math.min(1, ad / 5), 2));
-                const opacity = Math.max(0.12, 1 - Math.pow(ad / 5, 2));
-                const scale = 1 - Math.min(ad, 5) * 0.04;
+                const opacity = Math.max(0.16, 1 - Math.pow(ad / 5, 2));
+                const scale = 1 - Math.min(ad, 5) * 0.035;
                 const isSelected = selectedEvent?.id === ev.id;
 
                 return (
                   <div
                     key={ev.id}
                     onClick={() => onSelectEvent?.(isSelected ? null : ev)}
-                    className={`absolute pointer-events-auto flex items-center gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                    className={`absolute pointer-events-auto flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-amber-100/80 dark:bg-[#28251e] border-amber-400 shadow-[0_0_18px_rgba(245,194,100,0.35)]'
                         : 'bg-white/95 dark:bg-[#1f1f23]/95 border-zinc-200/90 dark:border-white/10 hover:border-cyan-400/60 shadow-sm'
@@ -2342,9 +2488,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                     />
 
                     <div className="flex-1 min-w-0">
-                      <strong className="block text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{ev.title}</strong>
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
-                        <span className="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-zinc-300">{ev.src}</span>
+                      <strong className="block text-[12.5px] font-semibold text-zinc-900 dark:text-zinc-100 truncate">{ev.title}</strong>
+                      <div className="flex items-center gap-2 mt-1 text-[10.5px] text-zinc-500 dark:text-zinc-400 font-mono">
+                        <span className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-zinc-300">{ev.src}</span>
                         <span>Ngày {ev.day}</span>
                         <span
                           className="font-bold"
@@ -2400,7 +2546,18 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                 className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-zinc-200 dark:bg-white/15 accent-pink-500"
               />
               <div className="flex flex-wrap justify-between gap-1 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                <span>Phát lại sprint · Ngày {cutDay}/{maxDay} (16/11/2026)</span>
+                <span>
+                  Phát lại sprint · Ngày {cutDay}/{maxDay}
+                  {(() => {
+                    if (!activeSprintStartDate) return '';
+                    const parts = activeSprintStartDate.split('-').map(Number);
+                    if (parts.length !== 3 || parts.some(Number.isNaN)) return '';
+                    const dt = new Date(parts[0], parts[1] - 1, parts[2] + Math.max(0, cutDay - 1));
+                    const dd = String(dt.getDate()).padStart(2, '0');
+                    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+                    return ` (${dd}/${mm}/${dt.getFullYear()})`;
+                  })()}
+                </span>
                 <span className="text-cyan-600 dark:text-cyan-300 font-semibold">{activeEvents.length} sự kiện ghi nhận đến thời điểm này</span>
               </div>
             </div>
@@ -2531,31 +2688,31 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
           {/* Top KPI Row */}
           <div className="grid grid-cols-4 divide-x divide-zinc-200 dark:divide-white/10 px-2 sm:px-4 py-2 sm:py-3 bg-zinc-50/80 dark:bg-[#18181b]/80 text-center rounded-t-3xl">
             <div className="px-0.5 sm:px-1">
-              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Đóng góp p_i</span>
+              <span className="text-[9.5px] sm:text-[10.5px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Đóng góp p_i</span>
               <strong className="text-xs sm:text-sm font-extrabold text-cyan-600 dark:text-cyan-300 flex items-center justify-center gap-0.5 sm:gap-1">
                 <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>{((finalPct || 0.22) * 100).toFixed(1)}%</span>
+                <span>{((finalPct ?? 0) * 100).toFixed(1)}%</span>
               </strong>
             </div>
             <div className="px-0.5 sm:px-1">
-              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Điểm C_i</span>
+              <span className="text-[9.5px] sm:text-[10.5px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Điểm C_i</span>
               <strong className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-white flex items-center justify-center gap-0.5 sm:gap-1">
                 <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-zinc-400 shrink-0" />
-                <span>{(compositeScore || 33.1).toFixed(1)}</span>
+                <span>{(compositeScore ?? 0).toFixed(1)}</span>
               </strong>
             </div>
             <div className="px-0.5 sm:px-1">
-              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Khoảng cách δ_i</span>
+              <span className="text-[9.5px] sm:text-[10.5px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Khoảng cách δ_i</span>
               <strong className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-0.5 sm:gap-1">
                 <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>{(distanceToCenter || 2.2).toFixed(2)}</span>
+                <span>{(distanceToCenter ?? 0).toFixed(2)}</span>
               </strong>
             </div>
             <div className="px-0.5 sm:px-1">
-              <span className="text-[9px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Khả dụng a_i</span>
+              <span className="text-[9.5px] sm:text-[10.5px] text-zinc-500 dark:text-zinc-400 block font-medium truncate">Khả dụng a_i</span>
               <strong className="text-xs sm:text-sm font-extrabold text-amber-600 dark:text-amber-300 flex items-center justify-center gap-0.5 sm:gap-1">
                 <ThumbsUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                <span>{((availabilityFactor || 1.0) * 100).toFixed(0)}%</span>
+                <span>{((availabilityFactor ?? 1.0) * 100).toFixed(0)}%</span>
               </strong>
             </div>
           </div>
@@ -2758,11 +2915,11 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
             <div className="flex items-center gap-2 relative">
               {/* Custom Member Dropdown — Bottom Dock */}
               {(() => {
-                const activeMember = members.find((m) => m.id === (selectedUserId || 110));
+                const activeMember = members.find((m) => m.id === (selectedUserId ?? activeMemberObj?.id));
                 const activeRoleMatch = activeMember?.fullName.match(/\(([^)]+)\)/);
                 const activeDisplayName = activeRoleMatch
                   ? (activeMember?.fullName || '').replace(/ *\([^)]*\)/, '').trim()
-                  : activeMember?.fullName || 'Chọn thành viên';
+                  : activeMember?.fullName || focusedUserName || 'Chọn thành viên';
                 const activeInitials = activeDisplayName
                   .split(' ')
                   .filter(Boolean)
@@ -2819,9 +2976,9 @@ export const CosmicNetworkCanvas: React.FC<CosmicNetworkCanvasProps> = ({
                         {/* Member List */}
                         <div className="max-h-64 overflow-y-auto p-1.5 space-y-1" style={{ scrollbarWidth: 'thin' }}>
                           {members.map((m) => {
-                            const isActive = (selectedUserId || 110) === m.id;
+                            const isActive = (selectedUserId ?? activeMemberObj?.id) === m.id;
                             const roleMatch = m.fullName.match(/\(([^)]+)\)/);
-                            const role = roleMatch ? roleMatch[1] : null;
+                            const role = m.role || (roleMatch ? roleMatch[1] : null);
                             const displayName = roleMatch
                               ? m.fullName.replace(/ *\([^)]*\)/, '').trim()
                               : m.fullName;

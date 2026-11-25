@@ -187,9 +187,11 @@ export const peerReviewApi = {
     return response.data;
   },
 
-  toggleLike: async (submissionId: number): Promise<ApiResponse<number>> => {
+  toggleLike: async (submissionId: number, unlike = false): Promise<ApiResponse<number>> => {
     const response = await apiClient.post<ApiResponse<number>>(
       `/review-rounds/submissions/${submissionId}/like`,
+      null,
+      { params: { unlike } },
     );
     return response.data;
   },

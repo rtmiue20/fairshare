@@ -29,19 +29,17 @@ import {
   Zap,
   Info,
 } from 'lucide-react';
-import { showToast } from '../../components/ui/Toast';
 
 interface InspectorDrawerProps {
   selectedNode: NetworkNodeDto | null;
   networkData: MultidimensionalNetworkDto | null;
   onClose: () => void;
-  onLogImpact: (payload: ImpactEventPayload) => Promise<void>;
+  onLogImpact?: (payload: ImpactEventPayload) => Promise<void>;
   onUpdateAvailability: (factor: number, reason: string) => Promise<void>;
   onResolveSuspicion: (isSuspicious: boolean, note: string) => Promise<void>;
   onRecalculateScores: () => Promise<void>;
   isUpdating: boolean;
-  isOpenImpactModalDirectly?: boolean;
-  onCloseImpactModalDirectly?: () => void;
+  onOpenImpactModal?: () => void;
   selectedEvent?: NeuronEventItem | null;
   onSelectEvent?: (event: NeuronEventItem | null) => void;
   cutDay?: number;
@@ -52,41 +50,25 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
   selectedNode,
   networkData,
   onClose,
-  onLogImpact,
   onUpdateAvailability,
   onResolveSuspicion,
   onRecalculateScores,
   isUpdating,
-  isOpenImpactModalDirectly = false,
-  onCloseImpactModalDirectly,
+  onOpenImpactModal,
   selectedEvent,
   cutDay = 5,
   maxDays = 14,
 }) => {
   const [activeTierTab, setActiveTierTab] = useState<1 | 2 | 3 | 4>(3);
-  const [showImpactModal, setShowImpactModal] = useState(false);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiChatResponses, setAiChatResponses] = useState<Array<{ q: string; a: string }>>([]);
-
-  // Impact Form State
-  const [impactTitle, setImpactTitle] = useState('');
-  const [impactCategory, setImpactCategory] = useState<ImpactEventPayload['category']>('IMPEDIMENT');
-  const [impactSeverity, setImpactSeverity] = useState<ImpactEventPayload['severity']>('MEDIUM');
-  const [impactDelay, setImpactDelay] = useState<number>(1);
-  const [impactDesc, setImpactDesc] = useState('');
 
   // Availability Form State
   const [availFactor, setAvailFactor] = useState<number>(
     networkData?.availabilityFactor || 1.0
   );
   const [availReason, setAvailReason] = useState('');
-
-  const isModalOpen = showImpactModal || isOpenImpactModalDirectly;
-  const handleCloseImpactModal = () => {
-    setShowImpactModal(false);
-    if (onCloseImpactModalDirectly) onCloseImpactModalDirectly();
-  };
 
   if (!networkData) return null;
 
@@ -119,28 +101,6 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
       fullMark: 100,
     },
   ];
-
-  const handleCreateImpact = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!impactTitle.trim()) {
-      showToast('Vui lòng nhập tiêu đề rào cản');
-      return;
-    }
-    await onLogImpact({
-      teamId: networkData.teamId,
-      sprintId: networkData.sprintId,
-      userId: networkData.focusedUserId,
-      title: impactTitle.trim(),
-      description: impactDesc.trim(),
-      category: impactCategory,
-      severity: impactSeverity,
-      delayDays: impactDelay,
-      updatedAvailabilityFactor: impactCategory === 'HEALTH_AVAILABILITY' ? 0.8 : undefined,
-    });
-    handleCloseImpactModal();
-    setImpactTitle('');
-    setImpactDesc('');
-  };
 
   const handleSaveAvailability = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,7 +170,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           <button
             type="button"
             title="Khai báo tác động ngoại cảnh"
-            onClick={() => setShowImpactModal(true)}
+            onClick={() => onOpenImpactModal?.()}
             className="p-1.5 rounded-lg border transition hover:bg-[var(--surface2)]"
             style={{ borderColor: 'var(--line)', color: 'var(--warn)' }}
           >
@@ -278,28 +238,40 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
             </span>
           </div>
 
-          <div className="flex items-baseline gap-2 mt-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mt-2">
             <strong className="text-3xl font-extrabold tracking-tight font-mono text-[var(--accent)]">
-              {(networkData.finalPct * 100).toFixed(1)}%
+              {((networkData.finalPct ?? 0) * 100).toFixed(1)}%
             </strong>
-            <span className="text-xs font-semibold" style={{ color: 'var(--ok)' }}>
-              +3.2% vs Sprint trước
+            <span
+              className="text-[11px] font-semibold"
+              style={{ color: networkData.isSuspicious ? 'var(--warn)' : 'var(--ok)' }}
+            >
+              {networkData.isSuspicious ? 'Cần đối chiếu minh chứng' : `a_i = ${(networkData.availabilityFactor ?? 1).toFixed(2)}`}
             </span>
             <span className="text-xs ml-auto font-mono" style={{ color: 'var(--fg3)' }}>
-              (C_i: {networkData.compositeScore?.toFixed(1) || '65.6'}/100)
+              (C_i: {(networkData.compositeScore ?? 0).toFixed(1)}/100)
             </span>
           </div>
 
-          {/* Sparkline Histogram Bars */}
+          {/* 4-Dimension + Status Bars (Computed from Real Metrics) */}
           <div className="flex items-end gap-1.5 h-10 mt-3 pt-2 border-t" style={{ borderColor: 'var(--line)' }}>
-            {[24, 32, 28, 45, 38, 52, 48, 62, 58, 68, 65, 75, 70, 82, 78, 88].map((val, idx) => (
+            {[
+              Math.max(12, Math.min(100, (networkData.d1Output + 3) * 16.6)),
+              Math.max(12, Math.min(100, (networkData.d2Reliability + 3) * 16.6)),
+              Math.max(12, Math.min(100, (networkData.d3Collaboration + 3) * 16.6)),
+              Math.max(12, Math.min(100, (networkData.d4Peer + 3) * 16.6)),
+              Math.max(12, Math.min(100, ((breakdown?.rawFeatures?.onTimeRate ?? 1) as number) * 100)),
+              Math.max(12, Math.min(100, (networkData.availabilityFactor ?? 1) * 100)),
+              Math.max(12, Math.min(100, networkData.compositeScore ?? 0)),
+              Math.max(12, Math.min(100, (networkData.finalPct ?? 0) * 100)),
+            ].map((val, idx) => (
               <div
                 key={idx}
                 className="flex-1 rounded-sm transition-all duration-300"
                 style={{
-                  height: `${val}%`,
+                  height: `${Math.round(val)}%`,
                   background:
-                    idx >= 12
+                    idx >= 6
                       ? 'linear-gradient(to top, var(--accent, #06b6d4), var(--ok, #10b981))'
                       : 'var(--line)',
                 }}
@@ -307,7 +279,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
             ))}
           </div>
 
-          <div className="flex items-center justify-between mt-3 text-[10px]" style={{ color: 'var(--fg3)' }}>
+          <div className="flex items-center justify-between gap-2 mt-3 text-[10px]" style={{ color: 'var(--fg3)' }}>
             <span>Khoảng tin cậy Bootstrap 95%:</span>
             <strong style={{ color: 'var(--fg)' }}>
               {networkData.hasSufficientEvidence && networkData.confidenceIntervalLow !== undefined
@@ -326,10 +298,10 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
             </div>
             <div className="mt-1">
               <strong className="text-sm block" style={{ color: 'var(--fg)' }}>
-                {breakdown?.rawFeatures?.cardsCompleted || 2} Thẻ · {breakdown?.rawFeatures?.totalStoryPoints || 6} SP
+                {breakdown?.rawFeatures?.cardsCompleted ?? 0} Thẻ · {Number(breakdown?.rawFeatures?.totalStoryPoints ?? 0).toFixed(1)} SP
               </strong>
               <span className="text-[10px]" style={{ color: 'var(--fg3)' }}>
-                Đúng hạn: {((breakdown?.rawFeatures?.onTimeRate || 0.85) * 100).toFixed(0)}%
+                Đúng hạn: {((breakdown?.rawFeatures?.onTimeRate ?? 1) * 100).toFixed(0)}%
               </span>
             </div>
           </div>
@@ -394,106 +366,125 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
             </span>
           </div>
 
-          <div className="space-y-2 text-[11px]">
-            {/* D1 */}
-            <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
-                <i className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-                Sản lượng
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 160))}%` }}
-                />
-              </div>
-              <span className="w-14 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                +{((networkData.finalPct || 0.22) * 40).toFixed(1)}pp
-              </span>
-            </div>
+          {(() => {
+            const pPct = (networkData.finalPct ?? 0) * 100;
+            const d1Impact = Number(((networkData.d1Output ?? 0) * 0.40 * Math.max(8, pPct * 0.25)).toFixed(1));
+            const d2Impact = Number(((networkData.d2Reliability ?? 0) * 0.20 * Math.max(8, pPct * 0.25)).toFixed(1));
+            const d3Impact = Number(((networkData.d3Collaboration ?? 0) * 0.15 * Math.max(8, pPct * 0.25)).toFixed(1));
+            const hasPeer = Number(breakdown?.rawFeatures?.peerReviewCount ?? 0) >= 3 || Math.abs(networkData.d4Peer ?? 0) > 0.001;
+            const d4Impact = hasPeer ? Number(((networkData.d4Peer ?? 0) * 0.25 * Math.max(8, pPct * 0.25)).toFixed(1)) : 0.0;
+            const reworkPenalty = Number((Number(breakdown?.rawFeatures?.reworkCount ?? 0) * 0.5 + Number(breakdown?.rawFeatures?.avgDelayDays ?? 0) * 0.4).toFixed(1));
+            const availBonus = Number(((1 - (networkData.availabilityFactor ?? 1)) * 12).toFixed(1));
 
-            {/* D2 */}
-            <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
-                <i className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
-                Tin cậy
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-cyan-500 dark:bg-cyan-400 transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 120))}%` }}
-                />
-              </div>
-              <span className="w-14 text-right font-mono text-cyan-600 dark:text-cyan-400 font-bold">
-                +{((networkData.finalPct || 0.22) * 20).toFixed(1)}pp
-              </span>
-            </div>
+            const fmtPp = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}pp`;
+            const barWidth = (v: number, scale = 12) => `${v === 0 ? 0 : Math.min(100, Math.max(10, Math.abs(v) * scale))}%`;
 
-            {/* D3 */}
-            <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
-                <i className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400 shadow-[0_0_6px_#a78bfa]" />
-                Phối hợp
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-purple-500 dark:bg-purple-400 transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 110))}%` }}
-                />
-              </div>
-              <span className="w-14 text-right font-mono text-purple-600 dark:text-purple-400 font-bold">
-                +{((networkData.finalPct || 0.22) * 15).toFixed(1)}pp
-              </span>
-            </div>
+            return (
+              <div className="space-y-2 text-[11px]">
+                {/* D1 */}
+                <div className="flex items-center gap-2">
+                  <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                    <i className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                    Sản lượng
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500"
+                      style={{ width: barWidth(d1Impact) }}
+                    />
+                  </div>
+                  <span className={`w-14 text-right font-mono font-bold ${d1Impact < 0 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {fmtPp(d1Impact)}
+                  </span>
+                </div>
 
-            {/* D4 */}
-            <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
-                <i className="w-2 h-2 rounded-full bg-pink-500 dark:bg-pink-400 shadow-[0_0_6px_#f472b6]" />
-                Chấm chéo
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-pink-500 dark:bg-pink-400 transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (networkData.finalPct || 0.22) * 130))}%` }}
-                />
-              </div>
-              <span className="w-14 text-right font-mono text-pink-600 dark:text-pink-400 font-bold">
-                +{((networkData.finalPct || 0.22) * 25).toFixed(1)}pp
-              </span>
-            </div>
+                {/* D2 */}
+                <div className="flex items-center gap-2">
+                  <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                    <i className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+                    Tin cậy
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-cyan-500 dark:bg-cyan-400 transition-all duration-500"
+                      style={{ width: barWidth(d2Impact) }}
+                    />
+                  </div>
+                  <span className={`w-14 text-right font-mono font-bold ${d2Impact < 0 ? 'text-rose-500' : 'text-cyan-600 dark:text-cyan-400'}`}>
+                    {fmtPp(d2Impact)}
+                  </span>
+                </div>
 
-            {/* Rework penalty */}
-            <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-300 font-medium shrink-0">
-                <i className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400 shadow-[0_0_6px_#f87171]" />
-                Rework/trễ*
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
-                <div className="h-full rounded-full bg-rose-500 dark:bg-rose-400/80 transition-all duration-500" style={{ width: '18%' }} />
-              </div>
-              <span className="w-14 text-right font-mono text-rose-600 dark:text-rose-400 font-bold">
-                -0.8pp
-              </span>
-            </div>
+                {/* D3 */}
+                <div className="flex items-center gap-2">
+                  <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                    <i className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400 shadow-[0_0_6px_#a78bfa]" />
+                    Phối hợp
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-purple-500 dark:bg-purple-400 transition-all duration-500"
+                      style={{ width: barWidth(d3Impact) }}
+                    />
+                  </div>
+                  <span className={`w-14 text-right font-mono font-bold ${d3Impact < 0 ? 'text-rose-500' : 'text-purple-600 dark:text-purple-400'}`}>
+                    {fmtPp(d3Impact)}
+                  </span>
+                </div>
 
-            {/* Availability bonus */}
-            <div className="flex items-center gap-2">
-              <span className="w-20 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 font-medium shrink-0">
-                <i className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
-                Bù khả dụng
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-amber-500 dark:bg-amber-400 transition-all duration-500"
-                  style={{ width: `${Math.round((1 - networkData.availabilityFactor) * 150)}%` }}
-                />
+                {/* D4 */}
+                <div className="flex items-center gap-2">
+                  <span className="w-20 flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                    <i className="w-2 h-2 rounded-full bg-pink-500 dark:bg-pink-400 shadow-[0_0_6px_#f472b6]" />
+                    Chấm chéo
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-pink-500 dark:bg-pink-400 transition-all duration-500"
+                      style={{ width: barWidth(d4Impact) }}
+                    />
+                  </div>
+                  <span className={`w-14 text-right font-mono font-bold ${d4Impact < 0 ? 'text-rose-500' : 'text-pink-600 dark:text-pink-400'}`}>
+                    {fmtPp(d4Impact)}
+                  </span>
+                </div>
+
+                {/* Rework penalty */}
+                <div className="flex items-center gap-2">
+                  <span className="w-20 flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-300 font-medium shrink-0">
+                    <i className="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400 shadow-[0_0_6px_#f87171]" />
+                    Rework/trễ
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-rose-500 dark:bg-rose-400/80 transition-all duration-500"
+                      style={{ width: barWidth(reworkPenalty, 22) }}
+                    />
+                  </div>
+                  <span className="w-14 text-right font-mono text-rose-600 dark:text-rose-400 font-bold">
+                    {reworkPenalty > 0 ? `-${reworkPenalty.toFixed(1)}pp` : '0.0pp'}
+                  </span>
+                </div>
+
+                {/* Availability bonus */}
+                <div className="flex items-center gap-2">
+                  <span className="w-20 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 font-medium shrink-0">
+                    <i className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
+                    Bù khả dụng
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-slate-200/80 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 dark:bg-amber-400 transition-all duration-500"
+                      style={{ width: barWidth(availBonus, 25) }}
+                    />
+                  </div>
+                  <span className="w-14 text-right font-mono text-amber-700 dark:text-amber-300 font-bold">
+                    {fmtPp(availBonus)}
+                  </span>
+                </div>
               </div>
-              <span className="w-14 text-right font-mono text-amber-700 dark:text-amber-300 font-bold">
-                +{((1 - networkData.availabilityFactor) * 12).toFixed(1)}pp
-              </span>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* Sự kiện đang chọn (Event Traceability & Audit) */}
@@ -550,7 +541,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                 <div className="p-2 rounded-lg bg-slate-100/90 dark:bg-black/25 border border-slate-200/60 dark:border-white/5">
                   <span className="text-slate-500 dark:text-slate-400 block font-medium">Nếu loại sự kiện này:</span>
                   <strong className="font-mono text-xs block mt-0.5 text-slate-900 dark:text-white font-bold">
-                    {Math.max(0, (networkData.finalPct || 0.22) * 100 - (selectedEvent.dp || 1.2)).toFixed(1)}%
+                    {Math.max(0, (networkData.finalPct ?? 0) * 100 - (selectedEvent.dp ?? 0)).toFixed(1)}%
                   </strong>
                 </div>
 
@@ -601,13 +592,25 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           <h4 className="text-xs font-bold mb-1" style={{ color: 'var(--fg)' }}>
             {networkData.isSuspicious
               ? 'Phát hiện phân hóa điểm: Cần đối chiếu minh chứng'
-              : 'Đóng góp đồng đều: Kích hoạt bù khả dụng hợp lệ'}
+              : networkData.availabilityFactor < 0.999
+              ? 'Đóng góp ổn định: Kích hoạt bù khả dụng hợp lệ'
+              : 'Đóng góp đồng đều · Tham gia 100% khả dụng'}
           </h4>
 
           <p className="text-[11px] leading-relaxed" style={{ color: 'var(--fg2)' }}>
-            Thành viên hoàn thành tốt các hạng mục thuộc trục <strong>D1 Sản lượng</strong> và nhận đánh giá từ đồng đội ở <strong>D4 Chấm chéo</strong>.
-            Đã ghi nhận các yếu tố rào cản ngoại cảnh (chờ review code & điều chỉnh lịch khả dụng <code>a_i = {networkData.availabilityFactor.toFixed(2)}</code>).
-            Hệ thống áp dụng công thức bù một phần <code>D&apos; = D · (1 + 0.5(1 - a_i))</code> để bảo vệ quyền lợi thành viên một cách công bằng.
+            Thành viên <strong>{networkData.focusedUserName}</strong> đạt điểm tổng hợp{' '}
+            <code>C_i = {(networkData.compositeScore ?? 0).toFixed(1)}/100</code> trên 4 trục D1–D4.
+            {networkData.availabilityFactor < 0.999 || impedimentNodes.length > 0 ? (
+              <>
+                {' '}Hệ thống đã ghi nhận {impedimentNodes.length} yếu tố rào cản và áp dụng hệ số khả dụng{' '}
+                <code>a_i = {networkData.availabilityFactor.toFixed(2)}</code> theo công thức{' '}
+                <code>D&apos; = D · (1 + 0.5(1 - a_i))</code> để bảo vệ quyền lợi công bằng.
+              </>
+            ) : (
+              <>
+                {' '}Hệ số khả dụng đạt tối đa <code>a_i = {networkData.availabilityFactor.toFixed(2)}</code>, số liệu phản ánh trực tiếp từ dữ liệu dự án thực tế.
+              </>
+            )}
           </p>
         </div>
 
@@ -659,10 +662,10 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                     <span>SP, Cards, Độ khó</span>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 text-[10px]" style={{ color: 'var(--fg2)' }}>
-                    <div>Số card hoàn thành: <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.cardsCompleted || 2}</strong></div>
-                    <div>Tổng story points: <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.totalStoryPoints || 6} SP</strong></div>
-                    <div>Độ khó trung bình: <strong style={{ color: 'var(--fg)' }}>Level {networkData.nodes.find(n => n.type === 'EVENT')?.weight ? '2.0' : '1.5'}</strong></div>
-                    <div>Checklist item xong: <strong style={{ color: 'var(--fg)' }}>8 items</strong></div>
+                    <div>Số card hoàn thành: <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.cardsCompleted ?? 0}</strong></div>
+                    <div>Tổng story points: <strong style={{ color: 'var(--fg)' }}>{Number(breakdown?.rawFeatures?.totalStoryPoints ?? 0).toFixed(1)} SP</strong></div>
+                    <div>Độ khó trung bình: <strong style={{ color: 'var(--fg)' }}>{Number(breakdown?.rawFeatures?.avgDifficulty ?? 0) > 0 ? `Level ${Number(breakdown.rawFeatures.avgDifficulty).toFixed(1)}` : 'Chưa gán'}</strong></div>
+                    <div>Sự kiện ghi nhận: <strong style={{ color: 'var(--fg)' }}>{networkData.totalEventsCount ?? 0}</strong></div>
                   </div>
                 </div>
 
@@ -673,10 +676,10 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                     <span>Đúng hạn, Rework, Độ trễ</span>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 text-[10px]" style={{ color: 'var(--fg2)' }}>
-                    <div>Tỷ lệ đúng hạn: <strong style={{ color: 'var(--fg)' }}>{((breakdown?.rawFeatures?.onTimeRate || 0.85) * 100).toFixed(0)}%</strong></div>
-                    <div>Độ trễ trung vị: <strong style={{ color: 'var(--fg)' }}>0.4 ngày</strong></div>
-                    <div>Số lần card mở lại (rework): <strong style={{ color: 'var(--fg)' }}>1 lần</strong></div>
-                    <div>Trạng thái giao việc: <strong style={{ color: 'var(--ok)' }}>Đúng cam kết</strong></div>
+                    <div>Tỷ lệ đúng hạn: <strong style={{ color: 'var(--fg)' }}>{((breakdown?.rawFeatures?.onTimeRate ?? 1) * 100).toFixed(0)}%</strong></div>
+                    <div>Độ trễ trung bình: <strong style={{ color: 'var(--fg)' }}>{Number(breakdown?.rawFeatures?.avgDelayDays ?? 0).toFixed(1)} ngày</strong></div>
+                    <div>Số lần rework: <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.reworkCount ?? 0} lần</strong></div>
+                    <div>Trạng thái: <strong style={{ color: (breakdown?.rawFeatures?.reworkCount ?? 0) === 0 && (breakdown?.rawFeatures?.onTimeRate ?? 1) >= 0.8 ? 'var(--ok)' : 'var(--warn)' }}>{(breakdown?.rawFeatures?.reworkCount ?? 0) === 0 && (breakdown?.rawFeatures?.onTimeRate ?? 1) >= 0.8 ? 'Đúng cam kết' : 'Cần chú ý'}</strong></div>
                   </div>
                 </div>
 
@@ -687,10 +690,10 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                     <span>Comment, Review, @Mention</span>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5 text-[10px]" style={{ color: 'var(--fg2)' }}>
-                    <div>Số comment hữu ích: <strong style={{ color: 'var(--fg)' }}>6 thảo luận</strong></div>
-                    <div>Review hộ người khác: <strong style={{ color: 'var(--fg)' }}>3 pull requests</strong></div>
-                    <div>Số lần hỗ trợ (@mentions): <strong style={{ color: 'var(--fg)' }}>5 lượt</strong></div>
-                    <div>Điểm tương tác: <strong style={{ color: 'var(--primary)' }}>Tích cực</strong></div>
+                    <div>Thảo luận hữu ích: <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.commentCount ?? 0} lượt</strong></div>
+                    <div>Review hỗ trợ nhóm: <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.reviewForOthersCount ?? 0} lượt</strong></div>
+                    <div>Hỗ trợ (@mentions): <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.supportMentionCount ?? 0} lượt</strong></div>
+                    <div>Điểm tương tác: <strong style={{ color: 'var(--primary)' }}>{((breakdown?.rawFeatures?.commentCount ?? 0) + (breakdown?.rawFeatures?.reviewForOthersCount ?? 0) + (breakdown?.rawFeatures?.supportMentionCount ?? 0)) > 0 ? 'Tích cực' : 'Chưa ghi nhận'}</strong></div>
                   </div>
                 </div>
 
@@ -702,7 +705,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
                   </div>
                   <div className="flex justify-between text-[10px]" style={{ color: 'var(--fg2)' }}>
                     <span>Đóng góp ngoài board đã duyệt:</span>
-                    <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.manualPoints || 0} SP</strong>
+                    <strong style={{ color: 'var(--fg)' }}>{breakdown?.rawFeatures?.manualPoints ?? 0} SP</strong>
                   </div>
                 </div>
               </div>
@@ -718,11 +721,11 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
               <div className="p-2.5 rounded-lg border space-y-1.5 font-mono text-[10px]" style={{ background: 'var(--surface)', borderColor: 'var(--line)' }}>
                 <div className="flex justify-between">
                   <span style={{ color: 'var(--fg3)' }}>ln(1 + SP):</span>
-                  <span className="text-cyan-400 font-bold">{breakdown?.logFeatures?.ln_1_sp?.toFixed(3) || '2.154'}</span>
+                  <span className="text-cyan-400 font-bold">{(breakdown?.logFeatures?.ln_1_sp ?? 0).toFixed(3)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span style={{ color: 'var(--fg3)' }}>ln(1 + Cards):</span>
-                  <span className="text-cyan-400 font-bold">{breakdown?.logFeatures?.ln_1_cards?.toFixed(3) || '1.099'}</span>
+                  <span className="text-cyan-400 font-bold">{(breakdown?.logFeatures?.ln_1_cards ?? 0).toFixed(3)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span style={{ color: 'var(--fg3)' }}>z_ij = (x̃ - median) / (1.4826·MAD + ε):</span>
@@ -937,40 +940,49 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           </p>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {impedimentNodes.map((imp) => (
+            {impedimentNodes.length === 0 ? (
               <div
-                key={imp.id}
-                className="p-2 rounded-xl border flex items-start justify-between gap-2 transition"
-                style={{
-                  background: 'var(--surface)',
-                  borderColor: 'var(--line)',
-                }}
+                className="p-2.5 rounded-xl border border-dashed text-[10.5px] text-center"
+                style={{ borderColor: 'var(--line)', color: 'var(--fg3)' }}
               >
-                <div>
-                  <strong className="text-xs block" style={{ color: 'var(--fg)' }}>
-                    {imp.label}
-                  </strong>
-                  <span className="text-[10px] block mt-0.5" style={{ color: 'var(--fg3)' }}>
-                    {imp.description || 'Yếu tố rào cản ngoại cảnh làm chậm tiến độ'}
-                  </span>
-                </div>
-                <span
-                  className="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 uppercase"
+                Chưa ghi nhận rào cản ngoại cảnh nào trong Sprint này.
+              </div>
+            ) : (
+              impedimentNodes.map((imp) => (
+                <div
+                  key={imp.id}
+                  className="p-2 rounded-xl border flex items-start justify-between gap-2 transition"
                   style={{
-                    background: imp.color ? `color-mix(in srgb, ${imp.color} 20%, transparent)` : 'var(--line)',
-                    color: imp.color || 'var(--fg)',
-                    border: `1px solid ${imp.color || 'var(--line)'}`,
+                    background: 'var(--surface)',
+                    borderColor: 'var(--line)',
                   }}
                 >
-                  {imp.badge || 'Blocker'}
-                </span>
-              </div>
-            ))}
+                  <div>
+                    <strong className="text-xs block" style={{ color: 'var(--fg)' }}>
+                      {imp.label}
+                    </strong>
+                    <span className="text-[10px] block mt-0.5" style={{ color: 'var(--fg3)' }}>
+                      {imp.description || 'Yếu tố rào cản ngoại cảnh làm chậm tiến độ'}
+                    </span>
+                  </div>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 uppercase"
+                    style={{
+                      background: imp.color ? `color-mix(in srgb, ${imp.color} 20%, transparent)` : 'var(--line)',
+                      color: imp.color || 'var(--fg)',
+                      border: `1px solid ${imp.color || 'var(--line)'}`,
+                    }}
+                  >
+                    {imp.badge || 'Blocker'}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
           <button
             type="button"
-            onClick={() => setShowImpactModal(true)}
+            onClick={() => onOpenImpactModal?.()}
             className="w-full mt-2.5 py-1.5 rounded-xl border border-dashed flex items-center justify-center gap-1.5 text-xs font-semibold transition hover:bg-[var(--surface)]"
             style={{
               borderColor: 'var(--line)',
@@ -978,7 +990,7 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
             }}
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            <span>Khai báo yếu tố cản trở mới (Lưu DB)</span>
+            <span>Khai báo rào cản / tác động mới</span>
           </button>
         </div>
 
@@ -1089,160 +1101,6 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
           </button>
         </form>
       </div>
-
-      {/* Modal: Khai báo tác động / Rào cản (Lưu DB) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div
-            className="w-full max-w-md rounded-2xl border p-5 shadow-2xl space-y-4"
-            style={{
-              background: 'var(--surface)',
-              borderColor: 'var(--line)',
-              color: 'var(--fg)',
-            }}
-          >
-            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--line)' }}>
-              <div>
-                <h3 className="text-sm font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Khai Báo Rào Cản / Tác Động Ngoại Cảnh
-                </h3>
-                <p className="text-[10px]" style={{ color: 'var(--fg3)' }}>
-                  Lưu vào CSDL MariaDB & tự động cập nhật mạng lưới đa chiều
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseImpactModal}
-                className="p-1 rounded-lg hover:bg-[var(--surface2)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateImpact} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-medium mb-1" style={{ color: 'var(--fg2)' }}>
-                  Tiêu đề tác động / Rào cản *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Chờ review API từ đối tác, Bị ốm 2 ngày..."
-                  value={impactTitle}
-                  onChange={(e) => setImpactTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border focus:outline-none"
-                  style={{
-                    background: 'var(--surface2)',
-                    borderColor: 'var(--line)',
-                    color: 'var(--fg)',
-                  }}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium mb-1" style={{ color: 'var(--fg2)' }}>
-                    Phân loại tác động
-                  </label>
-                  <select
-                    value={impactCategory}
-                    onChange={(e) => setImpactCategory(e.target.value as ImpactEventPayload['category'])}
-                    className="w-full px-2.5 py-2 rounded-xl border focus:outline-none"
-                    style={{
-                      background: 'var(--surface2)',
-                      borderColor: 'var(--line)',
-                      color: 'var(--fg)',
-                    }}
-                  >
-                    <option value="IMPEDIMENT">Rào cản ngoại cảnh (D2)</option>
-                    <option value="HEALTH_AVAILABILITY">Khả dụng & Sức khỏe (a_i)</option>
-                    <option value="TECHNICAL_BLOCKER">Nghẽn kỹ thuật / Spec</option>
-                    <option value="EXTERNAL_DEPENDENCY">Phụ thuộc bên ngoài</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-medium mb-1" style={{ color: 'var(--fg2)' }}>
-                    Mức độ nghiêm trọng
-                  </label>
-                  <select
-                    value={impactSeverity}
-                    onChange={(e) => setImpactSeverity(e.target.value as ImpactEventPayload['severity'])}
-                    className="w-full px-2.5 py-2 rounded-xl border focus:outline-none"
-                    style={{
-                      background: 'var(--surface2)',
-                      borderColor: 'var(--line)',
-                      color: 'var(--fg)',
-                    }}
-                  >
-                    <option value="LOW">Thấp (Chậm &lt; 1 ngày)</option>
-                    <option value="MEDIUM">Trung bình (1 - 2 ngày)</option>
-                    <option value="HIGH">Cao (&gt; 2 ngày)</option>
-                    <option value="CRITICAL">Nghiêm trọng (Blocker)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-medium mb-1" style={{ color: 'var(--fg2)' }}>
-                  Số ngày trễ dự kiến
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={impactDelay}
-                  onChange={(e) => setImpactDelay(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl border focus:outline-none"
-                  style={{
-                    background: 'var(--surface2)',
-                    borderColor: 'var(--line)',
-                    color: 'var(--fg)',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium mb-1" style={{ color: 'var(--fg2)' }}>
-                  Mô tả chi tiết nguyên nhân
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Giải thích nguyên nhân vì sao chưa hoàn thành được task trong hôm đó / sprint..."
-                  value={impactDesc}
-                  onChange={(e) => setImpactDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border focus:outline-none"
-                  style={{
-                    background: 'var(--surface2)',
-                    borderColor: 'var(--line)',
-                    color: 'var(--fg)',
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t" style={{ borderColor: 'var(--line)' }}>
-                <button
-                  type="button"
-                  onClick={handleCloseImpactModal}
-                  className="px-3 py-1.5 rounded-xl border hover:bg-[var(--surface2)]"
-                  style={{ borderColor: 'var(--line)' }}
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdating}
-                  className="px-4 py-1.5 rounded-xl font-bold text-white shadow-md transition disabled:opacity-50"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {isUpdating ? 'Đang lưu CSDL...' : 'Lưu Vào Database'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal: Điều chỉnh hệ số khả dụng a_i */}
       {showAvailabilityModal && (

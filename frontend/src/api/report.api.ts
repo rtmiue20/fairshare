@@ -96,6 +96,11 @@ export const reportApi = {
     return response.data;
   },
 
+  getEmailStatus: async (): Promise<ApiResponse<{ configured: boolean; senderEmail: string }>> => {
+    const response = await apiClient.get('/reports/email-status');
+    return response.data;
+  },
+
   sendIndividualEmail: async (teamId: number, sprintId: number, userId: number): Promise<ApiResponse<string>> => {
     const response = await apiClient.post('/reports/send-email', {
       teamId,

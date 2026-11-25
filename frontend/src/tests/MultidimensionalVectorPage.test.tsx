@@ -4,6 +4,7 @@ import { MultidimensionalVectorPage } from '../features/integration/Multidimensi
 import { formatSprintsWithWeeks, getSprintRailLayout } from '../features/integration/TimelineScrubber';
 import { contributionApi } from '../api/contribution.api';
 import { teamApi } from '../api/team.api';
+import { boardApi } from '../api/board.api';
 
 // Mock API calls
 vi.mock('../api/contribution.api', () => ({
@@ -20,6 +21,12 @@ vi.mock('../api/contribution.api', () => ({
 vi.mock('../api/team.api', () => ({
   teamApi: {
     getMembers: vi.fn(),
+  },
+}));
+
+vi.mock('../api/board.api', () => ({
+  boardApi: {
+    getBoardsByTeam: vi.fn(),
   },
 }));
 
@@ -407,6 +414,118 @@ describe('MultidimensionalVectorPage Component Tests', () => {
       expect(screen.getByText(/D1 · Sản lượng việc/i)).toBeInTheDocument();
       expect(screen.getByText(/Chống cày điểm ảo/i)).toBeInTheDocument();
       expect(screen.getByText(/95% CI \(Bootstrap\)/i)).toBeInTheDocument();
+    });
+  });
+
+  it('opens centered step-by-step barrier declaration modal from overview and submits with card selection', async () => {
+    vi.mocked(teamApi.getMembers).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: [{ id: 1, fullName: 'Minh Triều', email: 'trieu@ueh.edu.vn', role: 'LEADER' }],
+    } as never);
+
+    vi.mocked(boardApi.getBoardsByTeam).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: [
+        {
+          id: 10,
+          name: 'Board chính',
+          columns: [
+            {
+              id: 1,
+              name: 'In Progress',
+              cards: [{ id: 103, title: 'Tối ưu API đồng bộ', storyPoints: 5 }],
+            },
+          ],
+        },
+      ],
+    } as never);
+
+    vi.mocked(contributionApi.getNetworkGraph).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: {
+        teamId: 1,
+        teamName: 'KINGSHA',
+        sprintId: 3,
+        sprintName: 'Sprint 3 - Hoàn thiện MVP',
+        focusedUserId: 1,
+        focusedUserName: 'Minh Triều',
+        focusedUserRole: 'Trưởng nhóm',
+        finalPct: 0.32,
+        score: 32.0,
+        d1Output: 1.4,
+        d2Reliability: 0.9,
+        d3Collaboration: 0.7,
+        d4Peer: 0.8,
+        compositeScore: 82.0,
+        availabilityFactor: 1.0,
+        distanceToCenter: 2.16,
+        isSuspicious: false,
+        hasSufficientEvidence: true,
+        totalEventsCount: 15,
+        tierBreakdown: {
+          rawFeatures: {},
+          logFeatures: {},
+          robustZScores: {},
+          dimensions: {},
+          availabilityFactor: 1.0,
+          availabilityBonusFactor: 1.0,
+          adjustedDimensions: {},
+          compositeScore: 82.0,
+          finalPercentage: 0.32,
+        },
+        nodes: [],
+        links: [],
+        sprints: [{ id: 3, name: 'Sprint 3 - Hoàn thiện MVP', isCurrent: true, status: 'ACTIVE' }],
+      },
+    } as unknown as Awaited<ReturnType<typeof contributionApi.getNetworkGraph>>);
+
+    vi.mocked(contributionApi.logImpactEvent).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      data: null,
+    } as never);
+
+    render(<MultidimensionalVectorPage />);
+
+    const openBtn = await screen.findByTestId('btn-open-impact-modal');
+    fireEvent.click(openBtn);
+
+    const modal = await screen.findByTestId('impact-declaration-modal');
+    expect(modal).toBeInTheDocument();
+    expect(screen.getByText(/Bước 1\/3/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Card #103/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('btn-impact-next'));
+    expect(screen.getByText(/Bước 2\/3/i)).toBeInTheDocument();
+
+    const titleInput = screen.getByTestId('input-impact-title');
+    fireEvent.change(titleInput, { target: { value: 'Chờ đối tác review API' } });
+
+    fireEvent.click(screen.getByTestId('btn-impact-next'));
+    expect(screen.getByText(/Bước 3\/3/i)).toBeInTheDocument();
+
+    const confirmBtn = screen.getByTestId('btn-impact-confirm');
+    expect(confirmBtn).toHaveTextContent('Xác nhận khai báo');
+    expect(screen.queryByText(/Lưu Vào Database/i)).not.toBeInTheDocument();
+
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(contributionApi.logImpactEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          teamId: 1,
+          sprintId: 3,
+          userId: 1,
+          title: '[Card #103] Chờ đối tác review API',
+          storyPoints: 5,
+        })
+      );
     });
   });
 });

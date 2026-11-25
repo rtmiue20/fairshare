@@ -308,7 +308,7 @@ function formatAlertTitle(alertType: string): string {
     case 'TASK_TODO':
       return 'Công việc cần bắt đầu thực hiện';
     case 'INACTIVITY_WARNING':
-      return 'Cảnh báo thành viên im lặng quá lâu (CR-04)';
+      return 'Cảnh báo thành viên im lặng quá lâu';
     case 'PEER_REVIEW_SUFFICIENT':
       return 'Đủ điều kiện giải mã điểm chéo 360° (Nghị định 13)';
     case 'MILESTONE_PROGRESS':
@@ -643,8 +643,8 @@ export const AlertList: React.FC = () => {
 
       if (canSyncBellStore) {
         // Dọn dẹp thông báo tự động cũ của đúng nhóm hiện tại khi không còn trong danh sách cảnh báo
-        const activeNotifIds = new Set(riskItems.map((r) => `alert-${currentTeamId}-${r.id}`));
-        const activeDescriptions = new Set(riskItems.map((r) => r.desc));
+        const activeNotifIds = new Set(items.map((r) => `alert-${currentTeamId}-${r.id}`));
+        const activeDescriptions = new Set(items.map((r) => r.desc));
         const currentStoreNotifs = useNotificationStore.getState().notifications;
         for (const n of currentStoreNotifs) {
           if (n.teamId !== currentTeamId) continue;
@@ -679,7 +679,7 @@ export const AlertList: React.FC = () => {
               type: item.level,
               title: `[Tự động] ${item.title} · ${item.userName}`,
               message: item.desc,
-              authorName: 'Hệ thống giám sát CR-04',
+              authorName: 'Hệ thống giám sát tiến độ',
               authorRole: 'Auto Monitor',
               avatarBg:
                 item.level === 'error'
@@ -847,7 +847,7 @@ export const AlertList: React.FC = () => {
                 id: 9000 + m.userId,
                 level: 'warning',
                 title: formatAlertTitle('INACTIVITY_WARNING'),
-                desc: `Thành viên ${m.userName} không có hoạt động trong ${m.daysInactive} ngày liên tiếp (vượt ngưỡng ${threshold} ngày theo quy tắc CR-04).`,
+                desc: `Thành viên ${m.userName} không có hoạt động trong ${m.daysInactive} ngày liên tiếp (vượt ngưỡng ${threshold} ngày cho phép).`,
                 timeAgo: 'Tự động quét hôm nay',
                 userId: m.userId,
                 userName: m.userName,
@@ -960,18 +960,45 @@ export const AlertList: React.FC = () => {
   };
 
   const handleRemind = async (id: number, userName: string) => {
-    try {
-      const res = await apiClient.post<ApiResponse<string>>(`/alerts/${id}/remind`);
-      showToast(res.data?.data || `Đã gửi thông báo nhắc nhở đến ${userName}`);
-    } catch {
-      showToast(`Đã gửi thông báo nhắc nhở đến ${userName}`);
+    const targetAlert = alerts.find((a) => a.id === id);
+    let sentOk = false;
+    if (id < 9000) {
+      try {
+        const res = await apiClient.post<ApiResponse<string>>(`/alerts/${id}/remind`);
+        showToast(res.data?.data || `Đã gửi thông báo nhắc nhở đến ${userName}`);
+        sentOk = true;
+      } catch {
+        // fallback below if alert isn't persisted yet
+      }
+    }
+    if (!sentOk && currentTeamId > 0) {
+      try {
+        await apiClient.post(`/alerts/team/${currentTeamId}`, {
+          userId: targetAlert?.userId,
+          userName,
+          templateType: 'WARNING',
+          alertType: 'CUSTOM_WARNING',
+          severity: 'WARNING',
+          title: 'Nhắc nhở tiến độ',
+          message: targetAlert?.taskTitle
+            ? `Vui lòng kiểm tra và cập nhật tiến độ công việc "${targetAlert.taskTitle}".`
+            : 'Bạn có lời nhắc cập nhật hoạt động và tiến độ công việc mới trong nhóm.',
+          taskTitle: targetAlert?.taskTitle,
+          senderName: currentUser?.fullName || currentUser?.email || 'Nhóm trưởng',
+          senderRole: 'Nhóm trưởng',
+        });
+        showToast(`Đã gửi thông báo nhắc nhở đến ${userName}`);
+        sentOk = true;
+      } catch {
+        showToast(`Đã gửi thông báo nhắc nhở đến ${userName}`);
+      }
     }
     addNotification({
       teamId: currentTeamId,
       source: 'manual',
       type: 'warning',
       title: 'Đã gửi lời nhắc tiến độ',
-      message: `Lời nhắc Inactivity đã được chuyển tới thành viên ${userName}.`,
+      message: `Lời nhắc tiến độ đã được chuyển tới thành viên ${userName}.`,
       authorName: 'Hệ thống Cảnh báo',
       avatarText: 'CB',
       avatarBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
@@ -1739,7 +1766,7 @@ export const AlertList: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <Sliders size={18} color="#6366f1" />
               <h2 style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: theme.headingColor }}>
-                Cấu hình ngưỡng im lặng (CR-04)
+                Cấu hình ngưỡng im lặng
               </h2>
             </div>
 
